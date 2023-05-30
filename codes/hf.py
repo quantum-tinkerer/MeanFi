@@ -64,7 +64,7 @@ def compute_mf(vals, vecs, filling, H_int):
     return direct_mf - exchange_mf
 
 
-def scf_loop(mf, H_int, nk, filling, hamiltonians_0, tol):
+def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
     if np.linalg.norm(mf) < tol:
         return 0
     # Generate the Hamiltonian
