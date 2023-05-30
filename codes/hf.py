@@ -66,13 +66,7 @@ def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
     vecs = np.linalg.qr(vecs)[0]
 
     mf_new = compute_mf(vals=vals, vecs=vecs, filling=filling, H_int=H_int)
-
-    diff = mf_new - mf
-
-    if np.linalg.norm(mf_new) < tol:
-        return 0
-    else:
-        return diff
+    return np.abs(mf_new - mf)
 
 
 def find_groundstate_ham(
@@ -85,5 +79,5 @@ def find_groundstate_ham(
         hamiltonians_0=hamiltonians_0,
         tol=tol,
     )
-    mf = anderson(fun, guess, f_tol=tol, w0=mixing, M=order)
+    mf = anderson(fun, guess, f_rtol=tol, w0=mixing, M=order)
     return hamiltonians_0 + mf
