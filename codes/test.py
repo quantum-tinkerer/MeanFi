@@ -69,3 +69,31 @@ def hubbard_2D(U, N_ks):
     v_int = U * np.ones((2,2))
     V = np.array([[v_int for i in range(N_ks)] for j in range(N_ks)])
     return hamiltonians_0, V
+
+
+def hubbard_1D(U, N_ks):
+    chain = kwant.lattice.chain(a=1, norbs=2)
+    # create bulk system
+    bulk_hubbard = kwant.Builder(kwant.TranslationalSymmetry(*chain.prim_vecs))
+    bulk_hubbard[chain.shape((lambda pos: True), (0,))] = 0 * np.eye(2)
+    # add hoppings between lattice points
+    bulk_hubbard[chain.neighbors()] = -1
+
+    # use kwant wraparound to sample bulk k-space
+    wrapped_fsyst = kwant.wraparound.wraparound(bulk_hubbard).finalized()
+
+    # return a hamiltonian for a given kx, ky
+    @np.vectorize
+    def hamiltonian_return(kx, params={}):
+        ham = wrapped_fsyst.hamiltonian_submatrix(params={**params, **dict(k_x=kx)})
+        return ham
+
+    N_k_axis = np.linspace(0, 2 * np.pi, N_ks, endpoint=False)
+    hamiltonians_0 = np.array(
+        [hamiltonian_return(kx) for kx in N_k_axis]
+        )
+
+    # onsite interactions
+    v_int = U * np.ones((2,2))
+    V = np.array([v_int for i in range(N_ks)])
+    return hamiltonians_0, V
