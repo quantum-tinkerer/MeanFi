@@ -27,26 +27,20 @@ def mean_field_F(vals, vecs, E_F):
 def convolution(M1, M2):
     cell_size = M2.shape[-1]
     dim = len(M2.shape)-2
-
-    axes_order = [i for i in range(2, dim+2, 1)]
-    axes_order.extend([0, 1])
-    axes_order = tuple(axes_order)
-
-    def T_kx_cell(M):
-        # transpose the k with cell indices
-        return np.transpose(M, axes=axes_order)
     
     V_output = np.array(
         [
             [
-                convolve(T_kx_cell(M1)[i, j, ],T_kx_cell(M2)[i, j, ], mode="wrap")
+                convolve(M1[..., i, j], M2[..., i, j], mode="wrap")
                 for i in range(cell_size)
             ]
             for j in range(cell_size)
         ]
     )
-    print(axes_order)
-    V_output = T_kx_cell(V_output)
+
+    axes_order = np.roll(np.arange(dim+2), shift=dim)
+    V_output = np.transpose(V_output, axes=axes_order)
+    breakpoint()
     return V_output
 
 
@@ -60,7 +54,6 @@ def compute_mf(vals, vecs, filling, H_int):
     rho = np.diag(np.average(F, axis=tuple([i for i in range(dim)])))
     exchange_mf = convolution(F, H_int) * nk ** (-2)
     direct_mf = np.diag(np.einsum("i,ij->j", rho, H0_int))
-
     return direct_mf - exchange_mf
 
 
