@@ -40,7 +40,6 @@ def convolution(M1, M2):
 
     axes_order = np.roll(np.arange(dim+2), shift=dim)
     V_output = np.transpose(V_output, axes=axes_order)
-    breakpoint()
     return V_output
 
 
@@ -57,27 +56,23 @@ def compute_mf(vals, vecs, filling, H_int):
     return direct_mf - exchange_mf
 
 
-def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
-    if np.linalg.norm(mf) < tol:
-        return 0
+def scf_loop(mf, H_int, filling, hamiltonians_0):
     # Generate the Hamiltonian
     hamiltonians = hamiltonians_0 + mf
     vals, vecs = np.linalg.eigh(hamiltonians)
     vecs = np.linalg.qr(vecs)[0]
-
     mf_new = compute_mf(vals=vals, vecs=vecs, filling=filling, H_int=H_int)
     return np.abs(mf_new - mf)
 
 
 def find_groundstate_ham(
-    H_int, filling, hamiltonians_0, tol, guess, mixing=0.5, order=1
+    H_int, filling, hamiltonians_0, tol, guess, mixing=0.5, order=1, verbose=False
 ):
     fun = partial(
         scf_loop,
         H_int=H_int,
         filling=filling,
-        hamiltonians_0=hamiltonians_0,
-        tol=tol,
+        hamiltonians_0=hamiltonians_0
     )
-    mf = anderson(fun, guess, f_rtol=tol, w0=mixing, M=order)
+    mf = anderson(fun, guess, f_rtol=tol, w0=mixing, M=order, verbose=verbose)
     return hamiltonians_0 + mf
