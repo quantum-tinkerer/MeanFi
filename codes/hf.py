@@ -51,7 +51,7 @@ def compute_mf(vals, vecs, filling, H_int):
     E_F = utils.get_fermi_energy(vals, filling)
     F = mean_field_F(vals, vecs, E_F=E_F)
     rho = np.diag(np.average(F, axis=tuple([i for i in range(dim)])))
-    exchange_mf = convolution(F, H_int) * nk ** (-2)
+    exchange_mf = convolution(F, H_int) * nk ** (-dim)
     direct_mf = np.diag(np.einsum("i,ij->j", rho, H0_int))
     return direct_mf - exchange_mf
 
