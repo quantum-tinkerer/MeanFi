@@ -62,7 +62,7 @@ def scf_loop(mf, H_int, filling, hamiltonians_0):
     vals, vecs = np.linalg.eigh(hamiltonians)
     vecs = np.linalg.qr(vecs)[0]
     mf_new = compute_mf(vals=vals, vecs=vecs, filling=filling, H_int=H_int)
-    return np.abs(mf_new - mf)
+    return np.array(np.abs(mf_new - mf), dtype=complex)
 
 
 def find_groundstate_ham(
