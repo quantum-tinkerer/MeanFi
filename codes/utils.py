@@ -1,6 +1,7 @@
+#%%
 import numpy as np
 import kwant
-
+#%%
 def get_fermi_energy(vals, filling):
     norbs = vals.shape[-1]
     vals_flat = np.sort(vals.flatten())
@@ -31,7 +32,41 @@ def potential2hamiltonian(
     wrapped_V = kwant.wraparound.wraparound(V).finalized()
     return syst2hamiltonian(kxs=ks, kys=ks, syst=wrapped_V, params=params)
 
-def generate_guess(max_neighbor, norbs, lattice, kxs, kys, dummy_syst):
+def generate_guess_new(kxs, kys, hopping_vecs, ndof):
+    """
+    kxs, kys : int
+        number of k points in x and y directions
+    hopping_vecs : np.array
+                hopping vectors as obtained from extract_hopping_vectors
+    norb_list : np.array
+                number of orbitals in each atom
+
+    Notes: 
+    -----
+    Assumes that the desired max nearest neighbour distance is included in the hopping_vecs information.
+    """
+    guess = np.zeros((kxs, kys, ndof, ndof), dtype=complex)
+    kxs_range = np.linspace(-np.pi, np.pi, kxs)
+    kys_range = np.linspace(-np.pi, np.pi, kys)
+    
+    kgrid = np.column_stack((np.repeat(kxs_range, kys), np.tile(kys_range, kxs)))
+
+    #always include onsite/internal hopping
+    rand_real = np.random.rand(ndof, ndof) - 0.5 
+    rand_imag = np.random.rand(ndof, ndof) - 0.5
+    rand_hermitian = rand_real + rand_real.T + 1j * (rand_imag - rand_imag.T)
+    guess += rand_hermitian.reshape(1, 1, ndof, ndof) #no k-dependence for onsite
+
+    for hop in hopping_vecs:  
+        k_dependence = np.exp(1j * np.dot(kgrid, hop)).reshape(kxs, kys, 1, 1)
+        rand_real = np.random.rand(ndof, ndof) - 0.5 
+        rand_imag = np.random.rand(ndof, ndof) - 0.5
+        rand_hermitian = rand_real + rand_real.T + 1j * (rand_imag - rand_imag.T)
+        guess += rand_hermitian.reshape(1, 1, ndof, ndof) * k_dependence
+
+    return guess
+
+def generate_guess(max_neighbor, norbs, lattice, kxs, kys, dummy_syst): ###### problem function
     n_sub = len(lattice.sublattices)
     guess = np.zeros((n_sub + max_neighbor, 2, norbs, norbs))
     for i in range(n_sub):
@@ -63,7 +98,7 @@ def extract_hopping_vectors(builder):
         deltas.append(b_dom)
     return np.asarray(deltas)
 
-def generate_scf_syst(max_neighbor, syst, lattice):
+def generate_scf_syst(max_neighbor, syst, lattice):  ### will probably also become obsolete
     subs = np.array(lattice.sublattices)
     def scf_onsite(site, mat):
         idx = np.where(subs == site.family)[0][0]
