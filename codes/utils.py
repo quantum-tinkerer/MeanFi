@@ -32,7 +32,7 @@ def potential2hamiltonian(
     wrapped_V = kwant.wraparound.wraparound(V).finalized()
     return syst2hamiltonian(kxs=ks, kys=ks, syst=wrapped_V, params=params)
 
-def generate_guess_new(kxs, kys, hopping_vecs, ndof):
+def generate_guess(kxs, kys, hopping_vecs, ndof, scale=0.1):
     """
     kxs, kys : int
         number of k points in x and y directions
@@ -40,6 +40,10 @@ def generate_guess_new(kxs, kys, hopping_vecs, ndof):
                 hopping vectors as obtained from extract_hopping_vectors
     norb_list : np.array
                 number of orbitals in each atom
+    scale : float
+            scale of the guess. If scale=1 then the guess is random around 0.5
+            Smaller values of the guess significantly slows down convergence but 
+            does improve the result at phase instability points.
 
     Notes: 
     -----
@@ -49,42 +53,26 @@ def generate_guess_new(kxs, kys, hopping_vecs, ndof):
     kxs_range = np.linspace(-np.pi, np.pi, kxs)
     kys_range = np.linspace(-np.pi, np.pi, kys)
     
-    kgrid = np.column_stack((np.repeat(kxs_range, kys), np.tile(kys_range, kxs)))
+    kgrid = np.asarray(np.meshgrid(kxs_range, kys_range)).reshape(2, -1).T
 
     #always include onsite/internal hopping
-    rand_real = np.random.rand(ndof, ndof) - 0.5 
-    rand_imag = np.random.rand(ndof, ndof) - 0.5
-    rand_hermitian = rand_real + rand_real.T + 1j * (rand_imag - rand_imag.T)
+    amplitude = np.random.rand(ndof, ndof) 
+    phase = 2 * np.pi * np.random.rand(ndof, ndof)
+    rand_hermitian = amplitude * np.exp(1j * phase)
+    rand_hermitian += rand_hermitian.T.conj()
+    rand_hermitian /= 2
     guess += rand_hermitian.reshape(1, 1, ndof, ndof) #no k-dependence for onsite
 
     for hop in hopping_vecs:  
         k_dependence = np.exp(1j * np.dot(kgrid, hop)).reshape(kxs, kys, 1, 1)
-        rand_real = np.random.rand(ndof, ndof) - 0.5 
-        rand_imag = np.random.rand(ndof, ndof) - 0.5
-        rand_hermitian = rand_real + rand_real.T + 1j * (rand_imag - rand_imag.T)
+        amplitude = np.random.rand(ndof, ndof) 
+        phase = 2 * np.pi * np.random.rand(ndof, ndof)
+        rand_hermitian = amplitude * np.exp(1j * phase)
+        rand_hermitian += rand_hermitian.T.conj()
+        rand_hermitian /= 2
         guess += rand_hermitian.reshape(1, 1, ndof, ndof) * k_dependence
 
-    return guess
-
-def generate_guess(max_neighbor, norbs, lattice, kxs, kys, dummy_syst): ###### problem function
-    n_sub = len(lattice.sublattices)
-    guess = np.zeros((n_sub + max_neighbor, 2, norbs, norbs))
-    for i in range(n_sub):
-        # Real part
-        guess[i, 0] = np.random.rand(norbs, norbs) - 0.5
-        guess[i, 0] += guess[i, 0].T
-        # Imag part
-        guess[i, 1] = np.random.rand(norbs, norbs) - 0.5
-        guess[i, 1] -= guess[i, 1].T
-    for neighbor in range(max_neighbor):
-        # Real part
-        guess[n_sub + neighbor, 0] = np.random.rand(norbs, norbs) - 0.5
-        # Imag part
-        guess[n_sub + neighbor, 1] = np.random.rand(norbs, norbs) - 0.5
-    guess_k = syst2hamiltonian(
-        kxs=kxs, kys=kys, syst=dummy_syst, params=dict(mat=guess)
-    )
-    return guess_k
+    return guess*scale
 
 def extract_hopping_vectors(builder):
     keep=None
@@ -98,7 +86,7 @@ def extract_hopping_vectors(builder):
         deltas.append(b_dom)
     return np.asarray(deltas)
 
-def generate_scf_syst(max_neighbor, syst, lattice):  ### will probably also become obsolete
+def generate_scf_syst(max_neighbor, syst, lattice):  
     subs = np.array(lattice.sublattices)
     def scf_onsite(site, mat):
         idx = np.where(subs == site.family)[0][0]
