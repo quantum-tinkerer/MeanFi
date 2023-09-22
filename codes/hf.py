@@ -1,22 +1,42 @@
 from scipy.ndimage import convolve
 import numpy as np
-import utils
+import codes.utils as utils
 from functools import partial
 from scipy.optimize import anderson
 
 
 def mean_field_F(vals, vecs, E_F):
+    """
+    Returns the mean field F_ij(k) = <psi_i(k)|psi_j(k)> for all k-points and
+    eigenvectors below the Fermi level.
+    
+    Parameters
+    ----------
+    vals : array_like
+        eigenvalues of the Hamiltonian
+    vecs : array_like
+        eigenvectors of the Hamiltonian
+    E_F : float
+        Fermi level
+    
+    Returns
+    -------
+    F : array_like
+        mean field F[kx, ky, ..., i, j] where i,j are cell indices.
+    """
     cell_size = vals.shape[-1]
     dim = len(vals.shape)-1
-    nk = vals.shape[0]
+    nk = vals.shape[0] # not sure about this, since it forces a square grid
 
     vals_flat = vals.reshape(-1, cell_size)
     unocc_vals = vals_flat > E_F
     occ_vecs_flat = vecs.reshape(-1, cell_size, cell_size)
-    occ_vecs_flat[unocc_vals] = 0
+    occ_vecs_flat = np.transpose(occ_vecs_flat, axes=[0, 2, 1])
+    occ_vecs_flat[unocc_vals, :] = 0
+    occ_vecs_flat = np.transpose(occ_vecs_flat, axes=[0, 2, 1])
     
     # inner products between eigenvectors
-    F_ij = np.einsum("ijk,kli->ijl", occ_vecs_flat, occ_vecs_flat.conj().T)
+    F_ij = np.einsum("kie,kje->kij", occ_vecs_flat, occ_vecs_flat.conj())
 
     reshape_order = [nk for i in range(dim)]
     reshape_order.extend([cell_size, cell_size])
