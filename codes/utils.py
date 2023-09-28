@@ -32,6 +32,19 @@ def potential2hamiltonian(
     wrapped_V = kwant.wraparound.wraparound(V).finalized()
     return syst2hamiltonian(kxs=ks, kys=ks, syst=wrapped_V, params=params)
 
+def assign_kdependence(nk, dim, ndof, hopping_vecs, content): #goal and content are bad names, suggestions welcome
+
+    klenlist = [nk for i in range(dim)]
+    goal = np.zeros((klenlist+[ndof, ndof]), dtype=complex)
+    reshape_order = [1 for i in range(dim)] #could use a better name
+    kgrid = np.asarray(np.meshgrid(*[np.linspace(-np.pi, np.pi, nk) for i in range(dim)])).reshape(dim, -1).T
+
+    for hop, hop2 in zip(hopping_vecs, content): 
+        k_dependence = np.exp(1j * np.dot(kgrid, hop)).reshape(klenlist+[1,1])
+        goal += hop2.reshape(reshape_order+[ndof, ndof]) * k_dependence
+
+    return goal
+
 def generate_guess(nk, dim, hopping_vecs, ndof, scale=0.1):
     """
     nk : int
@@ -40,8 +53,8 @@ def generate_guess(nk, dim, hopping_vecs, ndof, scale=0.1):
         dimension of the system
     hopping_vecs : np.array
                 hopping vectors as obtained from extract_hopping_vectors
-    norb_list : np.array
-                number of orbitals in each atom
+    ndof : int
+        number of degrees of freedom
     scale : float
             scale of the guess. If scale=1 then the guess is random around 0.5
             Smaller values of the guess significantly slows down convergence but 
@@ -52,29 +65,17 @@ def generate_guess(nk, dim, hopping_vecs, ndof, scale=0.1):
     Assumes that the desired max nearest neighbour distance is included in the hopping_vecs information.
     Creates a square grid by definition, might still want to change that
     """
-    dim = 2
-    klenlist = [nk for i in range(dim)]
-    guess = np.zeros((klenlist+[ndof, ndof]), dtype=complex)
-    kgrid = np.asarray(np.meshgrid(*[np.linspace(-np.pi, np.pi, nk) for i in range(dim)])).reshape(dim, -1).T
-
-    #always include onsite/internal hopping
-    amplitude = np.random.rand(ndof, ndof) 
-    phase = 2 * np.pi * np.random.rand(ndof, ndof)
-    rand_hermitian = amplitude * np.exp(1j * phase)
-    rand_hermitian += rand_hermitian.T.conj()
-    rand_hermitian /= 2
-    reshape_order = [1 for i in range(dim)] #could use a better name
-    guess += rand_hermitian.reshape(reshape_order+[ndof, ndof]) #no k-dependence for onsite
-
-    for hop in hopping_vecs:  
-        k_dependence = np.exp(1j * np.dot(kgrid, hop)).reshape(klenlist+[1,1])
+    all_rand_hermitians = []
+    for n in hopping_vecs:
         amplitude = np.random.rand(ndof, ndof) 
         phase = 2 * np.pi * np.random.rand(ndof, ndof)
         rand_hermitian = amplitude * np.exp(1j * phase)
         rand_hermitian += rand_hermitian.T.conj()
         rand_hermitian /= 2
-        guess += rand_hermitian.reshape(reshape_order+[ndof, ndof]) * k_dependence
-
+        all_rand_hermitians.append(rand_hermitian)
+    all_rand_hermitians = np.asarray(all_rand_hermitians)
+    
+    guess = assign_kdependence(nk, dim, ndof, hopping_vecs, all_rand_hermitians)
     return guess*scale
 
 def extract_hopping_vectors(builder):
@@ -126,6 +127,11 @@ def hk2hop(hk, deltas, ks, dk):
     )
     return hopps
 
+def hktohamiltonian(hk, nk, ks, dk, dim, hopping_vecs, ndof): 
+    """function is basically tiny so maybe don't separapetly create it"""
+    hops = hk2hop(hk, hopping_vecs, ks, dk)
+    hamil = assign_kdependence(nk, dim, ndof, hopping_vecs, hops)
+    return hamil
 
 def hk2syst(deltas, hk, ks, dk, max_neighbor, norbs, lattice):
     hopps = hk2hop(hk, deltas, ks, dk)
