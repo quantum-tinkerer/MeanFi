@@ -32,10 +32,12 @@ def potential2hamiltonian(
     wrapped_V = kwant.wraparound.wraparound(V).finalized()
     return syst2hamiltonian(kxs=ks, kys=ks, syst=wrapped_V, params=params)
 
-def generate_guess(kxs, kys, hopping_vecs, ndof, scale=0.1):
+def generate_guess(nk, dim, hopping_vecs, ndof, scale=0.1):
     """
-    kxs, kys : int
-        number of k points in x and y directions
+    nk : int
+        number of k points
+    dim : int
+        dimension of the system
     hopping_vecs : np.array
                 hopping vectors as obtained from extract_hopping_vectors
     norb_list : np.array
@@ -48,12 +50,12 @@ def generate_guess(kxs, kys, hopping_vecs, ndof, scale=0.1):
     Notes: 
     -----
     Assumes that the desired max nearest neighbour distance is included in the hopping_vecs information.
+    Creates a square grid by definition, might still want to change that
     """
-    guess = np.zeros((kxs, kys, ndof, ndof), dtype=complex)
-    kxs_range = np.linspace(-np.pi, np.pi, kxs)
-    kys_range = np.linspace(-np.pi, np.pi, kys)
-    
-    kgrid = np.asarray(np.meshgrid(kxs_range, kys_range)).reshape(2, -1).T
+    dim = 2
+    klenlist = [nk for i in range(dim)]
+    guess = np.zeros((klenlist+[ndof, ndof]), dtype=complex)
+    kgrid = np.asarray(np.meshgrid(*[np.linspace(-np.pi, np.pi, nk) for i in range(dim)])).reshape(dim, -1).T
 
     #always include onsite/internal hopping
     amplitude = np.random.rand(ndof, ndof) 
@@ -61,16 +63,17 @@ def generate_guess(kxs, kys, hopping_vecs, ndof, scale=0.1):
     rand_hermitian = amplitude * np.exp(1j * phase)
     rand_hermitian += rand_hermitian.T.conj()
     rand_hermitian /= 2
-    guess += rand_hermitian.reshape(1, 1, ndof, ndof) #no k-dependence for onsite
+    reshape_order = [1 for i in range(dim)] #could use a better name
+    guess += rand_hermitian.reshape(reshape_order+[ndof, ndof]) #no k-dependence for onsite
 
     for hop in hopping_vecs:  
-        k_dependence = np.exp(1j * np.dot(kgrid, hop)).reshape(kxs, kys, 1, 1)
+        k_dependence = np.exp(1j * np.dot(kgrid, hop)).reshape(klenlist+[1,1])
         amplitude = np.random.rand(ndof, ndof) 
         phase = 2 * np.pi * np.random.rand(ndof, ndof)
         rand_hermitian = amplitude * np.exp(1j * phase)
         rand_hermitian += rand_hermitian.T.conj()
         rand_hermitian /= 2
-        guess += rand_hermitian.reshape(1, 1, ndof, ndof) * k_dependence
+        guess += rand_hermitian.reshape(reshape_order+[ndof, ndof]) * k_dependence
 
     return guess*scale
 
