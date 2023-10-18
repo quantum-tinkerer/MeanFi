@@ -151,7 +151,7 @@ def hk2hop(hk, deltas, ks, dk):
         "ij,jkl->ikl",
         np.exp(1j * np.einsum("ij,jk->ik", deltas, k_grid)),
         hk,
-    ) * (dk / (2 * np.pi)) ** ndimw
+    ) * (dk / (2 * np.pi)) ** ndim
 
     return hopps
 
