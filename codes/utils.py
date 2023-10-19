@@ -19,9 +19,11 @@ def get_fermi_energy(vals, filling):
         return fermi
 
 
-def syst2hamiltonian(ks, syst, params={}, coordinate_names='xyz'):
-    momenta = ['k_{}'.format(coordinate_names[i])
-                   for i in range(len(syst._wrapped_symmetry.periods))]
+def syst2hamiltonian(ks, syst, params={}, coordinate_names="xyz"):
+    momenta = [
+        "k_{}".format(coordinate_names[i])
+        for i in range(len(syst._wrapped_symmetry.periods))
+    ]
 
     def h_k(k):
         _k_dict = {}
@@ -29,7 +31,7 @@ def syst2hamiltonian(ks, syst, params={}, coordinate_names='xyz'):
             _k_dict[k_n] = k[i]
         return syst.hamiltonian_submatrix(params={**params, **_k_dict})
 
-    k_pts = np.tile(ks, len(momenta)).reshape(len(momenta),len(ks))
+    k_pts = np.tile(ks, len(momenta)).reshape(len(momenta), len(ks))
 
     ham = []
     for k in product(*k_pts):
@@ -38,6 +40,7 @@ def syst2hamiltonian(ks, syst, params={}, coordinate_names='xyz'):
     shape = (*np.repeat(k_pts.shape[1], k_pts.shape[0]), ham.shape[-1], ham.shape[-1])
 
     return ham.reshape(*shape)
+
 
 def potential2hamiltonian(
     syst, lattice, func_onsite, func_hop, ks, params={}, max_neighbor=1
@@ -51,30 +54,29 @@ def potential2hamiltonian(
 
 
 def assign_kdependence(
-    nk, dim, ndof, hopping_vecs, content
-):  # goal and content are bad names, suggestions welcome
-    klenlist = [nk for i in range(dim)]
-    goal = np.zeros((klenlist + [ndof, ndof]), dtype=complex)
-    reshape_order = [1 for i in range(dim)]  # could use a better name
+    ks, hopping_vecs, hopping_matrices
+):
+    ndof = hopping_matrices[0].shape[0]
+    dim = len(hopping_vecs[0])
+    nks = [len(ks) for i in range(dim)]
+    bloch_matrix = np.zeros((nks + [ndof, ndof]), dtype=complex)
     kgrid = (
-        np.asarray(np.meshgrid(*[np.linspace(-np.pi, np.pi, nk) for i in range(dim)]))
+        np.asarray(np.meshgrid(*[ks for i in range(dim)]))
         .reshape(dim, -1)
         .T
     )
 
-    for hop, hop2 in zip(hopping_vecs, content):
-        k_dependence = np.exp(1j * np.dot(kgrid, hop)).reshape(klenlist + [1, 1])
-        goal += hop2.reshape(reshape_order + [ndof, ndof]) * k_dependence
+    for vec, matrix in zip(hopping_vecs, hopping_matrices):
+        bloch_phase = np.exp(1j * np.dot(kgrid, vec)).reshape(nks + [1, 1])
+        bloch_matrix += matrix.reshape([1 for i in range(dim)] + [ndof, ndof]) * bloch_phase
 
-    return goal
+    return bloch_matrix
 
 
-def generate_guess(nk, dim, hopping_vecs, ndof, scale=0.1):
+def generate_guess(nk, hopping_vecs, ndof, scale=0.1):
     """
     nk : int
         number of k points
-    dim : int
-        dimension of the system
     hopping_vecs : np.array
                 hopping vectors as obtained from extract_hopping_vectors
     ndof : int
@@ -89,6 +91,7 @@ def generate_guess(nk, dim, hopping_vecs, ndof, scale=0.1):
     Assumes that the desired max nearest neighbour distance is included in the hopping_vecs information.
     Creates a square grid by definition, might still want to change that
     """
+    dim = len(hopping_vecs[0])
     all_rand_hermitians = []
     for n in hopping_vecs:
         amplitude = np.random.rand(ndof, ndof)
@@ -99,7 +102,7 @@ def generate_guess(nk, dim, hopping_vecs, ndof, scale=0.1):
         all_rand_hermitians.append(rand_hermitian)
     all_rand_hermitians = np.asarray(all_rand_hermitians)
 
-    guess = assign_kdependence(nk, dim, ndof, hopping_vecs, all_rand_hermitians)
+    guess = assign_kdependence(nk, hopping_vecs, all_rand_hermitians)
     return guess * scale
 
 
@@ -139,28 +142,32 @@ def generate_scf_syst(max_neighbor, syst, lattice):
     return wrapped_scf, deltas
 
 
-def hk2hop(hk, deltas, ks, dk):
+def hk2hop(hk, deltas, ks):
     ndim = len(hk.shape) - 2
-    k_pts = np.tile(ks, ndim).reshape(ndim,len(ks))
+    dk = np.diff(ks)[0]
+    nk = len(ks)
+    k_pts = np.tile(ks, ndim).reshape(ndim, nk)
     k_grid = np.array(np.meshgrid(*k_pts))
     k_grid = k_grid.reshape(k_grid.shape[0], np.prod(k_grid.shape[1:]))
     # Can probably flatten this object to make einsum simpler
     hk = hk.reshape(np.prod(hk.shape[:ndim]), *hk.shape[-2:])
 
-    hopps = np.einsum(
-        "ij,jkl->ikl",
-        np.exp(1j * np.einsum("ij,jk->ik", deltas, k_grid)),
-        hk,
-    ) * (dk / (2 * np.pi)) ** ndim
+    hopps = (
+        np.einsum(
+            "ij,jkl->ikl",
+            np.exp(1j * np.einsum("ij,jk->ik", deltas, k_grid)),
+            hk,
+        )
+        * (dk / (2 * np.pi)) ** ndim
+    )
 
     return hopps
 
 
-def hktohamiltonian(hk, nk, ks, dk, dim, hopping_vecs, ndof):
+def hk_densegrid(hk, ks, ks_dense, hopping_vecs):
     """function is basically tiny so maybe don't separapetly create it"""
-    hops = hk2hop(hk, hopping_vecs, ks, dk)
-    hamil = assign_kdependence(nk, dim, ndof, hopping_vecs, hops)
-    return hamil
+    hops = hk2hop(hk, hopping_vecs, ks)
+    return assign_kdependence(ks_dense, hopping_vecs, hops)
 
 
 def hk2syst(deltas, hk, ks, dk, max_neighbor, norbs, lattice):

@@ -69,20 +69,29 @@ def compute_mf(vals, vecs, filling, H_int):
 
     H0_int = H_int[*[0 for i in range(dim)]] # note the k-grid starts at k_x = k_y = 0
     E_F = utils.get_fermi_energy(vals, filling)
-    F = mean_field_F(vals, vecs, E_F=E_F)
+    F = mean_field_F(vals=vals, vecs=vecs, E_F=E_F)
     rho = np.diag(np.average(F, axis=tuple([i for i in range(dim)])))
     exchange_mf = convolution(F, H_int) * nk ** (-dim)
     direct_mf = np.diag(np.einsum("i,ij->j", rho, H0_int))
     return direct_mf - exchange_mf
 
-
-def scf_loop(mf, H_int, filling, hamiltonians_0):
+def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
+    if np.linalg.norm(mf) < tol:
+        return 0
     # Generate the Hamiltonian
     hamiltonians = hamiltonians_0 + mf
     vals, vecs = np.linalg.eigh(hamiltonians)
     vecs = np.linalg.qr(vecs)[0]
+
     mf_new = compute_mf(vals=vals, vecs=vecs, filling=filling, H_int=H_int)
-    return np.array(np.abs(mf_new - mf), dtype=complex)
+
+    diff = mf_new - mf
+
+    if np.linalg.norm(mf_new) < tol:
+        return 0
+    else:
+        return diff
+
 
 
 def find_groundstate_ham(
@@ -92,7 +101,8 @@ def find_groundstate_ham(
         scf_loop,
         H_int=H_int,
         filling=filling,
-        hamiltonians_0=hamiltonians_0
+        hamiltonians_0=hamiltonians_0,
+        tol=tol
     )
-    mf = anderson(fun, guess, f_rtol=tol, w0=mixing, M=order, verbose=verbose)
+    mf = anderson(fun, guess, f_tol=tol, w0=mixing, M=order, verbose=verbose)
     return hamiltonians_0 + mf
