@@ -84,7 +84,7 @@ def potential2hamiltonian(
     func_hop : function
         Hopping function.
     ks : 1D-array
-        Set of k-points. Repeated for all direcitons.
+        Set of k-points. Repeated for all directions.
     params : dict
         System parameters.
     max_neighbor : int
@@ -106,6 +106,21 @@ def potential2hamiltonian(
 def assign_kdependence(
     ks, hopping_vecs, hopping_matrices
 ):
+    """
+    Computes Bloch matrix.
+
+    ks : 1D-array
+        Set of k-points. Repeated for all directions.
+    hopping_vecs : 2D-array
+        Hopping vectors.
+    hopping_matrices : 3D-array
+        Hopping matrices.
+
+    Returns:
+    --------
+    bloch_matrix : nd-array
+        Bloch matrix on a k-point grid.
+    """
     ndof = hopping_matrices[0].shape[0]
     dim = len(hopping_vecs[0])
     nks = [len(ks) for i in range(dim)]
