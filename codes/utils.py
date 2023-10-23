@@ -181,29 +181,6 @@ def extract_hopping_vectors(builder):
     return np.asarray(hopping_vecs)
 
 
-def generate_scf_syst(max_neighbor, syst, lattice):
-    subs = np.array(lattice.sublattices)
-
-    def scf_onsite(site, mat):
-        idx = np.where(subs == site.family)[0][0]
-        return mat[idx, 0] + 1j * mat[idx, 1]
-
-    scf = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
-    scf[syst.sites()] = scf_onsite
-    for neighbor in range(max_neighbor):
-
-        def scf_hopping(site1, site2, mat):
-            return (
-                mat[len(lattice.sublattices) + neighbor, 0]
-                + 1j * mat[len(lattice.sublattices) + neighbor, 1]
-            )
-
-        scf[lattice.neighbors(neighbor + 1)] = scf_hopping
-    hopping_vecs = extract_hopping_vectors(scf)
-    wrapped_scf = kwant.wraparound.wraparound(scf).finalized()
-    return wrapped_scf, hopping_vecs
-
-
 def hk2hop(hk, hopping_vecs, ks):
     """
     Extract hopping matrices from Bloch Hamiltonian.
@@ -265,31 +242,6 @@ def hk_densegrid(hk, ks, ks_dense, hopping_vecs):
     """
     hops = hk2hop(hk, hopping_vecs, ks)
     return assign_kdependence(ks_dense, hopping_vecs, hops)
-
-
-def hk2syst(hopping_vecs, hk, ks, dk, max_neighbor, norbs, lattice):
-    hopps = hk2hop(hk, hopping_vecs, ks, dk)
-    bulk_scf = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
-    for i, delta in enumerate(hopping_vecs):
-        for j, sublattice1 in enumerate(lattice.sublattices):
-            for k, sublattice2 in enumerate(lattice.sublattices):
-                if np.allclose(delta, [0, 0]):
-                    bulk_scf[sublattice1.shape((lambda pos: True), (0, 0))] = hopps[
-                        i, j * norbs : (j + 1) * norbs, j * norbs : (j + 1) * norbs
-                    ]
-                    if k != j:
-                        hopping = (delta, sublattice1, sublattice2)
-                        bulk_scf[kwant.builder.HoppingKind(*hopping)] = hopps[
-                            i, j * norbs : (j + 1) * norbs, k * norbs : (k + 1) * norbs
-                        ]
-                else:
-                    for k, sublattice2 in enumerate(lattice.sublattices):
-                        hopping = (delta, sublattice1, sublattice2)
-                        bulk_scf[kwant.builder.HoppingKind(*hopping)] = hopps[
-                            i, j * norbs : (j + 1) * norbs, k * norbs : (k + 1) * norbs
-                        ]
-    wrapped_scf_syst = kwant.wraparound.wraparound(bulk_scf).finalized()
-    return wrapped_scf_syst
 
 
 def calc_gap(vals, E_F):
