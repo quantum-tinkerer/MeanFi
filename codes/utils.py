@@ -67,8 +67,8 @@ def syst2hamiltonian(ks, syst, params={}, coordinate_names="xyz"):
     return ham.reshape(*shape)
 
 
-def potential2hamiltonian(
-    syst, lattice, func_onsite, func_hop, ks, params={}, max_neighbor=1
+def build_interacting_syst(
+    syst, lattice, func_onsite, func_hop, max_neighbor=1
 ):
     """
     Construct an auxiliary `kwant` system to build Hamiltonian matrix.
@@ -92,15 +92,14 @@ def potential2hamiltonian(
 
     Returns:
     --------
-    H_int : nd-array
-        Interaction matrix for the given onsite and hopping functions.
+    syst_V : `kwant.Builder`
+        Dummy `kwant.Builder` to compute interaction matrix.
     """
-    V = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
-    V[syst.sites()] = func_onsite
+    syst_V = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
+    syst_V[syst.sites()] = func_onsite
     for neighbors in range(max_neighbor):
-        V[lattice.neighbors(neighbors + 1)] = func_hop
-    wrapped_V = kwant.wraparound.wraparound(V).finalized()
-    return syst2hamiltonian(ks=ks, syst=wrapped_V, params=params)
+        syst_V[lattice.neighbors(neighbors + 1)] = func_hop
+    return syst_V
 
 
 def assign_kdependence(
