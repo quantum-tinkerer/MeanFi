@@ -123,8 +123,6 @@ def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
     tol : float
         Tolerance of meanf-field self-consistent loop.
     """
-    if np.linalg.norm(mf) < tol:
-        return 0
     # Generate the Hamiltonian
     hamiltonians = hamiltonians_0 + mf
     vals, vecs = np.linalg.eigh(hamiltonians)
@@ -134,10 +132,7 @@ def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
 
     diff = mf_new - mf
 
-    if np.linalg.norm(mf_new) < tol:
-        return 0
-    else:
-        return diff
+    return diff
 
 
 def find_groundstate_ham(
