@@ -45,6 +45,17 @@ def mean_field_F(vals, vecs, E_F):
 
 
 def convolution(M1, M2):
+    """
+    N-dimensional convolution.
+
+    M1 : nd-array
+    M2 : nd-array
+
+    Returns:
+    --------
+    V_output : nd-array
+        Discrete linear convolution of M1 with M2. 
+    """
     cell_size = M2.shape[-1]
     dim = len(M2.shape)-2
     
@@ -64,6 +75,25 @@ def convolution(M1, M2):
 
 
 def compute_mf(vals, vecs, filling, H_int):
+    """
+    Compute mean-field correction at self-consistent loop.
+
+    Parameters:
+    -----------
+    vals : nd-array
+        Eigenvalues of current loop vals[k_x, ..., k_n, j].
+    vecs : nd_array
+        Eigenvectors of current loop vals[k_x, ..., k_n, i, j].
+    H_int : nd-array
+        Interaction matrix.
+    filling: int
+        Number of electrons per cell.
+
+    Returns:
+    --------
+    mf : nd-array
+        Meanf-field correction with same format as `H_int`.
+    """
     dim = len(vals.shape)-1
     nk = vals.shape[0] 
 
@@ -76,6 +106,22 @@ def compute_mf(vals, vecs, filling, H_int):
     return direct_mf - exchange_mf
 
 def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
+    """
+    Self-consistent loop.
+
+    Parameters:
+    -----------
+    mf : nd-array 
+        Mean-field correction. Same format as the initial guess.
+    H_int : nd-array
+        Interaction matrix.
+    filling: int
+        Number of electrons per cell.
+    hamiltonians_0 : nd-array
+        Non-interacting Hamiltonian. Same format as `H_int`.
+    tol : float
+        Tolerance of meanf-field self-consistent loop.
+    """
     if np.linalg.norm(mf) < tol:
         return 0
     # Generate the Hamiltonian
@@ -97,6 +143,33 @@ def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
 def find_groundstate_ham(
     H_int, filling, hamiltonians_0, tol, guess, mixing=0.5, order=1, verbose=False
 ):
+    """
+    Self-consistent loop to find groundstate Hamiltonian.
+
+    Parameters:
+    -----------
+    H_int: nd-array
+        Interaction matrix H_int[kx, ky, ..., i, j] where i,j are cell indices.
+    filling: int
+        Number of electrons per cell.
+    hamiltonians_0 : nd-array
+        Non-interacting Hamiltonian. Same format as `H_int`.
+    tol : float
+        Tolerance of meanf-field self-consistent loop.
+    guess : nd-array
+        Initial guess. Same format as `H_int`.
+    mixing : float
+        Regularization parameter in Anderson optimization. Default: 0.5.
+    order : int
+        Number of previous solutions to retain. Default: 1.
+    verbose : bool
+        Verbose of Anderson optimization. Default: False.
+
+    Returns:
+    --------
+    hamiltonian : nd-array
+        Groundstate Hamiltonian with same format as `H_int`.
+    """
     fun = partial(
         scf_loop,
         H_int=H_int,
