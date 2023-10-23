@@ -1,11 +1,16 @@
-# %%
 import numpy as np
 import kwant
 from itertools import product
 
-
-# %%
 def get_fermi_energy(vals, filling):
+    """
+    Compute Fermi energy for a given filling factor.
+
+    vals : nd-array
+        Collection of eigenvalues on a grid.
+    filling : int
+        Number of electrons per cell.
+    """
     norbs = vals.shape[-1]
     vals_flat = np.sort(vals.flatten())
     ne = len(vals_flat)
@@ -20,6 +25,26 @@ def get_fermi_energy(vals, filling):
 
 
 def syst2hamiltonian(ks, syst, params={}, coordinate_names="xyz"):
+    """
+    Obtain Hamiltonian on k-point grid for a given `kwant` system.
+
+    Paramters:
+    ----------
+    ks : 1D-array
+        k-points (builds an uniform grid over all directions)
+    syst : wrapped kwant system
+        `kwant` system resulting from `kwant.wraparound.wraparound`
+    params : dict
+        System paramters.
+    coordinate_names : 'str
+        Same as `kwant.wraparound.wraparound`:
+        The names of the coordinates along the symmetry directions of ‘builder’.
+
+    Returns:
+    --------
+    ham : nd-array
+        Hamiltnian matrix with format ham[k_x, ..., k_n, i, j], where i and j are internal degrees of freedom.
+    """
     momenta = [
         "k_{}".format(coordinate_names[i])
         for i in range(len(syst._wrapped_symmetry.periods))
@@ -45,6 +70,31 @@ def syst2hamiltonian(ks, syst, params={}, coordinate_names="xyz"):
 def potential2hamiltonian(
     syst, lattice, func_onsite, func_hop, ks, params={}, max_neighbor=1
 ):
+    """
+    Construct an auxiliary `kwant` system to build Hamiltonian matrix.
+
+    Parameters:
+    -----------
+    syst : `kwant.Builder`
+        Non-interacting `kwant` system.
+    lattice : `kwant.lattice`
+        System lattice.
+    func_onsite : function
+        Onsite function.
+    func_hop : function
+        Hopping function.
+    ks : 1D-array
+        Set of k-points. Repeated for all direcitons.
+    params : dict
+        System parameters.
+    max_neighbor : int
+        Max nearest-neighbor order.
+
+    Returns:
+    --------
+    H_int : nd-array
+        Interaction matrix for the given onsite and hopping functions.
+    """
     V = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
     V[syst.sites()] = func_onsite
     for neighbors in range(max_neighbor):
@@ -107,16 +157,28 @@ def generate_guess(nk, hopping_vecs, ndof, scale=0.1):
 
 
 def extract_hopping_vectors(builder):
+    """
+    Extract hopping vectors.
+
+    Parameters:
+    -----------
+    builder : `kwant.Builder`
+
+    Returns:
+    --------
+    hopping_vecs : 2d-array
+        Hopping vectors stacked in a single array.
+    """
     keep = None
-    deltas = []
+    hopping_vecs = []
     for hop, val in builder.hopping_value_pairs():
         a, b = hop
         b_dom = builder.symmetry.which(b)
         # Throw away part that is in the remaining translation direction, so we get
         # an element of 'sym' which is being wrapped
         b_dom = np.array([t for i, t in enumerate(b_dom) if i != keep])
-        deltas.append(b_dom)
-    return np.asarray(deltas)
+        hopping_vecs.append(b_dom)
+    return np.asarray(hopping_vecs)
 
 
 def generate_scf_syst(max_neighbor, syst, lattice):
@@ -137,12 +199,29 @@ def generate_scf_syst(max_neighbor, syst, lattice):
             )
 
         scf[lattice.neighbors(neighbor + 1)] = scf_hopping
-    deltas = extract_hopping_vectors(scf)
+    hopping_vecs = extract_hopping_vectors(scf)
     wrapped_scf = kwant.wraparound.wraparound(scf).finalized()
-    return wrapped_scf, deltas
+    return wrapped_scf, hopping_vecs
 
 
-def hk2hop(hk, deltas, ks):
+def hk2hop(hk, hopping_vecs, ks):
+    """
+    Extract hopping matrices from Bloch Hamiltonian.
+
+    Parameters:
+    -----------
+    hk : nd-array
+        Bloch Hamiltonian matrix hk[k_x, ..., k_n, i, j]
+    hopping_vecs : 2d-array
+        Hopping vectors
+    ks : 1D-array
+        Set of k-points. Repeated for all directions.
+
+    Returns:
+    --------
+    hopps : 3d-array
+        Hopping matrices.
+    """
     ndim = len(hk.shape) - 2
     dk = np.diff(ks)[0]
     nk = len(ks)
@@ -155,7 +234,7 @@ def hk2hop(hk, deltas, ks):
     hopps = (
         np.einsum(
             "ij,jkl->ikl",
-            np.exp(1j * np.einsum("ij,jk->ik", deltas, k_grid)),
+            np.exp(1j * np.einsum("ij,jk->ik", hopping_vecs, k_grid)),
             hk,
         )
         * (dk / (2 * np.pi)) ** ndim
@@ -165,15 +244,33 @@ def hk2hop(hk, deltas, ks):
 
 
 def hk_densegrid(hk, ks, ks_dense, hopping_vecs):
-    """function is basically tiny so maybe don't separapetly create it"""
+    """
+    Recomputes Hamiltonian on a denser k-point grid.
+
+    Parameters:
+    -----------
+    hk : nd-array
+        Coarse-grid Hamiltonian.
+    ks : 1D-array
+        Coarse-grid k-points.
+    ks_dense : 1D-array
+        Dense-grid k-points.
+    hopping_vecs : 2d-array
+        Hopping vectors.
+
+    Returns:
+    --------
+    hk_dense : nd-array
+        Bloch Hamiltonian computed on a dense grid.
+    """
     hops = hk2hop(hk, hopping_vecs, ks)
     return assign_kdependence(ks_dense, hopping_vecs, hops)
 
 
-def hk2syst(deltas, hk, ks, dk, max_neighbor, norbs, lattice):
-    hopps = hk2hop(hk, deltas, ks, dk)
+def hk2syst(hopping_vecs, hk, ks, dk, max_neighbor, norbs, lattice):
+    hopps = hk2hop(hk, hopping_vecs, ks, dk)
     bulk_scf = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
-    for i, delta in enumerate(deltas):
+    for i, delta in enumerate(hopping_vecs):
         for j, sublattice1 in enumerate(lattice.sublattices):
             for k, sublattice2 in enumerate(lattice.sublattices):
                 if np.allclose(delta, [0, 0]):
@@ -196,6 +293,21 @@ def hk2syst(deltas, hk, ks, dk, max_neighbor, norbs, lattice):
 
 
 def calc_gap(vals, E_F):
+    """
+    Compute gap.
+
+    Parameters:
+    -----------
+    vals : nd-array
+        Eigenvalues on a k-point grid.
+    E_F : float
+        Fermi energy.
+
+    Returns:
+    --------
+    gap : float
+        Indirect gap.
+    """
     emax = np.max(vals[vals <= E_F])
     emin = np.min(vals[vals > E_F])
     return np.abs(emin - emax)
