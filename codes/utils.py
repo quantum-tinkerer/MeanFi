@@ -63,7 +63,7 @@ def kwant2hk(syst, params={}, coordinate_names="xyz"):
 def builder2tb_model(builder):
     from copy import copy
 
-    builder = copy(bulk_graphene)
+    builder = copy(builder)
 
     tb_model = {}
     sites_list = [*builder.sites()]
