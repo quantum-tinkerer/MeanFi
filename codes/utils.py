@@ -60,6 +60,38 @@ def kwant2hk(syst, params={}, coordinate_names="xyz"):
     return bloch_ham
 
 
+def builder2tb_model(builder):
+    from copy import copy
+
+    builder = copy(bulk_graphene)
+
+    tb_model = {}
+    sites_list = [*builder.sites()]
+    norbs_list = [site[0].norbs for site in builder.sites()]
+    norbs_tot = sum(norbs_list)
+    for hop, val in builder.hopping_value_pairs():
+        a, b = hop
+        print(a.pos, b.pos)
+        b_dom = builder.symmetry.which(b)
+        b_fd = builder.symmetry.to_fd(b)
+        atoms = np.array([sites_list.index(a), sites_list.index(b_fd)])
+        row, col = [
+            np.sum(norbs_list[: atoms[0]]) + range(norbs_list[atoms[0]]),
+            np.sum(norbs_list[: atoms[1]]) + range(norbs_list[atoms[1]]),
+        ]
+        row, col = np.array([*product(row, col)]).T
+        data = val.flatten()
+        if tuple(b_dom) in tb_model:
+            tb_model[tuple(b_dom)] += coo_array(
+                (data, (row, col)), shape=(norbs_tot, norbs_tot)
+            ).toarray()
+        else:
+            tb_model[tuple(b_dom)] = coo_array(
+                (data, (row, col)), shape=(norbs_tot, norbs_tot)
+            ).toarray()
+    return tb_model
+
+
 def dict2hk(tb_dict):
     """
     Build Bloch Hamiltonian.
@@ -72,10 +104,12 @@ def dict2hk(tb_dict):
     """
 
     def bloch_ham(k):
-        return sum(
+        ham = sum(
             tb_dict[vector] * np.exp(1j * np.dot(k, np.array(vector)))
             for vector in tb_dict.keys()
         )
+        # ham += ham.T.conj()
+        return ham
 
     return bloch_ham
 
