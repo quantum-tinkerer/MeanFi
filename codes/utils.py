@@ -68,6 +68,7 @@ def builder2tb_model(builder):
     tb_model = {}
     sites_list = [*builder.sites()]
     norbs_list = [site[0].norbs for site in builder.sites()]
+    positions_list = [site[0].pos for site in builder.sites()]
     norbs_tot = sum(norbs_list)
     for hop, val in builder.hopping_value_pairs():
         a, b = hop
@@ -89,6 +90,9 @@ def builder2tb_model(builder):
             tb_model[tuple(b_dom)] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
+    tb_model['norbs'] = norbs_list
+    tb_model['positions'] = positions_list
+    
     return tb_model
 
 
