@@ -2,6 +2,7 @@ import numpy as np
 import kwant
 from itertools import product
 
+
 def get_fermi_energy(vals, filling):
     """
     Compute Fermi energy for a given filling factor.
@@ -24,7 +25,7 @@ def get_fermi_energy(vals, filling):
         return fermi
 
 
-def syst2hamiltonian(ks, syst, params={}, coordinate_names="xyz"):
+def kwant2hk(syst, params={}, coordinate_names="xyz"):
     """
     Obtain Hamiltonian on k-point grid for a given `kwant` system.
 
@@ -50,26 +51,87 @@ def syst2hamiltonian(ks, syst, params={}, coordinate_names="xyz"):
         for i in range(len(syst._wrapped_symmetry.periods))
     ]
 
-    def h_k(k):
+    def bloch_ham(k):
         _k_dict = {}
         for i, k_n in enumerate(momenta):
             _k_dict[k_n] = k[i]
         return syst.hamiltonian_submatrix(params={**params, **_k_dict})
 
-    k_pts = np.tile(ks, len(momenta)).reshape(len(momenta), len(ks))
+    return bloch_ham
+
+
+def dict2hk(tb_dict):
+    """
+    Build Bloch Hamiltonian.
+
+
+    Returns:
+    --------
+    ham : function
+        Evaluates the Hamiltonian at a give k-point
+    """
+
+    def bloch_ham(k):
+        return sum(
+            tb_dict[vector] * np.exp(1j * np.dot(k, np.array(vector)))
+            for vector in tb_dict.keys()
+        )
+
+    return bloch_ham
+
+
+def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
+    """
+    Evaluates Hamiltonian on a k-point grid.
+
+    Paramters:
+    ----------
+    nk : int
+        Number of k-points along each direction.
+    tb_dict : dictionary
+        Must have the following structure:
+            - Keys are tuples for each hopping vector (in units of lattice vectors).
+            - Values are hopping matrices.
+
+    Returns:
+    --------
+    ham : nd.array
+        Hamiltonian evaluated on a k-point grid from k-points
+        along each direction evaluated from zero to 2*pi.
+        The indices are ordered as [k_1, ... , k_n, i, j], where
+        `k_m` corresponding to the k-point element along each
+        direction and `i` and `j` are the internal degrees of freedom.
+    """
+    if type(syst) == kwant.builder.FiniteSystem:
+        try:
+            dim = len(syst._wrapped_symmetry.periods)
+            hk = kwant2hk(syst, params)
+        except:
+            return syst.hamiltonian_submatrix(params=params)
+    elif type(syst) == dict:
+        dim = len(next(iter(syst)))
+        if dim == 0:
+            return syst[next(iter(syst))]
+        else:
+            hk = dict2hk(syst)
+
+    ks = 2 * np.pi * np.linspace(0, 1, nk, endpoint=False)
+
+    k_pts = np.tile(ks, dim).reshape(dim, nk)
 
     ham = []
     for k in product(*k_pts):
-        ham.append(h_k(k))
+        ham.append(hk(k))
     ham = np.array(ham)
-    shape = (*np.repeat(k_pts.shape[1], k_pts.shape[0]), ham.shape[-1], ham.shape[-1])
+    shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
 
-    return ham.reshape(*shape)
+    if return_ks:
+        return ham.reshape(*shape), ks
+    else:
+        return ham.reshape(*shape)
 
 
-def build_interacting_syst(
-    syst, lattice, func_onsite, func_hop, max_neighbor=1
-):
+def build_interacting_syst(syst, lattice, func_onsite, func_hop, max_neighbor=1):
     """
     Construct an auxiliary `kwant` system to build Hamiltonian matrix.
 
@@ -102,42 +164,7 @@ def build_interacting_syst(
     return syst_V
 
 
-def assign_kdependence(
-    ks, hopping_vecs, hopping_matrices
-):
-    """
-    Computes Bloch matrix.
-
-    ks : 1D-array
-        Set of k-points. Repeated for all directions.
-    hopping_vecs : 2D-array
-        Hopping vectors.
-    hopping_matrices : 3D-array
-        Hopping matrices.
-
-    Returns:
-    --------
-    bloch_matrix : nd-array
-        Bloch matrix on a k-point grid.
-    """
-    ndof = hopping_matrices[0].shape[0]
-    dim = len(hopping_vecs[0])
-    nks = [len(ks) for i in range(dim)]
-    bloch_matrix = np.zeros((nks + [ndof, ndof]), dtype=complex)
-    kgrid = (
-        np.asarray(np.meshgrid(*[ks for i in range(dim)]))
-        .reshape(dim, -1)
-        .T
-    )
-
-    for vec, matrix in zip(hopping_vecs, hopping_matrices):
-        bloch_phase = np.exp(1j * np.dot(kgrid, vec)).reshape(nks + [1, 1])
-        bloch_matrix += matrix.reshape([1 for i in range(dim)] + [ndof, ndof]) * bloch_phase
-
-    return bloch_matrix
-
-
-def generate_guess(nk, hopping_vecs, ndof, scale=0.1):
+def generate_guess(nk, syst_V, scale=0.1):
     """
     nk : int
         number of k points
@@ -155,19 +182,17 @@ def generate_guess(nk, hopping_vecs, ndof, scale=0.1):
     Assumes that the desired max nearest neighbour distance is included in the hopping_vecs information.
     Creates a square grid by definition, might still want to change that
     """
-    dim = len(hopping_vecs[0])
-    all_rand_hermitians = []
-    for n in hopping_vecs:
+    ndof = syst_V[next(iter(syst_V))].shape[-1]
+    guess = {}
+    for vector in syst_V.keys():
         amplitude = np.random.rand(ndof, ndof)
         phase = 2 * np.pi * np.random.rand(ndof, ndof)
         rand_hermitian = amplitude * np.exp(1j * phase)
         rand_hermitian += rand_hermitian.T.conj()
         rand_hermitian /= 2
-        all_rand_hermitians.append(rand_hermitian)
-    all_rand_hermitians = np.asarray(all_rand_hermitians)
+        guess[vector] = rand_hermitian
 
-    guess = assign_kdependence(nk, hopping_vecs, all_rand_hermitians)
-    return guess * scale
+    return kgrid_hamiltonian(nk, guess) * scale
 
 
 def extract_hopping_vectors(builder):
@@ -195,7 +220,7 @@ def extract_hopping_vectors(builder):
     return np.asarray(hopping_vecs)
 
 
-def hk2hop(hk, hopping_vecs, ks):
+def hk2tb_model(hk, tb_model, int_model, ks):
     """
     Extract hopping matrices from Bloch Hamiltonian.
 
@@ -213,13 +238,13 @@ def hk2hop(hk, hopping_vecs, ks):
     hopps : 3d-array
         Hopping matrices.
     """
+    hopping_vecs = np.unique(np.array([*tb_model.keys(), *int_model.keys()]), axis=0)
     ndim = len(hk.shape) - 2
     dk = np.diff(ks)[0]
     nk = len(ks)
     k_pts = np.tile(ks, ndim).reshape(ndim, nk)
     k_grid = np.array(np.meshgrid(*k_pts))
     k_grid = k_grid.reshape(k_grid.shape[0], np.prod(k_grid.shape[1:]))
-    # Can probably flatten this object to make einsum simpler
     hk = hk.reshape(np.prod(hk.shape[:ndim]), *hk.shape[-2:])
 
     hopps = (
@@ -231,10 +256,14 @@ def hk2hop(hk, hopping_vecs, ks):
         * (dk / (2 * np.pi)) ** ndim
     )
 
-    return hopps
+    tb_model = {}
+    for i, vector in enumerate(hopping_vecs):
+        tb_model[tuple(vector)] = hopps[i]
+
+    return tb_model
 
 
-def hk_densegrid(hk, ks, ks_dense, hopping_vecs):
+def hk_densegrid(hk, ks, nk_dense):
     """
     Recomputes Hamiltonian on a denser k-point grid.
 
@@ -254,8 +283,8 @@ def hk_densegrid(hk, ks, ks_dense, hopping_vecs):
     hk_dense : nd-array
         Bloch Hamiltonian computed on a dense grid.
     """
-    hops = hk2hop(hk, hopping_vecs, ks)
-    return assign_kdependence(ks_dense, hopping_vecs, hops)
+    tb_model = hk2hop(hk, ks)
+    return kgrid_hamiltonian(nk_dense, tb_model)
 
 
 def calc_gap(vals, E_F):

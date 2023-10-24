@@ -136,7 +136,16 @@ def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
 
 
 def find_groundstate_ham(
-    H_int, filling, hamiltonians_0, tol, guess, mixing=0.5, order=1, verbose=False
+    tb_model,
+    int_model,
+    filling,
+    nk=10,
+    tol=1e-6,
+    guess=None,
+    mixing=0.1,
+    order=3,
+    verbose=False,
+    return_ks=False
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -165,8 +174,13 @@ def find_groundstate_ham(
     hamiltonian : nd-array
         Groundstate Hamiltonian with same format as `H_int`.
     """
+    hamiltonians_0, ks = utils.kgrid_hamiltonian(nk, tb_model, return_ks=True)
     fun = partial(
-        scf_loop, H_int=H_int, filling=filling, hamiltonians_0=hamiltonians_0, tol=tol
+        scf_loop,
+        hamiltonians_0=hamiltonians_0,
+        H_int=utils.kgrid_hamiltonian(nk, int_model),
+        filling=filling,
+        tol=tol,
     )
     mf = anderson(fun, guess, f_tol=tol, w0=mixing, M=order, verbose=verbose)
-    return hamiltonians_0 + mf
+    return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks)
