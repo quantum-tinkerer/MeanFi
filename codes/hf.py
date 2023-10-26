@@ -106,7 +106,7 @@ def compute_mf(vals, vecs, filling, H_int):
     return direct_mf - exchange_mf
 
 
-def scf_loop(mf, H_int, filling, hamiltonians_0, tol):
+def scf_loop(mf, H_int, filling, hamiltonians_0):
     """
     Self-consistent loop.
 
@@ -140,12 +140,12 @@ def find_groundstate_ham(
     int_model,
     filling,
     nk=10,
-    tol=1e-6,
+    tol=1e-5,
     guess=None,
-    mixing=0.1,
-    order=3,
+    mixing=0.01,
+    order=10,
     verbose=False,
-    return_ks=False
+    return_mf=False
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -180,7 +180,9 @@ def find_groundstate_ham(
         hamiltonians_0=hamiltonians_0,
         H_int=utils.kgrid_hamiltonian(nk, int_model),
         filling=filling,
-        tol=tol,
     )
     mf = anderson(fun, guess, f_tol=tol, w0=mixing, M=order, verbose=verbose)
-    return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks)
+    if return_mf:
+        return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks), mf
+    else:
+        return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks)
