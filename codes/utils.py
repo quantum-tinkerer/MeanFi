@@ -1,6 +1,8 @@
 import numpy as np
 import kwant
 from itertools import product
+from scipy.sparse import coo_array
+import inspect
 
 
 def get_fermi_energy(vals, filling):
@@ -60,19 +62,43 @@ def kwant2hk(syst, params={}, coordinate_names="xyz"):
     return bloch_ham
 
 
-def builder2tb_model(builder):
+def builder2tb_model(builder, params={}, return_data=False):
     from copy import copy
 
     builder = copy(builder)
-
+    dims = len(builder.symmetry.periods)
+    onsite_idx = tuple([0]*dims)
     tb_model = {}
     sites_list = [*builder.sites()]
     norbs_list = [site[0].norbs for site in builder.sites()]
     positions_list = [site[0].pos for site in builder.sites()]
     norbs_tot = sum(norbs_list)
+    for site, val in builder.site_value_pairs():
+        site = builder.symmetry.to_fd(site)
+        atom = sites_list.index(site)
+        row = np.sum(norbs_list[: atom]) + range(norbs_list[atom])
+        col = copy(row)
+        row, col = np.array([*product(row, col)]).T
+        try:
+            for arg in inspect.getfullargspec(val).args:
+                _params = {}
+                if arg in params:
+                    _params[arg] = params[arg]
+            val = val(site, **_params)
+            data = val.flatten()
+        except:
+            data = val.flatten()
+        if onsite_idx in tb_model:
+            tb_model[onsite_idx] += coo_array(
+                (data, (row, col)), shape=(norbs_tot, norbs_tot)
+            ).toarray()
+        else:
+            tb_model[onsite_idx] = coo_array(
+                (data, (row, col)), shape=(norbs_tot, norbs_tot)
+            ).toarray()
+    
     for hop, val in builder.hopping_value_pairs():
         a, b = hop
-        print(a.pos, b.pos)
         b_dom = builder.symmetry.which(b)
         b_fd = builder.symmetry.to_fd(b)
         atoms = np.array([sites_list.index(a), sites_list.index(b_fd)])
@@ -81,19 +107,39 @@ def builder2tb_model(builder):
             np.sum(norbs_list[: atoms[1]]) + range(norbs_list[atoms[1]]),
         ]
         row, col = np.array([*product(row, col)]).T
-        data = val.flatten()
+        try:
+            for arg in inspect.getfullargspec(val).args:
+                _params = {}
+                if arg in params:
+                    _params[arg] = params[arg]
+            val = val(a, b, **_params)
+            data = val.flatten()
+        except:
+            data = val.flatten()
         if tuple(b_dom) in tb_model:
             tb_model[tuple(b_dom)] += coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
+            if np.linalg.norm(b_dom) == 0:
+                tb_model[tuple(b_dom)] += coo_array(
+                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
+                ).toarray().T.conj()
         else:
             tb_model[tuple(b_dom)] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
-    tb_model['norbs'] = norbs_list
-    tb_model['positions'] = positions_list
-    
-    return tb_model
+            if np.linalg.norm(b_dom) == 0:
+                tb_model[tuple(b_dom)] += coo_array(
+                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
+                ).toarray().T.conj()
+    data = {}
+    data['norbs'] = norbs_list
+    data['positions'] = positions_list
+
+    if return_data:
+        return tb_model, data
+    else:
+        return tb_model
 
 
 def dict2hk(tb_dict):
@@ -108,11 +154,11 @@ def dict2hk(tb_dict):
     """
 
     def bloch_ham(k):
-        ham = sum(
-            tb_dict[vector] * np.exp(1j * np.dot(k, np.array(vector)))
-            for vector in tb_dict.keys()
-        )
-        # ham += ham.T.conj()
+        ham = 0
+        for vector in tb_dict.keys():
+            ham += tb_dict[vector] * np.exp(1j * np.dot(k, np.array(vector, dtype=float)))
+            if np.linalg.norm(np.array(vector)) > 0:
+                ham += tb_dict[vector].T.conj() * np.exp(-1j * np.dot(k, np.array(vector)))
         return ham
 
     return bloch_ham
@@ -162,7 +208,6 @@ def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
         ham.append(hk(k))
     ham = np.array(ham)
     shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
-
     if return_ks:
         return ham.reshape(*shape), ks
     else:
@@ -202,7 +247,7 @@ def build_interacting_syst(syst, lattice, func_onsite, func_hop, max_neighbor=1)
     return syst_V
 
 
-def generate_guess(nk, syst_V, scale=0.1):
+def generate_guess(nk, tb_model, int_model, scale=0.1):
     """
     nk : int
         number of k points
@@ -220,9 +265,10 @@ def generate_guess(nk, syst_V, scale=0.1):
     Assumes that the desired max nearest neighbour distance is included in the hopping_vecs information.
     Creates a square grid by definition, might still want to change that
     """
-    ndof = syst_V[next(iter(syst_V))].shape[-1]
+    ndof = tb_model[next(iter(tb_model))].shape[-1]
     guess = {}
-    for vector in syst_V.keys():
+    vectors = [*tb_model.keys(), *int_model.keys()]
+    for vector in vectors:
         amplitude = np.random.rand(ndof, ndof)
         phase = 2 * np.pi * np.random.rand(ndof, ndof)
         rand_hermitian = amplitude * np.exp(1j * phase)
@@ -299,30 +345,6 @@ def hk2tb_model(hk, tb_model, int_model, ks):
         tb_model[tuple(vector)] = hopps[i]
 
     return tb_model
-
-
-def hk_densegrid(hk, ks, nk_dense):
-    """
-    Recomputes Hamiltonian on a denser k-point grid.
-
-    Parameters:
-    -----------
-    hk : nd-array
-        Coarse-grid Hamiltonian.
-    ks : 1D-array
-        Coarse-grid k-points.
-    ks_dense : 1D-array
-        Dense-grid k-points.
-    hopping_vecs : 2d-array
-        Hopping vectors.
-
-    Returns:
-    --------
-    hk_dense : nd-array
-        Bloch Hamiltonian computed on a dense grid.
-    """
-    tb_model = hk2hop(hk, ks)
-    return kgrid_hamiltonian(nk_dense, tb_model)
 
 
 def calc_gap(vals, E_F):
