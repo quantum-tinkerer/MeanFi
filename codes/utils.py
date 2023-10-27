@@ -67,7 +67,7 @@ def builder2tb_model(builder, params={}, return_data=False):
 
     builder = copy(builder)
     dims = len(builder.symmetry.periods)
-    onsite_idx = tuple([0]*dims)
+    onsite_idx = tuple([0] * dims)
     tb_model = {}
     sites_list = [*builder.sites()]
     norbs_list = [site[0].norbs for site in builder.sites()]
@@ -76,7 +76,7 @@ def builder2tb_model(builder, params={}, return_data=False):
     for site, val in builder.site_value_pairs():
         site = builder.symmetry.to_fd(site)
         atom = sites_list.index(site)
-        row = np.sum(norbs_list[: atom]) + range(norbs_list[atom])
+        row = np.sum(norbs_list[:atom]) + range(norbs_list[atom])
         col = copy(row)
         row, col = np.array([*product(row, col)]).T
         try:
@@ -96,7 +96,7 @@ def builder2tb_model(builder, params={}, return_data=False):
             tb_model[onsite_idx] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
-    
+
     for hop, val in builder.hopping_value_pairs():
         a, b = hop
         b_dom = builder.symmetry.which(b)
@@ -121,20 +121,24 @@ def builder2tb_model(builder, params={}, return_data=False):
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
             if np.linalg.norm(b_dom) == 0:
-                tb_model[tuple(b_dom)] += coo_array(
-                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
-                ).toarray().T.conj()
+                tb_model[tuple(b_dom)] += (
+                    coo_array((data, (row, col)), shape=(norbs_tot, norbs_tot))
+                    .toarray()
+                    .T.conj()
+                )
         else:
             tb_model[tuple(b_dom)] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
             if np.linalg.norm(b_dom) == 0:
-                tb_model[tuple(b_dom)] += coo_array(
-                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
-                ).toarray().T.conj()
+                tb_model[tuple(b_dom)] += (
+                    coo_array((data, (row, col)), shape=(norbs_tot, norbs_tot))
+                    .toarray()
+                    .T.conj()
+                )
     data = {}
-    data['norbs'] = norbs_list
-    data['positions'] = positions_list
+    data["norbs"] = norbs_list
+    data["positions"] = positions_list
 
     if return_data:
         return tb_model, data
@@ -156,9 +160,13 @@ def dict2hk(tb_dict):
     def bloch_ham(k):
         ham = 0
         for vector in tb_dict.keys():
-            ham += tb_dict[vector] * np.exp(1j * np.dot(k, np.array(vector, dtype=float)))
+            ham += tb_dict[vector] * np.exp(
+                1j * np.dot(k, np.array(vector, dtype=float))
+            )
             if np.linalg.norm(np.array(vector)) > 0:
-                ham += tb_dict[vector].T.conj() * np.exp(-1j * np.dot(k, np.array(vector)))
+                ham += tb_dict[vector].T.conj() * np.exp(
+                    -1j * np.dot(k, np.array(vector))
+                )
         return ham
 
     return bloch_ham
@@ -195,7 +203,10 @@ def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
     elif type(syst) == dict:
         dim = len(next(iter(syst)))
         if dim == 0:
-            return syst[next(iter(syst))]
+            if return_ks:
+                return syst[next(iter(syst))], None
+            else:
+                return syst[next(iter(syst))]
         else:
             hk = dict2hk(syst)
 
@@ -304,7 +315,7 @@ def extract_hopping_vectors(builder):
     return np.asarray(hopping_vecs)
 
 
-def hk2tb_model(hk, tb_model, int_model, ks):
+def hk2tb_model(hk, tb_model, int_model, ks=None):
     """
     Extract hopping matrices from Bloch Hamiltonian.
 
@@ -322,29 +333,34 @@ def hk2tb_model(hk, tb_model, int_model, ks):
     hopps : 3d-array
         Hopping matrices.
     """
-    hopping_vecs = np.unique(np.array([*tb_model.keys(), *int_model.keys()]), axis=0)
-    ndim = len(hk.shape) - 2
-    dk = np.diff(ks)[0]
-    nk = len(ks)
-    k_pts = np.tile(ks, ndim).reshape(ndim, nk)
-    k_grid = np.array(np.meshgrid(*k_pts))
-    k_grid = k_grid.reshape(k_grid.shape[0], np.prod(k_grid.shape[1:]))
-    hk = hk.reshape(np.prod(hk.shape[:ndim]), *hk.shape[-2:])
-
-    hopps = (
-        np.einsum(
-            "ij,jkl->ikl",
-            np.exp(1j * np.einsum("ij,jk->ik", hopping_vecs, k_grid)),
-            hk,
+    if ks is not None:
+        hopping_vecs = np.unique(
+            np.array([*tb_model.keys(), *int_model.keys()]), axis=0
         )
-        * (dk / (2 * np.pi)) ** ndim
-    )
+        ndim = len(hk.shape) - 2
+        dk = np.diff(ks)[0]
+        nk = len(ks)
+        k_pts = np.tile(ks, ndim).reshape(ndim, nk)
+        k_grid = np.array(np.meshgrid(*k_pts))
+        k_grid = k_grid.reshape(k_grid.shape[0], np.prod(k_grid.shape[1:]))
+        hk = hk.reshape(np.prod(hk.shape[:ndim]), *hk.shape[-2:])
 
-    tb_model = {}
-    for i, vector in enumerate(hopping_vecs):
-        tb_model[tuple(vector)] = hopps[i]
+        hopps = (
+            np.einsum(
+                "ij,jkl->ikl",
+                np.exp(1j * np.einsum("ij,jk->ik", hopping_vecs, k_grid)),
+                hk,
+            )
+            * (dk / (2 * np.pi)) ** ndim
+        )
 
-    return tb_model
+        tb_model = {}
+        for i, vector in enumerate(hopping_vecs):
+            tb_model[tuple(vector)] = hopps[i]
+
+        return tb_model
+    else:
+        tb_model = {(): hk}
 
 
 def calc_gap(vals, E_F):
