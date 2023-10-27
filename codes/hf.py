@@ -97,7 +97,7 @@ def compute_mf(vals, vecs, filling, H_int):
     dim = len(vals.shape) - 1
     nk = vals.shape[0]
 
-    H0_int = H_int[*[0 for i in range(dim)]]  # note the k-grid starts at k_x = k_y = 0
+    H0_int = H_int[*[0 for i in range(dim)]]
     E_F = utils.get_fermi_energy(vals, filling)
     F = mean_field_F(vals=vals, vecs=vecs, E_F=E_F)
     rho = np.diag(np.average(F, axis=tuple([i for i in range(dim)])))
@@ -140,10 +140,10 @@ def find_groundstate_ham(
     int_model,
     filling,
     nk=10,
-    tol=1e-5,
+    tol=1e-6,
     guess=None,
     mixing=0.01,
-    order=10,
+    order=5,
     verbose=False,
     return_mf=False
 ):
