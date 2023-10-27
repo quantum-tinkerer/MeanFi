@@ -24,23 +24,31 @@ def mean_field_F(vals, vecs, E_F):
     F : array_like
         mean field F[kx, ky, ..., i, j] where i,j are cell indices.
     """
-    cell_size = vals.shape[-1]
+    norbs = vals.shape[-1]
     dim = len(vals.shape) - 1
     nk = vals.shape[0]
 
-    vals_flat = vals.reshape(-1, cell_size)
-    unocc_vals = vals_flat > E_F
-    occ_vecs_flat = vecs.reshape(-1, cell_size, cell_size)
-    occ_vecs_flat = np.transpose(occ_vecs_flat, axes=[0, 2, 1])
-    occ_vecs_flat[unocc_vals, :] = 0
-    occ_vecs_flat = np.transpose(occ_vecs_flat, axes=[0, 2, 1])
+    if dim > 0:
+        vals_flat = vals.reshape(-1, norbs)
+        unocc_vals = vals_flat > E_F
+        occ_vecs_flat = vecs.reshape(-1, norbs, norbs)
+        occ_vecs_flat = np.transpose(occ_vecs_flat, axes=[0, 2, 1])
+        occ_vecs_flat[unocc_vals, :] = 0
+        occ_vecs_flat = np.transpose(occ_vecs_flat, axes=[0, 2, 1])
 
-    # inner products between eigenvectors
-    F_ij = np.einsum("kie,kje->kij", occ_vecs_flat, occ_vecs_flat.conj())
+        # inner products between eigenvectors
+        F_ij = np.einsum("kie,kje->kij", occ_vecs_flat, occ_vecs_flat.conj())
+        reshape_order = [nk for i in range(dim)]
+        reshape_order.extend([norbs, norbs])
+        F = F_ij.reshape(*reshape_order)
+    else:
+        unocc_vals = vals > E_F
+        occ_vecs = vecs
+        occ_vecs[:, unocc_vals] = 0
 
-    reshape_order = [nk for i in range(dim)]
-    reshape_order.extend([cell_size, cell_size])
-    F = F_ij.reshape(*reshape_order)
+        # Outter products between eigenvectors
+        F = occ_vecs @ occ_vecs.T.conj()
+
     return F
 
 
@@ -95,14 +103,21 @@ def compute_mf(vals, vecs, filling, H_int):
         Meanf-field correction with same format as `H_int`.
     """
     dim = len(vals.shape) - 1
+
     nk = vals.shape[0]
 
-    H0_int = H_int[*[0 for i in range(dim)]]
     E_F = utils.get_fermi_energy(vals, filling)
     F = mean_field_F(vals=vals, vecs=vecs, E_F=E_F)
-    rho = np.diag(np.average(F, axis=tuple([i for i in range(dim)])))
-    exchange_mf = convolution(F, H_int) * nk ** (-dim)
-    direct_mf = np.diag(np.einsum("i,ij->j", rho, H0_int))
+
+    if dim > 0:
+        H0_int = H_int[*[0 for i in range(dim)]]
+        rho = np.diag(np.average(F, axis=tuple([i for i in range(dim)])))
+        exchange_mf = convolution(F, H_int) * nk ** (-dim)
+        direct_mf = np.diag(np.einsum("i,ij->j", rho, H0_int))
+    else:
+        rho = np.diag(F)
+        exchange_mf = F * H_int
+        direct_mf = np.diag(np.einsum("i,ij->j", rho, H_int))
     return direct_mf - exchange_mf
 
 
@@ -140,12 +155,12 @@ def find_groundstate_ham(
     int_model,
     filling,
     nk=10,
-    tol=1e-6,
+    tol=1e-5,
     guess=None,
     mixing=0.01,
-    order=5,
+    order=10,
     verbose=False,
-    return_mf=False
+    return_mf=False,
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -175,6 +190,8 @@ def find_groundstate_ham(
         Groundstate Hamiltonian with same format as `H_int`.
     """
     hamiltonians_0, ks = utils.kgrid_hamiltonian(nk, tb_model, return_ks=True)
+    if guess is None:
+        guess = utils.generate_guess(nk, tb_model, int_model, scale=np.max(np.abs(np.array([*int_model.values()]))))
     fun = partial(
         scf_loop,
         hamiltonians_0=hamiltonians_0,

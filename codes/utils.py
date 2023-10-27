@@ -194,21 +194,14 @@ def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
         `k_m` corresponding to the k-point element along each
         direction and `i` and `j` are the internal degrees of freedom.
     """
-    if type(syst) == kwant.builder.FiniteSystem:
-        try:
-            dim = len(syst._wrapped_symmetry.periods)
-            hk = kwant2hk(syst, params)
-        except:
-            return syst.hamiltonian_submatrix(params=params)
-    elif type(syst) == dict:
-        dim = len(next(iter(syst)))
-        if dim == 0:
-            if return_ks:
-                return syst[next(iter(syst))], None
-            else:
-                return syst[next(iter(syst))]
+    dim = len(next(iter(syst)))
+    if dim == 0:
+        if return_ks:
+            return syst[next(iter(syst))], None
         else:
-            hk = dict2hk(syst)
+            return syst[next(iter(syst))]
+    else:
+        hk = dict2hk(syst)
 
     ks = 2 * np.pi * np.linspace(0, 1, nk, endpoint=False)
 
@@ -283,8 +276,9 @@ def generate_guess(nk, tb_model, int_model, scale=0.1):
         amplitude = np.random.rand(ndof, ndof)
         phase = 2 * np.pi * np.random.rand(ndof, ndof)
         rand_hermitian = amplitude * np.exp(1j * phase)
-        rand_hermitian += rand_hermitian.T.conj()
-        rand_hermitian /= 2
+        if np.linalg.norm(np.array(vector)):
+            rand_hermitian += rand_hermitian.T.conj()
+            rand_hermitian /= 2
         guess[vector] = rand_hermitian
 
     return kgrid_hamiltonian(nk, guess) * scale
@@ -360,7 +354,7 @@ def hk2tb_model(hk, tb_model, int_model, ks=None):
 
         return tb_model
     else:
-        tb_model = {(): hk}
+        return {(): hk}
 
 
 def calc_gap(vals, E_F):
