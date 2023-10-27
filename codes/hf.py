@@ -135,8 +135,11 @@ def scf_loop(mf, H_int, filling, hamiltonians_0):
         Number of electrons per cell.
     hamiltonians_0 : nd-array
         Non-interacting Hamiltonian. Same format as `H_int`.
-    tol : float
-        Tolerance of meanf-field self-consistent loop.
+
+    Returns:
+    --------
+    diff : nd-array
+        Difference of mean-field matrix.
     """
     # Generate the Hamiltonian
     hamiltonians = hamiltonians_0 + mf
@@ -167,12 +170,14 @@ def find_groundstate_ham(
 
     Parameters:
     -----------
-    H_int: nd-array
-        Interaction matrix H_int[kx, ky, ..., i, j] where i,j are cell indices.
+    tb_model : dict
+        Tight-binding model. Must have the following structure:
+            - Keys are tuples for each hopping vector (in units of lattice vectors).
+            - Values are hopping matrices.
+    int_model : dict
+        Interaction matrix model. Must have same structure as `tb_model`
     filling: int
         Number of electrons per cell.
-    hamiltonians_0 : nd-array
-        Non-interacting Hamiltonian. Same format as `H_int`.
     tol : float
         Tolerance of meanf-field self-consistent loop.
     guess : nd-array
@@ -183,11 +188,13 @@ def find_groundstate_ham(
         Number of previous solutions to retain. Default: 1.
     verbose : bool
         Verbose of Anderson optimization. Default: False.
+    return_mf : bool
+        Returns mean-field result. Useful if wanted to reuse as guess in upcoming run.
 
     Returns:
     --------
-    hamiltonian : nd-array
-        Groundstate Hamiltonian with same format as `H_int`.
+    scf_model : dict
+        Tight-binding model of Hartree-Fock solution.
     """
     hamiltonians_0, ks = utils.kgrid_hamiltonian(nk, tb_model, return_ks=True)
     if guess is None:

@@ -3,6 +3,7 @@ import kwant
 from itertools import product
 from scipy.sparse import coo_array
 import inspect
+from copy import copy
 
 
 def get_fermi_energy(vals, filling):
@@ -27,45 +28,28 @@ def get_fermi_energy(vals, filling):
         return fermi
 
 
-def kwant2hk(syst, params={}, coordinate_names="xyz"):
+def builder2tb_model(builder, params={}, return_data=False):
     """
-    Obtain Hamiltonian on k-point grid for a given `kwant` system.
+    Constructs a tight-binding model dictionary from a `kwant.Builder`.
 
-    Paramters:
-    ----------
-    ks : 1D-array
-        k-points (builds an uniform grid over all directions)
-    syst : wrapped kwant system
-        `kwant` system resulting from `kwant.wraparound.wraparound`
+    Parameters:
+    -----------
+    builder : `kwant.Builder`
+        Either builder for non-interacting system or interacting Hamiltonian.
     params : dict
-        System paramters.
-    coordinate_names : 'str
-        Same as `kwant.wraparound.wraparound`:
-        The names of the coordinates along the symmetry directions of ‘builder’.
+        Dictionary of parameters to evaluate the Hamiltonian.
+    return_data : bool
+        Returns dictionary with sites and number of orbitals per site.
 
     Returns:
     --------
-    ham : nd-array
-        Hamiltnian matrix with format ham[k_x, ..., k_n, i, j], where i and j are internal degrees of freedom.
+    tb_model : dict
+        Tight-binding model of non-interacting systems.
+    data : dict
+        Data with sites and number of orbitals. Only if `return_data=True`.
     """
-    momenta = [
-        "k_{}".format(coordinate_names[i])
-        for i in range(len(syst._wrapped_symmetry.periods))
-    ]
-
-    def bloch_ham(k):
-        _k_dict = {}
-        for i, k_n in enumerate(momenta):
-            _k_dict[k_n] = k[i]
-        return syst.hamiltonian_submatrix(params={**params, **_k_dict})
-
-    return bloch_ham
-
-
-def builder2tb_model(builder, params={}, return_data=False):
-    from copy import copy
-
     builder = copy(builder)
+    # Extract information from builder
     dims = len(builder.symmetry.periods)
     onsite_idx = tuple([0] * dims)
     tb_model = {}
@@ -73,6 +57,9 @@ def builder2tb_model(builder, params={}, return_data=False):
     norbs_list = [site[0].norbs for site in builder.sites()]
     positions_list = [site[0].pos for site in builder.sites()]
     norbs_tot = sum(norbs_list)
+    # Extract onsite and hopping matrices.
+    # Based on `kwant.wraparound.wraparound`
+    # Onsite matrices
     for site, val in builder.site_value_pairs():
         site = builder.symmetry.to_fd(site)
         atom = sites_list.index(site)
@@ -96,7 +83,7 @@ def builder2tb_model(builder, params={}, return_data=False):
             tb_model[onsite_idx] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
-
+    # Hopping matrices
     for hop, val in builder.hopping_value_pairs():
         a, b = hop
         b_dom = builder.symmetry.which(b)
@@ -136,11 +123,11 @@ def builder2tb_model(builder, params={}, return_data=False):
                     .toarray()
                     .T.conj()
                 )
-    data = {}
-    data["norbs"] = norbs_list
-    data["positions"] = positions_list
 
     if return_data:
+        data = {}
+        data["norbs"] = norbs_list
+        data["positions"] = positions_list
         return tb_model, data
     else:
         return tb_model
@@ -150,11 +137,10 @@ def dict2hk(tb_dict):
     """
     Build Bloch Hamiltonian.
 
-
     Returns:
     --------
-    ham : function
-        Evaluates the Hamiltonian at a give k-point
+    bloch_ham : function
+        Evaluates the Hamiltonian at a given k-point.
     """
 
     def bloch_ham(k):
@@ -172,7 +158,7 @@ def dict2hk(tb_dict):
     return bloch_ham
 
 
-def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
+def kgrid_hamiltonian(nk, tb_model, return_ks=False):
     """
     Evaluates Hamiltonian on a k-point grid.
 
@@ -180,10 +166,12 @@ def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
     ----------
     nk : int
         Number of k-points along each direction.
-    tb_dict : dictionary
+    tb_model : dictionary
         Must have the following structure:
             - Keys are tuples for each hopping vector (in units of lattice vectors).
             - Values are hopping matrices.
+    return_ks : bool
+        Return k-points.
 
     Returns:
     --------
@@ -193,6 +181,8 @@ def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
         The indices are ordered as [k_1, ... , k_n, i, j], where
         `k_m` corresponding to the k-point element along each
         direction and `i` and `j` are the internal degrees of freedom.
+    ks : 1D-array
+        List of k-points over all directions. Only returned if `return_ks=True`.
     """
     dim = len(next(iter(syst)))
     if dim == 0:
@@ -218,13 +208,13 @@ def kgrid_hamiltonian(nk, syst, params={}, return_ks=False):
         return ham.reshape(*shape)
 
 
-def build_interacting_syst(syst, lattice, func_onsite, func_hop, max_neighbor=1):
+def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor=1):
     """
     Construct an auxiliary `kwant` system to build Hamiltonian matrix.
 
     Parameters:
     -----------
-    syst : `kwant.Builder`
+    builder : `kwant.Builder`
         Non-interacting `kwant` system.
     lattice : `kwant.lattice`
         System lattice.
@@ -232,42 +222,36 @@ def build_interacting_syst(syst, lattice, func_onsite, func_hop, max_neighbor=1)
         Onsite function.
     func_hop : function
         Hopping function.
-    ks : 1D-array
-        Set of k-points. Repeated for all directions.
-    params : dict
-        System parameters.
     max_neighbor : int
-        Max nearest-neighbor order.
+        Maximal nearest-neighbor order.
 
     Returns:
     --------
-    syst_V : `kwant.Builder`
+    int_builder : `kwant.Builder`
         Dummy `kwant.Builder` to compute interaction matrix.
     """
-    syst_V = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
-    syst_V[syst.sites()] = func_onsite
+    int_builder = kwant.Builder(kwant.TranslationalSymmetry(*lattice.prim_vecs))
+    int_builder[builder.sites()] = func_onsite
     for neighbors in range(max_neighbor):
-        syst_V[lattice.neighbors(neighbors + 1)] = func_hop
-    return syst_V
+        int_builder[lattice.neighbors(neighbors + 1)] = func_hop
+    return int_builder
 
 
 def generate_guess(nk, tb_model, int_model, scale=0.1):
     """
     nk : int
-        number of k points
-    hopping_vecs : np.array
-                hopping vectors as obtained from extract_hopping_vectors
-    ndof : int
-        number of degrees of freedom
+        Number of k-points along each direction.
+    tb_model : dict
+        Tight-binding model of non-interacting systems.
+    int_model : dict
+        Tight-binding model for interacting Hamiltonian.
     scale : float
-            scale of the guess. If scale=1 then the guess is random around 0.5
-            Smaller values of the guess significantly slows down convergence but
-            does improve the result at phase instability points.
+        The scale of the guess. Maximum absolute value of each element of the guess.
 
-    Notes:
-    -----
-    Assumes that the desired max nearest neighbour distance is included in the hopping_vecs information.
-    Creates a square grid by definition, might still want to change that
+    Returns:
+    --------
+    guess : nd-array
+        Guess evaluated on a k-point grid.
     """
     ndof = tb_model[next(iter(tb_model))].shape[-1]
     guess = {}
@@ -284,31 +268,6 @@ def generate_guess(nk, tb_model, int_model, scale=0.1):
     return kgrid_hamiltonian(nk, guess) * scale
 
 
-def extract_hopping_vectors(builder):
-    """
-    Extract hopping vectors.
-
-    Parameters:
-    -----------
-    builder : `kwant.Builder`
-
-    Returns:
-    --------
-    hopping_vecs : 2d-array
-        Hopping vectors stacked in a single array.
-    """
-    keep = None
-    hopping_vecs = []
-    for hop, val in builder.hopping_value_pairs():
-        a, b = hop
-        b_dom = builder.symmetry.which(b)
-        # Throw away part that is in the remaining translation direction, so we get
-        # an element of 'sym' which is being wrapped
-        b_dom = np.array([t for i, t in enumerate(b_dom) if i != keep])
-        hopping_vecs.append(b_dom)
-    return np.asarray(hopping_vecs)
-
-
 def hk2tb_model(hk, tb_model, int_model, ks=None):
     """
     Extract hopping matrices from Bloch Hamiltonian.
@@ -317,15 +276,17 @@ def hk2tb_model(hk, tb_model, int_model, ks=None):
     -----------
     hk : nd-array
         Bloch Hamiltonian matrix hk[k_x, ..., k_n, i, j]
-    hopping_vecs : 2d-array
-        Hopping vectors
+    tb_model : dict
+        Tight-binding model of non-interacting systems.
+    int_model : dict
+        Tight-binding model for interacting Hamiltonian.
     ks : 1D-array
-        Set of k-points. Repeated for all directions.
+        Set of k-points. Repeated for all directions. If the system is finite, `ks=None`.
 
     Returns:
     --------
-    hopps : 3d-array
-        Hopping matrices.
+    scf_model : dict
+        TIght-binding model of Hartree-Fock solution.
     """
     if ks is not None:
         hopping_vecs = np.unique(
