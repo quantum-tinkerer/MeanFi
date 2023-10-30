@@ -230,7 +230,7 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
     int_builder : `kwant.Builder`
         Dummy `kwant.Builder` to compute interaction matrix.
     """
-    int_builder = kwant.Builder(kwant.TranslationalSymmetry(**builder.symmetry.periods))
+    int_builder = kwant.Builder(kwant.TranslationalSymmetry(*builder.symmetry.periods))
     int_builder[builder.sites()] = func_onsite
     for neighbors in range(max_neighbor):
         int_builder[lattice.neighbors(neighbors + 1)] = func_hop
