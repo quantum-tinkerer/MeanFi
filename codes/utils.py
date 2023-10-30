@@ -184,14 +184,14 @@ def kgrid_hamiltonian(nk, tb_model, return_ks=False):
     ks : 1D-array
         List of k-points over all directions. Only returned if `return_ks=True`.
     """
-    dim = len(next(iter(syst)))
+    dim = len(next(iter(tb_model)))
     if dim == 0:
         if return_ks:
-            return syst[next(iter(syst))], None
+            return syst[next(iter(tb_model))], None
         else:
-            return syst[next(iter(syst))]
+            return syst[next(iter(tb_model))]
     else:
-        hk = dict2hk(syst)
+        hk = dict2hk(tb_model)
 
     ks = 2 * np.pi * np.linspace(0, 1, nk, endpoint=False)
 
