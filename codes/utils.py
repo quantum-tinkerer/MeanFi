@@ -133,34 +133,9 @@ def builder2tb_model(builder, params={}, return_data=False):
         return tb_model
 
 
-def dict2hk(tb_dict):
+def model2hk(tb_model):
     """
     Build Bloch Hamiltonian.
-
-    Returns:
-    --------
-    bloch_ham : function
-        Evaluates the Hamiltonian at a given k-point.
-    """
-
-    def bloch_ham(k):
-        ham = 0
-        for vector in tb_dict.keys():
-            ham += tb_dict[vector] * np.exp(
-                1j * np.dot(k, np.array(vector, dtype=float))
-            )
-            if np.linalg.norm(np.array(vector)) > 0:
-                ham += tb_dict[vector].T.conj() * np.exp(
-                    -1j * np.dot(k, np.array(vector))
-                )
-        return ham
-
-    return bloch_ham
-
-
-def kgrid_hamiltonian(nk, tb_model, return_ks=False):
-    """
-    Evaluates Hamiltonian on a k-point grid.
 
     Paramters:
     ----------
@@ -183,16 +158,52 @@ def kgrid_hamiltonian(nk, tb_model, return_ks=False):
         direction and `i` and `j` are the internal degrees of freedom.
     ks : 1D-array
         List of k-points over all directions. Only returned if `return_ks=True`.
-    """
-    dim = len(next(iter(tb_model)))
-    if dim == 0:
-        if return_ks:
-            return syst[next(iter(tb_model))], None
-        else:
-            return syst[next(iter(tb_model))]
-    else:
-        hk = dict2hk(tb_model)
 
+    Returns:
+    --------
+    bloch_ham : function
+        Evaluates the Hamiltonian at a given k-point.
+    """
+    assert len(next(iter(tb_model))) > 0, "Zero-dimensional system. The Hamiltonian is simply tb_model[()]."
+    def bloch_ham(k):
+        ham = 0
+        for vector in tb_model.keys():
+            ham += tb_model[vector] * np.exp(
+                1j * np.dot(k, np.array(vector, dtype=float))
+            )
+            if np.linalg.norm(np.array(vector)) > 0:
+                ham += tb_model[vector].T.conj() * np.exp(
+                    -1j * np.dot(k, np.array(vector))
+                )
+        return ham
+
+    return bloch_ham
+
+
+def kgrid_hamiltonian(nk, hk, dim, return_info=False):
+    """
+    Evaluates Hamiltonian on a k-point grid.
+
+    Paramters:
+    ----------
+    nk : int
+        Number of k-points along each direction.
+    hk : function
+        Calculates the Hamiltonian at a given k-point.
+    return_info : bool
+        If `True`, returns k-points and dimension of the tight.
+
+    Returns:
+    --------
+    ham : nd.array
+        Hamiltonian evaluated on a k-point grid from k-points
+        along each direction evaluated from zero to 2*pi.
+        The indices are ordered as [k_1, ... , k_n, i, j], where
+        `k_m` corresponding to the k-point element along each
+        direction and `i` and `j` are the internal degrees of freedom.
+    ks : 1D-array
+        List of k-points over all directions. Only returned if `return_ks=True`.
+    """
     ks = 2 * np.pi * np.linspace(0, 1, nk, endpoint=False)
 
     k_pts = np.tile(ks, dim).reshape(dim, nk)
@@ -202,7 +213,7 @@ def kgrid_hamiltonian(nk, tb_model, return_ks=False):
         ham.append(hk(k))
     ham = np.array(ham)
     shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
-    if return_ks:
+    if return_info:
         return ham.reshape(*shape), ks
     else:
         return ham.reshape(*shape)
@@ -236,15 +247,10 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
         int_builder[lattice.neighbors(neighbors + 1)] = func_hop
     return int_builder
 
-
-def generate_guess(nk, tb_model, int_model, scale=0.1):
+def generate_guess(vectors, ndof, scale=0.1):
     """
     nk : int
         Number of k-points along each direction.
-    tb_model : dict
-        Tight-binding model of non-interacting systems.
-    int_model : dict
-        Tight-binding model for interacting Hamiltonian.
     scale : float
         The scale of the guess. Maximum absolute value of each element of the guess.
 
@@ -253,11 +259,9 @@ def generate_guess(nk, tb_model, int_model, scale=0.1):
     guess : nd-array
         Guess evaluated on a k-point grid.
     """
-    ndof = tb_model[next(iter(tb_model))].shape[-1]
     guess = {}
-    vectors = [*tb_model.keys(), *int_model.keys()]
     for vector in vectors:
-        amplitude = np.random.rand(ndof, ndof)
+        amplitude = scale * np.random.rand(ndof, ndof)
         phase = 2 * np.pi * np.random.rand(ndof, ndof)
         rand_hermitian = amplitude * np.exp(1j * phase)
         if np.linalg.norm(np.array(vector)):
@@ -265,10 +269,12 @@ def generate_guess(nk, tb_model, int_model, scale=0.1):
             rand_hermitian /= 2
         guess[vector] = rand_hermitian
 
-    return kgrid_hamiltonian(nk, guess) * scale
+    return guess
 
+def generate_vectors(cutoff, dim):
+    return np.array([*product(*([[*range(-cutoff, cutoff)]]*dim))])
 
-def hk2tb_model(hk, tb_model, int_model, ks=None):
+def hk2tb_model(hk, hopping_vecs, ks=None):
     """
     Extract hopping matrices from Bloch Hamiltonian.
 
@@ -289,9 +295,6 @@ def hk2tb_model(hk, tb_model, int_model, ks=None):
         TIght-binding model of Hartree-Fock solution.
     """
     if ks is not None:
-        hopping_vecs = np.unique(
-            np.array([*tb_model.keys(), *int_model.keys()]), axis=0
-        )
         ndim = len(hk.shape) - 2
         dk = np.diff(ks)[0]
         nk = len(ks)
