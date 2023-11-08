@@ -27,7 +27,7 @@ def graphene_extended_hubbard():
         return V * np.ones((2, 2))
 
     syst_V = utils.build_interacting_syst(
-        syst=bulk_graphene,
+        builder=bulk_graphene,
         lattice = graphene,
         func_onsite = onsite_int,
         func_hop = nn_int,
