@@ -118,10 +118,9 @@ def compute_mf(vals, vecs, filling, H_int):
         rho = np.diag(F)
         exchange_mf = F * H_int
         direct_mf = np.diag(np.einsum("i,ij->j", rho, H_int))
-    return direct_mf - exchange_mf
+    return direct_mf - exchange_mf - E_F * np.eye(H0_int.shape[-1])
 
-
-def scf_loop(mf, H_int, filling, hamiltonians_0):
+def update_mf(mf, H_int, filling, hamiltonians_0):
     """
     Self-consistent loop.
 
@@ -138,32 +137,33 @@ def scf_loop(mf, H_int, filling, hamiltonians_0):
 
     Returns:
     --------
-    diff : nd-array
-        Difference of mean-field matrix.
+    mf_new : nd-array
+        Updated mean-field solution.
     """
     # Generate the Hamiltonian
     hamiltonians = hamiltonians_0 + mf
     vals, vecs = np.linalg.eigh(hamiltonians)
     vecs = np.linalg.qr(vecs)[0]
 
-    mf_new = compute_mf(vals=vals, vecs=vecs, filling=filling, H_int=H_int)
+    return compute_mf(vals=vals, vecs=vecs, filling=filling, H_int=H_int)
 
+def default_cost(mf, H_int, filling, hamiltonians_0):
+    mf_new = update_mf(mf, H_int, filling, hamiltonians_0)
     diff = mf_new - mf
-
     return diff
 
 
 def find_groundstate_ham(
-    tb_model,
-    int_model,
+    hk,
+    Vk,
+    cutoff,
+    dim,
     filling,
     nk=10,
-    tol=1e-5,
+    cost_function=default_cost,
     guess=None,
-    mixing=0.01,
-    order=10,
-    verbose=False,
-    return_mf=False,
+    optimizer=anderson,
+    optimizer_kwargs=None
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -174,20 +174,10 @@ def find_groundstate_ham(
         Tight-binding model. Must have the following structure:
             - Keys are tuples for each hopping vector (in units of lattice vectors).
             - Values are hopping matrices.
-    int_model : dict
-        Interaction matrix model. Must have same structure as `tb_model`
     filling: int
         Number of electrons per cell.
-    tol : float
-        Tolerance of meanf-field self-consistent loop.
     guess : nd-array
         Initial guess. Same format as `H_int`.
-    mixing : float
-        Regularization parameter in Anderson optimization. Default: 0.5.
-    order : int
-        Number of previous solutions to retain. Default: 1.
-    verbose : bool
-        Verbose of Anderson optimization. Default: False.
     return_mf : bool
         Returns mean-field result. Useful if wanted to reuse as guess in upcoming run.
 
@@ -196,17 +186,31 @@ def find_groundstate_ham(
     scf_model : dict
         Tight-binding model of Hartree-Fock solution.
     """
-    hamiltonians_0, ks = utils.kgrid_hamiltonian(nk, tb_model, return_ks=True)
-    if guess is None:
-        guess = utils.generate_guess(nk, tb_model, int_model, scale=np.max(np.abs(np.array([*int_model.values()]))))
-    fun = partial(
-        scf_loop,
-        hamiltonians_0=hamiltonians_0,
-        H_int=utils.kgrid_hamiltonian(nk, int_model),
-        filling=filling,
+    hamiltonians_0, ks = utils.kgrid_hamiltonian(
+        nk=nk,
+        hk=hk,
+        dim=dim,
+        return_ks=True
     )
-    mf = anderson(fun, guess, f_tol=tol, w0=mixing, M=order, verbose=verbose)
-    if return_mf:
-        return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks), mf
-    else:
-        return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks)
+    H_int = utils.kgrid_hamiltonian(nk, Vk, dim=dim, return_ks=True)
+    vectors = utils.generate_vectors(cutoff, dim)
+    if guess is None:
+        guess = utils.generate_guess(
+            vectors=vectors,
+            ndof=hamiltonians_0.shape[-1],
+            scale=np.max(np.abs(H_int))
+        )
+    guess_k = utils.kgrid_hamiltonian(
+        nk,
+        utils.model2hk(guess),
+        return_ks=True
+    )
+    cost_function_wrapped = partial(
+        cost_function,
+        hamiltonians_0=hamiltonians_0,
+        H_int=H_int,
+        filling=filling,
+        vectors=vectors
+    )
+    mf_k = optimizer(cost_function_wrapped, guess_k, **optimizer_kwargs)
+    return utils.hk2tb_model(mf_k, vectors, ks)
