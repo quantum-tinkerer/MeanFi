@@ -171,16 +171,16 @@ def model2hk(tb_model):
             ham += tb_model[vector] * np.exp(
                 1j * np.dot(k, np.array(vector, dtype=float))
             )
-            if np.linalg.norm(np.array(vector)) > 0:
-                ham += tb_model[vector].T.conj() * np.exp(
-                    -1j * np.dot(k, np.array(vector))
-                )
+            # if np.linalg.norm(np.array(vector)) > 0:
+            #     ham += tb_model[vector].T.conj() * np.exp(
+            #         -1j * np.dot(k, np.array(vector))
+            #     )
         return ham
 
     return bloch_ham
 
 
-def kgrid_hamiltonian(nk, hk, dim, return_info=False):
+def kgrid_hamiltonian(nk, hk, dim, return_ks=False):
     """
     Evaluates Hamiltonian on a k-point grid.
 
@@ -190,8 +190,8 @@ def kgrid_hamiltonian(nk, hk, dim, return_info=False):
         Number of k-points along each direction.
     hk : function
         Calculates the Hamiltonian at a given k-point.
-    return_info : bool
-        If `True`, returns k-points and dimension of the tight.
+    return_ks : bool
+        If `True`, returns k-points.
 
     Returns:
     --------
@@ -213,7 +213,7 @@ def kgrid_hamiltonian(nk, hk, dim, return_info=False):
         ham.append(hk(k))
     ham = np.array(ham)
     shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
-    if return_info:
+    if return_ks:
         return ham.reshape(*shape), ks
     else:
         return ham.reshape(*shape)
@@ -272,7 +272,7 @@ def generate_guess(vectors, ndof, scale=0.1):
     return guess
 
 def generate_vectors(cutoff, dim):
-    return np.array([*product(*([[*range(-cutoff, cutoff)]]*dim))])
+    return [*product(*([[*range(-cutoff, cutoff+1)]]*dim))]
 
 def hk2tb_model(hk, hopping_vecs, ks=None):
     """

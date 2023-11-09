@@ -163,7 +163,8 @@ def find_groundstate_ham(
     cost_function=default_cost,
     guess=None,
     optimizer=anderson,
-    optimizer_kwargs=None
+    optimizer_kwargs={},
+    return_model=False
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -192,7 +193,7 @@ def find_groundstate_ham(
         dim=dim,
         return_ks=True
     )
-    H_int = utils.kgrid_hamiltonian(nk, Vk, dim=dim, return_ks=True)
+    H_int = utils.kgrid_hamiltonian(nk=nk, hk=Vk, dim=dim)
     vectors = utils.generate_vectors(cutoff, dim)
     if guess is None:
         guess = utils.generate_guess(
@@ -201,16 +202,18 @@ def find_groundstate_ham(
             scale=np.max(np.abs(H_int))
         )
     guess_k = utils.kgrid_hamiltonian(
-        nk,
-        utils.model2hk(guess),
-        return_ks=True
+        nk=nk,
+        hk=utils.model2hk(guess),
+        dim=dim,
     )
     cost_function_wrapped = partial(
         cost_function,
         hamiltonians_0=hamiltonians_0,
         H_int=H_int,
         filling=filling,
-        vectors=vectors
     )
-    mf_k = optimizer(cost_function_wrapped, guess_k, **optimizer_kwargs)
-    return utils.hk2tb_model(mf_k, vectors, ks)
+    if return_model:
+        mf_k = optimizer(cost_function_wrapped, guess_k, **optimizer_kwargs)
+        return mf_k, utils.hk2tb_model(hamiltonians_0 + mf_k, vectors, ks)
+    else:
+        return optimizer(cost_function_wrapped, guess_k, **optimizer_kwargs)
