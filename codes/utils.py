@@ -113,6 +113,11 @@ def builder2tb_model(builder, params={}, return_data=False):
                     .toarray()
                     .T.conj()
                 )
+            else:
+                # Hopping vector in the opposite direction
+                tb_model[tuple(-b_dom)] += coo_array(
+                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
+                ).toarray().T.conj()
         else:
             tb_model[tuple(b_dom)] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
@@ -123,6 +128,10 @@ def builder2tb_model(builder, params={}, return_data=False):
                     .toarray()
                     .T.conj()
                 )
+            else:
+                tb_model[tuple(-b_dom)] = coo_array(
+                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
+                ).toarray().T.conj()
 
     if return_data:
         data = {}
