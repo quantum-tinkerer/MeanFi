@@ -164,17 +164,16 @@ def model2hk(tb_model):
     bloch_ham : function
         Evaluates the Hamiltonian at a given k-point.
     """
-    assert len(next(iter(tb_model))) > 0, "Zero-dimensional system. The Hamiltonian is simply tb_model[()]."
+    assert (
+        len(next(iter(tb_model))) > 0
+    ), "Zero-dimensional system. The Hamiltonian is simply tb_model[()]."
+
     def bloch_ham(k):
         ham = 0
         for vector in tb_model.keys():
             ham += tb_model[vector] * np.exp(
                 1j * np.dot(k, np.array(vector, dtype=float))
             )
-            # if np.linalg.norm(np.array(vector)) > 0:
-            #     ham += tb_model[vector].T.conj() * np.exp(
-            #         -1j * np.dot(k, np.array(vector))
-            #     )
         return ham
 
     return bloch_ham
@@ -212,6 +211,9 @@ def kgrid_hamiltonian(nk, hk, dim, return_ks=False):
     for k in product(*k_pts):
         ham.append(hk(k))
     ham = np.array(ham)
+    assert np.allclose(
+        ham, np.transpose(ham, (0, 2, 1)).conj()
+    ), "Tight-binding provided is non-Hermitian. Not supported yet"
     shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
     if return_ks:
         return ham.reshape(*shape), ks
@@ -247,6 +249,7 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
         int_builder[lattice.neighbors(neighbors + 1)] = func_hop
     return int_builder
 
+
 def generate_guess(vectors, ndof, scale=0.1):
     """
     nk : int
@@ -271,8 +274,10 @@ def generate_guess(vectors, ndof, scale=0.1):
 
     return guess
 
+
 def generate_vectors(cutoff, dim):
-    return [*product(*([[*range(-cutoff, cutoff+1)]]*dim))]
+    return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
+
 
 def hk2tb_model(hk, hopping_vecs, ks=None):
     """
