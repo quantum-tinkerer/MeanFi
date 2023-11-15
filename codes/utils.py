@@ -273,13 +273,17 @@ def generate_guess(vectors, ndof, scale=0.1):
     """
     guess = {}
     for vector in vectors:
-        amplitude = scale * np.random.rand(ndof, ndof)
-        phase = 2 * np.pi * np.random.rand(ndof, ndof)
-        rand_hermitian = amplitude * np.exp(1j * phase)
-        if np.linalg.norm(np.array(vector)):
-            rand_hermitian += rand_hermitian.T.conj()
-            rand_hermitian /= 2
-        guess[vector] = rand_hermitian
+        if vector not in guess.keys():
+            amplitude = scale * np.random.rand(ndof, ndof)
+            phase = 2 * np.pi * np.random.rand(ndof, ndof)
+            rand_hermitian = amplitude * np.exp(1j * phase)
+            if np.linalg.norm(np.array(vector)) == 0:
+                rand_hermitian += rand_hermitian.T.conj()
+                rand_hermitian /= 2
+                guess[vector] = rand_hermitian
+            else:
+                guess[vector] = rand_hermitian
+                guess[tuple(-np.array(vector))] = rand_hermitian.T.conj()
 
     return guess
 
