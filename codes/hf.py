@@ -248,7 +248,7 @@ def find_groundstate_ham(
     nk=10,
     solver=kspace_solver,
     optimizer=optimize.anderson,
-    optimizer_kwargs={'verbose': False},
+    optimizer_kwargs={'M':0, 'verbose': False},
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
