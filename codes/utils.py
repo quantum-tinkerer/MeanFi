@@ -188,7 +188,7 @@ def model2hk(tb_model):
     return bloch_ham
 
 
-def kgrid_hamiltonian(nk, hk, dim, return_ks=False):
+def kgrid_hamiltonian(nk, hk, dim, return_ks=False, hermitian=True):
     """
     Evaluates Hamiltonian on a k-point grid.
 
@@ -220,9 +220,10 @@ def kgrid_hamiltonian(nk, hk, dim, return_ks=False):
     for k in product(*k_pts):
         ham.append(hk(k))
     ham = np.array(ham)
-    assert np.allclose(
-        ham, np.transpose(ham, (0, 2, 1)).conj()
-    ), "Tight-binding provided is non-Hermitian. Not supported yet"
+    if hermitian:
+        assert np.allclose(
+            ham, np.transpose(ham, (0, 2, 1)).conj()
+        ), "Tight-binding provided is non-Hermitian. Not supported yet"
     shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
     if return_ks:
         return ham.reshape(*shape), ks
@@ -358,3 +359,22 @@ def calc_gap(vals, E_F):
     emax = np.max(vals[vals <= E_F])
     emin = np.min(vals[vals > E_F])
     return np.abs(emin - emax)
+
+def flat_to_matrix(flat, shape):
+    matrix = np.zeros(shape, dtype=complex)
+    matrix[..., *np.triu_indices(shape[-1])] = flat.reshape(*shape[:-2], -1)
+    indices = np.arange(shape[-1])
+    diagonal = matrix[..., indices, indices]
+    matrix += np.moveaxis(matrix, -1, -2).conj()
+    matrix[..., indices, indices] -= diagonal
+    return matrix
+
+
+def matrix_to_flat(matrix):
+    return matrix[..., *np.triu_indices(matrix.shape[-1])].flatten()
+
+def real_to_complex(z):      # real vector of length 2n -> complex of length n
+    return z[:len(z)//2] + 1j * z[len(z)//2:]
+
+def complex_to_real(z):      # complex vector of length n -> real of length 2n
+    return np.concatenate((np.real(z), np.imag(z)))
