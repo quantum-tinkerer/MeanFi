@@ -20,8 +20,8 @@ def density_matrix(vals, vecs, E_F):
 
     Returns
     -------
-    F : array_like
-        mean field F[kx, ky, ..., i, j] where i,j are cell indices.
+    rho : array_like
+        Density matrix rho=rho[kx, ky, ..., i, j] where i,j are cell indices.
     """
     norbs = vals.shape[-1]
     dim = len(vals.shape) - 1
@@ -87,14 +87,10 @@ def compute_mf(rho, H_int):
 
     Parameters:
     -----------
-    vals : nd-array
-        Eigenvalues of current loop vals[k_x, ..., k_n, j].
-    vecs : nd_array
-        Eigenvectors of current loop vals[k_x, ..., k_n, i, j].
+    rho : nd_array
+        Density matrix.
     H_int : nd-array
         Interaction matrix.
-    filling: int
-        Number of electrons per cell.
 
     Returns:
     --------
@@ -117,51 +113,22 @@ def compute_mf(rho, H_int):
     return direct_mf - exchange_mf
 
 def total_energy(h, rho):
+    """
+    Compute total energy.
+
+    Paramters:
+    ----------
+    h : nd-array
+        Hamiltonian.
+    rho : nd-array
+        Density matrix.
+
+    Returns:
+    --------
+    total_energy : float
+        System total energy computed as tr[h@rho].
+    """
     return np.sum(np.trace(h @ rho, axis1=-1, axis2=-2))
-
-class Model:
-
-    def __init__(self, tb_model, int_model=None, Vk=None, guess=None):
-        self.tb_model = tb_model
-        self.hk = utils.model2hk(tb_model=tb_model)
-        if int_model is not None:
-            self.int_model = int_model
-            self.Vk = utils.model2hk(tb_model=int_model)
-        else:
-            self.Vk = Vk
-        self.dim = len([*tb_model.keys()][0])
-        self.ndof = len([*tb_model.values()][0])
-        self.guess = guess
-            
-
-    def random_guess(self, vectors):
-        self.guess = utils.generate_guess(
-            vectors=vectors,
-            ndof=self.ndof,
-            scale=1
-        )
-
-    def kgrid_evaluation(self, nk):
-        self.hamiltonians_0, self.ks = utils.kgrid_hamiltonian(
-            nk=nk,
-            hk=self.hk,
-            dim=self.dim,
-            return_ks=True
-        )
-        self.H_int = utils.kgrid_hamiltonian(nk=nk, hk=self.Vk, dim=self.dim)
-        self.mf_k = utils.kgrid_hamiltonian(
-            nk=nk,
-            hk=utils.model2hk(self.guess),
-            dim=self.dim,
-        )
-
-    def flatten_mf(self):
-        flat = self.mf_k.flatten()
-        return flat[:len(flat)//2] + 1j * flat[len(flat)//2:]
-
-    def reshape_mf(self, mf_flat):
-        mf_flat = np.concatenate((np.real(mf_flat), np.imag(mf_flat)))
-        return mf_flat.reshape(*self.hamiltonians_0.shape)
 
 def updated_matrices(mf_k, model):
     """
@@ -192,24 +159,102 @@ def updated_matrices(mf_k, model):
     return rho, compute_mf(rho=rho, H_int=model.H_int) - E_F * np.eye(model.hamiltonians_0.shape[-1])
 
 def default_cost(mf, model):
+    """
+    Default cost function.
+
+    Parameters:
+    -----------
+    mf : nd-array
+        Mean-field correction evaluated on a k-point grid.
+    model : Model
+        Physical model.
+
+    Returns:
+    --------
+    cost : nd-array
+        Array with same shape as input. Is chosen to be the largest value between:
+            * Difference between intial and final mean-field correction.
+            * Non-hermitian part of the mean-field correction.
+            * The commutator between the mean-field Hamiltonian and density matrix.
+    """
+    mf_dict = {}
+    for i, key in enumerate(model.guess.keys()):
+        mf_dict[key] = mf[i]
+    mf = utils.kgrid_hamiltonian(
+        nk=model.nk,
+        hk=utils.model2hk(mf_dict),
+        dim=model.dim,
+        hermitian=False
+    )
     model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
     model.energy = total_energy(h=model.hamiltonians_0 + model.mf_k, rho=model.rho)
     h = model.hamiltonians_0 + model.mf_k
-    commutator = h@model.rho - model.rho@h
+    commutator = (h@model.rho - model.rho@h)
     n_herm = (mf - np.moveaxis(mf, -1, -2).conj())/2
     delta_mf = model.mf_k - mf
+    n_herm = [*utils.hk2tb_model(n_herm, model.vectors, model.ks).values()]
+    commutator = [*utils.hk2tb_model(commutator, model.vectors, model.ks).values()]
+    delta_mf = [*utils.hk2tb_model(delta_mf, model.vectors, model.ks).values()]
     quantities = np.array([commutator, delta_mf, n_herm])
     idx_max = np.argmax(np.linalg.norm(quantities.reshape(3, -1), axis=-1))
     return quantities[idx_max]
+
+def kspace_solver(model, nk, optimizer, optimizer_kwargs):
+    """
+    Default cost function.
+
+    Parameters:
+    -----------
+    mf : nd-array
+        Mean-field correction evaluated on a k-point grid.
+    model : Model
+        Physical model.
+
+    Returns:
+    --------
+    cost : nd-array
+        Array with same shape as input. Is chosen to be the largest value between:
+            * Difference between intial and final mean-field correction.
+            * Non-hermitian part of the mean-field correction.
+            * The commutator between the mean-field Hamiltonian and density matrix.
+    """
+    model.kgrid_evaluation(nk=nk)
+    def cost_function(mf):
+        mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
+        model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
+        model.energy = total_energy(h=model.hamiltonians_0 + model.mf_k, rho=model.rho)
+        delta_mf = model.mf_k - mf
+        return utils.matrix_to_flat(utils.complex_to_real(delta_mf))
+
+    mf = optimizer(
+        cost_function,
+        utils.matrix_to_flat(utils.complex_to_real(model.mf_k)),
+        **optimizer_kwargs
+    )
+    mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
+    h = model.hamiltonians_0 + mf
+    commutator = (h@model.rho - model.rho@h)
+    while np.invert(np.isclose(commutator, 0, atol=1e-12)).all():
+        model.random_guess(model.vectors)
+        model.kgrid_evaluation(nk=nk)
+        mf = optimizer(
+            cost_function,
+            utils.matrix_to_flat(utils.complex_to_real(model.mf_k)),
+            **optimizer_kwargs
+        )
+        mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
+        h = model.hamiltonians_0 + mf
+        commutator = (h@model.rho - model.rho@h)
+
 
 def find_groundstate_ham(
     model,
     cutoff_Vk,
     filling,
     nk=10,
-    cost_function=default_cost,
+    solver=kspace_solver,
     optimizer=anderson,
-    optimizer_kwargs={},
+    optimizer_kwargs={'f_tol' : 1e-6},
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -238,16 +283,6 @@ def find_groundstate_ham(
     model.vectors=[*vectors, *model.tb_model.keys()]
     if model.guess is None:
         model.random_guess(model.vectors)
-    model.kgrid_evaluation(nk=nk)
-    fun = partial(
-        cost_function,
-        model=model
-    )
-    mf_k = optimizer(
-        fun,
-        model.mf_k,
-        **optimizer_kwargs
-    )
-    assert np.allclose((mf_k - np.moveaxis(mf_k, -1, -2).conj())/2, 0, atol=1e-5)
-    mf_k = (mf_k + np.moveaxis(mf_k, -1, -2).conj())/2
-    return utils.hk2tb_model(model.hamiltonians_0 + mf_k, model.vectors, model.ks)
+    solver(model, nk, optimizer, optimizer_kwargs)
+    assert np.allclose((model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj())/2, 0, atol=1e-15)
+    return utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
