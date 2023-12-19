@@ -2,7 +2,7 @@ from scipy.ndimage import convolve
 import numpy as np
 import codes.utils as utils
 from functools import partial
-from scipy.optimize import anderson, minimize
+from scipy import optimize
 
 def density_matrix(vals, vecs, E_F):
     """
@@ -158,7 +158,7 @@ def updated_matrices(mf_k, model):
     rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F)
     return rho, compute_mf(rho=rho, H_int=model.H_int) - E_F * np.eye(model.hamiltonians_0.shape[-1])
 
-def default_cost(mf, model):
+def rspace_solver(model, optimizer, optimizer_kwargs):
     """
     Default cost function.
 
@@ -177,29 +177,36 @@ def default_cost(mf, model):
             * Non-hermitian part of the mean-field correction.
             * The commutator between the mean-field Hamiltonian and density matrix.
     """
-    mf_dict = {}
-    for i, key in enumerate(model.guess.keys()):
-        mf_dict[key] = mf[i]
-    mf = utils.kgrid_hamiltonian(
-        nk=model.nk,
-        hk=utils.model2hk(mf_dict),
-        dim=model.dim,
-        hermitian=False
+    model.kgrid_evaluation(nk=model.nk)
+    mf = np.array([*model.guess.values()])
+    shape = mf.shape
+
+    def cost_function(mf):
+        mf = utils.flat_to_matrix(utils.real_to_complex(mf), shape)
+        mf_dict = {}
+        for i, key in enumerate(model.guess.keys()):
+            mf_dict[key] = mf[i]
+        mf = utils.kgrid_hamiltonian(
+            nk=model.nk,
+            hk=utils.model2hk(mf_dict),
+            dim=model.dim,
+            hermitian=False
+        )
+        model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
+        model.energy = total_energy(h=model.hamiltonians_0 + model.mf_k, rho=model.rho)
+        delta_mf = model.mf_k - mf
+        delta_mf = utils.hk2tb_model(delta_mf, model.vectors, model.ks)
+        delta_mf = np.array([*delta_mf.values()])
+        return utils.matrix_to_flat(utils.complex_to_real(delta_mf))
+
+    _ = optimizer(
+        cost_function,
+        utils.matrix_to_flat(utils.complex_to_real(mf)),
+        **optimizer_kwargs
     )
-    model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
-    model.energy = total_energy(h=model.hamiltonians_0 + model.mf_k, rho=model.rho)
-    h = model.hamiltonians_0 + model.mf_k
-    commutator = (h@model.rho - model.rho@h)
-    n_herm = (mf - np.moveaxis(mf, -1, -2).conj())/2
-    delta_mf = model.mf_k - mf
-    n_herm = [*utils.hk2tb_model(n_herm, model.vectors, model.ks).values()]
-    commutator = [*utils.hk2tb_model(commutator, model.vectors, model.ks).values()]
-    delta_mf = [*utils.hk2tb_model(delta_mf, model.vectors, model.ks).values()]
-    quantities = np.array([commutator, delta_mf, n_herm])
-    idx_max = np.argmax(np.linalg.norm(quantities.reshape(3, -1), axis=-1))
-    return quantities[idx_max]
 
-def kspace_solver(model, nk, optimizer, optimizer_kwargs):
+
+def kspace_solver(model, optimizer, optimizer_kwargs):
     """
     Default cost function.
 
@@ -218,7 +225,7 @@ def kspace_solver(model, nk, optimizer, optimizer_kwargs):
             * Non-hermitian part of the mean-field correction.
             * The commutator between the mean-field Hamiltonian and density matrix.
     """
-    model.kgrid_evaluation(nk=nk)
+    model.kgrid_evaluation(nk=model.nk)
     def cost_function(mf):
         mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
         model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
@@ -226,25 +233,12 @@ def kspace_solver(model, nk, optimizer, optimizer_kwargs):
         delta_mf = model.mf_k - mf
         return utils.matrix_to_flat(utils.complex_to_real(delta_mf))
 
-    mf = optimizer(
+    _ = optimizer(
         cost_function,
         utils.matrix_to_flat(utils.complex_to_real(model.mf_k)),
         **optimizer_kwargs
     )
-    mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
-    h = model.hamiltonians_0 + model.mf_k
-    commutator = (h@model.rho - model.rho@h)
-    while np.invert(np.isclose(commutator, 0, atol=1e-15)).all():
-        model.random_guess(model.vectors)
-        model.kgrid_evaluation(nk=nk)
-        mf = optimizer(
-            cost_function,
-            utils.matrix_to_flat(utils.complex_to_real(model.mf_k)),
-            **optimizer_kwargs
-        )
-        mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
-        h = model.hamiltonians_0 + mf
-        commutator = (h@model.rho - model.rho@h)
+
 
 
 def find_groundstate_ham(
@@ -253,8 +247,8 @@ def find_groundstate_ham(
     filling,
     nk=10,
     solver=kspace_solver,
-    optimizer=anderson,
-    optimizer_kwargs={'M':0},
+    optimizer=optimize.anderson,
+    optimizer_kwargs={'verbose': False},
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -280,9 +274,10 @@ def find_groundstate_ham(
     model.nk=nk
     model.filling=filling
     vectors = utils.generate_vectors(cutoff_Vk, model.dim)
-    model.vectors=[*vectors, *model.tb_model.keys()]
+    model.vectors=[*model.int_model.keys()]
     if model.guess is None:
         model.random_guess(model.vectors)
-    solver(model, nk, optimizer, optimizer_kwargs)
+    solver(model, optimizer, optimizer_kwargs)
+    model.vectors=[*model.int_model, *model.tb_model.keys()]
     assert np.allclose((model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj())/2, 0, atol=1e-15)
     return utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
