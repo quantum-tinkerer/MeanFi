@@ -232,9 +232,9 @@ def kspace_solver(model, nk, optimizer, optimizer_kwargs):
         **optimizer_kwargs
     )
     mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
-    h = model.hamiltonians_0 + mf
+    h = model.hamiltonians_0 + model.mf_k
     commutator = (h@model.rho - model.rho@h)
-    while np.invert(np.isclose(commutator, 0, atol=1e-12)).all():
+    while np.invert(np.isclose(commutator, 0, atol=1e-15)).all():
         model.random_guess(model.vectors)
         model.kgrid_evaluation(nk=nk)
         mf = optimizer(
@@ -254,7 +254,7 @@ def find_groundstate_ham(
     nk=10,
     solver=kspace_solver,
     optimizer=anderson,
-    optimizer_kwargs={'f_tol' : 1e-6},
+    optimizer_kwargs={'M':0},
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
