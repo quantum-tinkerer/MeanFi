@@ -4,7 +4,7 @@ import codes.utils as utils
 from functools import partial
 from scipy import optimize
 
-def density_matrix(vals, vecs, E_F):
+def density_matrix(vals, vecs, E_F, dim):
     """
     Returns the mean field F_ij(k) = <psi_i(k)|psi_j(k)> for all k-points and
     eigenvectors below the Fermi level.
@@ -24,7 +24,6 @@ def density_matrix(vals, vecs, E_F):
         Density matrix rho=rho[kx, ky, ..., i, j] where i,j are cell indices.
     """
     norbs = vals.shape[-1]
-    dim = len(vals.shape) - 1
     nk = vals.shape[0]
 
     if dim > 0:
@@ -81,7 +80,7 @@ def convolution(M1, M2):
     return V_output
 
 
-def compute_mf(rho, H_int):
+def compute_mf(rho, H_int, dim):
     """
     Compute mean-field correction at self-consistent loop.
 
@@ -99,7 +98,6 @@ def compute_mf(rho, H_int):
     """
     
     nk = rho.shape[0]
-    dim = len(rho.shape) - 2
     
     if dim > 0:
         H0_int = H_int[*([0]*dim)]
@@ -155,8 +153,45 @@ def updated_matrices(mf_k, model):
     vals, vecs = np.linalg.eigh(hamiltonians)
     vecs = np.linalg.qr(vecs)[0]
     E_F = utils.get_fermi_energy(vals, model.filling)
-    rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F)
-    return rho, compute_mf(rho=rho, H_int=model.H_int) - E_F * np.eye(model.hamiltonians_0.shape[-1])
+    rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F, dim=model.dim)
+    return rho, compute_mf(
+        rho=rho,
+        H_int=model.H_int,
+        dim=model.dim) - E_F * np.eye(model.hamiltonians_0.shape[-1])
+
+def finite_system_solver(model, optimizer, optimizer_kwargs):
+    """
+    Default cost function.
+
+    Parameters:
+    -----------
+    mf : nd-array
+        Mean-field correction evaluated on a k-point grid.
+    model : Model
+        Physical model.
+
+    Returns:
+    --------
+    cost : nd-array
+        Array with same shape as input. Is chosen to be the largest value between:
+            * Difference between intial and final mean-field correction.
+            * Non-hermitian part of the mean-field correction.
+            * The commutator between the mean-field Hamiltonian and density matrix.
+    """
+    mf = model.guess[()]
+    shape = mf.shape
+
+    def cost_function(mf):
+        mf = utils.flat_to_matrix(utils.real_to_complex(mf), shape)
+        model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
+        delta_mf = model.mf_k - mf
+        return utils.complex_to_real(utils.matrix_to_flat(delta_mf))
+
+    _ = optimizer(
+        cost_function,
+        utils.complex_to_real(utils.matrix_to_flat(mf)),
+        **optimizer_kwargs
+    )
 
 def rspace_solver(model, optimizer, optimizer_kwargs):
     """
@@ -197,11 +232,11 @@ def rspace_solver(model, optimizer, optimizer_kwargs):
         delta_mf = model.mf_k - mf
         delta_mf = utils.hk2tb_model(delta_mf, model.vectors, model.ks)
         delta_mf = np.array([*delta_mf.values()])
-        return utils.matrix_to_flat(utils.complex_to_real(delta_mf))
+        return utils.complex_to_real(utils.matrix_to_flat(delta_mf))
 
     _ = optimizer(
         cost_function,
-        utils.matrix_to_flat(utils.complex_to_real(mf)),
+        utils.complex_to_real(utils.matrix_to_flat(mf)),
         **optimizer_kwargs
     )
 
@@ -231,11 +266,11 @@ def kspace_solver(model, optimizer, optimizer_kwargs):
         model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
         model.energy = total_energy(h=model.hamiltonians_0 + model.mf_k, rho=model.rho)
         delta_mf = model.mf_k - mf
-        return utils.matrix_to_flat(utils.complex_to_real(delta_mf))
+        return utils.complex_to_real(utils.matrix_to_flat(delta_mf))
 
     _ = optimizer(
         cost_function,
-        utils.matrix_to_flat(utils.complex_to_real(model.mf_k)),
+        utils.complex_to_real(utils.matrix_to_flat(model.mf_k)),
         **optimizer_kwargs
     )
 
@@ -282,4 +317,7 @@ def find_groundstate_ham(
     solver(model, optimizer, optimizer_kwargs)
     model.vectors=[*model.vectors, *model.tb_model.keys()]
     assert np.allclose((model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj())/2, 0, atol=1e-15)
-    return utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
+    if model.dim > 0:
+        return utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
+    else:
+        return {() : model.hamiltonians_0 + model.mf_k}

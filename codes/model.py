@@ -5,17 +5,22 @@ class Model:
 
     def __init__(self, tb_model, int_model=None, Vk=None, guess=None):
         self.tb_model = tb_model
-        self.hk = utils.model2hk(tb_model=tb_model)
+        self.dim = len([*tb_model.keys()][0])
+        if self.dim > 0:
+            self.hk = utils.model2hk(tb_model=tb_model)
         self.int_model = int_model
         if self.int_model is not None:
             self.int_model = int_model
-            self.Vk = utils.model2hk(tb_model=int_model)
+            if self.dim > 0:
+                self.Vk = utils.model2hk(tb_model=int_model)
         else:
-            self.Vk = Vk
-        self.dim = len([*tb_model.keys()][0])
+            if self.dim > 0:
+                self.Vk = Vk
         self.ndof = len([*tb_model.values()][0])
         self.guess = guess
-            
+        if self.dim == 0:
+            self.hamiltonians_0 = tb_model[()]
+            self.H_int = int_model[()]
 
     def random_guess(self, vectors):
         if self.int_model is None:

@@ -362,7 +362,10 @@ def calc_gap(vals, E_F):
 
 def flat_to_matrix(flat, shape):
     matrix = np.zeros(shape, dtype=complex)
+    # if len(shape) > 2:
     matrix[..., *np.triu_indices(shape[-1])] = flat.reshape(*shape[:-2], -1)
+    # else:
+    #     matrix[*np.triu_indices(shape[-1])] = flat
     indices = np.arange(shape[-1])
     diagonal = matrix[..., indices, indices]
     matrix += np.moveaxis(matrix, -1, -2).conj()
