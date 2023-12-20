@@ -6,7 +6,8 @@ class Model:
     def __init__(self, tb_model, int_model=None, Vk=None, guess=None):
         self.tb_model = tb_model
         self.hk = utils.model2hk(tb_model=tb_model)
-        if int_model is not None:
+        self.int_model = int_model
+        if self.int_model is not None:
             self.int_model = int_model
             self.Vk = utils.model2hk(tb_model=int_model)
         else:
@@ -17,10 +18,14 @@ class Model:
             
 
     def random_guess(self, vectors):
+        if self.int_model is None:
+            scale = 1
+        else:
+            scale = 1+np.max(np.abs([*self.int_model.values()]))
         self.guess = utils.generate_guess(
             vectors=vectors,
             ndof=self.ndof,
-            scale=1+np.max(np.abs([*self.int_model.values()]))
+            scale=scale
         )
 
     def kgrid_evaluation(self, nk):
