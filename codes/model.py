@@ -2,6 +2,28 @@ from . import utils
 import numpy as np
 
 class Model:
+    """
+    A period tight-binding model class.
+
+    Attributes
+    ----------
+    tb_model : dict
+        Non-interacting tight-binding model.
+    int_model : dict
+        Interacting tight-binding model.
+    Vk : function
+        Interaction potential V(k). Used if `int_model = None`.
+    guess : dict
+        Initial guess for self-consistent calculation.
+    dim : int
+        Number of translationally invariant real-space dimensions.
+    ndof : int
+        Number of internal degrees of freedom (orbitals).
+    hamiltonians_0 : nd-array
+        Non-interacting amiltonian evaluated on a k-point grid.
+    H_int : nd-array
+        Interacting amiltonian evaluated on a k-point grid.
+    """
 
     def __init__(self, tb_model, int_model=None, Vk=None, guess=None):
         self.tb_model = tb_model
@@ -23,6 +45,14 @@ class Model:
             self.H_int = int_model[()]
 
     def random_guess(self, vectors):
+        """
+        Generate random guess.
+
+        Parameters:
+        -----------
+        vectors : list of tuples
+            Hopping vectors for the mean-field corrections.
+        """
         if self.int_model is None:
             scale = 1
         else:
@@ -34,6 +64,14 @@ class Model:
         )
 
     def kgrid_evaluation(self, nk):
+        """
+        Evaluates hamiltonians on a k-grid.
+
+        Parameters:
+        -----------
+        nk : int
+            Number of k-points along each direction.
+        """
         self.hamiltonians_0, self.ks = utils.kgrid_hamiltonian(
             nk=nk,
             hk=self.hk,
@@ -46,11 +84,3 @@ class Model:
             hk=utils.model2hk(self.guess),
             dim=self.dim,
         )
-
-    def flatten_mf(self):
-        flat = self.mf_k.flatten()
-        return flat[:len(flat)//2] + 1j * flat[len(flat)//2:]
-
-    def reshape_mf(self, mf_flat):
-        mf_flat = np.concatenate((np.real(mf_flat), np.imag(mf_flat)))
-        return mf_flat.reshape(*self.hamiltonians_0.shape)

@@ -262,8 +262,10 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
 
 def generate_guess(vectors, ndof, scale=0.1):
     """
-    nk : int
-        Number of k-points along each direction.
+    vectors : list
+        List of hopping vectors.
+    ndof : int
+        Number internal degrees of freedom (orbitals),
     scale : float
         The scale of the guess. Maximum absolute value of each element of the guess.
 
@@ -290,6 +292,20 @@ def generate_guess(vectors, ndof, scale=0.1):
 
 
 def generate_vectors(cutoff, dim):
+    """
+    Generates hopping vectors up to a cutoff.
+
+    Parameters:
+    -----------
+    cutoff : int
+        Maximum distance along each direction.
+    dim : int
+        Dimension of the vectors.
+
+    Returns:
+    --------
+    List of hopping vectors.
+    """
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
@@ -360,24 +376,49 @@ def calc_gap(vals, E_F):
     emin = np.min(vals[vals > E_F])
     return np.abs(emin - emax)
 
+
+def matrix_to_flat(matrix):
+    """
+    Flatten the upper triangle of a collection of matrices.
+
+    Parameters:
+    -----------
+    matrix : nd-array
+        Array with shape (..., n, n)
+    """
+    return matrix[..., *np.triu_indices(matrix.shape[-1])].flatten()
+
 def flat_to_matrix(flat, shape):
+    """
+    Undo `matrix_to_flat`.
+    
+    Parameters:
+    -----------
+    flat : 1d-array
+        Output from `matrix_to_flat`.
+    shape : 1d-array
+        Shape of the input from `matrix_to_flat`.
+    """
     matrix = np.zeros(shape, dtype=complex)
-    # if len(shape) > 2:
     matrix[..., *np.triu_indices(shape[-1])] = flat.reshape(*shape[:-2], -1)
-    # else:
-    #     matrix[*np.triu_indices(shape[-1])] = flat
     indices = np.arange(shape[-1])
     diagonal = matrix[..., indices, indices]
     matrix += np.moveaxis(matrix, -1, -2).conj()
     matrix[..., indices, indices] -= diagonal
     return matrix
 
+def complex_to_real(z):
+    """
+    Split real and imaginary parts of a complex array.
 
-def matrix_to_flat(matrix):
-    return matrix[..., *np.triu_indices(matrix.shape[-1])].flatten()
-
-def real_to_complex(z):      # real vector of length 2n -> complex of length n
-    return z[:len(z)//2] + 1j * z[len(z)//2:]
-
-def complex_to_real(z):      # complex vector of length n -> real of length 2n
+    Parameters:
+    -----------
+    z : array
+    """
     return np.concatenate((np.real(z), np.imag(z)))
+
+def real_to_complex(z):
+    """
+    Undo `complex_to_real`.
+    """
+    return z[:len(z)//2] + 1j * z[len(z)//2:]

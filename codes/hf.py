@@ -255,8 +255,6 @@ def kspace_solver(model, optimizer, optimizer_kwargs):
         **optimizer_kwargs
     )
 
-
-
 def find_groundstate_ham(
     model,
     cutoff_Vk,
