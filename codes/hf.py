@@ -273,11 +273,13 @@ def find_groundstate_ham(
     """
     model.nk=nk
     model.filling=filling
-    vectors = utils.generate_vectors(cutoff_Vk, model.dim)
-    model.vectors=[*model.int_model.keys()]
+    if model.int_model is not None:
+        model.vectors=[*model.int_model.keys()]
+    else:
+        model.vectors = utils.generate_vectors(cutoff_Vk, model.dim)
     if model.guess is None:
         model.random_guess(model.vectors)
     solver(model, optimizer, optimizer_kwargs)
-    model.vectors=[*model.int_model, *model.tb_model.keys()]
+    model.vectors=[*model.vectors, *model.tb_model.keys()]
     assert np.allclose((model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj())/2, 0, atol=1e-15)
     return utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
