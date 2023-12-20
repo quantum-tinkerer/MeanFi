@@ -1,7 +1,6 @@
 from scipy.ndimage import convolve
 import numpy as np
 import codes.utils as utils
-from functools import partial
 from scipy import optimize
 
 def density_matrix(vals, vecs, E_F, dim):
@@ -126,7 +125,7 @@ def total_energy(h, rho):
     total_energy : float
         System total energy computed as tr[h@rho].
     """
-    return np.sum(np.trace(h @ rho, axis1=-1, axis2=-2))
+    return np.sum(np.trace(h @ rho, axis1=-1, axis2=-2)).real
 
 def updated_matrices(mf_k, model):
     """
@@ -161,22 +160,16 @@ def updated_matrices(mf_k, model):
 
 def finite_system_solver(model, optimizer, optimizer_kwargs):
     """
-    Default cost function.
+    Real-space solver for finite systems.
 
     Parameters:
     -----------
-    mf : nd-array
-        Mean-field correction evaluated on a k-point grid.
-    model : Model
-        Physical model.
-
-    Returns:
-    --------
-    cost : nd-array
-        Array with same shape as input. Is chosen to be the largest value between:
-            * Difference between intial and final mean-field correction.
-            * Non-hermitian part of the mean-field correction.
-            * The commutator between the mean-field Hamiltonian and density matrix.
+    model : model.Model
+        Physical model containting interacting and non-interacting Hamiltonian.
+    optimizer : function
+        Optimization function.
+    optimizer_kwargs : dict
+        Extra arguments passed to optimizer.
     """
     mf = model.guess[()]
     shape = mf.shape
@@ -195,22 +188,16 @@ def finite_system_solver(model, optimizer, optimizer_kwargs):
 
 def rspace_solver(model, optimizer, optimizer_kwargs):
     """
-    Default cost function.
+    Real-space solver for infinite systems.
 
     Parameters:
     -----------
-    mf : nd-array
-        Mean-field correction evaluated on a k-point grid.
-    model : Model
-        Physical model.
-
-    Returns:
-    --------
-    cost : nd-array
-        Array with same shape as input. Is chosen to be the largest value between:
-            * Difference between intial and final mean-field correction.
-            * Non-hermitian part of the mean-field correction.
-            * The commutator between the mean-field Hamiltonian and density matrix.
+    model : model.Model
+        Physical model containting interacting and non-interacting Hamiltonian.
+    optimizer : function
+        Optimization function.
+    optimizer_kwargs : dict
+        Extra arguments passed to optimizer.
     """
     model.kgrid_evaluation(nk=model.nk)
     mf = np.array([*model.guess.values()])
@@ -243,22 +230,16 @@ def rspace_solver(model, optimizer, optimizer_kwargs):
 
 def kspace_solver(model, optimizer, optimizer_kwargs):
     """
-    Default cost function.
+    k-space solver.
 
     Parameters:
     -----------
-    mf : nd-array
-        Mean-field correction evaluated on a k-point grid.
-    model : Model
-        Physical model.
-
-    Returns:
-    --------
-    cost : nd-array
-        Array with same shape as input. Is chosen to be the largest value between:
-            * Difference between intial and final mean-field correction.
-            * Non-hermitian part of the mean-field correction.
-            * The commutator between the mean-field Hamiltonian and density matrix.
+    model : model.Model
+        Physical model containting interacting and non-interacting Hamiltonian.
+    optimizer : function
+        Optimization function.
+    optimizer_kwargs : dict
+        Extra arguments passed to optimizer.
     """
     model.kgrid_evaluation(nk=model.nk)
     def cost_function(mf):
