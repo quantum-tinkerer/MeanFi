@@ -1,7 +1,7 @@
 import numpy as np
 import kwant
-from itertools import product
 from scipy.sparse import coo_array
+from itertools import product
 import inspect
 from copy import copy
 
