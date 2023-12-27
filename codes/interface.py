@@ -4,13 +4,13 @@ import numpy as np
 
 def find_groundstate_ham(
     model,
-    cutoff_Vk,
     filling,
     nk=10,
+    cutoff_Vk=None,
     solver=solvers.kspace_solver,
     cost_function=solvers.kspace_cost,
     optimizer=optimize.anderson,
-    optimizer_kwargs={'M':0, 'verbose': False},
+    optimizer_kwargs={},
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -43,7 +43,7 @@ def find_groundstate_ham(
         model.random_guess(model.vectors)
     solver(model, optimizer, cost_function, optimizer_kwargs)
     model.vectors=[*model.vectors, *model.tb_model.keys()]
-    assert np.allclose((model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj())/2, 0, atol=1e-15)
+    assert np.allclose(model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj(), 0, atol=1e-15)
     if model.dim > 0:
         return utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
     else:
