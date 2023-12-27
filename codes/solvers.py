@@ -30,7 +30,8 @@ def finite_system_solver(model, optimizer, cost_function, optimizer_kwargs):
     optimizer_kwargs : dict
         Extra arguments passed to optimizer.
     """
-    initial_mf = model.guess[()]
+    model.mf_k = model.guess[()]
+    initial_mf = utils.complex_to_real(utils.matrix_to_flat(model.mf_k))
     partial_cost = partial(cost_function, model=model)
     optimize(initial_mf, partial_cost, optimizer, optimizer_kwargs)
 
