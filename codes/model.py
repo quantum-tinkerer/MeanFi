@@ -54,9 +54,9 @@ class Model:
             Hopping vectors for the mean-field corrections.
         """
         if self.int_model is None:
-            scale = 1
+            scale = 0.1
         else:
-            scale = 1+np.max(np.abs([*self.int_model.values()]))
+            scale = 0.1*(1+np.max(np.abs([*self.int_model.values()])))
         self.guess = utils.generate_guess(
             vectors=vectors,
             ndof=self.ndof,
