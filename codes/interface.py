@@ -6,11 +6,13 @@ def find_groundstate_ham(
     model,
     filling,
     nk=10,
-    cutoff_Vk=None,
+    cutoff_Vk=0,
     solver=solvers.kspace_solver,
     cost_function=solvers.kspace_cost,
     optimizer=optimize.anderson,
     optimizer_kwargs={},
+    return_mf=False,
+    return_kspace=False
 ):
     """
     Self-consistent loop to find groundstate Hamiltonian.
@@ -44,7 +46,18 @@ def find_groundstate_ham(
     solver(model, optimizer, cost_function, optimizer_kwargs)
     model.vectors=[*model.vectors, *model.tb_model.keys()]
     assert np.allclose(model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj(), 0, atol=1e-15)
-    if model.dim > 0:
-        return utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
+    if return_kspace:
+        return model.hamiltonians_0 + model.mf_k
     else:
-        return {() : model.hamiltonians_0 + model.mf_k}
+        if model.dim > 0:
+            scf_tb = utils.hk2tb_model(model.hamiltonians_0 + model.mf_k, model.vectors, model.ks)
+            if return_mf:
+                mf_tb = utils.hk2tb_model(model.mf_k, model.vectors, model.ks)
+                return scf_tb, mf_tb
+            else:
+                return scf_tb
+        else:
+            if return_mf:
+                return {() : model.hamiltonians_0 + model.mf_k}, {() : model.mf_k}
+            else:
+                return {() : model.hamiltonians_0 + model.mf_k}
