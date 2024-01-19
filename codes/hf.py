@@ -2,7 +2,7 @@ from scipy.ndimage import convolve
 import numpy as np
 import codes.utils as utils
 
-def density_matrix(vals, vecs, E_F, dim):
+def density_matrix(vals, vecs, E_F):
     """
     Returns the mean field F_ij(k) = <psi_i(k)|psi_j(k)> for all k-points and
     eigenvectors below the Fermi level.
@@ -22,6 +22,7 @@ def density_matrix(vals, vecs, E_F, dim):
         Density matrix rho=rho[kx, ky, ..., i, j] where i,j are cell indices.
     """
     norbs = vals.shape[-1]
+    dim = len(vals.shape) - 1
     nk = vals.shape[0]
 
     if dim > 0:
@@ -152,7 +153,7 @@ def updated_matrices(mf_k, model):
     vals, vecs = np.linalg.eigh(hamiltonians)
     vecs = np.linalg.qr(vecs)[0]
     E_F = utils.get_fermi_energy(vals, model.filling)
-    rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F, dim=model.dim)
+    rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F)
     return rho, compute_mf(
         rho=rho,
         H_int=model.H_int) - E_F * np.eye(model.hamiltonians_0.shape[-1])
