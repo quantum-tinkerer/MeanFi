@@ -78,7 +78,7 @@ def convolution(M1, M2):
     return V_output
 
 
-def compute_mf(rho, H_int, dim):
+def compute_mf(rho, H_int):
     """
     Compute mean-field correction at self-consistent loop.
 
@@ -96,6 +96,7 @@ def compute_mf(rho, H_int, dim):
     """
     
     nk = rho.shape[0]
+    dim = len(rho.shape) - 2
     
     if dim > 0:
         H0_int = H_int[*([0]*dim)]
@@ -154,6 +155,5 @@ def updated_matrices(mf_k, model):
     rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F, dim=model.dim)
     return rho, compute_mf(
         rho=rho,
-        H_int=model.H_int,
-        dim=model.dim) - E_F * np.eye(model.hamiltonians_0.shape[-1])
+        H_int=model.H_int) - E_F * np.eye(model.hamiltonians_0.shape[-1])
 
