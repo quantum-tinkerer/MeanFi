@@ -126,7 +126,7 @@ def total_energy(h, rho):
     total_energy : float
         System total energy computed as tr[h@rho].
     """
-    return np.sum(np.trace(h @ rho, axis1=-1, axis2=-2)).real
+    return np.sum(np.trace(h @ rho, axis1=-1, axis2=-2)).real / np.prod(rho.shape[:-2])
 
 def updated_matrices(mf_k, model):
     """
