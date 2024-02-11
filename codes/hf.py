@@ -101,14 +101,21 @@ def compute_mf(rho, H_int):
     
     if dim > 0:
         H0_int = H_int[*([0]*dim)]
+        rho0 = rho[*([0]*dim)]
         local_density = np.diag(np.average(rho, axis=tuple([i for i in range(dim)])))
         exchange_mf = convolution(rho, H_int) * nk ** (-dim)
         direct_mf = np.diag(np.einsum("i,ij->j", local_density, H0_int))
+        dc_energy_direct = np.einsum("i, j, ij->", local_density, local_density, H0_int)
+        dc_energy_cross = np.einsum("ij, ji, ij->", H0_int, rho0, rho0)
+        dc_energy = 2 * dc_energy_direct - dc_energy_cross
     else:
         local_density = np.diag(rho)
         exchange_mf = rho * H_int
         direct_mf = np.diag(np.einsum("i,ij->j", local_density, H_int))
-    return direct_mf - exchange_mf
+        dc_energy_direct = np.diag(np.einsum("ij, i, j->", H_int, local_density, local_density))
+        dc_energy_cross = np.diag(np.einsum("ij, ij, ji->", H_int, rho, rho))
+        dc_energy = 2 * dc_energy_direct - dc_energy_cross
+    return direct_mf - exchange_mf - dc_energy
 
 def total_energy(h, rho):
     """
