@@ -46,6 +46,9 @@ def find_groundstate_ham(
     solver(model, optimizer, cost_function, optimizer_kwargs)
     model.vectors=[*model.vectors, *model.tb_model.keys()]
     assert np.allclose(model.mf_k - np.moveaxis(model.mf_k, -1, -2).conj(), 0, atol=1e-15)
+    vals, _ = np.linalg.eigh(model.hamiltonians_0 + model.mf_k)
+    EF = utils.get_fermi_energy(vals, filling)
+    model.mf_k -=  EF * np.eye(model.hamiltonians_0.shape[-1])
     if return_kspace:
         return model.hamiltonians_0 + model.mf_k
     else:
