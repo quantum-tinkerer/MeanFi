@@ -1,6 +1,6 @@
 import numpy as np
 from . import utils
-from .hf import updated_matrices
+from .hf import updated_matrices, total_energy
 from functools import partial
 
 def optimize(mf, cost_function, optimizer, optimizer_kwargs):
@@ -77,6 +77,14 @@ def kspace_cost(mf, model):
     model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
     delta_mf = model.mf_k - mf
     return utils.complex_to_real(utils.matrix_to_flat(delta_mf))
+
+def kspace_totalenergy_cost(mf, model):
+    mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
+    model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
+    return total_energy(
+        model.hamiltonians_0 + model.mf_k,
+        model.rho,
+    )
 
 def kspace_solver(model, optimizer, cost_function, optimizer_kwargs):
     """
