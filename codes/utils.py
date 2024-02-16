@@ -181,7 +181,7 @@ def model2hk(tb_model):
         ham = 0
         for vector in tb_model.keys():
             ham += tb_model[vector] * np.exp(
-                1j * np.dot(k, np.array(vector, dtype=float))
+                -1j * np.dot(k, np.array(vector, dtype=float))
             )
         return ham
 
