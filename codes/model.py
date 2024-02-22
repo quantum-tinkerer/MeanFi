@@ -1,86 +1,98 @@
 from . import utils
 import numpy as np
+import hf
 
-class Model:
+class BaseMfModel:
     """
-    A period tight-binding model class.
+    Base class for periodic hamiltonian with an interacting potential
+    treated within the mean-field approximation.
 
     Attributes
     ----------
-    tb_model : dict
-        Non-interacting tight-binding model.
-    int_model : dict
-        Interacting tight-binding model.
-    Vk : function
-        Interaction potential V(k). Used if `int_model = None`.
-    guess : dict
-        Initial guess for self-consistent calculation.
-    dim : int
-        Number of translationally invariant real-space dimensions.
-    ndof : int
-        Number of internal degrees of freedom (orbitals).
-    hamiltonians_0 : nd-array
-        Non-interacting amiltonian evaluated on a k-point grid.
-    H_int : nd-array
-        Interacting amiltonian evaluated on a k-point grid.
+    H0_k : function
+        Non-interacting hamiltonian part H0(k) evaluated on a k-point grid.
+    V_k : function
+        Interaction potential V(k) evaluated on a k-point grid.
+    filling : float
+        Filling factor of the system.
+    
+    Methods
+    -------
+    densityMatrix(mf_k)
+        Returns the density matrix given the mean-field correction to the
+        non-interacting hamiltonian mf_k.
+    meanField(rho)
+        Calculates the mean-field correction from a given density matrix.
+    """
+    def __init__(self, H0_k, V_k, filling):
+        """
+        Parameters
+        ----------
+        H0_k : function
+            Non-interacting hamiltonian part H0(k) evaluated on a k-point grid.
+        V_k : function
+            Interaction potential V(k) evaluated on a k-point grid.
+        filling : float
+            Filling factor of the system.
+        """
+        self.H0_k = H0_k
+        self.V_k = V_k
+        self.filling = filling
+
+    def densityMatrix(self, mf_k):
+        """
+        Parameters
+        ----------
+        mf_k : nd-array
+            Mean-field correction to the non-interacting hamiltonian.
+        
+        Returns
+        -------
+        rho : nd-array
+            Density matrix.
+        """
+        vals, vecs = np.linalg.eigh(self.H0_k + mf_k)
+        vecs = np.linalg.qr(vecs)[0]
+        E_F = utils.get_fermi_energy(vals, self.filling)
+        return hf.density_matrix(vals=vals, vecs=vecs, E_F=E_F)
+
+    def meanField(self, rho):
+        """
+        Parameters
+        ----------
+        rho : nd-array
+            Density matrix.
+
+        Returns
+        -------
+        mf_k : nd-array
+            Mean-field correction to the non-interacting hamiltonian.
+        """
+        return hf.compute_mf(rho, self.V_k)
+
+class MfModel(BaseMfModel):
+    """
+    BaseMfModel with the non-interacting hamiltonian and the interaction
+    potential given as tight-binding models.
     """
 
-    def __init__(self, tb_model, int_model=None, Vk=None, guess=None):
-        self.tb_model = tb_model
-        self.dim = len([*tb_model.keys()][0])
-        if self.dim > 0:
-            self.hk = utils.model2hk(tb_model=tb_model)
-        self.int_model = int_model
-        if self.int_model is not None:
-            self.int_model = int_model
-            if self.dim > 0:
-                self.Vk = utils.model2hk(tb_model=int_model)
-        else:
-            if self.dim > 0:
-                self.Vk = Vk
-        self.ndof = len([*tb_model.values()][0])
-        self.guess = guess
-        if self.dim == 0:
-            self.hamiltonians_0 = tb_model[()]
-            self.H_int = int_model[()]
-
-    def random_guess(self, vectors):
+    def __init__(self, tb_model, filling, int_model):
         """
-        Generate random guess.
-
-        Parameters:
-        -----------
-        vectors : list of tuples
-            Hopping vectors for the mean-field corrections.
+        Parameters
+        ----------
+        tb_model : dict
+            Non-interacting tight-binding model.
+        filling : float
+            Filling factor of the system.
+        int_model : dict
+            Interacting tight-binding model.
         """
-        if self.int_model is None:
-            scale = 0.1
-        else:
-            scale = 0.1*(1+np.max(np.abs([*self.int_model.values()])))
-        self.guess = utils.generate_guess(
-            vectors=vectors,
-            ndof=self.ndof,
-            scale=scale
-        )
 
-    def kgrid_evaluation(self, nk):
-        """
-        Evaluates hamiltonians on a k-grid.
-
-        Parameters:
-        -----------
-        nk : int
-            Number of k-points along each direction.
-        """
-        self.hamiltonians_0, self.ks = utils.kgrid_hamiltonian(
-            nk=nk,
-            hk=self.hk,
-            dim=self.dim,
-            return_ks=True
-        )
-        self.H_int = utils.kgrid_hamiltonian(nk=nk, hk=self.Vk, dim=self.dim)
-        self.mf_k = utils.kgrid_hamiltonian(
-            nk=nk,
-            hk=utils.model2hk(self.guess),
-            dim=self.dim,
-        )
+        self.filling = filling
+        dim = len([*tb_model.keys()][0])
+        if dim > 0:
+            self.H0_k = utils.model2hk(tb_model=tb_model)
+            self.V_k = utils.model2hk(tb_model=int_model)
+        if dim == 0:
+            self.H0_k = tb_model[()]
+            self.V_k = int_model[()]
