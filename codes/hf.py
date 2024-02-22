@@ -1,11 +1,8 @@
 from scipy.ndimage import convolve
 import numpy as np
 import codes.utils as utils
-from functools import partial
-from scipy.optimize import anderson
 
-
-def mean_field_F(vals, vecs, E_F):
+def density_matrix(vals, vecs, E_F):
     """
     Returns the mean field F_ij(k) = <psi_i(k)|psi_j(k)> for all k-points and
     eigenvectors below the Fermi level.
@@ -21,8 +18,8 @@ def mean_field_F(vals, vecs, E_F):
 
     Returns
     -------
-    F : array_like
-        mean field F[kx, ky, ..., i, j] where i,j are cell indices.
+    rho : array_like
+        Density matrix rho=rho[kx, ky, ..., i, j] where i,j are cell indices.
     """
     norbs = vals.shape[-1]
     dim = len(vals.shape) - 1
@@ -37,19 +34,19 @@ def mean_field_F(vals, vecs, E_F):
         occ_vecs_flat = np.transpose(occ_vecs_flat, axes=[0, 2, 1])
 
         # inner products between eigenvectors
-        F_ij = np.einsum("kie,kje->kij", occ_vecs_flat, occ_vecs_flat.conj())
+        rho_ij = np.einsum("kie,kje->kij", occ_vecs_flat, occ_vecs_flat.conj())
         reshape_order = [nk for i in range(dim)]
         reshape_order.extend([norbs, norbs])
-        F = F_ij.reshape(*reshape_order)
+        rho = rho_ij.reshape(*reshape_order)
     else:
         unocc_vals = vals > E_F
         occ_vecs = vecs
         occ_vecs[:, unocc_vals] = 0
 
         # Outter products between eigenvectors
-        F = occ_vecs @ occ_vecs.T.conj()
+        rho = occ_vecs @ occ_vecs.T.conj()
 
-    return F
+    return rho
 
 
 def convolution(M1, M2):
@@ -82,46 +79,62 @@ def convolution(M1, M2):
     return V_output
 
 
-def compute_mf(vals, vecs, filling, H_int):
+def compute_mf(rho, H_int):
     """
     Compute mean-field correction at self-consistent loop.
 
     Parameters:
     -----------
-    vals : nd-array
-        Eigenvalues of current loop vals[k_x, ..., k_n, j].
-    vecs : nd_array
-        Eigenvectors of current loop vals[k_x, ..., k_n, i, j].
+    rho : nd_array
+        Density matrix.
     H_int : nd-array
         Interaction matrix.
-    filling: int
-        Number of electrons per cell.
 
     Returns:
     --------
     mf : nd-array
         Meanf-field correction with same format as `H_int`.
     """
-    dim = len(vals.shape) - 1
-
-    nk = vals.shape[0]
-
-    E_F = utils.get_fermi_energy(vals, filling)
-    F = mean_field_F(vals=vals, vecs=vecs, E_F=E_F)
+    
+    nk = rho.shape[0]
+    dim = len(rho.shape) - 2
 
     if dim > 0:
-        H0_int = H_int[*[0 for i in range(dim)]]
-        rho = np.diag(np.average(F, axis=tuple([i for i in range(dim)])))
-        exchange_mf = convolution(F, H_int) * nk ** (-dim)
-        direct_mf = np.diag(np.einsum("i,ij->j", rho, H0_int))
+        H0_int = H_int[*([0]*dim)]
+        local_density = np.diag(np.average(rho, axis=tuple([i for i in range(dim)])))
+        exchange_mf = convolution(rho, H_int) * nk ** (-dim)
+        direct_mf = np.diag(np.einsum("i,ij->j", local_density, H0_int))
+        dc_direct = local_density.T @ H0_int @ local_density
+        dc_exchange = np.einsum('kij, kji', exchange_mf, rho) * nk ** (-dim)
+        dc_energy = 0.5*(-dc_exchange + dc_direct) * np.eye(direct_mf.shape[-1])
     else:
-        rho = np.diag(F)
-        exchange_mf = F * H_int
-        direct_mf = np.diag(np.einsum("i,ij->j", rho, H_int))
-    return direct_mf - exchange_mf
+        local_density = np.diag(rho)
+        exchange_mf = rho * H_int
+        direct_mf = np.diag(np.einsum("i,ij->j", local_density, H_int))
+        dc_energy_direct = np.diag(np.einsum("ij, i, j->", H_int, local_density, local_density))
+        dc_energy_cross = np.diag(np.einsum("ij, ij, ji->", H_int, rho, rho))
+        dc_energy = 2 * dc_energy_direct - dc_energy_cross
+    return direct_mf - exchange_mf# - dc_energy * np.eye(direct_mf.shape[-1])
 
+def total_energy(h, rho):
+    """
+    Compute total energy.
 
-def scf_loop(mf, H_int, filling, hamiltonians_0):
+    Paramters:
+    ----------
+    h : nd-array
+        Hamiltonian.
+    rho : nd-array
+        Density matrix.
+
+    Returns:
+    --------
+    total_energy : float
+        System total energy computed as tr[h@rho].
+    """
+    return np.sum(np.trace(h @ rho, axis1=-1, axis2=-2)).real / np.prod(rho.shape[:-2])
+
+def updated_matrices(mf_k, model):
     """
     Self-consistent loop.
 
@@ -138,75 +151,16 @@ def scf_loop(mf, H_int, filling, hamiltonians_0):
 
     Returns:
     --------
-    diff : nd-array
-        Difference of mean-field matrix.
+    mf_new : nd-array
+        Updated mean-field solution.
     """
     # Generate the Hamiltonian
-    hamiltonians = hamiltonians_0 + mf
+    hamiltonians = model.hamiltonians_0 + mf_k
     vals, vecs = np.linalg.eigh(hamiltonians)
     vecs = np.linalg.qr(vecs)[0]
+    E_F = utils.get_fermi_energy(vals, model.filling)
+    rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F)
+    return rho, compute_mf(
+        rho=rho,
+        H_int=model.H_int) - E_F * np.eye(model.hamiltonians_0.shape[-1])
 
-    mf_new = compute_mf(vals=vals, vecs=vecs, filling=filling, H_int=H_int)
-
-    diff = mf_new - mf
-
-    return diff
-
-
-def find_groundstate_ham(
-    tb_model,
-    int_model,
-    filling,
-    nk=10,
-    tol=1e-5,
-    guess=None,
-    mixing=0.01,
-    order=10,
-    verbose=False,
-    return_mf=False,
-):
-    """
-    Self-consistent loop to find groundstate Hamiltonian.
-
-    Parameters:
-    -----------
-    tb_model : dict
-        Tight-binding model. Must have the following structure:
-            - Keys are tuples for each hopping vector (in units of lattice vectors).
-            - Values are hopping matrices.
-    int_model : dict
-        Interaction matrix model. Must have same structure as `tb_model`
-    filling: int
-        Number of electrons per cell.
-    tol : float
-        Tolerance of meanf-field self-consistent loop.
-    guess : nd-array
-        Initial guess. Same format as `H_int`.
-    mixing : float
-        Regularization parameter in Anderson optimization. Default: 0.5.
-    order : int
-        Number of previous solutions to retain. Default: 1.
-    verbose : bool
-        Verbose of Anderson optimization. Default: False.
-    return_mf : bool
-        Returns mean-field result. Useful if wanted to reuse as guess in upcoming run.
-
-    Returns:
-    --------
-    scf_model : dict
-        Tight-binding model of Hartree-Fock solution.
-    """
-    hamiltonians_0, ks = utils.kgrid_hamiltonian(nk, tb_model, return_ks=True)
-    if guess is None:
-        guess = utils.generate_guess(nk, tb_model, int_model, scale=np.max(np.abs(np.array([*int_model.values()]))))
-    fun = partial(
-        scf_loop,
-        hamiltonians_0=hamiltonians_0,
-        H_int=utils.kgrid_hamiltonian(nk, int_model),
-        filling=filling,
-    )
-    mf = anderson(fun, guess, f_tol=tol, w0=mixing, M=order, verbose=verbose)
-    if return_mf:
-        return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks), mf
-    else:
-        return utils.hk2tb_model(hamiltonians_0 + mf, tb_model, int_model, ks)
