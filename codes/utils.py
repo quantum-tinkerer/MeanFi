@@ -229,6 +229,26 @@ def kgrid_hamiltonian(nk, hk, dim, return_ks=False, hermitian=True):
         return ham.reshape(*shape), ks
     else:
         return ham.reshape(*shape)
+    
+
+def tb2grid(tb_model, nk):
+    """
+    Fourier transforms and evaluates the model on a regular k-point grid.
+    
+    Parameters
+    ----------
+    tb_model : dict
+        Tight-binding model.
+    nk : int
+        Number of k-points per dimension.
+    
+    Returns
+    -------
+    H_k : nd-array
+        Model evaluated on a k-point grid.
+    """
+    dim = len([*tb_model.keys()][0])
+    return kgrid_hamiltonian(nk, model2hk(tb_model), dim)
 
 
 def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor=1):

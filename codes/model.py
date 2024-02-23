@@ -1,6 +1,6 @@
-from . import utils
+from . import utils, hf
 import numpy as np
-import hf
+
 
 class BaseMfModel:
     """
@@ -15,7 +15,7 @@ class BaseMfModel:
         Interaction potential V(k) evaluated on a k-point grid.
     filling : float
         Filling factor of the system.
-    
+
     Methods
     -------
     densityMatrix(mf_k)
@@ -24,6 +24,7 @@ class BaseMfModel:
     meanField(rho)
         Calculates the mean-field correction from a given density matrix.
     """
+
     def __init__(self, H0_k, V_k, filling):
         """
         Parameters
@@ -45,7 +46,7 @@ class BaseMfModel:
         ----------
         mf_k : nd-array
             Mean-field correction to the non-interacting hamiltonian.
-        
+
         Returns
         -------
         rho : nd-array
@@ -70,13 +71,15 @@ class BaseMfModel:
         """
         return hf.compute_mf(rho, self.V_k)
 
+
 class MfModel(BaseMfModel):
     """
     BaseMfModel with the non-interacting hamiltonian and the interaction
     potential given as tight-binding models.
+    The model is defined on a regular k-point grid.
     """
 
-    def __init__(self, tb_model, filling, int_model):
+    def __init__(self, tb_model, int_model, filling, nk=100):
         """
         Parameters
         ----------
@@ -91,8 +94,8 @@ class MfModel(BaseMfModel):
         self.filling = filling
         dim = len([*tb_model.keys()][0])
         if dim > 0:
-            self.H0_k = utils.model2hk(tb_model=tb_model)
-            self.V_k = utils.model2hk(tb_model=int_model)
+            self.H0_k = utils.tb2grid(tb_model, nk=nk)
+            self.V_k = utils.tb2grid(int_model, nk=nk)
         if dim == 0:
             self.H0_k = tb_model[()]
             self.V_k = int_model[()]
