@@ -127,34 +127,3 @@ def total_energy(h, rho):
         System total energy computed as tr[h@rho].
     """
     return np.sum(np.trace(h @ rho, axis1=-1, axis2=-2)).real / np.prod(rho.shape[:-2])
-
-def updated_matrices(mf_k, model):
-    """
-    Self-consistent loop.
-
-    Parameters:
-    -----------
-    mf : nd-array
-        Mean-field correction. Same format as the initial guess.
-    H_int : nd-array
-        Interaction matrix.
-    filling: int
-        Number of electrons per cell.
-    hamiltonians_0 : nd-array
-        Non-interacting Hamiltonian. Same format as `H_int`.
-
-    Returns:
-    --------
-    mf_new : nd-array
-        Updated mean-field solution.
-    """
-    # Generate the Hamiltonian
-    hamiltonians = model.hamiltonians_0 + mf_k
-    vals, vecs = np.linalg.eigh(hamiltonians)
-    vecs = np.linalg.qr(vecs)[0]
-    E_F = utils.get_fermi_energy(vals, model.filling)
-    rho = density_matrix(vals=vals, vecs=vecs, E_F=E_F)
-    return rho, compute_mf(
-        rho=rho,
-        H_int=model.H_int) - E_F * np.eye(model.hamiltonians_0.shape[-1])
-
