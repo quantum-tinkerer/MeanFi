@@ -1,106 +1,67 @@
-import numpy as np
 from . import utils
-from .hf import updated_matrices, total_energy
 from functools import partial
+import scipy
 
-def optimize(mf, cost_function, optimizer, optimizer_kwargs):
-    _ = optimizer(
-        cost_function,
-        mf,
-        **optimizer_kwargs
-    )
-
-def finite_system_cost(mf, model):
-    shape = mf.shape
-    mf = utils.flat_to_matrix(utils.real_to_complex(mf), shape)
-    model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
-    delta_mf = model.mf_k - mf
-    return utils.complex_to_real(utils.matrix_to_flat(delta_mf))
-
-def finite_system_solver(model, optimizer, cost_function, optimizer_kwargs):
+def kspace_costs(mfFlatReal, BaseMfModel):
     """
-    Real-space solver for finite systems.
+    Cost function for the mean-field model in k-space.
 
-    Parameters:
-    -----------
-    model : model.Model
-        Physical model containting interacting and non-interacting Hamiltonian.
-    optimizer : function
-        Optimization function.
-    optimizer_kwargs : dict
-        Extra arguments passed to optimizer.
+    Parameters
+    ----------
+    mfFlatReal : array_like
+        Mean-field correction to the non-interacting hamiltonian in k-space.
+        Converted from complex to stacked real array and flattened.
+    BaseMfModel : object
+        Mean-field model.
+    
+    Returns
+    -------
+    array_like
+        Difference between the updated mean-field correction and the input.
+    
+    Notes
+    -----
+    In general, the cost function does the following steps:
+    1. Does something with the input.
+    2. Calls the meanField and densityMatrix methods of the BaseMfModel.
+    3. Calculates output based on 2.
+
+    In this case, the input and output is the mf correction in k-space. 
+    Alternatively, it could also be a density matrix, or some real-space
+    parametrisation of the mean-field. 
     """
-    model.mf_k = model.guess[()]
-    initial_mf = utils.complex_to_real(utils.matrix_to_flat(model.mf_k))
-    partial_cost = partial(cost_function, model=model)
-    optimize(initial_mf, partial_cost, optimizer, optimizer_kwargs)
 
-def real_space_cost(mf, model, shape):
-    mf = utils.flat_to_matrix(utils.real_to_complex(mf), shape)
-    mf_dict = {}
-    for i, key in enumerate(model.guess.keys()):
-        mf_dict[key] = mf[i]
-    mf = utils.kgrid_hamiltonian(
-        nk=model.nk,
-        hk=utils.model2hk(mf_dict),
-        dim=model.dim,
-        hermitian=False
-    )
-    model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
-    delta_mf = model.mf_k - mf
-    delta_mf = utils.hk2tb_model(delta_mf, model.vectors, model.ks)
-    delta_mf = np.array([*delta_mf.values()])
-    return utils.complex_to_real(utils.matrix_to_flat(delta_mf))
+    mf = utils.flat_to_matrix(
+        utils.real_to_complex(mfFlatReal), BaseMfModel.H0_k.shape
+        )
+    rho = BaseMfModel.densityMatrix(mf)
+    mfUpdated = BaseMfModel.meanField(rho)
+    mfUpdatedFlatReal = utils.complex_to_real(utils.matrix_to_flat(mfUpdated))
+    return mfUpdatedFlatReal - mfFlatReal
 
-def rspace_solver(model, optimizer, cost_function, optimizer_kwargs):
+def kspace_solver(BaseMfModel, x0, optimizer=scipy.optimize.anderson, optimizer_kwargs={}):
+    '''
+    A solver needs to do the following things:
+    1. Prepare input x0
+    2. Prepare cost function 
+    3. Run optimizer
+    4. Prepare result
+    5. Return result
+    '''
+    x0FlatReal = utils.complex_to_real(utils.matrix_to_flat(x0))
+    f = partial(kspace_costs, BaseMfModel=BaseMfModel)
+    return optimizer(f, x0FlatReal, **optimizer_kwargs)
+
+def realSpace_cost(mfRealSpaceParams, BaseMfModel):
     """
-    Real-space solver for infinite systems.
+    Cost function for the mean-field (mf) model in real space.
+    The algorithm should go something like this:
 
-    Parameters:
-    -----------
-    model : model.Model
-        Physical model containting interacting and non-interacting Hamiltonian.
-    optimizer : function
-        Optimization function.
-    optimizer_kwargs : dict
-        Extra arguments passed to optimizer.
+    1. Convert the real-space parametrisation of the mf (mfRealSpaceParams)
+    to mf in k-space.
+    2. Generate density matrix rho via densityMatrix(mf, BaseMfModel)
+    3. Generate mfUpdated via meanField(rho, BaseMfModel).
+    4. Convert mfUpdated to real-space parametrisation.
+    5. Return the difference the initial and updated parametrisations
     """
-    model.kgrid_evaluation(nk=model.nk)
-    initial_mf = np.array([*model.guess.values()])
-    shape = initial_mf.shape
-    initial_mf = utils.complex_to_real(utils.matrix_to_flat(initial_mf))
-    partial_cost = partial(cost_function, model=model, shape=shape)
-    optimize(initial_mf, partial_cost, optimizer, optimizer_kwargs)
-
-def kspace_cost(mf, model):
-    mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
-    model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
-    delta_mf = model.mf_k - mf
-    return utils.complex_to_real(utils.matrix_to_flat(delta_mf))
-
-def kspace_totalenergy_cost(mf, model):
-    mf = utils.flat_to_matrix(utils.real_to_complex(mf), model.mf_k.shape)
-    model.rho, model.mf_k = updated_matrices(mf_k=mf, model=model)
-    return total_energy(
-        model.hamiltonians_0 + model.mf_k,
-        model.rho,
-    )
-
-def kspace_solver(model, optimizer, cost_function, optimizer_kwargs):
-    """
-    k-space solver.
-
-    Parameters:
-    -----------
-    model : model.Model
-        Physical model containting interacting and non-interacting Hamiltonian.
-    optimizer : function
-        Optimization function.
-    optimizer_kwargs : dict
-        Extra arguments passed to optimizer.
-    """
-    model.kgrid_evaluation(nk=model.nk)
-    initial_mf = model.mf_k
-    initial_mf = utils.complex_to_real(utils.matrix_to_flat(initial_mf))
-    partial_cost = partial(cost_function, model=model)
-    optimize(initial_mf, partial_cost, optimizer, optimizer_kwargs)
+    return NotImplemented
