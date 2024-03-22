@@ -1,101 +1,38 @@
-from . import utils, hf
+from .tb.tb import addTb
+from .tb.transforms import tb2kfunc
+from .mf import densityMatrixGenerator, meanFieldFFT, meanFieldQuad, fermiOnGrid
 import numpy as np
 
 
-class BaseMfModel:
-    """
-    Base class for periodic hamiltonian with an interacting potential
-    treated within the mean-field approximation.
-
-    Attributes
-    ----------
-    H0_k : function
-        Non-interacting hamiltonian part H0(k) evaluated on a k-point grid.
-    V_k : function
-        Interaction potential V(k) evaluated on a k-point grid.
-    filling : float
-        Filling factor of the system.
-
-    Methods
-    -------
-    densityMatrix(mf_k)
-        Returns the density matrix given the mean-field correction to the
-        non-interacting hamiltonian mf_k.
-    meanField(rho)
-        Calculates the mean-field correction from a given density matrix.
-    """
-
-    def __init__(self, H0_k, V_k, filling):
-        """
-        Parameters
-        ----------
-        H0_k : function
-            Non-interacting hamiltonian part H0(k) evaluated on a k-point grid.
-        V_k : function
-            Interaction potential V(k) evaluated on a k-point grid.
-        filling : float
-            Filling factor of the system.
-        """
-        self.H0_k = H0_k
-        self.V_k = V_k
+class Model:
+    def __init__(self, tb_model, int_model, filling):
+        self.tb_model = tb_model
+        self.int_model = int_model
         self.filling = filling
 
-    def densityMatrix(self, mf_k):
-        """
-        Parameters
-        ----------
-        mf_k : nd-array
-            Mean-field correction to the non-interacting hamiltonian.
+        _firstKey = list(tb_model)[0]
+        self._ndim = len(_firstKey)
+        self._size = tb_model[_firstKey].shape[0]
+        self._localKey = tuple(np.zeros((self._ndim,), dtype=int))
 
-        Returns
-        -------
-        rho : nd-array
-            Density matrix.
-        """
-        vals, vecs = np.linalg.eigh(self.H0_k + mf_k)
-        vecs = np.linalg.qr(vecs)[0]
-        E_F = utils.get_fermi_energy(vals, self.filling)
-        return hf.density_matrix(vals=vals, vecs=vecs, E_F=E_F)
+    def makeDensityMatrix(self, mf_model, nK=200):
+        self.hkfunc = tb2kfunc(addTb(self.tb_model, mf_model))
+        self.calculateEF(nK=nK)
+        return densityMatrixGenerator(self.hkfunc, self.EF)
 
-    def meanField(self, rho):
-        """
-        Parameters
-        ----------
-        rho : nd-array
-            Density matrix.
+    def calculateEF(self, nK=200):
+        self.EF = fermiOnGrid(self.hkfunc, self.filling, nK=nK, ndim=self._ndim)
 
-        Returns
-        -------
-        mf_k : nd-array
-            Mean-field correction to the non-interacting hamiltonian.
-        """
-        return hf.compute_mf(rho, self.V_k)
+    def mfield(self, mf_model):
+        self.densityMatrix = self.makeDensityMatrix(mf_model)
+        return addTb(
+            meanFieldQuad(self.densityMatrix, self.int_model),
+            {self._localKey: -self.EF * np.eye(self._size)},
+        )
 
-
-class MfModel(BaseMfModel):
-    """
-    BaseMfModel with the non-interacting hamiltonian and the interaction
-    potential given as tight-binding models.
-    The model is defined on a regular k-point grid.
-    """
-
-    def __init__(self, tb_model, int_model, filling, nk=100):
-        """
-        Parameters
-        ----------
-        tb_model : dict
-            Non-interacting tight-binding model.
-        filling : float
-            Filling factor of the system.
-        int_model : dict
-            Interacting tight-binding model.
-        """
-
-        self.filling = filling
-        dim = len([*tb_model.keys()][0])
-        if dim > 0:
-            self.H0_k = utils.tb2grid(tb_model, nk=nk)
-            self.V_k = utils.tb2grid(int_model, nk=nk)
-        if dim == 0:
-            self.H0_k = tb_model[()]
-            self.V_k = int_model[()]
+    def mfieldFFT(self, mf_model, nK=200):
+        self.densityMatrix = self.makeDensityMatrix(mf_model)
+        return addTb(
+            meanFieldFFT(self.densityMatrix, self.int_model, n=self._ndim, nK=nK),
+            {self._localKey: -self.EF * np.eye(self._size)},
+        )
