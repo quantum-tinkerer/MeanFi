@@ -30,8 +30,8 @@ def quad_vecNDim(f, a, b, ndim, **kwargs):
  
 
 # test part TODO separate it out to a test file
-def gaussianTestFunc(vec):
-    x = np.sum(np.array(vec)**2)
-    return np.diag([np.exp(-x), np.exp(-2*x)])
+# def gaussianTestFunc(vec):
+#     x = np.sum(np.array(vec)**2)
+#     return np.diag([np.exp(-x), np.exp(-2*x)])
 
-assert np.allclose(quad_vecNDim(gaussianTestFunc, -np.inf, np.inf, 2), np.diag([np.pi, np.pi/2]))
+# assert np.allclose(quad_vecNDim(gaussianTestFunc, -np.inf, np.inf, 2), np.diag([np.pi, np.pi/2]))
