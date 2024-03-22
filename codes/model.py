@@ -31,7 +31,7 @@ class Model:
         )
 
     def mfieldFFT(self, mf_model, nK=200):
-        self.densityMatrix = self.makeDensityMatrix(mf_model)
+        self.densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)
         return addTb(
             meanFieldFFT(self.densityMatrix, self.int_model, n=self._ndim, nK=nK),
             {self._localKey: -self.EF * np.eye(self._size)},
