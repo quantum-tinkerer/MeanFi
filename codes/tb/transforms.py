@@ -28,7 +28,7 @@ def tb2kfunc(tb_model):
     
     return bloch_ham
 
-def kfunc2tbFFT(kfunc, nSamples, ndim=1): #needs extension to 2D
+def kfunc2tbFFT(kfunc, nSamples, ndim=1):
     """
     Applies FFT on a k-space function to obtain a real-space components.
 
