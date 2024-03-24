@@ -15,6 +15,16 @@ class Model:
         self._size = tb_model[_firstKey].shape[0]
         self._localKey = tuple(np.zeros((self._ndim,), dtype=int))
 
+
+        def _check_hermiticity(h):
+        # assert hermiticity of the Hamiltonian
+            for vector in h.keys():
+                op_vector = tuple(-1*np.array(vector))
+                assert np.allclose(h[vector], h[op_vector].conj().T)
+
+        _check_hermiticity(tb_model)
+        _check_hermiticity(int_model)
+
     def makeDensityMatrix(self, mf_model, nK=200):
         self.hkfunc = tb2kfunc(addTb(self.tb_model, mf_model))
         self.calculateEF(nK=nK)
