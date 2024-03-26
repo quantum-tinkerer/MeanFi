@@ -46,11 +46,13 @@ def kfunc2tbFFT(kfunc, nSamples, ndim=1):
         An array with real-space components of kfuncs
     """
     
-    ks = np.linspace(-np.pi, np.pi, nSamples, endpoint=True)
+    ks = np.linspace(-np.pi, np.pi, nSamples, endpoint=False) # for now nSamples need to be even such that 0 is in the middle
+    ks = np.concatenate((ks[nSamples//2:], ks[:nSamples//2]), axis=0) # shift for ifft
+    
     if ndim == 1:
         kfuncOnGrid = np.array([kfunc(k) for k in ks])
     if ndim == 2:
-        kfuncOnGrid = np.array([[kfunc((kx, ky)) for kx in ks] for ky in ks])
+        kfuncOnGrid = np.array([[kfunc((kx, ky)) for ky in ks] for kx in ks])
     if ndim > 2:
         raise NotImplementedError("n > 2 not implemented")
     return ifftn(kfuncOnGrid, axes=np.arange(ndim))
@@ -75,6 +77,5 @@ def kfunc2tbQuad(kfunc, ndim=1):
     def tbfunc(vector): 
         def integrand(k):
             return kfunc(k) * np.exp(1j * np.dot(k, np.array(vector, dtype=float))) / (2*np.pi)
-    
         return quad_vecNDim(integrand, -np.pi, np.pi, ndim=ndim)[0]
     return tbfunc
