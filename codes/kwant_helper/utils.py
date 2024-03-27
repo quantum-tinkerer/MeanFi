@@ -253,16 +253,18 @@ def generate_guess(tb_model, int_model, scale=0.1):
     """
     ndof = tb_model[next(iter(tb_model))].shape[-1]
     guess = {}
-    vectors = [*tb_model.keys(), *int_model.keys()]
+    vectors = frozenset(tb_model) | frozenset(int_model)
     for vector in vectors:
         amplitude = np.random.rand(ndof, ndof)
         phase = 2 * np.pi * np.random.rand(ndof, ndof)
         rand_hermitian = amplitude * np.exp(1j * phase)
-        if np.linalg.norm(np.array(vector)):
-            rand_hermitian += rand_hermitian.T.conj()
-            rand_hermitian /= 2
         guess[vector] = rand_hermitian * scale
-
+        op_vector = tuple(-np.array(vector))
+        if op_vector==vector:
+            guess[vector] += guess[vector].T.conj()
+            guess[vector] /= 2
+        else:
+            guess[op_vector] = guess[vector].T.conj()
     return guess
 
 
