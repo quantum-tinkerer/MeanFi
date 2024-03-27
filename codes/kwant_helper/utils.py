@@ -237,7 +237,7 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
     return int_builder
 
 
-def generate_guess(tb_model, int_model, scale=0.1):
+def generate_guess(nk, tb_model, int_model, scale=0.1):
     """
     nk : int
         Number of k-points along each direction.
@@ -263,9 +263,9 @@ def generate_guess(tb_model, int_model, scale=0.1):
         if np.linalg.norm(np.array(vector)):
             rand_hermitian += rand_hermitian.T.conj()
             rand_hermitian /= 2
-        guess[vector] = rand_hermitian*scale
+        guess[vector] = rand_hermitian
 
-    return guess#kgrid_hamiltonian(nk, guess) * scale
+    return kgrid_hamiltonian(nk, guess) * scale
 
 
 def hk2tb_model(hk, tb_model, int_model, ks=None):
