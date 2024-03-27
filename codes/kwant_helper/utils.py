@@ -1,7 +1,7 @@
 import numpy as np
 import kwant
-from itertools import product
 from scipy.sparse import coo_array
+from itertools import product
 import inspect
 from copy import copy
 
@@ -113,6 +113,11 @@ def builder2tb_model(builder, params={}, return_data=False):
                     .toarray()
                     .T.conj()
                 )
+            else:
+                # Hopping vector in the opposite direction
+                tb_model[tuple(-b_dom)] += coo_array(
+                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
+                ).toarray().T.conj()
         else:
             tb_model[tuple(b_dom)] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
@@ -123,6 +128,10 @@ def builder2tb_model(builder, params={}, return_data=False):
                     .toarray()
                     .T.conj()
                 )
+            else:
+                tb_model[tuple(-b_dom)] = coo_array(
+                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
+                ).toarray().T.conj()
 
     if return_data:
         data = {}
@@ -133,34 +142,9 @@ def builder2tb_model(builder, params={}, return_data=False):
         return tb_model
 
 
-def dict2hk(tb_dict):
+def model2hk(tb_model):
     """
     Build Bloch Hamiltonian.
-
-    Returns:
-    --------
-    bloch_ham : function
-        Evaluates the Hamiltonian at a given k-point.
-    """
-
-    def bloch_ham(k):
-        ham = 0
-        for vector in tb_dict.keys():
-            ham += tb_dict[vector] * np.exp(
-                1j * np.dot(k, np.array(vector, dtype=float))
-            )
-            if np.linalg.norm(np.array(vector)) > 0:
-                ham += tb_dict[vector].T.conj() * np.exp(
-                    -1j * np.dot(k, np.array(vector))
-                )
-        return ham
-
-    return bloch_ham
-
-
-def kgrid_hamiltonian(nk, tb_model, return_ks=False):
-    """
-    Evaluates Hamiltonian on a k-point grid.
 
     Paramters:
     ----------
@@ -183,16 +167,51 @@ def kgrid_hamiltonian(nk, tb_model, return_ks=False):
         direction and `i` and `j` are the internal degrees of freedom.
     ks : 1D-array
         List of k-points over all directions. Only returned if `return_ks=True`.
-    """
-    dim = len(next(iter(tb_model)))
-    if dim == 0:
-        if return_ks:
-            return syst[next(iter(tb_model))], None
-        else:
-            return syst[next(iter(tb_model))]
-    else:
-        hk = dict2hk(tb_model)
 
+    Returns:
+    --------
+    bloch_ham : function
+        Evaluates the Hamiltonian at a given k-point.
+    """
+    assert (
+        len(next(iter(tb_model))) > 0
+    ), "Zero-dimensional system. The Hamiltonian is simply tb_model[()]."
+
+    def bloch_ham(k):
+        ham = 0
+        for vector in tb_model.keys():
+            ham += tb_model[vector] * np.exp(
+                -1j * np.dot(k, np.array(vector, dtype=float))
+            )
+        return ham
+
+    return bloch_ham
+
+
+def kgrid_hamiltonian(nk, hk, dim, return_ks=False, hermitian=True):
+    """
+    Evaluates Hamiltonian on a k-point grid.
+
+    Paramters:
+    ----------
+    nk : int
+        Number of k-points along each direction.
+    hk : function
+        Calculates the Hamiltonian at a given k-point.
+    return_ks : bool
+        If `True`, returns k-points.
+
+    Returns:
+    --------
+    ham : nd.array
+        Hamiltonian evaluated on a k-point grid from k-points
+        along each direction evaluated from zero to 2*pi.
+        The indices are ordered as [k_1, ... , k_n, i, j], where
+        `k_m` corresponding to the k-point element along each
+        direction and `i` and `j` are the internal degrees of freedom.
+    ks : 1D-array
+        List of k-points over all directions. Only returned if `return_ks=True`.
+    """
     ks = 2 * np.pi * np.linspace(0, 1, nk, endpoint=False)
 
     k_pts = np.tile(ks, dim).reshape(dim, nk)
@@ -201,6 +220,10 @@ def kgrid_hamiltonian(nk, tb_model, return_ks=False):
     for k in product(*k_pts):
         ham.append(hk(k))
     ham = np.array(ham)
+    if hermitian:
+        assert np.allclose(
+            ham, np.transpose(ham, (0, 2, 1)).conj()
+        ), "Tight-binding provided is non-Hermitian. Not supported yet"
     shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
     if return_ks:
         return ham.reshape(*shape), ks
@@ -237,38 +260,56 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
     return int_builder
 
 
-def generate_guess(tb_model, int_model, scale=0.1):
+def generate_guess(vectors, ndof, scale=0.1):
     """
-    tb_model : dict
-        Tight-binding model of non-interacting systems.
-    int_model : dict
-        Tight-binding model for interacting Hamiltonian.
+    vectors : list
+        List of hopping vectors.
+    ndof : int
+        Number internal degrees of freedom (orbitals),
     scale : float
         The scale of the guess. Maximum absolute value of each element of the guess.
 
     Returns:
     --------
     guess : tb dictionary
-        TB guess.
+        Guess in the form of a tight-binding model.
     """
-    ndof = tb_model[next(iter(tb_model))].shape[-1]
     guess = {}
-    vectors = frozenset(tb_model) | frozenset(int_model)
     for vector in vectors:
-        amplitude = np.random.rand(ndof, ndof)
-        phase = 2 * np.pi * np.random.rand(ndof, ndof)
-        rand_hermitian = amplitude * np.exp(1j * phase)
-        guess[vector] = rand_hermitian * scale
-        op_vector = tuple(-np.array(vector))
-        if op_vector==vector:
-            guess[vector] += guess[vector].T.conj()
-            guess[vector] /= 2
-        else:
-            guess[op_vector] = guess[vector].T.conj()
+        if vector not in guess.keys():
+            amplitude = scale * np.random.rand(ndof, ndof)
+            phase = 2 * np.pi * np.random.rand(ndof, ndof)
+            rand_hermitian = amplitude * np.exp(1j * phase)
+            if np.linalg.norm(np.array(vector)) == 0:
+                rand_hermitian += rand_hermitian.T.conj()
+                rand_hermitian /= 2
+                guess[vector] = rand_hermitian
+            else:
+                guess[vector] = rand_hermitian
+                guess[tuple(-np.array(vector))] = rand_hermitian.T.conj()
+
     return guess
 
 
-def hk2tb_model(hk, tb_model, int_model, ks=None):
+def generate_vectors(cutoff, dim):
+    """
+    Generates hopping vectors up to a cutoff.
+
+    Parameters:
+    -----------
+    cutoff : int
+        Maximum distance along each direction.
+    dim : int
+        Dimension of the vectors.
+
+    Returns:
+    --------
+    List of hopping vectors.
+    """
+    return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
+
+
+def hk2tb_model(hk, hopping_vecs, ks=None):
     """
     Extract hopping matrices from Bloch Hamiltonian.
 
@@ -289,9 +330,6 @@ def hk2tb_model(hk, tb_model, int_model, ks=None):
         TIght-binding model of Hartree-Fock solution.
     """
     if ks is not None:
-        hopping_vecs = np.unique(
-            np.array([*tb_model.keys(), *int_model.keys()]), axis=0
-        )
         ndim = len(hk.shape) - 2
         dk = np.diff(ks)[0]
         nk = len(ks)
@@ -337,3 +375,50 @@ def calc_gap(vals, E_F):
     emax = np.max(vals[vals <= E_F])
     emin = np.min(vals[vals > E_F])
     return np.abs(emin - emax)
+
+
+def matrix_to_flat(matrix):
+    """
+    Flatten the upper triangle of a collection of matrices.
+
+    Parameters:
+    -----------
+    matrix : nd-array
+        Array with shape (..., n, n)
+    """
+    return matrix[..., *np.triu_indices(matrix.shape[-1])].flatten()
+
+def flat_to_matrix(flat, shape):
+    """
+    Undo `matrix_to_flat`.
+    
+    Parameters:
+    -----------
+    flat : 1d-array
+        Output from `matrix_to_flat`.
+    shape : 1d-array
+        Shape of the input from `matrix_to_flat`.
+    """
+    matrix = np.zeros(shape, dtype=complex)
+    matrix[..., *np.triu_indices(shape[-1])] = flat.reshape(*shape[:-2], -1)
+    indices = np.arange(shape[-1])
+    diagonal = matrix[..., indices, indices]
+    matrix += np.moveaxis(matrix, -1, -2).conj()
+    matrix[..., indices, indices] -= diagonal
+    return matrix
+
+def complex_to_real(z):
+    """
+    Split real and imaginary parts of a complex array.
+
+    Parameters:
+    -----------
+    z : array
+    """
+    return np.concatenate((np.real(z), np.imag(z)))
+
+def real_to_complex(z):
+    """
+    Undo `complex_to_real`.
+    """
+    return z[:len(z)//2] + 1j * z[len(z)//2:]
