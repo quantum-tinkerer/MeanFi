@@ -1,7 +1,7 @@
-from .params.rparams import mf2rParams, rParams2mf
+from codes.params.rparams import mf2rParams, rParams2mf
 import scipy
 from functools import partial
-from .tb.tb import addTb
+from codes.tb.tb import addTb
 import numpy as np
 
 

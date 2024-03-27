@@ -1,5 +1,5 @@
 import numpy as np
-from .matrixShaping import (complex_to_real, matrix_to_flat,
+from codes.params.matrixShaping import (complex_to_real, matrix_to_flat,
                              real_to_complex, flat_to_matrix)
 
 def mf2rParams(mf_model):
