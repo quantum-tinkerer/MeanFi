@@ -16,8 +16,13 @@
 
 # %%
 import numpy as np
-from rparams import mf2rParams, rParams2mf
+from codes.params.rparams import mf2rParams, rParams2mf
 from codes.kwant_helper.utils import generate_guess
+
+def compareDicts(dict1, dict2):
+    for key in dict1.keys():
+        assert np.allclose(dict1[key], dict2[key])
+
 
 # %%
 ndof = 5
@@ -27,5 +32,6 @@ mf_guess = generate_guess(vectors, ndof)
 mf_params = mf2rParams(mf_guess)
 mf_new = rParams2mf(mf_params, vectors, ndof)
 
-for vector in mf_new:
-    assert np.allclose(mf_new[vector], mf_guess[vector])
+compareDicts(mf_guess, mf_new)
+
+# %%

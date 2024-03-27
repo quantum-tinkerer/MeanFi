@@ -38,8 +38,3 @@ def rParams2mf(rParams, keyList, size):
     flatMatrix = real_to_complex(rParams)
     shapedMatrix = flat_to_matrix(flatMatrix, (len(keyList), size, size))
     return {keyList[i] : shapedMatrix[i, :] for i  in range(len(keyList))}
-
-    ## TODO: test the function via performing to and back conversion on a random model
-def compareDicts(dict1, dict2):
-    for key in dict1.keys():
-        assert np.allclose(dict1[key], dict2[key])
