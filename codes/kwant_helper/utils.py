@@ -260,7 +260,7 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
     return int_builder
 
 
-def generate_guess(vectors, ndof, scale=0.1):
+def generate_guess(vectors, ndof, scale=1):
     """
     vectors : list
         List of hopping vectors.
