@@ -25,7 +25,7 @@ def compareDicts(dict1, dict2):
 
 
 # %%
-ndof = 5
+ndof = 10
 vectors = ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1), (1, 1), (-1, -1))
 
 mf_guess = generate_guess(vectors, ndof)

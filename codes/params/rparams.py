@@ -1,6 +1,6 @@
 import numpy as np
-from codes.params.matrixShaping import (complex_to_real, matrix_to_flat,
-                             real_to_complex, flat_to_matrix)
+from codes.params.matrixShaping import (complex_to_real, hop_dict_to_flat,
+                             real_to_complex, flat_to_hop_dict)
 
 def mf2rParams(mf_model):
     """
@@ -16,7 +16,7 @@ def mf2rParams(mf_model):
     dict
         Real parameters.
     """
-    return complex_to_real(matrix_to_flat(np.array([mf_model[key] for key in mf_model]))) # placeholder for now
+    return complex_to_real(hop_dict_to_flat(mf_model)) # placeholder for now
 
 def rParams2mf(rParams, keyList, size):
     """
@@ -36,5 +36,4 @@ def rParams2mf(rParams, keyList, size):
     """
 
     flatMatrix = real_to_complex(rParams)
-    shapedMatrix = flat_to_matrix(flatMatrix, (len(keyList), size, size))
-    return {keyList[i] : shapedMatrix[i, :] for i  in range(len(keyList))}
+    return flat_to_hop_dict(flatMatrix, (len(keyList), size, size), keyList)
