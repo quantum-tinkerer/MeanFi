@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def hop_dict_to_flat(hop_dict):
     """
     Convert a hermitian tight-binding dictionary to flat complex matrix.
@@ -8,17 +9,18 @@ def hop_dict_to_flat(hop_dict):
     -----------
     hop_dict : dict with nd-array elements
         Hermitian tigh-binding dictionary
-    
+
     Returns:
     -----------
     flat : complex 1d numpy array
         Flattened tight-binding dictionary
     """
+    N = len(hop_dict.keys()) // 2 + 1
     sorted_vals = np.array(list(hop_dict.values()))[
-        np.lexsort(np.array(list(hop_dict)).T)
+        np.lexsort(np.array(list(hop_dict.keys())).T)
     ]
-    flat = sorted_vals[..., *np.triu_indices(sorted_vals.shape[-1])].flatten()
-    return flat
+    return sorted_vals[:N].flatten()
+
 
 def flat_to_hop_dict(flat, shape, hop_dict_keys):
     """
@@ -33,23 +35,22 @@ def flat_to_hop_dict(flat, shape, hop_dict_keys):
         shape of the hop_dict elements
     hop_dict_keys : iterable
         original hop_dict key elements
-    
+
     Returns:
     -----------
     hop_dict : dict
         tight-binding dictionary
     """
     matrix = np.zeros(shape, dtype=complex)
-    matrix[..., *np.triu_indices(shape[-1])] = flat.reshape(*shape[:-2], -1)
-    indices = np.arange(shape[-1])
-    diagonal = matrix[..., indices, indices]
-    matrix += np.moveaxis(matrix[-1::-1], -1, -2).conj()
-    matrix[..., indices, indices] -= diagonal
+    N = len(hop_dict_keys) // 2 + 1
+    matrix[:N] = flat.reshape(N, *shape[1:])
+    matrix[N:] = np.moveaxis(matrix[-(N + 1) :: -1], -1, -2).conj()
 
     hop_dict_keys = np.array(list(hop_dict_keys))
     sorted_keys = hop_dict_keys[np.lexsort(hop_dict_keys.T)]
     hop_dict = dict(zip(map(tuple, sorted_keys), matrix))
     return hop_dict
+
 
 def complex_to_real(z):
     """
@@ -61,8 +62,9 @@ def complex_to_real(z):
     """
     return np.concatenate((np.real(z), np.imag(z)))
 
+
 def real_to_complex(z):
     """
     Undo `complex_to_real`.
     """
-    return z[:len(z)//2] + 1j * z[len(z)//2:]
+    return z[: len(z) // 2] + 1j * z[len(z) // 2 :]
