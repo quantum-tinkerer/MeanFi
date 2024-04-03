@@ -97,12 +97,14 @@ def meanFieldFFT(densityMatrixFunc, int_model, n=2, nK=100):
     localKey = tuple(np.zeros((n,), dtype=int))
 
     direct = {
-        localKey: np.diag(
-            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], int_model[localKey])
+        localKey: np.sum(np.array([np.diag(
+            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], int_model[vec]))
+            for vec in frozenset(int_model)]), axis=0
         )
     }
+
     exchange = {
-        vec: -1 * int_model.get(vec, 0) * densityMatrixTb[*vec, :]
+        vec: -1 * int_model.get(vec, 0) * densityMatrixTb[*vec, :] #/ (2 * np.pi)#**2
         for vec in frozenset(int_model)
     }
     return addTb(direct, exchange)
