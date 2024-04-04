@@ -1,6 +1,8 @@
 import numpy as np
 from .tb.transforms import kfunc2tbFFT, kfunc2tbQuad, tb2kfunc
 from .tb.tb import addTb
+from scipy.integrate import nquad
+
 
 
 def densityMatrixGenerator(hkfunc, E_F):
@@ -70,12 +72,11 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
         return fermi
 
 
-# TODO: fix this function for N-dimensions
-# def totalEnergy(rho, hk):
-#     def integrand(k):
-#         return np.real(np.trace(rho(k) @ hk(k)))
-#     return quad(integrand, -np.pi, np.pi)[0]
-
+def totalEnergy(rho, hk, ndim=1, quad_kwargs={}):
+    def integrand(*k):
+        return np.real(np.trace(rho(k) @ hk(k)))
+    bounds = [(-np.pi, np.pi) for _ in range(ndim)]
+    return nquad(integrand, bounds, **quad_kwargs)[0]
 
 def meanFieldFFT(densityMatrixFunc, int_model, n=2, nK=100):
     """
