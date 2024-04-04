@@ -73,6 +73,25 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
 
 
 def totalEnergy(rho, hk, ndim=1, quad_kwargs={}):
+    """
+    Compute the total energy of a system.
+
+    Parameters
+    ----------
+    rho : function
+        Function that returns the density matrix at a given k-point.
+    hk : function
+        Function that returns the Hamiltonian at a given k-point.
+    ndim : int  
+        Dimension of the system.
+    quad_kwargs : dict
+        Keyword arguments for the nquad function.
+
+    Returns
+    -------
+    float
+        Total energy.
+    """
     def integrand(*k):
         return np.real(np.trace(rho(k) @ hk(k)))
     bounds = [(-np.pi, np.pi) for _ in range(ndim)]
