@@ -3,8 +3,6 @@ from .tb.transforms import kfunc2tbFFT, kfunc2tbQuad, tb2kfunc
 from .tb.tb import addTb
 from scipy.integrate import nquad
 
-
-
 def densityMatrixGenerator(hkfunc, E_F):
     """
     Generate a function that returns the density matrix at a given k-point.
@@ -71,40 +69,14 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
         fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
         return fermi
 
-
-def totalEnergy(rho, hk, ndim=1, quad_kwargs={}):
-    """
-    Compute the total energy of a system.
-
-    Parameters
-    ----------
-    rho : function
-        Function that returns the density matrix at a given k-point.
-    hk : function
-        Function that returns the Hamiltonian at a given k-point.
-    ndim : int  
-        Dimension of the system.
-    quad_kwargs : dict
-        Keyword arguments for the nquad function.
-
-    Returns
-    -------
-    float
-        Total energy.
-    """
-    def integrand(*k):
-        return np.real(np.trace(rho(k) @ hk(k)))
-    bounds = [(-np.pi, np.pi) for _ in range(ndim)]
-    return nquad(integrand, bounds, **quad_kwargs)[0]
-
-def meanFieldFFT(densityMatrixFunc, int_model, n=2, nK=100):
+def meanFieldFFT(densityMatrix, int_model, n=2, nK=100):
     """
     Compute the mean-field in k-space.
 
     Parameters
     ----------
-    rhofunc : function
-        Function that returns the density matrix at a given k-space vector.
+    densityMatrix : dict
+        Density matrix in real-space tight-binding format.
     int_model : dict
         Interaction tb model.
 
@@ -113,18 +85,17 @@ def meanFieldFFT(densityMatrixFunc, int_model, n=2, nK=100):
     dict
         Mean-field tb model.
     """
-    densityMatrixTb = kfunc2tbFFT(densityMatrixFunc, nK, n)
     localKey = tuple(np.zeros((n,), dtype=int))
 
     direct = {
         localKey: np.sum(np.array([np.diag(
-            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], int_model[vec]))
+            np.einsum("pp,pn->n", densityMatrix[localKey], int_model[vec]))
             for vec in frozenset(int_model)]), axis=0
         )
     }
 
     exchange = {
-        vec: -1 * int_model.get(vec, 0) * densityMatrixTb[*vec, :] #/ (2 * np.pi)#**2
+        vec: -1 * int_model.get(vec, 0) * densityMatrix[vec] #/ (2 * np.pi)#**2
         for vec in frozenset(int_model)
     }
     return addTb(direct, exchange)
