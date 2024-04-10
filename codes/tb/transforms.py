@@ -2,6 +2,7 @@ import numpy as np
 from .utils import quad_vecNDim
 from scipy.fftpack import ifftn
 from itertools import product
+import itertools as it
 
 
 def tb2kfunc(h_0):

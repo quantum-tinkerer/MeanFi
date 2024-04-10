@@ -25,7 +25,9 @@ class Model:
 
         def _check_hermiticity(h):
             # assert hermiticity of the Hamiltonian
+            # assert hermiticity of the Hamiltonian
             for vector in h.keys():
+                op_vector = tuple(-1 * np.array(vector))
                 op_vector = tuple(-1 * np.array(vector))
                 assert np.allclose(h[vector], h[op_vector].conj().T)
 
@@ -39,6 +41,13 @@ class Model:
 
     def calculateEF(self, nK=200):
         self.EF = fermiOnGrid(self.hkfunc, self.filling, nK=nK, ndim=self._ndim)
+
+    def makeDensityMatrix(self, mf_model, nK=200):
+        self.hkfunc = tb2kfunc(addTb(self.h_0, mf_model))
+        self.calculateEF(nK=nK)
+        return kfunc2tbFFT(
+            densityMatrixGenerator(self.hkfunc, self.EF), nSamples=nK, ndim=self._ndim
+        )
 
     def mfield(self, mf_model):
         self.densityMatrix = self.makeDensityMatrix(mf_model)

@@ -1,6 +1,7 @@
 import numpy as np
 from .tb.transforms import kfunc2tbFFT, kfunc2tbQuad, tb2kfunc
 from .tb.tb import addTb
+from scipy.integrate import nquad
 
 
 def densityMatrixGenerator(hkfunc, E_F):
@@ -143,6 +144,10 @@ def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
 
     Parameters
     ----------
+    densityMatrix : dict
+        Density matrix in real-space tight-binding format.
+    int_model : dict
+        Interaction tb model.
     rhofunc : function
         Function that returns the density matrix at a given k-space vector.
     h_int : dict
@@ -153,7 +158,6 @@ def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
     dict
         Mean-field tb hopping dictionary.
     """
-    densityMatrixTb = kfunc2tbFFT(densityMatrixFunc, nK, n)
     localKey = tuple(np.zeros((n,), dtype=int))
 
     direct = {
@@ -161,6 +165,7 @@ def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
             np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], h_int[localKey])
         )
     }
+
     exchange = {
         vec: -1 * h_int.get(vec, 0) * densityMatrixTb[*vec, :]
         for vec in frozenset(h_int)
