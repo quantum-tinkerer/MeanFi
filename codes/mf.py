@@ -20,9 +20,9 @@ def densityMatrixGenerator(hkfunc, E_F):
         Returns a density matrix at a given k-point (kx, kx, ...)
     """
 
-    def densityMatrixFunc(k):  # This needs to become vectorized
-        hk = hkfunc(k)  #########################
-        vals, vecs = np.linalg.eigh(hk)  ################
+    def densityMatrixFunc(k):
+        hk = hkfunc(k)
+        vals, vecs = np.linalg.eigh(hk)
         unocc_vals = vals > E_F
         occ_vecs = vecs
         occ_vecs[:, unocc_vals] = 0
