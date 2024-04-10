@@ -22,7 +22,7 @@ model = Model(h_0, h_int, filling)
 
 
 def scf_loop():
-    model.mfieldFFT(guess, nK=nK)
+    model.mfield(guess, nK=nK)
 
 
 # %% Memory profile

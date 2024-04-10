@@ -22,7 +22,7 @@ def cost(mf_param, Model, nK=100):
     """
     shape = Model._size
     mf_tb = rParams2mf(mf_param, list(Model.h_int), shape)
-    mf_tb_new = Model.mfieldFFT(mf_tb, nK=nK)
+    mf_tb_new = Model.mfield(mf_tb, nK=nK)
     mf_params_new = mf2rParams(mf_tb_new)
     return mf_params_new - mf_param
 

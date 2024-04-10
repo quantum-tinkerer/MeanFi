@@ -1,8 +1,5 @@
 import numpy as np
-from .tb.transforms import kfunc2tbFFT, kfunc2tbQuad, tb2kfunc
-from .tb.tb import addTb
-from scipy.integrate import nquad
-
+from codes.tb.tb import addTb
 
 def densityMatrixGenerator(hkfunc, E_F):
     """
@@ -114,14 +111,6 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
         fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
         return fermi
 
-
-# TODO: fix this function for N-dimensions
-# def totalEnergy(rho, hk):
-#     def integrand(k):
-#         return np.real(np.trace(rho(k) @ hk(k)))
-#     return quad(integrand, -np.pi, np.pi)[0]
-
-
 def meanFieldFFTkvector(densityMatrixTb, h_int, n=2):
 
     localKey = tuple(np.zeros((n,), dtype=int))
@@ -137,8 +126,7 @@ def meanFieldFFTkvector(densityMatrixTb, h_int, n=2):
     }
     return addTb(direct, exchange)
 
-
-def meanFieldFFT(densityMatrix, int_model, n=2, nK=100):
+def meanField(densityMatrix, int_model, n=2, nK=100):
     """
     Compute the mean-field in k-space.
 
@@ -173,37 +161,5 @@ def meanFieldFFT(densityMatrix, int_model, n=2, nK=100):
     exchange = {
         vec: -1 * int_model.get(vec, 0) * densityMatrix[vec]  # / (2 * np.pi)#**2
         for vec in frozenset(int_model)
-    }
-    return addTb(direct, exchange)
-
-
-def meanFieldQuad(densityMatrixFunc, h_int):  # TODO extent to 2D
-    """
-    Compute the mean-field in real space.
-
-    Parameters
-    ----------
-    densityMatrixFunc : function
-        Function that returns the density matrix at a given k-space vector.
-    h_int : dict
-        Interaction tb hopping dictionary.
-
-    Returns
-    -------
-    dict
-        Mean-field tb hopping dictionary.
-    """
-    from scipy.quad import quad_vec
-
-    densityMatrixTb = kfunc2tbQuad(densityMatrixFunc)
-
-    # Compute direct interaction
-    intZero = tb2kfunc(h_int)(0)
-    direct = quad_vec(lambda k: np.diag(densityMatrixFunc(k)), -np.pi, np.pi)[0]
-    direct = np.diag(direct @ intZero) / (2 * np.pi)
-    direct = {(0,): direct}
-    exchange = {
-        vec: -1 * (h_int.get(vec, 0) * densityMatrixTb(vec)) / (2 * np.pi)
-        for vec in frozenset(h_int)
     }
     return addTb(direct, exchange)

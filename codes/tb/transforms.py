@@ -1,7 +1,5 @@
 import numpy as np
-from .utils import quad_vecNDim
 from scipy.fftpack import ifftn
-from itertools import product
 import itertools as it
 
 
@@ -83,7 +81,7 @@ def kfunc2kham(nk, hk, dim, return_ks=False, hermitian=True):
     k_pts = np.tile(ks, dim).reshape(dim, nk)
 
     ham = []
-    for k in product(*k_pts):
+    for k in it.product(*k_pts):
         ham.append(hk(k))
     ham = np.array(ham)
     if hermitian:
@@ -103,7 +101,7 @@ def tb2kham(h_0, nK=200, ndim=1):
     return kham
 
 
-def kfunc2tbFFT(kfunc, nSamples, ndim=1):
+def kfunc2tb(kfunc, nSamples, ndim=1):
     """
     Applies FFT on a k-space function to obtain a real-space components.
 
@@ -137,38 +135,5 @@ def kfunc2tbFFT(kfunc, nSamples, ndim=1):
     ifftnArray = ifftn(kfuncOnGrid, axes=np.arange(ndim))
     return ifftn2tb(ifftnArray)
 
-
 def kdens2tbFFT(kdens, ndim=1):
-
     return ifftn(kdens, axes=np.arange(ndim))
-
-
-def kfunc2tbQuad(kfunc, ndim=1):
-    """
-    Inverse Fourier transforms a k-space function to a real-space function using a
-    ndim quadrature integration.
-
-    Parameters
-    ----------
-    kfunc : function
-        A function that takes a k-space vector and returns a np.array.
-    ndim : int
-        Dimension of the k-space
-
-    Returns
-    -------
-    function
-        A function that takes a real-space integer vector and returns a np.array.
-    """
-
-    def tbfunc(vector):
-        def integrand(k):
-            return (
-                kfunc(k)
-                * np.exp(1j * np.dot(k, np.array(vector, dtype=float)))
-                / (2 * np.pi)
-            )
-
-        return quad_vecNDim(integrand, -np.pi, np.pi, ndim=ndim)[0]
-
-    return tbfunc

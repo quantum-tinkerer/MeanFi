@@ -1,12 +1,11 @@
-from .tb.tb import addTb
-from .tb.transforms import tb2kfunc, tb2kham, kdens2tbFFT, kfunc2tbFFT
-from .mf import (
+from codes.tb.tb import addTb
+from codes.tb.transforms import tb2kfunc, tb2kham, kdens2tbFFT, kfunc2tb
+from codes.mf import (
     densityMatrixGenerator,
     densityMatrix,
     fermiOnGridkvector,
     meanFieldFFTkvector,
-    meanFieldFFT,
-    meanFieldQuad,
+    meanField,
     fermiOnGrid,
 )
 import numpy as np
@@ -40,7 +39,7 @@ class Model:
     def makeDensityMatrix(self, mf_model, nK=200):
         self.hkfunc = tb2kfunc(addTb(self.h_0, mf_model))
         self.calculateEF(nK=nK)
-        return kfunc2tbFFT(
+        return kfunc2tb(
             densityMatrixGenerator(self.hkfunc, self.EF), nSamples=nK, ndim=self._ndim
         )
 
@@ -51,10 +50,10 @@ class Model:
     #         {self._localKey: -self.EF * np.eye(self._size)},
     #     )
 
-    def mfieldFFT(self, mf_model, nK=200):
+    def mfield(self, mf_model, nK=200):
         self.densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)
         return addTb(
-            meanFieldFFT(self.densityMatrix, self.h_int, n=self._ndim, nK=nK),
+            meanField(self.densityMatrix, self.h_int, n=self._ndim, nK=nK),
             {self._localKey: -self.EF * np.eye(self._size)},
         )
 

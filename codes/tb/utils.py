@@ -1,37 +1,32 @@
 import numpy as np
-from scipy.integrate import quad_vec
-from functools import partial
+from codes.tb.transforms import tb2kfunc
+import itertools as it
 
-def quad_vecNDim(f, a, b, ndim, **kwargs):
+def compute_gap(h, E_F=0, n=100):
     """
-    Integrate f over the n-dimensional hypercube [a, b]^n.
+    Compute gap.
 
-    Parameters
-    ----------
-    f : callable
-        Vector function to be integrated with input tuple of length n.
-    a : float
-        Lower bound of integration.
-    b : float
-        Upper bound of integration.
+    Parameters:
+    -----------
+    h : dict
+    Tight-binding model for which to compute the gap.
+    E_F : float
+    Fermi energy.
     n : int
-        Dimension of the hypercube.
-    kwargs : dict, optional
-        Extra keyword arguments to pass to quad.
+    Number of k-points to sample along each dimension.
+
+    Returns:
+    --------
+    gap : float
+    Indirect gap.
     """
-    if ndim == 1:
-        return quad_vec(f, a, b, **kwargs)
-    if ndim == 2:
-        _f = lambda x, y : f((x, y))
-        _fx = lambda x : quad_vec(partial(_f, x), a, b, **kwargs)[0]
-        return quad_vec(_fx, a, b, **kwargs)[0]
-    elif ndim > 2:
-        raise NotImplementedError("n > 2 not implemented")
- 
+    ndim = len(list(h)[0])
+    hkfunc = tb2kfunc(h)
+    kArray = np.linspace(0, 2*np.pi, n)
+    kGrid = list(it.product(*[kArray for i in range(ndim)]))
+    kham = np.array([hkfunc(k) for k in kGrid]) 
+    vals = np.linalg.eigvalsh(kham)
 
-# test part TODO separate it out to a test file
-# def gaussianTestFunc(vec):
-#     x = np.sum(np.array(vec)**2)
-#     return np.diag([np.exp(-x), np.exp(-2*x)])
-
-# assert np.allclose(quad_vecNDim(gaussianTestFunc, -np.inf, np.inf, 2), np.diag([np.pi, np.pi/2]))
+    emax = np.max(vals[vals <= E_F])
+    emin = np.min(vals[vals > E_F])
+    return np.abs(emin - emax)
