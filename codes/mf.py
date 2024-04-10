@@ -20,9 +20,9 @@ def densityMatrixGenerator(hkfunc, E_F):
         Returns a density matrix at a given k-point (kx, kx, ...)
     """
 
-    def densityMatrixFunc(k):
-        hk = hkfunc(k)
-        vals, vecs = np.linalg.eigh(hk)
+    def densityMatrixFunc(k):  # This needs to become vectorized
+        hk = hkfunc(k)  #########################
+        vals, vecs = np.linalg.eigh(hk)  ################
         unocc_vals = vals > E_F
         occ_vecs = vecs
         occ_vecs[:, unocc_vals] = 0
@@ -31,6 +31,30 @@ def densityMatrixGenerator(hkfunc, E_F):
         return occ_vecs @ occ_vecs.T.conj()
 
     return densityMatrixFunc
+
+
+def densityMatrix(kham, E_F):
+
+    densityMatrixKgrid = 0
+
+    return densityMatrixKgrid
+
+
+def fermiOnGridkvector(kham, filling, ndim=1):
+
+    vals = np.linalg.eigvalsh(kham)
+
+    norbs = vals.shape[-1]
+    vals_flat = np.sort(vals.flatten())
+    ne = len(vals_flat)
+    ifermi = int(round(ne * filling / norbs))
+    if ifermi >= ne:
+        return vals_flat[-1]
+    elif ifermi == 0:
+        return vals_flat[0]
+    else:
+        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
+        return fermi
 
 
 def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
@@ -80,6 +104,22 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
 #     return quad(integrand, -np.pi, np.pi)[0]
 
 
+def meanFieldFFTkvector(densityMatrixTb, h_int, n=2):
+
+    localKey = tuple(np.zeros((n,), dtype=int))
+
+    direct = {
+        localKey: np.diag(
+            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], h_int[localKey])
+        )
+    }
+    exchange = {
+        vec: -1 * h_int.get(vec, 0) * densityMatrixTb[*vec, :]
+        for vec in frozenset(h_int)
+    }
+    return addTb(direct, exchange)
+
+
 def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
     """
     Compute the mean-field in k-space.
@@ -89,12 +129,12 @@ def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
     rhofunc : function
         Function that returns the density matrix at a given k-space vector.
     h_int : dict
-        Interaction tb model.
+        Interaction tb hopping dictionary.
 
     Returns
     -------
     dict
-        Mean-field tb model.
+        Mean-field tb hopping dictionary.
     """
     densityMatrixTb = kfunc2tbFFT(densityMatrixFunc, nK, n)
     localKey = tuple(np.zeros((n,), dtype=int))
@@ -120,12 +160,12 @@ def meanFieldQuad(densityMatrixFunc, h_int):  # TODO extent to 2D
     densityMatrixFunc : function
         Function that returns the density matrix at a given k-space vector.
     h_int : dict
-        Interaction tb model.
+        Interaction tb hopping dictionary.
 
     Returns
     -------
     dict
-        Mean-field tb model.
+        Mean-field tb hopping dictionary.
     """
     from scipy.quad import quad_vec
 

@@ -27,6 +27,12 @@ def tb2kfunc(h_0):
     return bloch_ham
 
 
+def tb2kham(h_0):
+    kham = 0
+
+    return kham
+
+
 def kfunc2tbFFT(kfunc, nSamples, ndim=1):
     """
     Applies FFT on a k-space function to obtain a real-space components.
@@ -59,6 +65,11 @@ def kfunc2tbFFT(kfunc, nSamples, ndim=1):
     if ndim > 2:
         raise NotImplementedError("n > 2 not implemented")
     return ifftn(kfuncOnGrid, axes=np.arange(ndim))
+
+
+def kdens2tbFFT(kdens, nSamples, ndim=1):
+
+    return ifftn(kdens)
 
 
 def kfunc2tbQuad(kfunc, ndim=1):
