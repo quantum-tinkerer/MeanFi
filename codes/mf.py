@@ -52,7 +52,7 @@ def densityMatrix(kham, E_F):
     vals, vecs = np.linalg.eigh(kham)
     unocc_vals = vals > E_F
     occ_vecs = vecs
-    occ_vecs[..., unocc_vals] = 0
+    np.moveaxis(occ_vecs, -1, 2)[unocc_vals, :] = 0
     densityMatrixKgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
     return densityMatrixKgrid
 

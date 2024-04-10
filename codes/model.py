@@ -65,7 +65,7 @@ class Model:
 
     def mfieldFFTkvector(self, mf_model, nK=200):
         densityMatrix = self.makeDensityMatrixkvector(mf_model, nK=nK)
-        densityMatrixTb = kdens2tbFFT(densityMatrix, nK)
+        densityMatrixTb = kdens2tbFFT(densityMatrix, self._ndim)
         return addTb(
             meanFieldFFTkvector(densityMatrixTb, self.h_int, n=self._ndim),
             {self._localKey: -self.EF * np.eye(self._size)},
