@@ -17,3 +17,8 @@ run profiler:
     - pip install memray pyinstrument
     - python profiling/graphene.py
   stage: run profiler
+  artifacts:
+    paths:
+      - timeProfile.html
+      - memoryProfile.bin
+
