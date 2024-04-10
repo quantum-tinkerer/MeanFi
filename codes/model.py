@@ -60,7 +60,7 @@ class Model:
 
     def makeDensityMatrixkvector(self, mf_model, nK=200):
         self.kham = tb2kham(addTb(self.h_0, mf_model), nK=nK, ndim=self._ndim)
-        self.calculateEF()
+        self.calculateEFkvector()
         return densityMatrix(self.kham, self.EF)
 
     def mfieldFFTkvector(self, mf_model, nK=200):

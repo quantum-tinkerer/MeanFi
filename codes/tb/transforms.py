@@ -114,9 +114,9 @@ def kfunc2tbFFT(kfunc, nSamples, ndim=1):
     return ifftn(kfuncOnGrid, axes=np.arange(ndim))
 
 
-def kdens2tbFFT(kdens, nSamples, ndim=1):
+def kdens2tbFFT(kdens, ndim=1):
 
-    return ifftn(kdens)
+    return ifftn(kdens, axes=np.arange(ndim))
 
 
 def kfunc2tbQuad(kfunc, ndim=1):

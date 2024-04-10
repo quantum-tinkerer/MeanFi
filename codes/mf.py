@@ -53,8 +53,6 @@ def densityMatrix(kham, E_F):
     unocc_vals = vals > E_F
     occ_vecs = vecs
     occ_vecs[..., unocc_vals] = 0
-
-    # not sure if @ sign will work, need to change to diff function
     densityMatrixKgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
     return densityMatrixKgrid
 
