@@ -13,6 +13,7 @@ before_script:
 
 run profiler:
   script:
+    - cd codes; export PYTHONPATH="."; cd ..
     - pip install memray pyinstrument
     - python profiling/graphene.py
   stage: run profiler
