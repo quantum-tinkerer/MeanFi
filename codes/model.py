@@ -34,11 +34,6 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def makeDensityMatrix(self, mf_model, nK=200):
-        self.hkfunc = tb2kfunc(addTb(self.h_0, mf_model))
-        self.calculateEF(nK=nK)
-        return densityMatrixGenerator(self.hkfunc, self.EF)
-
     def calculateEF(self, nK=200):
         self.EF = fermiOnGrid(self.hkfunc, self.filling, nK=nK, ndim=self._ndim)
 
@@ -49,12 +44,12 @@ class Model:
             densityMatrixGenerator(self.hkfunc, self.EF), nSamples=nK, ndim=self._ndim
         )
 
-    def mfield(self, mf_model):
-        self.densityMatrix = self.makeDensityMatrix(mf_model)
-        return addTb(
-            meanFieldQuad(self.densityMatrix, self.h_int),
-            {self._localKey: -self.EF * np.eye(self._size)},
-        )
+    # def mfield(self, mf_model):
+    #     self.densityMatrix = self.makeDensityMatrix(mf_model)
+    #     return addTb(
+    #         meanFieldQuad(self.densityMatrix, self.int_model),
+    #         {self._localKey: -self.EF * np.eye(self._size)},
+    #     )
 
     def mfieldFFT(self, mf_model, nK=200):
         self.densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)

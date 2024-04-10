@@ -138,7 +138,7 @@ def meanFieldFFTkvector(densityMatrixTb, h_int, n=2):
     return addTb(direct, exchange)
 
 
-def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
+def meanFieldFFT(densityMatrix, int_model, n=2, nK=100):
     """
     Compute the mean-field in k-space.
 
@@ -148,27 +148,31 @@ def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
         Density matrix in real-space tight-binding format.
     int_model : dict
         Interaction tb model.
-    rhofunc : function
-        Function that returns the density matrix at a given k-space vector.
-    h_int : dict
-        Interaction tb hopping dictionary.
 
     Returns
     -------
     dict
-        Mean-field tb hopping dictionary.
+        Mean-field tb model.
     """
     localKey = tuple(np.zeros((n,), dtype=int))
 
     direct = {
-        localKey: np.diag(
-            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], h_int[localKey])
+        localKey: np.sum(
+            np.array(
+                [
+                    np.diag(
+                        np.einsum("pp,pn->n", densityMatrix[localKey], int_model[vec])
+                    )
+                    for vec in frozenset(int_model)
+                ]
+            ),
+            axis=0,
         )
     }
 
     exchange = {
-        vec: -1 * h_int.get(vec, 0) * densityMatrixTb[*vec, :]
-        for vec in frozenset(h_int)
+        vec: -1 * int_model.get(vec, 0) * densityMatrix[vec]  # / (2 * np.pi)#**2
+        for vec in frozenset(int_model)
     }
     return addTb(direct, exchange)
 

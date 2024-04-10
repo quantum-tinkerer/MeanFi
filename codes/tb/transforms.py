@@ -29,6 +29,28 @@ def tb2kfunc(h_0):
     return bloch_ham
 
 
+def ifftn2tb(ifftArray):
+    """
+    Converts an array from ifftn to a tight-binding model format.
+
+    Parameters
+    ----------
+    ifftArray : ndarray
+        An array obtained from ifftn.
+
+    Returns
+    -------
+    dict
+        A dictionary with real-space vectors as keys and complex np.arrays as values.
+    """
+
+    size = ifftArray.shape[:-2]
+
+    keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
+    keys = it.product(*keys)
+    return {tuple(k): ifftArray[tuple(k)] for k in keys}
+
+
 def kfunc2kham(nk, hk, dim, return_ks=False, hermitian=True):
     """
     Evaluates Hamiltonian on a k-point grid.
@@ -95,8 +117,8 @@ def kfunc2tbFFT(kfunc, nSamples, ndim=1):
     Returns
     -------
 
-    ndarray
-        An array with real-space components of kfuncs
+    dict
+        A dictionary with real-space vectors as keys and complex np.arrays as values.
     """
 
     ks = np.linspace(
@@ -112,7 +134,8 @@ def kfunc2tbFFT(kfunc, nSamples, ndim=1):
         kfuncOnGrid = np.array([[kfunc((kx, ky)) for ky in ks] for kx in ks])
     if ndim > 2:
         raise NotImplementedError("n > 2 not implemented")
-    return ifftn(kfuncOnGrid, axes=np.arange(ndim))
+    ifftnArray = ifftn(kfuncOnGrid, axes=np.arange(ndim))
+    return ifftn2tb(ifftnArray)
 
 
 def kdens2tbFFT(kdens, ndim=1):
