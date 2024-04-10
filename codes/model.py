@@ -1,5 +1,5 @@
 from .tb.tb import addTb
-from .tb.transforms import tb2kfunc, tb2kham, kdens2tbFFT
+from .tb.transforms import tb2kfunc, tb2kham, kdens2tbFFT, kfunc2tbFFT
 from .mf import (
     densityMatrixGenerator,
     densityMatrix,
