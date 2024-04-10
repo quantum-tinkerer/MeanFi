@@ -5,28 +5,27 @@ import numpy as np
 
 
 class Model:
-    def __init__(self, tb_model, int_model, filling):
-        self.tb_model = tb_model
-        self.int_model = int_model
+    def __init__(self, h_0, h_int, filling):
+        self.h_0 = h_0
+        self.h_int = h_int
         self.filling = filling
 
-        _firstKey = list(tb_model)[0]
+        _firstKey = list(h_0)[0]
         self._ndim = len(_firstKey)
-        self._size = tb_model[_firstKey].shape[0]
+        self._size = h_0[_firstKey].shape[0]
         self._localKey = tuple(np.zeros((self._ndim,), dtype=int))
 
-
         def _check_hermiticity(h):
-        # assert hermiticity of the Hamiltonian
+            # assert hermiticity of the Hamiltonian
             for vector in h.keys():
-                op_vector = tuple(-1*np.array(vector))
+                op_vector = tuple(-1 * np.array(vector))
                 assert np.allclose(h[vector], h[op_vector].conj().T)
 
-        _check_hermiticity(tb_model)
-        _check_hermiticity(int_model)
+        _check_hermiticity(h_0)
+        _check_hermiticity(h_int)
 
     def makeDensityMatrix(self, mf_model, nK=200):
-        self.hkfunc = tb2kfunc(addTb(self.tb_model, mf_model))
+        self.hkfunc = tb2kfunc(addTb(self.h_0, mf_model))
         self.calculateEF(nK=nK)
         return densityMatrixGenerator(self.hkfunc, self.EF)
 
@@ -36,13 +35,13 @@ class Model:
     def mfield(self, mf_model):
         self.densityMatrix = self.makeDensityMatrix(mf_model)
         return addTb(
-            meanFieldQuad(self.densityMatrix, self.int_model),
+            meanFieldQuad(self.densityMatrix, self.h_int),
             {self._localKey: -self.EF * np.eye(self._size)},
         )
 
     def mfieldFFT(self, mf_model, nK=200):
         self.densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)
         return addTb(
-            meanFieldFFT(self.densityMatrix, self.int_model, n=self._ndim, nK=nK),
+            meanFieldFFT(self.densityMatrix, self.h_int, n=self._ndim, nK=nK),
             {self._localKey: -self.EF * np.eye(self._size)},
         )

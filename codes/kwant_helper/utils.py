@@ -28,7 +28,7 @@ def get_fermi_energy(vals, filling):
         return fermi
 
 
-def builder2tb_model(builder, params={}, return_data=False):
+def builder2h_0(builder, params={}, return_data=False):
     """
     Constructs a tight-binding model dictionary from a `kwant.Builder`.
 
@@ -43,7 +43,7 @@ def builder2tb_model(builder, params={}, return_data=False):
 
     Returns:
     --------
-    tb_model : dict
+    h_0 : dict
         Tight-binding model of non-interacting systems.
     data : dict
         Data with sites and number of orbitals. Only if `return_data=True`.
@@ -52,7 +52,7 @@ def builder2tb_model(builder, params={}, return_data=False):
     # Extract information from builder
     dims = len(builder.symmetry.periods)
     onsite_idx = tuple([0] * dims)
-    tb_model = {}
+    h_0 = {}
     sites_list = [*builder.sites()]
     norbs_list = [site[0].norbs for site in builder.sites()]
     positions_list = [site[0].pos for site in builder.sites()]
@@ -75,12 +75,12 @@ def builder2tb_model(builder, params={}, return_data=False):
             data = val.flatten()
         except:
             data = val.flatten()
-        if onsite_idx in tb_model:
-            tb_model[onsite_idx] += coo_array(
+        if onsite_idx in h_0:
+            h_0[onsite_idx] += coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
         else:
-            tb_model[onsite_idx] = coo_array(
+            h_0[onsite_idx] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
     # Hopping matrices
@@ -103,46 +103,50 @@ def builder2tb_model(builder, params={}, return_data=False):
             data = val.flatten()
         except:
             data = val.flatten()
-        if tuple(b_dom) in tb_model:
-            tb_model[tuple(b_dom)] += coo_array(
+        if tuple(b_dom) in h_0:
+            h_0[tuple(b_dom)] += coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
             if np.linalg.norm(b_dom) == 0:
-                tb_model[tuple(b_dom)] += (
+                h_0[tuple(b_dom)] += (
                     coo_array((data, (row, col)), shape=(norbs_tot, norbs_tot))
                     .toarray()
                     .T.conj()
                 )
             else:
                 # Hopping vector in the opposite direction
-                tb_model[tuple(-b_dom)] += coo_array(
-                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
-                ).toarray().T.conj()
+                h_0[tuple(-b_dom)] += (
+                    coo_array((data, (row, col)), shape=(norbs_tot, norbs_tot))
+                    .toarray()
+                    .T.conj()
+                )
         else:
-            tb_model[tuple(b_dom)] = coo_array(
+            h_0[tuple(b_dom)] = coo_array(
                 (data, (row, col)), shape=(norbs_tot, norbs_tot)
             ).toarray()
             if np.linalg.norm(b_dom) == 0:
-                tb_model[tuple(b_dom)] += (
+                h_0[tuple(b_dom)] += (
                     coo_array((data, (row, col)), shape=(norbs_tot, norbs_tot))
                     .toarray()
                     .T.conj()
                 )
             else:
-                tb_model[tuple(-b_dom)] = coo_array(
-                    (data, (row, col)), shape=(norbs_tot, norbs_tot)
-                ).toarray().T.conj()
+                h_0[tuple(-b_dom)] = (
+                    coo_array((data, (row, col)), shape=(norbs_tot, norbs_tot))
+                    .toarray()
+                    .T.conj()
+                )
 
     if return_data:
         data = {}
         data["norbs"] = norbs_list
         data["positions"] = positions_list
-        return tb_model, data
+        return h_0, data
     else:
-        return tb_model
+        return h_0
 
 
-def model2hk(tb_model):
+def model2hk(h_0):
     """
     Build Bloch Hamiltonian.
 
@@ -150,7 +154,7 @@ def model2hk(tb_model):
     ----------
     nk : int
         Number of k-points along each direction.
-    tb_model : dictionary
+    h_0 : dictionary
         Must have the following structure:
             - Keys are tuples for each hopping vector (in units of lattice vectors).
             - Values are hopping matrices.
@@ -174,15 +178,13 @@ def model2hk(tb_model):
         Evaluates the Hamiltonian at a given k-point.
     """
     assert (
-        len(next(iter(tb_model))) > 0
-    ), "Zero-dimensional system. The Hamiltonian is simply tb_model[()]."
+        len(next(iter(h_0))) > 0
+    ), "Zero-dimensional system. The Hamiltonian is simply h_0[()]."
 
     def bloch_ham(k):
         ham = 0
-        for vector in tb_model.keys():
-            ham += tb_model[vector] * np.exp(
-                -1j * np.dot(k, np.array(vector, dtype=float))
-            )
+        for vector in h_0.keys():
+            ham += h_0[vector] * np.exp(-1j * np.dot(k, np.array(vector, dtype=float)))
         return ham
 
     return bloch_ham
@@ -309,7 +311,7 @@ def generate_vectors(cutoff, dim):
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
-def hk2tb_model(hk, hopping_vecs, ks=None):
+def hk2h_0(hk, hopping_vecs, ks=None):
     """
     Extract hopping matrices from Bloch Hamiltonian.
 
@@ -317,9 +319,9 @@ def hk2tb_model(hk, hopping_vecs, ks=None):
     -----------
     hk : nd-array
         Bloch Hamiltonian matrix hk[k_x, ..., k_n, i, j]
-    tb_model : dict
+    h_0 : dict
         Tight-binding model of non-interacting systems.
-    int_model : dict
+    h_int : dict
         Tight-binding model for interacting Hamiltonian.
     ks : 1D-array
         Set of k-points. Repeated for all directions. If the system is finite, `ks=None`.
@@ -347,11 +349,11 @@ def hk2tb_model(hk, hopping_vecs, ks=None):
             * (dk / (2 * np.pi)) ** ndim
         )
 
-        tb_model = {}
+        h_0 = {}
         for i, vector in enumerate(hopping_vecs):
-            tb_model[tuple(vector)] = hopps[i]
+            h_0[tuple(vector)] = hopps[i]
 
-        return tb_model
+        return h_0
     else:
         return {(): hk}
 
@@ -388,10 +390,11 @@ def matrix_to_flat(matrix):
     """
     return matrix[..., *np.triu_indices(matrix.shape[-1])].flatten()
 
+
 def flat_to_matrix(flat, shape):
     """
     Undo `matrix_to_flat`.
-    
+
     Parameters:
     -----------
     flat : 1d-array
@@ -407,6 +410,7 @@ def flat_to_matrix(flat, shape):
     matrix[..., indices, indices] -= diagonal
     return matrix
 
+
 def complex_to_real(z):
     """
     Split real and imaginary parts of a complex array.
@@ -417,8 +421,9 @@ def complex_to_real(z):
     """
     return np.concatenate((np.real(z), np.imag(z)))
 
+
 def real_to_complex(z):
     """
     Undo `complex_to_real`.
     """
-    return z[:len(z)//2] + 1j * z[len(z)//2:]
+    return z[: len(z) // 2] + 1j * z[len(z) // 2 :]

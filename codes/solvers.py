@@ -7,7 +7,7 @@ import numpy as np
 
 def cost(mf_param, Model, nK=100):
     """
-    Define the cost function for fixed point iteration. 
+    Define the cost function for fixed point iteration.
     The cost function is the difference between the input mean-field real space parametrisation
     and a new mean-field.
 
@@ -21,7 +21,7 @@ def cost(mf_param, Model, nK=100):
         The number of k-points to use in the grid. The default is 100.
     """
     shape = Model._size
-    mf_tb = rParams2mf(mf_param, list(Model.int_model), shape)
+    mf_tb = rParams2mf(mf_param, list(Model.h_int), shape)
     mf_tb_new = Model.mfieldFFT(mf_tb, nK=nK)
     mf_params_new = mf2rParams(mf_tb_new)
     return mf_params_new - mf_param
@@ -51,12 +51,12 @@ def solver(
     result : numpy.array
         The mean-field tight-binding model.
     """
-    
+
     shape = Model._size
     mf_params = mf2rParams(mf_guess)
     f = partial(cost, Model=Model, nK=nK)
     result = rParams2mf(
-        optimizer(f, mf_params, **optimizer_kwargs), list(Model.int_model), shape
+        optimizer(f, mf_params, **optimizer_kwargs), list(Model.h_int), shape
     )
     Model.calculateEF(nK=nK)
     localKey = tuple(np.zeros((Model._ndim,), dtype=int))

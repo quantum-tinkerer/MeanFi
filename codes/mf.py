@@ -32,6 +32,7 @@ def densityMatrixGenerator(hkfunc, E_F):
 
     return densityMatrixFunc
 
+
 def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
     """
     Compute the Fermi energy on a grid of k-points.
@@ -53,7 +54,9 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
     if ndim == 2:
         hkarray = np.array([[hkfunc((kx, ky)) for kx in ks] for ky in ks])
     elif ndim > 2:
-        raise NotImplementedError("Fermi energy calculation is not implemented for ndim > 2")
+        raise NotImplementedError(
+            "Fermi energy calculation is not implemented for ndim > 2"
+        )
 
     vals = np.linalg.eigvalsh(hkarray)
 
@@ -77,7 +80,7 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
 #     return quad(integrand, -np.pi, np.pi)[0]
 
 
-def meanFieldFFT(densityMatrixFunc, int_model, n=2, nK=100):
+def meanFieldFFT(densityMatrixFunc, h_int, n=2, nK=100):
     """
     Compute the mean-field in k-space.
 
@@ -85,7 +88,7 @@ def meanFieldFFT(densityMatrixFunc, int_model, n=2, nK=100):
     ----------
     rhofunc : function
         Function that returns the density matrix at a given k-space vector.
-    int_model : dict
+    h_int : dict
         Interaction tb model.
 
     Returns
@@ -98,17 +101,17 @@ def meanFieldFFT(densityMatrixFunc, int_model, n=2, nK=100):
 
     direct = {
         localKey: np.diag(
-            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], int_model[localKey])
+            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], h_int[localKey])
         )
     }
     exchange = {
-        vec: -1 * int_model.get(vec, 0) * densityMatrixTb[*vec, :]
-        for vec in frozenset(int_model)
+        vec: -1 * h_int.get(vec, 0) * densityMatrixTb[*vec, :]
+        for vec in frozenset(h_int)
     }
     return addTb(direct, exchange)
 
 
-def meanFieldQuad(densityMatrixFunc, int_model):  # TODO extent to 2D
+def meanFieldQuad(densityMatrixFunc, h_int):  # TODO extent to 2D
     """
     Compute the mean-field in real space.
 
@@ -116,7 +119,7 @@ def meanFieldQuad(densityMatrixFunc, int_model):  # TODO extent to 2D
     ----------
     densityMatrixFunc : function
         Function that returns the density matrix at a given k-space vector.
-    int_model : dict
+    h_int : dict
         Interaction tb model.
 
     Returns
@@ -129,12 +132,12 @@ def meanFieldQuad(densityMatrixFunc, int_model):  # TODO extent to 2D
     densityMatrixTb = kfunc2tbQuad(densityMatrixFunc)
 
     # Compute direct interaction
-    intZero = tb2kfunc(int_model)(0)
+    intZero = tb2kfunc(h_int)(0)
     direct = quad_vec(lambda k: np.diag(densityMatrixFunc(k)), -np.pi, np.pi)[0]
     direct = np.diag(direct @ intZero) / (2 * np.pi)
     direct = {(0,): direct}
     exchange = {
-        vec: -1 * (int_model.get(vec, 0) * densityMatrixTb(vec)) / (2 * np.pi)
-        for vec in frozenset(int_model)
+        vec: -1 * (h_int.get(vec, 0) * densityMatrixTb(vec)) / (2 * np.pi)
+        for vec in frozenset(h_int)
     }
     return addTb(direct, exchange)

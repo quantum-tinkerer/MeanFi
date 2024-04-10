@@ -6,7 +6,7 @@ from codes import kwant_examples
 # %%
 # Example hopping dictionary to use:
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
-tb_model = utils.builder2tb_model(graphene_builder)
+h_0 = utils.builder2h_0(graphene_builder)
 
 
 # %%
@@ -34,8 +34,8 @@ def flat_to_hop_dict(flat, shape, hop_dict_keys):
 
 
 # %%
-flat = hop_dict_to_flat(tb_model)
-shape = (len(tb_model.keys()), *list(tb_model.values())[0].shape)
-hop_dict = flat_to_hop_dict(flat, shape, tb_model.keys())
+flat = hop_dict_to_flat(h_0)
+shape = (len(h_0.keys()), *list(h_0.values())[0].shape)
+hop_dict = flat_to_hop_dict(flat, shape, h_0.keys())
 
 # %%
