@@ -59,7 +59,7 @@ class Model:
         self.EF = fermiOnGridkvector(self.kham, self.filling, ndim=self._ndim)
 
     def makeDensityMatrixkvector(self, mf_model, nK=200):
-        self.kham = tb2kham(addTb(self.h_0, mf_model))
+        self.kham = tb2kham(addTb(self.h_0, mf_model), nK=nK, ndim=self._ndim)
         self.calculateEF()
         return densityMatrix(self.kham, self.EF)
 
