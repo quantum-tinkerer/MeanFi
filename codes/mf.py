@@ -34,13 +34,32 @@ def densityMatrixGenerator(hkfunc, E_F):
 
 
 def densityMatrix(kham, E_F):
+    """
+    Parameters
+    ----------
+    kham : npndarray
+        Hamiltonian in k-space of shape (len(dim), norbs, norbs)
 
-    densityMatrixKgrid = 0
+    E_F : float
+        Fermi level
 
+    Returns
+    -------
+    densityMatrixKgrid : np.ndarray
+        Density matrix in k-space.
+
+    """
+    vals, vecs = np.linalg.eigh(kham)
+    unocc_vals = vals > E_F
+    occ_vecs = vecs
+    occ_vecs[..., unocc_vals] = 0
+
+    # not sure if @ sign will work, need to change to diff function
+    densityMatrixKgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
     return densityMatrixKgrid
 
 
-def fermiOnGridkvector(kham, filling, ndim=1):
+def fermiOnGridkvector(kham, filling):
 
     vals = np.linalg.eigvalsh(kham)
 
