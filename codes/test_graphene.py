@@ -1,16 +1,19 @@
 # %%
 import numpy as np
 from codes.model import Model
-from codes.solvers import solver
+from codes.solvers import solverkvector
 from codes import kwant_examples
 from codes.kwant_helper import utils
 from codes.tb.utils import compute_gap
 from codes.tb.tb import addTb
 import pytest
+
 repeatNumber = 10
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 h_0 = utils.builder2h_0(graphene_builder)
+
+
 # %%
 def gap_prediction(U, V):
     """
@@ -28,8 +31,8 @@ def gap_prediction(U, V):
     params = {"U": U, "V": V}
 
     # Compare to phase diagram in https://arxiv.org/pdf/1204.4531.pdf
-    upperPhaseLine = 0.181*U + 0.416
-    lowerPhaseLine = 1.707*U - 3.823
+    upperPhaseLine = 0.181 * U + 0.416
+    lowerPhaseLine = 1.707 * U - 3.823
     triplePoint = (2.78, 0.92)
 
     gapped = False
@@ -46,7 +49,9 @@ def gap_prediction(U, V):
     guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
-    mf_sol = solver(model, guess, nK=nK, optimizer_kwargs={'verbose' : True, 'M' : 0})
+    mf_sol = solverkvector(
+        model, guess, nK=nK, optimizer_kwargs={"verbose": True, "M": 0}
+    )
     gap = compute_gap(addTb(h_0, mf_sol), n=100)
 
     # Check if the gap is predicted correctly
@@ -54,7 +59,10 @@ def gap_prediction(U, V):
         gappedPredicted = True
     else:
         gappedPredicted = False
-    assert gapped == gappedPredicted, f"Mean-field theory failed to predict the gap for U = {U}, V = {V}"
+    assert (
+        gapped == gappedPredicted
+    ), f"Mean-field theory failed to predict the gap for U = {U}, V = {V}"
+
 
 # %%
 @pytest.mark.repeat(repeatNumber)
