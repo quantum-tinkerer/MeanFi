@@ -1,4 +1,3 @@
-import numpy as np
 from codes.params.matrixShaping import (complex_to_real, hop_dict_to_flat,
                              real_to_complex, flat_to_hop_dict)
 

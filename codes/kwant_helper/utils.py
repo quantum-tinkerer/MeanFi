@@ -73,7 +73,7 @@ def builder2h_0(builder, params={}, return_data=False):
                     _params[arg] = params[arg]
             val = val(site, **_params)
             data = val.flatten()
-        except:
+        except Exception:
             data = val.flatten()
         if onsite_idx in h_0:
             h_0[onsite_idx] += coo_array(
@@ -101,7 +101,7 @@ def builder2h_0(builder, params={}, return_data=False):
                     _params[arg] = params[arg]
             val = val(a, b, **_params)
             data = val.flatten()
-        except:
+        except Exception:
             data = val.flatten()
         if tuple(b_dom) in h_0:
             h_0[tuple(b_dom)] += coo_array(
@@ -409,21 +409,3 @@ def flat_to_matrix(flat, shape):
     matrix += np.moveaxis(matrix, -1, -2).conj()
     matrix[..., indices, indices] -= diagonal
     return matrix
-
-
-def complex_to_real(z):
-    """
-    Split real and imaginary parts of a complex array.
-
-    Parameters:
-    -----------
-    z : array
-    """
-    return np.concatenate((np.real(z), np.imag(z)))
-
-
-def real_to_complex(z):
-    """
-    Undo `complex_to_real`.
-    """
-    return z[: len(z) // 2] + 1j * z[len(z) // 2 :]
