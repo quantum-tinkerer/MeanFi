@@ -1,5 +1,6 @@
+# %%
 from codes.tb.tb import addTb
-from codes.tb.transforms import tb2kfunc, tb2kham, kdens2tbFFT, kfunc2tb
+from codes.tb.transforms import tb2kfunc, tb2kham, kdens2tbFFT, kfunc2tb, ifftn2tb
 from codes.mf import (
     densityMatrixGenerator,
     densityMatrix,
@@ -43,13 +44,6 @@ class Model:
             densityMatrixGenerator(self.hkfunc, self.EF), nSamples=nK, ndim=self._ndim
         )
 
-    # def mfield(self, mf_model):
-    #     self.densityMatrix = self.makeDensityMatrix(mf_model)
-    #     return addTb(
-    #         meanFieldQuad(self.densityMatrix, self.int_model),
-    #         {self._localKey: -self.EF * np.eye(self._size)},
-    #     )
-
     def mfield(self, mf_model, nK=200):
         self.densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)
         return addTb(
@@ -68,8 +62,11 @@ class Model:
 
     def mfieldFFTkvector(self, mf_model, nK=200):
         densityMatrix = self.makeDensityMatrixkvector(mf_model, nK=nK)
-        densityMatrixTb = kdens2tbFFT(densityMatrix, self._ndim)
+        densityMatrixTb = ifftn2tb(kdens2tbFFT(densityMatrix, self._ndim))
         return addTb(
             meanFieldFFTkvector(densityMatrixTb, self.h_int, n=self._ndim),
             {self._localKey: -self.EF * np.eye(self._size)},
         )
+
+
+# %%

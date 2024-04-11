@@ -1,6 +1,7 @@
 import numpy as np
 from codes.tb.tb import addTb
 
+
 def densityMatrixGenerator(hkfunc, E_F):
     """
     Generate a function that returns the density matrix at a given k-point.
@@ -111,20 +112,31 @@ def fermiOnGrid(hkfunc, filling, nK=100, ndim=1):  # need to extend to 2D
         fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
         return fermi
 
+
 def meanFieldFFTkvector(densityMatrixTb, h_int, n=2):
 
     localKey = tuple(np.zeros((n,), dtype=int))
 
     direct = {
-        localKey: np.diag(
-            np.einsum("pp,pn->n", densityMatrixTb[*localKey, :], h_int[localKey])
+        localKey: np.sum(
+            np.array(
+                [
+                    np.diag(
+                        np.einsum("pp,pn->n", densityMatrixTb[localKey], h_int[vec])
+                    )
+                    for vec in frozenset(h_int)
+                ]
+            ),
+            axis=0,
         )
     }
+
     exchange = {
-        vec: -1 * h_int.get(vec, 0) * densityMatrixTb[*vec, :]
+        vec: -1 * h_int.get(vec, 0) * densityMatrixTb[vec]  # / (2 * np.pi)#**2
         for vec in frozenset(h_int)
     }
     return addTb(direct, exchange)
+
 
 def meanField(densityMatrix, int_model, n=2, nK=100):
     """
