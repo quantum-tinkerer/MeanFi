@@ -1,7 +1,7 @@
 # %%
 import numpy as np
 from codes.model import Model
-from codes.solvers import solverkvector
+from codes.solvers import solver
 from codes import kwant_examples
 from codes.kwant_helper import utils
 from codes.tb.utils import compute_gap
@@ -49,9 +49,7 @@ def gap_prediction(U, V):
     guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
-    mf_sol = solverkvector(
-        model, guess, nK=nK, optimizer_kwargs={"verbose": True, "M": 0}
-    )
+    mf_sol = solver(model, guess, nK=nK, optimizer_kwargs={"verbose": True, "M": 0})
     gap = compute_gap(addTb(h_0, mf_sol), n=100)
 
     # Check if the gap is predicted correctly

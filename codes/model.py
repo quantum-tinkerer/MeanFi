@@ -1,13 +1,10 @@
 # %%
 from codes.tb.tb import addTb
-from codes.tb.transforms import tb2kfunc, tb2kham, kdens2tbFFT, kfunc2tb, ifftn2tb
+from codes.tb.transforms import tb2kham, kdens2tbFFT, ifftn2tb
 from codes.mf import (
-    densityMatrixGenerator,
     densityMatrix,
-    fermiOnGridkvector,
-    meanFieldFFTkvector,
-    meanField,
     fermiOnGrid,
+    meanField,
 )
 import numpy as np
 
@@ -34,37 +31,19 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def calculateEF(self, nK=200):
-        self.EF = fermiOnGrid(self.hkfunc, self.filling, nK=nK, ndim=self._ndim)
+    def calculateEF(self):
+        self.EF = fermiOnGrid(self.kham, self.filling)
 
     def makeDensityMatrix(self, mf_model, nK=200):
-        self.hkfunc = tb2kfunc(addTb(self.h_0, mf_model))
-        self.calculateEF(nK=nK)
-        return kfunc2tb(
-            densityMatrixGenerator(self.hkfunc, self.EF), nSamples=nK, ndim=self._ndim
-        )
-
-    def mfield(self, mf_model, nK=200):
-        self.densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)
-        return addTb(
-            meanField(self.densityMatrix, self.h_int, n=self._ndim, nK=nK),
-            {self._localKey: -self.EF * np.eye(self._size)},
-        )
-
-    #######################
-    def calculateEFkvector(self):
-        self.EF = fermiOnGridkvector(self.kham, self.filling)
-
-    def makeDensityMatrixkvector(self, mf_model, nK=200):
         self.kham = tb2kham(addTb(self.h_0, mf_model), nK=nK, ndim=self._ndim)
-        self.calculateEFkvector()
+        self.calculateEF()
         return densityMatrix(self.kham, self.EF)
 
-    def mfieldFFTkvector(self, mf_model, nK=200):
-        densityMatrix = self.makeDensityMatrixkvector(mf_model, nK=nK)
+    def mfield(self, mf_model, nK=200):
+        densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)
         densityMatrixTb = ifftn2tb(kdens2tbFFT(densityMatrix, self._ndim))
         return addTb(
-            meanFieldFFTkvector(densityMatrixTb, self.h_int, n=self._ndim),
+            meanField(densityMatrixTb, self.h_int, n=self._ndim),
             {self._localKey: -self.EF * np.eye(self._size)},
         )
 
