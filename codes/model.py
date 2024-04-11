@@ -34,14 +34,13 @@ class Model:
     def calculateEF(self):
         self.EF = fermiOnGrid(self.kham, self.filling)
 
-    def makeDensityMatrix(self, mf_model, nK=200):
+    def makeDensityMatrixTb(self, mf_model, nK=200):
         self.kham = tb2kham(addTb(self.h_0, mf_model), nK=nK, ndim=self._ndim)
         self.calculateEF()
-        return densityMatrix(self.kham, self.EF)
+        return ifftn2tb(kdens2tbFFT(densityMatrix(self.kham, self.EF), self._ndim))
 
     def mfield(self, mf_model, nK=200):
-        densityMatrix = self.makeDensityMatrix(mf_model, nK=nK)
-        densityMatrixTb = ifftn2tb(kdens2tbFFT(densityMatrix, self._ndim))
+        densityMatrixTb = self.makeDensityMatrixTb(mf_model, nK=nK)
         return addTb(
             meanField(densityMatrixTb, self.h_int, n=self._ndim),
             {self._localKey: -self.EF * np.eye(self._size)},
