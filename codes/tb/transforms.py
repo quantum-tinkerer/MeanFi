@@ -134,7 +134,3 @@ def kfunc2tb(kfunc, nSamples, ndim=1):
         raise NotImplementedError("n > 2 not implemented")
     ifftnArray = ifftn(kfuncOnGrid, axes=np.arange(ndim))
     return ifftn2tb(ifftnArray)
-
-
-def kdens2tbFFT(kdens, ndim=1):
-    return ifftn(kdens, axes=np.arange(ndim))

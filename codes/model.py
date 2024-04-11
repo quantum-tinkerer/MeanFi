@@ -1,12 +1,13 @@
 # %%
 from codes.tb.tb import addTb
-from codes.tb.transforms import tb2kham, kdens2tbFFT, ifftn2tb
+from codes.tb.transforms import tb2kham, ifftn2tb
 from codes.mf import (
     densityMatrix,
     fermiOnGrid,
     meanField,
 )
 import numpy as np
+from scipy.fftpack import ifftn
 
 
 class Model:
@@ -37,7 +38,9 @@ class Model:
     def makeDensityMatrixTb(self, mf_model, nK=200):
         self.kham = tb2kham(addTb(self.h_0, mf_model), nK=nK, ndim=self._ndim)
         self.calculateEF()
-        return ifftn2tb(kdens2tbFFT(densityMatrix(self.kham, self.EF), self._ndim))
+        return ifftn2tb(
+            ifftn(densityMatrix(self.kham, self.EF), axes=np.arange(self._ndim))
+        )
 
     def mfield(self, mf_model, nK=200):
         densityMatrixTb = self.makeDensityMatrixTb(mf_model, nK=nK)
@@ -45,6 +48,3 @@ class Model:
             meanField(densityMatrixTb, self.h_int, n=self._ndim),
             {self._localKey: -self.EF * np.eye(self._size)},
         )
-
-
-# %%
