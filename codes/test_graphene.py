@@ -6,13 +6,13 @@ from codes import kwant_examples
 from codes.kwant_helper import utils
 from codes.tb.utils import compute_gap
 from codes.tb.tb import addTb
-
+import pytest
+repeatNumber = 10
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 h_0 = utils.builder2h_0(graphene_builder)
-
 # %%
-def test_gap(U, V):
+def gap_prediction(U, V):
     """
     Test if the mean-field theory predicts the gap correctly for a given U and V.
 
@@ -57,8 +57,8 @@ def test_gap(U, V):
     assert gapped == gappedPredicted, f"Mean-field theory failed to predict the gap for U = {U}, V = {V}"
 
 # %%
-U = np.random.uniform(0, 2)
-V = np.random.uniform(0, 1)
-
-# %%
-test_gap(U, V)
+@pytest.mark.repeat(repeatNumber)
+def test_gap():
+    U = np.random.uniform(0, 2)
+    V = np.random.uniform(0, 1)
+    gap_prediction(U, V)
