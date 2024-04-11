@@ -1,6 +1,6 @@
 # %%
 import numpy as np
-from codes.params.test_params import compareDicts
+from codes.tb.tb import compareDicts
 import itertools as it
 from codes.tb.transforms import kfunc2tb, tb2kfunc
 import pytest
