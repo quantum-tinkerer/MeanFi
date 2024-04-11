@@ -22,6 +22,8 @@ run profiler:
   script:
     - pip install memray pyinstrument
     - python profiling/graphene.py
+    - memray stats memoryProfile.bin
+    - memray summary memoryProfile.bin
   artifacts:
     paths:
       - timeProfile.html
