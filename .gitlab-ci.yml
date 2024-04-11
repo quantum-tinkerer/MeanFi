@@ -1,8 +1,10 @@
 image: gitlab.kwant-project.org:5005/qt/research-docker
 
+before_script:
+- cd codes; export PYTHONPATH="."; cd ..
+
 run profiler:
   script:
-    - cd codes; export PYTHONPATH="."; cd ..
     - pip install memray pyinstrument
     - python profiling/graphene.py
   artifacts:
