@@ -1,7 +1,7 @@
 # %%
 import numpy as np
 from codes.tb.tb import compareDicts
-from codes.kwant_helper import utils    
+from codes.kwant_helper import utils
 import itertools as it
 from codes.tb.transforms import kfunc2tb, tb2kfunc, tb2kham, tb2khamvector
 import pytest
@@ -24,9 +24,20 @@ def test_fourier():
     tb_new = kfunc2tb(kfunc, nK, ndim=ndim)
     compareDicts(h_0, tb_new)
 
-@pytest.mark.repeat(repeatNumber):
-def test_tbkham_transform(): 
-    vectors = ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1), (1, 1), (-1, -1))
+
+@pytest.mark.repeat(repeatNumber)
+def test_tbkham_transform():
+    vectors = (
+        (0, 0),
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+        (1, -1),
+        (-1, 1),
+        (1, 1),
+        (-1, -1),
+    )
     ndof = 10
     h_0 = utils.generate_guess(vectors, ndof)
 
