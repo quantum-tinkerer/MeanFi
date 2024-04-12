@@ -200,24 +200,3 @@ def generate_vectors(cutoff, dim):
     List of hopping vectors.
     """
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
-
-
-def calc_gap(vals, fermi_energy):
-    """
-     Compute gap.
-
-     Parameters:
-     -----------
-     vals : nd-array
-         Eigenvalues on a k-point grid.
-    fermi_energy : float
-         Fermi energy.
-
-     Returns:
-     --------
-     gap : float
-         Indirect gap.
-    """
-    emax = np.max(vals[vals <= fermi_energy])
-    emin = np.min(vals[vals > fermi_energy])
-    return np.abs(emin - emax)
