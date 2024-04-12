@@ -1,6 +1,6 @@
 # %%
 from codes.tb.tb import addTb
-from codes.tb.transforms import tb2kham, ifftn2tb
+from codes.tb.transforms import tb2khamvector, ifftn2tb
 from codes.mf import (
     densityMatrix,
     fermiOnGrid,
@@ -36,7 +36,7 @@ class Model:
         self.EF = fermiOnGrid(self.kham, self.filling)
 
     def makeDensityMatrixTb(self, mf_model, nK=200):
-        self.kham = tb2kham(addTb(self.h_0, mf_model), nK=nK, ndim=self._ndim)
+        self.kham = tb2khamvector(addTb(self.h_0, mf_model), nK=nK, ndim=self._ndim)
         self.calculateEF()
         return ifftn2tb(
             ifftn(densityMatrix(self.kham, self.EF), axes=np.arange(self._ndim))
