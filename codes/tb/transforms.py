@@ -86,7 +86,7 @@ def ifftn_to_tb(ifft_array):
     return {tuple(k): ifft_array[tuple(k)] for k in keys}
 
 
-def kfunc_to_kham(nk, hk, dim, return_ks=False, hermitian=True):
+def kfunc_to_kham(nk, kfunc, dim, return_ks=False, hermitian=True):
     """
     Evaluates Hamiltonian on a k-point grid.
 
@@ -94,7 +94,7 @@ def kfunc_to_kham(nk, hk, dim, return_ks=False, hermitian=True):
     ----------
     nk : int
         Number of k-points along each direction.
-    hk : function
+    kfunc : function
         Calculates the Hamiltonian at a given k-point.
     return_ks : bool
         If `True`, returns k-points.
@@ -119,7 +119,7 @@ def kfunc_to_kham(nk, hk, dim, return_ks=False, hermitian=True):
 
     kham = []
     for k in it.product(*k_pts):
-        kham.append(hk(k))
+        kham.append(kfunc(k))
     kham = np.array(kham)
     if hermitian:
         assert np.allclose(
