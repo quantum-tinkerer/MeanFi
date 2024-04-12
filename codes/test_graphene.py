@@ -4,7 +4,7 @@ from codes.model import Model
 from codes.solvers import solver
 from codes import kwant_examples
 from codes.kwant_helper import utils
-from codes.tb.utils import compute_gap
+from codes.tb.utils import compute_gap, generate_guess
 from codes.tb.tb import add_tb
 import pytest
 
@@ -46,7 +46,7 @@ def gap_prediction(U, V):
     nk = 20
 
     h_int = utils.builder_to_tb(int_builder, params)
-    guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+    guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
     mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0})

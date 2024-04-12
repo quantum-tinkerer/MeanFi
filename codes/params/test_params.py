@@ -1,6 +1,6 @@
 # %%
 from codes.params.rparams import mf_to_rparams, rparams_to_mf
-from codes.kwant_helper.utils import generate_guess
+from codes.tb.utils import generate_guess
 from codes.tb.tb import compare_dicts
 import pytest
 

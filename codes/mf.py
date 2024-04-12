@@ -26,37 +26,6 @@ def density_matrix(kham, fermi_energy):
     return density_matrix_kgrid
 
 
-def fermi_on_grid(kham, filling):
-    """
-     Compute the Fermi energy on a grid of k-points.
-
-     Parameters
-     ----------
-     hkfunc : function
-         Function that returns the Hamiltonian at a given k-point.
-     nk : int
-         Number of k-points in the grid.
-     Returns
-     -------
-    fermi_energy : float
-         Fermi energy
-    """
-
-    vals = np.linalg.eigvalsh(kham)
-
-    norbs = vals.shape[-1]
-    vals_flat = np.sort(vals.flatten())
-    ne = len(vals_flat)
-    ifermi = int(round(ne * filling / norbs))
-    if ifermi >= ne:
-        return vals_flat[-1]
-    elif ifermi == 0:
-        return vals_flat[0]
-    else:
-        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
-        return fermi
-
-
 def meanfield(density_matrix_tb, h_int, n=2):
     """
     Compute the mean-field in k-space.
@@ -95,3 +64,34 @@ def meanfield(density_matrix_tb, h_int, n=2):
         for vec in frozenset(h_int)
     }
     return add_tb(direct, exchange)
+
+
+def fermi_on_grid(kham, filling):
+    """
+     Compute the Fermi energy on a grid of k-points.
+
+     Parameters
+     ----------
+     hkfunc : function
+         Function that returns the Hamiltonian at a given k-point.
+     nk : int
+         Number of k-points in the grid.
+     Returns
+     -------
+    fermi_energy : float
+         Fermi energy
+    """
+
+    vals = np.linalg.eigvalsh(kham)
+
+    norbs = vals.shape[-1]
+    vals_flat = np.sort(vals.flatten())
+    ne = len(vals_flat)
+    ifermi = int(round(ne * filling / norbs))
+    if ifermi >= ne:
+        return vals_flat[-1]
+    elif ifermi == 0:
+        return vals_flat[0]
+    else:
+        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
+        return fermi

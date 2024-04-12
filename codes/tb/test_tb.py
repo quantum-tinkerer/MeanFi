@@ -1,8 +1,8 @@
 # %%
 import numpy as np
 from codes.tb.tb import compare_dicts
-from codes.kwant_helper import utils
 import itertools as it
+from codes.tb.utils import generate_guess
 from codes.tb.transforms import kfunc_to_tb, tb_to_kfunc, tb_to_kham, tb_to_khamvector
 import pytest
 
@@ -39,7 +39,7 @@ def test_tbkham_transform():
         (-1, -1),
     )
     ndof = 10
-    h_0 = utils.generate_guess(vectors, ndof)
+    h_0 = generate_guess(vectors, ndof)
 
     assert np.allclose(
         tb_to_kham(h_0, nk=nk, ndim=2), tb_to_khamvector(h_0, nk=nk, ndim=2)
