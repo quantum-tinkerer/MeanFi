@@ -12,7 +12,7 @@ graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 
 params = {"U": 0.5, "V": 1.1}
 filling = 2
-nK = 600
+nk = 600
 
 h_int = utils.builder2tb(int_builder, params)
 h_0 = utils.builder2tb(graphene_builder)
@@ -22,7 +22,7 @@ model = Model(h_0, h_int, filling)
 
 
 def scf_loop():
-    model.mfield(guess, nK=nK)
+    model.mfield(guess, nk=nk)
 
 
 # %% Memory profile
@@ -40,12 +40,12 @@ profiler.write_html(path="timeProfile.html")
 # %%
 number = 1
 
-timeSCF = timeit.timeit(scf_loop, number=number) / number
+time_scf = timeit.timeit(scf_loop, number=number) / number
 
-H = np.random.rand(nK, nK)
+H = np.random.rand(nk, nk)
 H += H.T.conj()
-timeDiag = timeit.timeit(lambda: np.linalg.eigh(H), number=number) / number
+time_diag = timeit.timeit(lambda: np.linalg.eigh(H), number=number) / number
 
 print(
-    f"Single SCF loop takes {timeSCF} whereas a single diagonalization of a corresponding system takes {timeDiag}"
+    f"Single SCF loop takes {time_scf} whereas a single diagonalization of a corresponding system takes {time_diag}"
 )

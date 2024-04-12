@@ -1,7 +1,12 @@
-from codes.params.matrixShaping import (complex_to_real, hop_dict_to_flat,
-                             real_to_complex, flat_to_hop_dict)
+from codes.params.matrixShaping import (
+    complex_to_real,
+    hop_dict_to_flat,
+    real_to_complex,
+    flat_to_hop_dict,
+)
 
-def mf2rParams(mf_model):
+
+def mf_to_rparams(mf_model):
     """
     Convert a mean-field tight-binding model to a set of real parameters.
 
@@ -15,9 +20,10 @@ def mf2rParams(mf_model):
     dict
         Real parameters.
     """
-    return complex_to_real(hop_dict_to_flat(mf_model)) # placeholder for now
+    return complex_to_real(hop_dict_to_flat(mf_model))  # placeholder for now
 
-def rParams2mf(rParams, keyList, size):
+
+def rparams_to_mf(rParams, key_list, size):
     """
     Extract mean-field tight-binding model from a set of real parameters.
 
@@ -34,5 +40,5 @@ def rParams2mf(rParams, keyList, size):
         Mean-field tight-binding model.
     """
 
-    flatMatrix = real_to_complex(rParams)
-    return flat_to_hop_dict(flatMatrix, (len(keyList), size, size), keyList)
+    flat_matrix = real_to_complex(rParams)
+    return flat_to_hop_dict(flat_matrix, (len(key_list), size, size), key_list)

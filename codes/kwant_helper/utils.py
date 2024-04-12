@@ -202,22 +202,22 @@ def generate_vectors(cutoff, dim):
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
-def calc_gap(vals, E_F):
+def calc_gap(vals, fermi_energy):
     """
-    Compute gap.
+     Compute gap.
 
-    Parameters:
-    -----------
-    vals : nd-array
-        Eigenvalues on a k-point grid.
-    E_F : float
-        Fermi energy.
+     Parameters:
+     -----------
+     vals : nd-array
+         Eigenvalues on a k-point grid.
+    fermi_energy : float
+         Fermi energy.
 
-    Returns:
-    --------
-    gap : float
-        Indirect gap.
+     Returns:
+     --------
+     gap : float
+         Indirect gap.
     """
-    emax = np.max(vals[vals <= E_F])
-    emin = np.min(vals[vals > E_F])
+    emax = np.max(vals[vals <= fermi_energy])
+    emin = np.min(vals[vals > fermi_energy])
     return np.abs(emin - emax)

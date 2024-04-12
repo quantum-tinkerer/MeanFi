@@ -1,45 +1,45 @@
 import numpy as np
-from codes.tb.tb import addTb
+from codes.tb.tb import add_tb
 
 
-def densityMatrix(kham, E_F):
+def density_matrix(kham, fermi_energy):
     """
-    Parameters
-    ----------
-    kham : npndarray
-        Hamiltonian in k-space of shape (len(dim), norbs, norbs)
+     Parameters
+     ----------
+     kham : npndarray
+         Hamiltonian in k-space of shape (len(dim), norbs, norbs)
 
-    E_F : float
-        Fermi level
+    fermi_energy : float
+         Fermi level
 
-    Returns
-    -------
-    densityMatrixKgrid : np.ndarray
-        Density matrix in k-space.
+     Returns
+     -------
+     density_matrix_kgrid : np.ndarray
+         Density matrix in k-space.
 
     """
     vals, vecs = np.linalg.eigh(kham)
-    unocc_vals = vals > E_F
+    unocc_vals = vals > fermi_energy
     occ_vecs = vecs
     np.moveaxis(occ_vecs, -1, 2)[unocc_vals, :] = 0
-    densityMatrixKgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
-    return densityMatrixKgrid
+    density_matrix_kgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
+    return density_matrix_kgrid
 
 
-def fermiOnGrid(kham, filling):
+def fermi_on_grid(kham, filling):
     """
-    Compute the Fermi energy on a grid of k-points.
+     Compute the Fermi energy on a grid of k-points.
 
-    Parameters
-    ----------
-    hkfunc : function
-        Function that returns the Hamiltonian at a given k-point.
-    Nk : int
-        Number of k-points in the grid.
-    Returns
-    -------
-    E_F : float
-        Fermi energy
+     Parameters
+     ----------
+     hkfunc : function
+         Function that returns the Hamiltonian at a given k-point.
+     nk : int
+         Number of k-points in the grid.
+     Returns
+     -------
+    fermi_energy : float
+         Fermi energy
     """
 
     vals = np.linalg.eigvalsh(kham)
@@ -57,13 +57,13 @@ def fermiOnGrid(kham, filling):
         return fermi
 
 
-def meanField(densityMatrixTb, h_int, n=2):
+def meanfield(density_matrix_tb, h_int, n=2):
     """
     Compute the mean-field in k-space.
 
     Parameters
     ----------
-    densityMatrix : dict
+    density_matrix : dict
         Density matrix in real-space tight-binding format.
     int_model : dict
         Interaction tb model.
@@ -74,14 +74,14 @@ def meanField(densityMatrixTb, h_int, n=2):
         Mean-field tb model.
     """
 
-    localKey = tuple(np.zeros((n,), dtype=int))
+    local_key = tuple(np.zeros((n,), dtype=int))
 
     direct = {
-        localKey: np.sum(
+        local_key: np.sum(
             np.array(
                 [
                     np.diag(
-                        np.einsum("pp,pn->n", densityMatrixTb[localKey], h_int[vec])
+                        np.einsum("pp,pn->n", density_matrix_tb[local_key], h_int[vec])
                     )
                     for vec in frozenset(h_int)
                 ]
@@ -91,7 +91,7 @@ def meanField(densityMatrixTb, h_int, n=2):
     }
 
     exchange = {
-        vec: -1 * h_int.get(vec, 0) * densityMatrixTb[vec]  # / (2 * np.pi)#**2
+        vec: -1 * h_int.get(vec, 0) * density_matrix_tb[vec]  # / (2 * np.pi)#**2
         for vec in frozenset(h_int)
     }
-    return addTb(direct, exchange)
+    return add_tb(direct, exchange)

@@ -3,7 +3,7 @@ from scipy.fftpack import ifftn
 import itertools as it
 
 
-def tb2khamvector(h_0, nK, ndim):
+def tb_to_khamvector(h_0, nk, ndim):
     """
     Real-space tight-binding model to hamiltonian on k-space grid.
 
@@ -11,7 +11,7 @@ def tb2khamvector(h_0, nK, ndim):
     ----------
     h_0 : dict
         A dictionary with real-space vectors as keys and complex np.arrays as values.
-    nK : int
+    nk : int
         Number of k-points along each direction.
     ndim : int
         Number of dimensions.
@@ -23,8 +23,8 @@ def tb2khamvector(h_0, nK, ndim):
 
     """
 
-    ks = np.linspace(-np.pi, np.pi, nK, endpoint=False)
-    ks = np.concatenate((ks[nK // 2 :], ks[: nK // 2]), axis=0)  # shift for ifft
+    ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
+    ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
     kgrid = np.meshgrid(ks, ks, indexing="ij")
 
     num_keys = len(list(h_0.keys()))
@@ -40,7 +40,7 @@ def tb2khamvector(h_0, nK, ndim):
     return np.sum(tb_array * k_dependency, axis=0)
 
 
-def tb2kfunc(h_0):
+def tb_to_kfunc(h_0):
     """
     Fourier transforms a real-space tight-binding model to a k-space function.
 
@@ -64,13 +64,13 @@ def tb2kfunc(h_0):
     return bloch_ham
 
 
-def ifftn2tb(ifftArray):
+def ifftn_to_tb(ifft_array):
     """
     Converts an array from ifftn to a tight-binding model format.
 
     Parameters
     ----------
-    ifftArray : ndarray
+    ifft_array : ndarray
         An array obtained from ifftn.
 
     Returns
@@ -79,14 +79,14 @@ def ifftn2tb(ifftArray):
         A dictionary with real-space vectors as keys and complex np.arrays as values.
     """
 
-    size = ifftArray.shape[:-2]
+    size = ifft_array.shape[:-2]
 
     keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
     keys = it.product(*keys)
-    return {tuple(k): ifftArray[tuple(k)] for k in keys}
+    return {tuple(k): ifft_array[tuple(k)] for k in keys}
 
 
-def kfunc2kham(nk, hk, dim, return_ks=False, hermitian=True):
+def kfunc_to_kham(nk, hk, dim, return_ks=False, hermitian=True):
     """
     Evaluates Hamiltonian on a k-point grid.
 
@@ -132,13 +132,13 @@ def kfunc2kham(nk, hk, dim, return_ks=False, hermitian=True):
         return ham.reshape(*shape)
 
 
-def tb2kham(h_0, nK=200, ndim=1):
-    kfunc = tb2kfunc(h_0)
-    kham = kfunc2kham(nK, kfunc, ndim)
+def tb_to_kham(h_0, nk=200, ndim=1):
+    kfunc = tb_to_kfunc(h_0)
+    kham = kfunc_to_kham(nk, kfunc, ndim)
     return kham
 
 
-def kfunc2tb(kfunc, nSamples, ndim=1):
+def kfunc_to_tb(kfunc, n_samples, ndim=1):
     """
     Applies FFT on a k-space function to obtain a real-space components.
 
@@ -146,7 +146,7 @@ def kfunc2tb(kfunc, nSamples, ndim=1):
     ----------
     kfunc : function
         A function that takes a k-space vector and returns a np.array.
-    nSamples : int
+    n_samples : int
         Number of samples to take in k-space.
 
     Returns
@@ -157,23 +157,23 @@ def kfunc2tb(kfunc, nSamples, ndim=1):
     """
 
     ks = np.linspace(
-        -np.pi, np.pi, nSamples, endpoint=False
-    )  # for now nSamples need to be even such that 0 is in the middle
+        -np.pi, np.pi, n_samples, endpoint=False
+    )  # for now n_samples need to be even such that 0 is in the middle
     ks = np.concatenate(
-        (ks[nSamples // 2 :], ks[: nSamples // 2]), axis=0
+        (ks[n_samples // 2 :], ks[: n_samples // 2]), axis=0
     )  # shift for ifft
 
     if ndim == 1:
-        kfuncOnGrid = np.array([kfunc(k) for k in ks])
+        kfunc_on_grid = np.array([kfunc(k) for k in ks])
     if ndim == 2:
-        kfuncOnGrid = np.array([[kfunc((kx, ky)) for ky in ks] for kx in ks])
+        kfunc_on_grid = np.array([[kfunc((kx, ky)) for ky in ks] for kx in ks])
     if ndim > 2:
         raise NotImplementedError("n > 2 not implemented")
-    ifftnArray = ifftn(kfuncOnGrid, axes=np.arange(ndim))
-    return ifftn2tb(ifftnArray)
+    ifftn_array = ifftn(kfunc_on_grid, axes=np.arange(ndim))
+    return ifftn_to_tb(ifftn_array)
 
 
-def hk2h_0(hk, hopping_vecs, ks=None):
+def hk_to_h0(hk, hopping_vecs, ks=None):
     """
     Extract hopping matrices from Bloch Hamiltonian.
 

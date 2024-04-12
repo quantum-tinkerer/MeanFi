@@ -1,12 +1,13 @@
 import numpy as np
 
-def expectationValue(densityMatrix, observable):
+
+def expectation_value(density_matrix, observable):
     """
     Compute the expectation value of an observable with respect to a density matrix.
 
     Parameters
     ----------
-    densityMatrix : dict
+    density_matrix : dict
         Density matrix in tight-binding format.
     observable : dict
         Observable in tight-binding format.
@@ -16,4 +17,9 @@ def expectationValue(densityMatrix, observable):
     float
         Expectation value.
     """
-    return np.sum([np.trace(densityMatrix[k] @ observable[k]) for k in frozenset(densityMatrix) & frozenset(observable)])
+    return np.sum(
+        [
+            np.trace(density_matrix[k] @ observable[k])
+            for k in frozenset(density_matrix) & frozenset(observable)
+        ]
+    )
