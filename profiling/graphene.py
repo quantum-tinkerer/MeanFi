@@ -14,8 +14,8 @@ params = {"U": 0.5, "V": 1.1}
 filling = 2
 nK = 600
 
-h_int = utils.builder2h_0(int_builder, params)
-h_0 = utils.builder2h_0(graphene_builder)
+h_int = utils.builder2tb(int_builder, params)
+h_0 = utils.builder2tb(graphene_builder)
 guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
 
 model = Model(h_0, h_int, filling)

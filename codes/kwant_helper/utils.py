@@ -6,7 +6,7 @@ import inspect
 from copy import copy
 
 
-def builder2h_0(builder, params={}, return_data=False):
+def builder2tb(builder, params={}, return_data=False):
     """
     Constructs a tight-binding model dictionary from a `kwant.Builder`.
 
