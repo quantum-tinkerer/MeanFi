@@ -1,8 +1,8 @@
 from codes.params.matrixShaping import (
     complex_to_real,
-    hop_dict_to_flat,
+    tb_to_flat,
     real_to_complex,
-    flat_to_hop_dict,
+    flat_to_tb,
 )
 
 
@@ -20,7 +20,7 @@ def mf_to_rparams(mf_model):
     dict
         Real parameters.
     """
-    return complex_to_real(hop_dict_to_flat(mf_model))  # placeholder for now
+    return complex_to_real(tb_to_flat(mf_model))  # placeholder for now
 
 
 def rparams_to_mf(rParams, key_list, size):
@@ -41,4 +41,4 @@ def rparams_to_mf(rParams, key_list, size):
     """
 
     flat_matrix = real_to_complex(rParams)
-    return flat_to_hop_dict(flat_matrix, (len(key_list), size, size), key_list)
+    return flat_to_tb(flat_matrix, (len(key_list), size, size), key_list)

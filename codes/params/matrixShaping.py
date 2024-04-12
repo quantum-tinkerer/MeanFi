@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def hop_dict_to_flat(hop_dict):
+def tb_to_flat(hop_dict):
     """
     Convert a hermitian tight-binding dictionary to flat complex matrix.
 
@@ -22,9 +22,9 @@ def hop_dict_to_flat(hop_dict):
     return sorted_vals[:N].flatten()
 
 
-def flat_to_hop_dict(flat, shape, hop_dict_keys):
+def flat_to_tb(flat, shape, hop_dict_keys):
     """
-    Reverse operation to `hop_dict_to_flat` that takes a flat complex 1d array
+    Reverse operation to `tb_to_flat` that takes a flat complex 1d array
     and return the tight-binding dictionary.
 
     Parameters:
