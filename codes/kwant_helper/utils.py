@@ -6,7 +6,7 @@ import inspect
 from copy import copy
 
 
-def builder2tb(builder, params={}, return_data=False):
+def builder_to_tb(builder, params={}, return_data=False):
     """
     Constructs a tight-binding model dictionary from a `kwant.Builder`.
 
@@ -151,52 +151,3 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
     for neighbors in range(max_neighbor):
         int_builder[lattice.neighbors(neighbors + 1)] = func_hop
     return int_builder
-
-
-def generate_guess(vectors, ndof, scale=1):
-    """
-    vectors : list
-        List of hopping vectors.
-    ndof : int
-        Number internal degrees of freedom (orbitals),
-    scale : float
-        The scale of the guess. Maximum absolute value of each element of the guess.
-
-    Returns:
-    --------
-    guess : tb dictionary
-        Guess in the form of a tight-binding model.
-    """
-    guess = {}
-    for vector in vectors:
-        if vector not in guess.keys():
-            amplitude = scale * np.random.rand(ndof, ndof)
-            phase = 2 * np.pi * np.random.rand(ndof, ndof)
-            rand_hermitian = amplitude * np.exp(1j * phase)
-            if np.linalg.norm(np.array(vector)) == 0:
-                rand_hermitian += rand_hermitian.T.conj()
-                rand_hermitian /= 2
-                guess[vector] = rand_hermitian
-            else:
-                guess[vector] = rand_hermitian
-                guess[tuple(-np.array(vector))] = rand_hermitian.T.conj()
-
-    return guess
-
-
-def generate_vectors(cutoff, dim):
-    """
-    Generates hopping vectors up to a cutoff.
-
-    Parameters:
-    -----------
-    cutoff : int
-        Maximum distance along each direction.
-    dim : int
-        Dimension of the vectors.
-
-    Returns:
-    --------
-    List of hopping vectors.
-    """
-    return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]

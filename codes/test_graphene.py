@@ -11,7 +11,7 @@ import pytest
 repeat_number = 10
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
-h_0 = utils.builder2tb(graphene_builder)
+h_0 = utils.builder_to_tb(graphene_builder)
 
 
 # %%
@@ -45,7 +45,7 @@ def gap_prediction(U, V):
     filling = 2
     nk = 20
 
-    h_int = utils.builder2tb(int_builder, params)
+    h_int = utils.builder_to_tb(int_builder, params)
     guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
