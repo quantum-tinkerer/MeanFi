@@ -3,13 +3,13 @@ from scipy.fftpack import ifftn
 import itertools as it
 
 
-def tb_to_khamvector(h_0, nk, ndim):
+def tb_to_khamvector(tb, nk, ndim):
     """
     Real-space tight-binding model to hamiltonian on k-space grid.
 
     Parameters
     ----------
-    h_0 : dict
+    tb : dict
         A dictionary with real-space vectors as keys and complex np.arrays as values.
     nk : int
         Number of k-points along each direction.
@@ -27,9 +27,9 @@ def tb_to_khamvector(h_0, nk, ndim):
     ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
     kgrid = np.meshgrid(ks, ks, indexing="ij")
 
-    num_keys = len(list(h_0.keys()))
-    tb_array = np.array(list(h_0.values()))
-    keys = np.array(list(h_0.keys()))
+    num_keys = len(list(tb.keys()))
+    tb_array = np.array(list(tb.values()))
+    keys = np.array(list(tb.keys()))
 
     k_dependency = np.exp(-1j * np.tensordot(keys, kgrid, 1))[
         (...,) + (np.newaxis,) * 2
@@ -40,13 +40,13 @@ def tb_to_khamvector(h_0, nk, ndim):
     return np.sum(tb_array * k_dependency, axis=0)
 
 
-def tb_to_kfunc(h_0):
+def tb_to_kfunc(tb):
     """
     Fourier transforms a real-space tight-binding model to a k-space function.
 
     Parameters
     ----------
-    h_0 : dict
+    tb : dict
         A dictionary with real-space vectors as keys and complex np.arrays as values.
 
     Returns
@@ -55,13 +55,13 @@ def tb_to_kfunc(h_0):
         A function that takes a k-space vector and returns a complex np.array.
     """
 
-    def bloch_ham(k):
+    def kfunc(k):
         ham = 0
-        for vector in h_0.keys():
-            ham += h_0[vector] * np.exp(-1j * np.dot(k, np.array(vector, dtype=float)))
+        for vector in tb.keys():
+            ham += tb[vector] * np.exp(-1j * np.dot(k, np.array(vector, dtype=float)))
         return ham
 
-    return bloch_ham
+    return kfunc
 
 
 def ifftn_to_tb(ifft_array):
@@ -117,19 +117,19 @@ def kfunc_to_kham(nk, hk, dim, return_ks=False, hermitian=True):
 
     k_pts = np.tile(ks, dim).reshape(dim, nk)
 
-    ham = []
+    kham = []
     for k in it.product(*k_pts):
-        ham.append(hk(k))
-    ham = np.array(ham)
+        kham.append(hk(k))
+    kham = np.array(kham)
     if hermitian:
         assert np.allclose(
-            ham, np.transpose(ham, (0, 2, 1)).conj()
+            kham, np.transpose(kham, (0, 2, 1)).conj()
         ), "Tight-binding provided is non-Hermitian. Not supported yet"
-    shape = (*[nk] * dim, ham.shape[-1], ham.shape[-1])
+    shape = (*[nk] * dim, kham.shape[-1], kham.shape[-1])
     if return_ks:
-        return ham.reshape(*shape), ks
+        return kham.reshape(*shape), ks
     else:
-        return ham.reshape(*shape)
+        return kham.reshape(*shape)
 
 
 def tb_to_kham(h_0, nk=200, ndim=1):
@@ -173,14 +173,14 @@ def kfunc_to_tb(kfunc, n_samples, ndim=1):
     return ifftn_to_tb(ifftn_array)
 
 
-def hk_to_h0(hk, hopping_vecs, ks=None):
+def kham_to_tb(kham, hopping_vecs, ks=None):
     """
     Extract hopping matrices from Bloch Hamiltonian.
 
     Parameters:
     -----------
-    hk : nd-array
-        Bloch Hamiltonian matrix hk[k_x, ..., k_n, i, j]
+    kham : nd-array
+        Bloch Hamiltonian matrix kham[k_x, ..., k_n, i, j]
     h_0 : dict
         Tight-binding model of non-interacting systems.
     h_int : dict
@@ -191,22 +191,22 @@ def hk_to_h0(hk, hopping_vecs, ks=None):
     Returns:
     --------
     scf_model : dict
-        TIght-binding model of Hartree-Fock solution.
+        Tight-binding model of Hartree-Fock solution.
     """
     if ks is not None:
-        ndim = len(hk.shape) - 2
+        ndim = len(kham.shape) - 2
         dk = np.diff(ks)[0]
         nk = len(ks)
         k_pts = np.tile(ks, ndim).reshape(ndim, nk)
         k_grid = np.array(np.meshgrid(*k_pts))
         k_grid = k_grid.reshape(k_grid.shape[0], np.prod(k_grid.shape[1:]))
-        hk = hk.reshape(np.prod(hk.shape[:ndim]), *hk.shape[-2:])
+        kham = kham.reshape(np.prod(kham.shape[:ndim]), *kham.shape[-2:])
 
         hopps = (
             np.einsum(
                 "ij,jkl->ikl",
                 np.exp(1j * np.einsum("ij,jk->ik", hopping_vecs, k_grid)),
-                hk,
+                kham,
             )
             * (dk / (2 * np.pi)) ** ndim
         )
@@ -217,4 +217,4 @@ def hk_to_h0(hk, hopping_vecs, ks=None):
 
         return h_0
     else:
-        return {(): hk}
+        return {(): kham}

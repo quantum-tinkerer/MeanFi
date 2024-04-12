@@ -1,4 +1,4 @@
-from codes.params.matrixShaping import (
+from codes.params.param_transforms import (
     complex_to_real,
     tb_to_flat,
     real_to_complex,
@@ -6,13 +6,13 @@ from codes.params.matrixShaping import (
 )
 
 
-def mf_to_rparams(mf_model):
+def tb_to_rparams(tb):
     """
     Convert a mean-field tight-binding model to a set of real parameters.
 
     Parameters
     ----------
-    mf_model : dict
+    tb : dict
         Mean-field tight-binding model.
 
     Returns
@@ -20,10 +20,10 @@ def mf_to_rparams(mf_model):
     dict
         Real parameters.
     """
-    return complex_to_real(tb_to_flat(mf_model))  # placeholder for now
+    return complex_to_real(tb_to_flat(tb))  # placeholder for now
 
 
-def rparams_to_mf(rParams, key_list, size):
+def rparams_to_tb(rParams, key_list, size):
     """
     Extract mean-field tight-binding model from a set of real parameters.
 

@@ -1,4 +1,4 @@
-from codes.params.rparams import mf_to_rparams, rparams_to_mf
+from codes.params.rparams import tb_to_rparams, rparams_to_tb
 import scipy
 from functools import partial
 from codes.tb.tb import add_tb
@@ -21,9 +21,9 @@ def cost(mf_param, Model, nk=100):
         The number of k-points to use in the grid. The default is 100.
     """
     shape = Model._size
-    mf_tb = rparams_to_mf(mf_param, list(Model.h_int), shape)
+    mf_tb = rparams_to_tb(mf_param, list(Model.h_int), shape)
     mf_tb_new = Model.mfield(mf_tb, nk=nk)
-    mf_params_new = mf_to_rparams(mf_tb_new)
+    mf_params_new = tb_to_rparams(mf_tb_new)
     return mf_params_new - mf_param
 
 
@@ -53,11 +53,11 @@ def solver(
     """
 
     shape = Model._size
-    mf_params = mf_to_rparams(mf_guess)
+    mf_params = tb_to_rparams(mf_guess)
     f = partial(cost, Model=Model, nk=nk)
-    result = rparams_to_mf(
+    result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(Model.h_int), shape
     )
     Model.calculate_EF()
     local_key = tuple(np.zeros((Model._ndim,), dtype=int))
-    return add_tb(result, {local_key: -Model.EF * np.eye(shape)})
+    return add_tb(result, {local_key: -Model.fermi_energy * np.eye(shape)})

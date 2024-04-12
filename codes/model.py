@@ -33,18 +33,20 @@ class Model:
         _check_hermiticity(h_int)
 
     def calculate_EF(self):
-        self.EF = fermi_on_grid(self.kham, self.filling)
+        self.fermi_energy = fermi_on_grid(self.kham, self.filling)
 
-    def make_density_matrix_tb(self, mf_model, nk=200):
-        self.kham = tb_to_khamvector(add_tb(self.h_0, mf_model), nk=nk, ndim=self._ndim)
+    def make_density_matrix_tb(self, mf_tb, nk=200):
+        self.kham = tb_to_khamvector(add_tb(self.h_0, mf_tb), nk=nk, ndim=self._ndim)
         self.calculate_EF()
         return ifftn_to_tb(
-            ifftn(density_matrix(self.kham, self.EF), axes=np.arange(self._ndim))
+            ifftn(
+                density_matrix(self.kham, self.fermi_energy), axes=np.arange(self._ndim)
+            )
         )
 
-    def mfield(self, mf_model, nk=200):
-        density_matrix_tb = self.make_density_matrix_tb(mf_model, nk=nk)
+    def mfield(self, mf_tb, nk=200):
+        density_matrix_tb = self.make_density_matrix_tb(mf_tb, nk=nk)
         return add_tb(
             meanfield(density_matrix_tb, self.h_int, n=self._ndim),
-            {self._local_key: -self.EF * np.eye(self._size)},
+            {self._local_key: -self.fermi_energy * np.eye(self._size)},
         )
