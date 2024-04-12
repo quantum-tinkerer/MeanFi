@@ -24,7 +24,7 @@ def test_fourier():
     tb_new = kfunc2tb(kfunc, nK, ndim=ndim)
     compareDicts(h_0, tb_new)
 
-@pytest.mark.repeat(repeatNumber): 
+@pytest.mark.repeat(repeatNumber):
 def test_tbkham_transform(): 
     vectors = ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1), (1, 1), (-1, -1))
     ndof = 10
