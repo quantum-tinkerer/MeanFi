@@ -6,28 +6,6 @@ import inspect
 from copy import copy
 
 
-def get_fermi_energy(vals, filling):
-    """
-    Compute Fermi energy for a given filling factor.
-
-    vals : nd-array
-        Collection of eigenvalues on a grid.
-    filling : int
-        Number of electrons per cell.
-    """
-    norbs = vals.shape[-1]
-    vals_flat = np.sort(vals.flatten())
-    ne = len(vals_flat)
-    ifermi = int(round(ne * filling / norbs))
-    if ifermi >= ne:
-        return vals_flat[-1]
-    elif ifermi == 0:
-        return vals_flat[0]
-    else:
-        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
-        return fermi
-
-
 def builder2h_0(builder, params={}, return_data=False):
     """
     Constructs a tight-binding model dictionary from a `kwant.Builder`.
