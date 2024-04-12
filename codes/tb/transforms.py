@@ -3,6 +3,43 @@ from scipy.fftpack import ifftn
 import itertools as it
 
 
+def tb2khamvector(h_0, nK, ndim):
+    """
+    Real-space tight-binding model to hamiltonian on k-space grid.
+
+    Parameters
+    ----------
+    h_0 : dict
+        A dictionary with real-space vectors as keys and complex np.arrays as values.
+    nK : int
+        Number of k-points along each direction.
+    ndim : int
+        Number of dimensions.
+
+    Returns
+    -------
+    ndarray
+        Hamiltonian evaluated on a k-point grid.
+
+    """
+
+    ks = np.linspace(-np.pi, np.pi, nK, endpoint=False)
+    ks = np.concatenate((ks[nK // 2 :], ks[: nK // 2]), axis=0)  # shift for ifft
+    kgrid = np.meshgrid(ks, ks, indexing="ij")
+
+    num_keys = len(list(h_0.keys()))
+    tb_array = np.array(list(h_0.values()))
+    keys = np.array(list(h_0.keys()))
+
+    k_dependency = np.exp(-1j * np.tensordot(keys, kgrid, 1))[
+        (...,) + (np.newaxis,) * 2
+    ]
+    tb_array = tb_array.reshape(
+        np.concatenate(([num_keys], [1] * ndim, tb_array.shape[1:]))
+    )
+    return np.sum(tb_array * k_dependency, axis=0)
+
+
 def tb2kfunc(h_0):
     """
     Fourier transforms a real-space tight-binding model to a k-space function.
