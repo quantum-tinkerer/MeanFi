@@ -12,7 +12,7 @@ graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 
 params = {"U": 0.5, "V": 1.1}
 filling = 2
-nK = 300
+nK = 600
 
 h_int = utils.builder2h_0(int_builder, params)
 h_0 = utils.builder2h_0(graphene_builder)
