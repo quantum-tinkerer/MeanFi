@@ -50,7 +50,7 @@ def gap_prediction(U, V):
     model = Model(h_0, h_int, filling)
 
     mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0})
-    gap = compute_gap(add_tb(h_0, mf_sol), n=100)
+    gap = compute_gap(add_tb(h_0, mf_sol), nk=100)
 
     # Check if the gap is predicted correctly
     if gap > 0.1:
