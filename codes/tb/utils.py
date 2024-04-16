@@ -1,5 +1,6 @@
 import numpy as np
-from codes.tb.transforms import tb_to_kfunc
+from codes.tb.transforms import tb_to_kfunc, tb_to_khamvector
+from codes.mf import fermi_on_grid
 import itertools as it
 from itertools import product
 
@@ -81,3 +82,12 @@ def compute_gap(tb, fermi_energy=0, nk=100):
     emax = np.max(vals[vals <= fermi_energy])
     emin = np.min(vals[vals > fermi_energy])
     return np.abs(emin - emax)
+
+
+def calculate_fermi_energy(tb, filling, nk=100):
+    """
+    Calculate the Fermi energy for a given filling.
+    """
+    ndim = len(list(tb)[0])
+    kham = tb_to_khamvector(tb, nk, ndim, ks=None)
+    return fermi_on_grid(kham, filling)
