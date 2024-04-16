@@ -21,7 +21,7 @@ def density_matrix(kham, fermi_energy):
     vals, vecs = np.linalg.eigh(kham)
     unocc_vals = vals > fermi_energy
     occ_vecs = vecs
-    np.moveaxis(occ_vecs, -1, 2)[unocc_vals, :] = 0
+    np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
     density_matrix_kgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
     return density_matrix_kgrid
 
