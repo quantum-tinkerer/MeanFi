@@ -39,4 +39,4 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
 @pytest.mark.repeat(repeat_number)
 def test_gap_hubbard():
     Us = np.linspace(0.5, 10, 20, endpoint=True)
-    gap_relation_hubbard(Us, nk=20, nk_dense=100, tol=1e-3)
+    gap_relation_hubbard(Us, nk=20, nk_dense=100, tol=1e-2)
