@@ -17,6 +17,10 @@ def density_matrix(kham, fermi_energy):
      density_matrix_kgrid : np.ndarray
          Density matrix in k-space.
 
+    Notes
+    -----
+    !! use filling instead of fermi_energy here?!
+
     """
     vals, vecs = np.linalg.eigh(kham)
     unocc_vals = vals > fermi_energy

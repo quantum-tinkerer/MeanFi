@@ -32,21 +32,21 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def calculate_EF(self):
-        self.fermi_energy = fermi_on_grid(self.kham, self.filling)
-
-    def make_density_matrix_tb(self, mf_tb, nk=200):
-        self.kham = tb_to_khamvector(add_tb(self.h_0, mf_tb), nk=nk, ndim=self._ndim)
-        self.calculate_EF()
-        return ifftn_to_tb(
-            ifftn(
-                density_matrix(self.kham, self.fermi_energy), axes=np.arange(self._ndim)
-            )
+    def mfield(self, mf_tb, nk=200):  # method or standalone?
+        density_matrix_tb, fermi_energy = rho(
+            add_tb(self.h_0, mf_tb), self.filling, nk, self._ndim
         )
-
-    def mfield(self, mf_tb, nk=200):
-        density_matrix_tb = self.make_density_matrix_tb(mf_tb, nk=nk)
         return add_tb(
             meanfield(density_matrix_tb, self.h_int, n=self._ndim),
-            {self._local_key: -self.fermi_energy * np.eye(self._size)},
+            {self._local_key: -fermi_energy * np.eye(self._size)},
         )
+
+
+def rho(h, filling, nk, ndim):
+    kham = tb_to_khamvector(h, nk=nk, ndim=ndim)
+    fermi = fermi_on_grid(kham, filling)
+    ndim = len(kham.shape) - 2
+    return (
+        ifftn_to_tb(ifftn(density_matrix(kham, fermi), axes=np.arange(ndim))),
+        fermi,
+    )

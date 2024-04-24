@@ -3,6 +3,7 @@ import scipy
 from functools import partial
 from codes.tb.tb import add_tb
 import numpy as np
+from codes.model import rho
 
 
 def cost(mf_param, Model, nk=100):
@@ -58,6 +59,7 @@ def solver(
     result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(Model.h_int), shape
     )
-    Model.calculate_EF()
+    _, fermi_energy = rho(add_tb(Model.h_0, result), Model.filling, nk, Model._ndim)
+
     local_key = tuple(np.zeros((Model._ndim,), dtype=int))
-    return add_tb(result, {local_key: -Model.fermi_energy * np.eye(shape)})
+    return add_tb(result, {local_key: -fermi_energy * np.eye(shape)})

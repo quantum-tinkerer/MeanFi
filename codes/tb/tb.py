@@ -20,6 +20,25 @@ def add_tb(tb1, tb2):
     return {k: tb1.get(k, 0) + tb2.get(k, 0) for k in frozenset(tb1) | frozenset(tb2)}
 
 
+def scale_tb(tb, scale):
+    """
+    Scale a tight-binding model.
+
+    Parameters:
+    -----------
+    tb : dict
+        Tight-binding model.
+    scale : float
+        The scaling factor.
+
+    Returns:
+    --------
+    dict
+        Scaled tight-binding model.
+    """
+    return {k: tb.get(k, 0) * scale for k in frozenset(tb)}
+
+
 def compare_dicts(dict1, dict2, atol=1e-10):
     for key in dict1.keys():
         assert np.allclose(dict1[key], dict2[key], atol=atol)
