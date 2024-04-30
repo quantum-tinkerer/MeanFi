@@ -1,6 +1,10 @@
 from codes.params.rparams import tb_to_rparams, rparams_to_tb
+from codes.mf import fermi_on_grid
+from codes.tb.transforms import tb_to_khamvector
+from codes.tb.tb import add_tb
 import scipy
 from functools import partial
+import numpy as np
 
 def cost(mf_param, Model, nk=100):
     """
@@ -55,4 +59,5 @@ def solver(
     result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(Model.h_int), shape
     )
-    return result
+    fermi = fermi_on_grid(tb_to_khamvector(add_tb(Model.h_0, result), nk=nk), Model.filling)
+    return add_tb(result, {Model._local_key: -fermi * np.eye(Model._size)})
