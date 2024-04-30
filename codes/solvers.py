@@ -1,6 +1,5 @@
 from codes.params.rparams import tb_to_rparams, rparams_to_tb
-from codes.mf import fermi_on_grid
-from codes.tb.transforms import tb_to_khamvector
+from codes.tb.utils import calculate_fermi_energy
 from codes.tb.tb import add_tb
 import scipy
 from functools import partial
@@ -59,5 +58,5 @@ def solver(
     result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(Model.h_int), shape
     )
-    fermi = fermi_on_grid(tb_to_khamvector(add_tb(Model.h_0, result), nk=nk), Model.filling)
+    fermi = calculate_fermi_energy(add_tb(Model.h_0, result), Model.filling, nk=nk)
     return add_tb(result, {Model._local_key: -fermi * np.eye(Model._size)})

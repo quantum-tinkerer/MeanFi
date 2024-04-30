@@ -89,4 +89,5 @@ def calculate_fermi_energy(tb, filling, nk=100):
     Calculate the Fermi energy for a given filling.
     """
     kham = tb_to_khamvector(tb, nk, ks=None)
-    return fermi_on_grid(kham, filling)
+    vals = np.linalg.eigvalsh(kham)
+    return fermi_on_grid(vals, filling)

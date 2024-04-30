@@ -4,19 +4,19 @@ from codes.tb.transforms import tb_to_khamvector, ifftn_to_tb
 from scipy.fftpack import ifftn
 
 
-def density_matrix_kgrid(kham, fermi_energy):
+def density_matrix_kgrid(kham, filling):
     """
      Parameters
      ----------
      kham : npndarray
          Hamiltonian in k-space of shape (len(dim), norbs, norbs)
-     fermi_energy : float
-         Fermi level
+     filling : float
+        Number of particles in a unit cell.
 
      Returns
      -------
-     np.ndarray
-         Density matrix in k-space.
+     np.ndarray, flaot
+         Density matrix in k-space and Fermi energy.
 
     Notes
     -----
@@ -24,11 +24,12 @@ def density_matrix_kgrid(kham, fermi_energy):
 
     """
     vals, vecs = np.linalg.eigh(kham)
-    unocc_vals = vals > fermi_energy
+    fermi = fermi_on_grid(vals, filling)
+    unocc_vals = vals > fermi
     occ_vecs = vecs
     np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
     rho_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
-    return rho_krid
+    return rho_krid, fermi
 
 def density_matrix(h, filling, nk):
     """
@@ -51,9 +52,9 @@ def density_matrix(h, filling, nk):
     ndim = len(list(h)[0])
     if ndim > 0:
         kham = tb_to_khamvector(h, nk=nk)
-        fermi = fermi_on_grid(kham, filling)
+        rho_grid, fermi = density_matrix_kgrid(kham, filling)
         return (
-            ifftn_to_tb(ifftn(density_matrix_kgrid(kham, fermi), axes=np.arange(ndim))),
+            ifftn_to_tb(ifftn(rho_grid, axes=np.arange(ndim))),
             fermi,
         )
     else:
@@ -100,14 +101,14 @@ def meanfield(density_matrix_tb, h_int):
     return add_tb(direct, exchange)
 
 
-def fermi_on_grid(kham, filling):
+def fermi_on_grid(vals, filling):
     """
      Compute the Fermi energy on a grid of k-points.
 
      Parameters
      ----------
-     kham : ndarray
-        Hamiltonian in k-space of shape (len(dim), norbs, norbs)
+     vals : ndarray
+        Eigenvalues of the hamiltonian in k-space of shape (len(dim), norbs, norbs)
      filling : int
          Number of particles in a unit cell.
      Returns
@@ -115,9 +116,6 @@ def fermi_on_grid(kham, filling):
     fermi_energy : float
          Fermi energy
     """
-
-    vals = np.linalg.eigvalsh(kham)
-
     norbs = vals.shape[-1]
     vals_flat = np.sort(vals.flatten())
     ne = len(vals_flat)
