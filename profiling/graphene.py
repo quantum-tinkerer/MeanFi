@@ -17,7 +17,8 @@ nk = 600
 
 h_int = utils.builder_to_tb(int_builder, params)
 h_0 = utils.builder_to_tb(graphene_builder)
-guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+norbs = len(list(h_0.values())[0])
+guess = generate_guess(frozenset(h_int), norbs)
 
 model = Model(h_0, h_int, filling)
 
@@ -39,12 +40,12 @@ profiler.stop()
 profiler.write_html(path="timeProfile.html")
 
 # %%
-number = 1
-
+number = 10
 time_scf = timeit.timeit(scf_loop, number=number) / number
 
-H = np.random.rand(nk, nk)
-H += H.T.conj()
+H = np.random.rand(nk, nk, norbs, norbs).astype(complex)
+H += 1j * np.random.rand(nk, nk, norbs, norbs)
+H += H.transpose(0, 1, 3, 2).conj()
 time_diag = timeit.timeit(lambda: np.linalg.eigh(H), number=number) / number
 
 print(
