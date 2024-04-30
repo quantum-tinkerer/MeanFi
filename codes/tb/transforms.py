@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.fftpack import ifftn
 import itertools as it
 
 
@@ -37,35 +36,6 @@ def tb_to_khamvector(tb, nk, ks=None):
     )
     return np.sum(tb_array * k_dependency, axis=0)
 
-
-def tb_to_kfunc(tb):
-    """
-    Fourier transforms a real-space tight-binding model to a k-space function.
-
-    Parameters
-    ----------
-    tb : dict
-        A dictionary with real-space vectors as keys and complex np.arrays as values.
-
-    Returns
-    -------
-    function
-        A function that takes a k-space vector and returns a complex np.array.
-
-    Notes
-    -----
-    Function doesn't work for all dimensions
-    """
-
-    def kfunc(k):
-        ham = 0
-        for vector in tb.keys():
-            ham += tb[vector] * np.exp(-1j * np.dot(k, np.array(vector, dtype=float)))
-        return ham
-
-    return kfunc
-
-
 def ifftn_to_tb(ifft_array):
     """
     Converts an array from ifftn to a tight-binding model format.
@@ -86,94 +56,6 @@ def ifftn_to_tb(ifft_array):
     keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
     keys = it.product(*keys)
     return {tuple(k): ifft_array[tuple(k)] for k in keys}
-
-
-def kfunc_to_kham(nk, kfunc, dim, return_ks=False, hermitian=True):
-    """
-    Evaluates Hamiltonian on a k-point grid.
-
-    Paramters:
-    ----------
-    nk : int
-        Number of k-points along each direction.
-    kfunc : function
-        Calculates the Hamiltonian at a given k-point.
-    return_ks : bool
-        If `True`, returns k-points.
-
-    Returns:
-    --------
-    ham : nd.array
-        Hamiltonian evaluated on a k-point grid from k-points
-        along each direction evaluated from zero to 2*pi.
-        The indices are ordered as [k_1, ... , k_n, i, j], where
-        `k_m` corresponding to the k-point element along each
-        direction and `i` and `j` are the internal degrees of freedom.
-    ks : 1D-array
-        List of k-points over all directions. Only returned if `return_ks=True`.
-    """
-    ks = np.linspace(
-        -np.pi, np.pi, nk, endpoint=False
-    )  # for now nk need to be even such that 0 is in the middle
-    ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
-
-    k_pts = np.tile(ks, dim).reshape(dim, nk)
-
-    kham = []
-    for k in it.product(*k_pts):
-        kham.append(kfunc(k))
-    kham = np.array(kham)
-    if hermitian:
-        assert np.allclose(
-            kham, np.transpose(kham, (0, 2, 1)).conj()
-        ), "Tight-binding provided is non-Hermitian. Not supported yet"
-    shape = (*[nk] * dim, kham.shape[-1], kham.shape[-1])
-    if return_ks:
-        return kham.reshape(*shape), ks
-    else:
-        return kham.reshape(*shape)
-
-
-def tb_to_kham(h_0, nk=200, ndim=1):
-    kfunc = tb_to_kfunc(h_0)
-    kham = kfunc_to_kham(nk, kfunc, ndim)
-    return kham
-
-
-def kfunc_to_tb(kfunc, n_samples, ndim=1):
-    """
-    Applies FFT on a k-space function to obtain a real-space components.
-
-    Parameters
-    ----------
-    kfunc : function
-        A function that takes a k-space vector and returns a np.array.
-    n_samples : int
-        Number of samples to take in k-space.
-
-    Returns
-    -------
-
-    dict
-        A dictionary with real-space vectors as keys and complex np.arrays as values.
-    """
-
-    ks = np.linspace(
-        -np.pi, np.pi, n_samples, endpoint=False
-    )  # for now n_samples need to be even such that 0 is in the middle
-    ks = np.concatenate(
-        (ks[n_samples // 2 :], ks[: n_samples // 2]), axis=0
-    )  # shift for ifft
-
-    if ndim == 1:
-        kfunc_on_grid = np.array([kfunc(k) for k in ks])
-    if ndim == 2:
-        kfunc_on_grid = np.array([[kfunc((kx, ky)) for ky in ks] for kx in ks])
-    if ndim > 2:
-        raise NotImplementedError("n > 2 not implemented")
-    ifftn_array = ifftn(kfunc_on_grid, axes=np.arange(ndim))
-    return ifftn_to_tb(ifftn_array)
-
 
 def kham_to_tb(kham, hopping_vecs, ks=None):
     """

@@ -1,7 +1,6 @@
 import numpy as np
-from codes.tb.transforms import tb_to_kfunc, tb_to_khamvector
+from codes.tb.transforms import tb_to_khamvector
 from codes.mf import fermi_on_grid
-import itertools as it
 from itertools import product
 
 
@@ -72,11 +71,7 @@ def compute_gap(tb, fermi_energy=0, nk=100):
      gap : float
      Indirect gap.
     """
-    ndim = len(list(tb)[0])
-    hkfunc = tb_to_kfunc(tb)
-    k_array = np.linspace(0, 2 * np.pi, nk)
-    kgrid = list(it.product(*[k_array for i in range(ndim)]))
-    kham = np.array([hkfunc(k) for k in kgrid])
+    kham = tb_to_khamvector(tb, nk, ks=None)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])
