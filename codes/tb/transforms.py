@@ -3,7 +3,7 @@ from scipy.fftpack import ifftn
 import itertools as it
 
 
-def tb_to_khamvector(tb, nk, ndim, ks=None):
+def tb_to_khamvector(tb, nk, ks=None):
     """
     Real-space tight-binding model to hamiltonian on k-space grid.
 
@@ -13,15 +13,13 @@ def tb_to_khamvector(tb, nk, ndim, ks=None):
         A dictionary with real-space vectors as keys and complex np.arrays as values.
     nk : int
         Number of k-points along each direction.
-    ndim : int
-        Number of dimensions.
-
     Returns
     -------
     ndarray
         Hamiltonian evaluated on a k-point grid.
 
     """
+    ndim = len(list(tb)[0])
     if ks is None:
         ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
         ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft

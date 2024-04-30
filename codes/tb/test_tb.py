@@ -42,5 +42,5 @@ def test_tbkham_transform():
     h_0 = generate_guess(vectors, ndof)
 
     assert np.allclose(
-        tb_to_kham(h_0, nk=nk, ndim=2), tb_to_khamvector(h_0, nk=nk, ndim=2)
+        tb_to_kham(h_0, nk=nk, ndim=2), tb_to_khamvector(h_0, nk=nk)
     )

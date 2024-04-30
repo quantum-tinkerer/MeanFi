@@ -8,8 +8,7 @@ def density_matrix(kham, fermi_energy):
      ----------
      kham : npndarray
          Hamiltonian in k-space of shape (len(dim), norbs, norbs)
-
-    fermi_energy : float
+     fermi_energy : float
          Fermi level
 
      Returns
@@ -30,7 +29,7 @@ def density_matrix(kham, fermi_energy):
     return density_matrix_kgrid
 
 
-def meanfield(density_matrix_tb, h_int, n=2):
+def meanfield(density_matrix_tb, h_int):
     """
     Compute the mean-field in k-space.
 
@@ -46,7 +45,7 @@ def meanfield(density_matrix_tb, h_int, n=2):
     dict
         Mean-field tb model.
     """
-
+    n = len(list(density_matrix_tb)[0])
     local_key = tuple(np.zeros((n,), dtype=int))
 
     direct = {

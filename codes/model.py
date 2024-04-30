@@ -34,19 +34,19 @@ class Model:
 
     def mfield(self, mf_tb, nk=200):  # method or standalone?
         density_matrix_tb, fermi_energy = rho(
-            add_tb(self.h_0, mf_tb), self.filling, nk, self._ndim
+            add_tb(self.h_0, mf_tb), self.filling, nk
         )
         return add_tb(
-            meanfield(density_matrix_tb, self.h_int, n=self._ndim),
+            meanfield(density_matrix_tb, self.h_int),
             {self._local_key: -fermi_energy * np.eye(self._size)},
         )
 
 
-def rho(h, filling, nk, ndim):
+def rho(h, filling, nk):
+    ndim = len(list(h)[0])
     if ndim > 0:
-        kham = tb_to_khamvector(h, nk=nk, ndim=ndim)
+        kham = tb_to_khamvector(h, nk=nk)
         fermi = fermi_on_grid(kham, filling)
-        ndim = len(kham.shape) - 2
         return (
             ifftn_to_tb(ifftn(density_matrix(kham, fermi), axes=np.arange(ndim))),
             fermi,

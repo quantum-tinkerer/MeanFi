@@ -88,6 +88,5 @@ def calculate_fermi_energy(tb, filling, nk=100):
     """
     Calculate the Fermi energy for a given filling.
     """
-    ndim = len(list(tb)[0])
-    kham = tb_to_khamvector(tb, nk, ndim, ks=None)
+    kham = tb_to_khamvector(tb, nk, ks=None)
     return fermi_on_grid(kham, filling)

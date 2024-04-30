@@ -59,7 +59,7 @@ def solver(
     result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(Model.h_int), shape
     )
-    _, fermi_energy = rho(add_tb(Model.h_0, result), Model.filling, nk, Model._ndim)
+    _, fermi_energy = rho(add_tb(Model.h_0, result), Model.filling, nk)
 
     local_key = tuple(np.zeros((Model._ndim,), dtype=int))
     return add_tb(result, {local_key: -fermi_energy * np.eye(shape)})
