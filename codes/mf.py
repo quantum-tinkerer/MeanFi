@@ -106,10 +106,10 @@ def fermi_on_grid(kham, filling):
 
      Parameters
      ----------
-     hkfunc : function
-         Function that returns the Hamiltonian at a given k-point.
-     nk : int
-         Number of k-points in the grid.
+     kham : ndarray
+        Hamiltonian in k-space of shape (len(dim), norbs, norbs)
+     filling : int
+         Number of particles in a unit cell.
      Returns
      -------
     fermi_energy : float
