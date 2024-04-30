@@ -1,10 +1,6 @@
 from codes.params.rparams import tb_to_rparams, rparams_to_tb
 import scipy
 from functools import partial
-from codes.tb.tb import add_tb
-import numpy as np
-from codes.mf import density_matrix
-
 
 def cost(mf_param, Model, nk=100):
     """
@@ -59,7 +55,4 @@ def solver(
     result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(Model.h_int), shape
     )
-    _, fermi_energy = density_matrix(add_tb(Model.h_0, result), Model.filling, nk)
-
-    local_key = tuple(np.zeros((Model._ndim,), dtype=int))
-    return add_tb(result, {local_key: -fermi_energy * np.eye(shape)})
+    return result
