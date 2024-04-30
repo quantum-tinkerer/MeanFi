@@ -19,7 +19,7 @@ def expectation_value(density_matrix, observable):
     """
     return np.sum(
         [
-            np.trace(density_matrix[k] @ observable[k])
+            np.trace(observable[k] @ density_matrix[tuple(-np.array(k))])
             for k in frozenset(density_matrix) & frozenset(observable)
         ]
     )
