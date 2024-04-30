@@ -45,8 +45,8 @@ def density_matrix(h, filling, nk):
 
     Returns
     -------
-    dict
-        Density matrix in real-space tight-binding format.
+    (dict, float)
+        Density matrix in real-space tight-binding format and Fermi energy.
     """
     ndim = len(list(h)[0])
     if ndim > 0:
