@@ -65,6 +65,6 @@ def gap_prediction(U, V):
 # %%
 @pytest.mark.repeat(repeat_number)
 def test_gap():
-    U = np.random.uniform(0, 2)
+    U = np.random.uniform(0, 4)
     V = np.random.uniform(0, 1)
     gap_prediction(U, V)
