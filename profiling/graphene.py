@@ -1,7 +1,7 @@
 # %%
 import numpy as np
 from codes.model import Model
-from codes import kwant_examples
+from codes.kwant_helper import kwant_examples
 from codes.kwant_helper import utils
 from codes.tb.utils import generate_guess
 from pyinstrument import Profiler

@@ -1,6 +1,6 @@
 import kwant
 import numpy as np
-from .kwant_helper.utils import build_interacting_syst
+from codes.kwant_helper.utils import build_interacting_syst
 
 s0 = np.identity(2)
 sz = np.diag([1, -1])

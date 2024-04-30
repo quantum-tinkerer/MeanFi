@@ -2,7 +2,7 @@
 import numpy as np
 from codes.model import Model
 from codes.solvers import solver
-from codes import kwant_examples
+from codes.kwant_helper import kwant_examples
 from codes.kwant_helper import utils
 from codes.tb.utils import compute_gap, generate_guess
 from codes.tb.tb import add_tb
