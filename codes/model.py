@@ -43,10 +43,14 @@ class Model:
 
 
 def rho(h, filling, nk, ndim):
-    kham = tb_to_khamvector(h, nk=nk, ndim=ndim)
-    fermi = fermi_on_grid(kham, filling)
-    ndim = len(kham.shape) - 2
-    return (
-        ifftn_to_tb(ifftn(density_matrix(kham, fermi), axes=np.arange(ndim))),
-        fermi,
-    )
+    if ndmin > 0:
+        kham = tb_to_khamvector(h, nk=nk, ndim=ndim)
+        fermi = fermi_on_grid(kham, filling)
+        ndim = len(kham.shape) - 2
+        return (
+            ifftn_to_tb(ifftn(density_matrix(kham, fermi), axes=np.arange(ndim))),
+            fermi,
+        )
+    else:
+        fermi = fermi_on_grid(h[()], filling)
+        return {(): density_matrix(h[()], fermi)}
