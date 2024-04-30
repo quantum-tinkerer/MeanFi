@@ -43,7 +43,7 @@ class Model:
 
 
 def rho(h, filling, nk, ndim):
-    if ndmin > 0:
+    if ndim > 0:
         kham = tb_to_khamvector(h, nk=nk, ndim=ndim)
         fermi = fermi_on_grid(kham, filling)
         ndim = len(kham.shape) - 2
