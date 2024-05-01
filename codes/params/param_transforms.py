@@ -14,6 +14,10 @@ def tb_to_flat(tb):
     flat : complex 1d numpy array
         Flattened tight-binding dictionary
     """
+    if len(list(tb)[0]) == 0:
+        matrix = np.array(list(tb.values()))
+        matrix = matrix.reshape((matrix.shape[-2], matrix.shape[-1]))
+        return matrix[np.triu_indices(matrix.shape[-1])].flatten()
     N = len(tb.keys()) // 2 + 1
     sorted_vals = np.array(list(tb.values()))[np.lexsort(np.array(list(tb.keys())).T)]
     return sorted_vals[:N].flatten()
@@ -38,6 +42,12 @@ def flat_to_tb(flat, shape, tb_keys):
     tb : dict
         tight-binding dictionary
     """
+    if len(tb_keys[0]) == 0:
+        matrix = np.zeros((shape[-1], shape[-2]), dtype=complex)
+        matrix[np.triu_indices(shape[-1])] = flat
+        matrix += matrix.conj().T
+        matrix[np.diag_indices(shape[-1])] /= 2
+        return {(): matrix}
     matrix = np.zeros(shape, dtype=complex)
     N = len(tb_keys) // 2 + 1
     matrix[:N] = flat.reshape(N, *shape[1:])
