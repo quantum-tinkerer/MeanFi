@@ -26,7 +26,7 @@ $$
 :ABC...: | 0 \rangle = 0
 $$
 
-which practically means it orders $b_i$ operators based on whether its above or below the Fermi level $\mu$. 
+which practically means it orders $b_i$ operators based on whether its above or below the Fermi level $\mu$.
 
 Under this definition of normal ordering, we define the Wick's expansion of the interaction term:
 
@@ -52,16 +52,16 @@ $$
 where we can forget about all the normal ordered states since those give zero acting on the unperturbed groundstate. To evaluate this further, we utilize the mean-field approximation:
 
 $$
-A B \approx \langle A \rangle B + A \langle B \rangle - \langle A \rangle \langle B \rangle 
+A B \approx \langle A \rangle B + A \langle B \rangle - \langle A \rangle \langle B \rangle
 $$
 
 onto the contractions such that we get:
 
 $$
-\langle  c_i^\dagger c_j^\dagger c_l c_k \rangle \approx \langle c_i^\dagger c_j^\dagger \rangle \langle  c_l c_k \rangle + \langle c_i^\dagger c_k \rangle  \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_l \rangle \langle c_j^\dagger c_k \rangle 
+\langle  c_i^\dagger c_j^\dagger c_l c_k \rangle \approx \langle c_i^\dagger c_j^\dagger \rangle \langle  c_l c_k \rangle + \langle c_i^\dagger c_k \rangle  \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_l \rangle \langle c_j^\dagger c_k \rangle
 $$
 
-note $\langle A B \rangle \approx \langle A \rangle  \langle B \rangle$ assuming mean-field. 
+note $\langle A B \rangle \approx \langle A \rangle  \langle B \rangle$ assuming mean-field.
 
 To consider excitations from the groundstate, we make use of the mean-field approximation defined above:
 
@@ -69,7 +69,7 @@ $$
 \begin{multline}
 c_i^\dagger c_j^\dagger c_l c_k \approx \\
 \langle c_i^\dagger c_j^\dagger \rangle c_l c_k + \langle c_i^\dagger c_k \rangle c_j^\dagger c_l - \langle c_i^\dagger c_l \rangle c_j^\dagger c_k + \langle c_l c_k \rangle c_i^\dagger c_j^\dagger - \langle c_j^\dagger c_k \rangle c_i^\dagger c_l + \langle c_j^\dagger c_l \rangle c_i^\dagger c_k + \\
-\langle c_i^\dagger c_j^\dagger \rangle \langle  c_l c_k \rangle + \langle c_i^\dagger c_k \rangle  \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_l \rangle \langle c_j^\dagger c_k \rangle 
+\langle c_i^\dagger c_j^\dagger \rangle \langle  c_l c_k \rangle + \langle c_i^\dagger c_k \rangle  \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_l \rangle \langle c_j^\dagger c_k \rangle
 \end{multline}
 $$
 
@@ -80,11 +80,11 @@ $$
 $$
 
 $$
-\overline{c_i^\dagger c_k} \overline{c_j^\dagger c_l} \approx \langle \overline{c_i^\dagger c_k} \rangle \overline{c_j^\dagger c_l} + \overline{c_i^\dagger c_k} \langle \overline{c_j^\dagger c_l} \rangle - \langle \overline{c_i^\dagger c_k} \rangle \langle \overline{c_j^\dagger c_i} \rangle =  \langle c_i^\dagger c_k \rangle \overline{c_j^\dagger c_l} + \overline{c_i^\dagger c_k} \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_k \rangle \langle c_j^\dagger c_l \rangle 
+\overline{c_i^\dagger c_k} \overline{c_j^\dagger c_l} \approx \langle \overline{c_i^\dagger c_k} \rangle \overline{c_j^\dagger c_l} + \overline{c_i^\dagger c_k} \langle \overline{c_j^\dagger c_l} \rangle - \langle \overline{c_i^\dagger c_k} \rangle \langle \overline{c_j^\dagger c_i} \rangle =  \langle c_i^\dagger c_k \rangle \overline{c_j^\dagger c_l} + \overline{c_i^\dagger c_k} \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_k \rangle \langle c_j^\dagger c_l \rangle
 $$
 
 $$
-\overline{c_i^\dagger c_k} :c_j^\dagger c_l: \approx \langle \overline{c_i^\dagger c_k} \rangle  :c_j^\dagger c_l: +  \overline{c_i^\dagger c_k} \langle :c_j^\dagger c_l: \rangle - \langle \overline{c_i^\dagger c_k} \rangle \langle :c_j^\dagger c_l: \rangle = \langle \overline{c_i^\dagger c_k} \rangle  :c_j^\dagger c_l: 
+\overline{c_i^\dagger c_k} :c_j^\dagger c_l: \approx \langle \overline{c_i^\dagger c_k} \rangle  :c_j^\dagger c_l: +  \overline{c_i^\dagger c_k} \langle :c_j^\dagger c_l: \rangle - \langle \overline{c_i^\dagger c_k} \rangle \langle :c_j^\dagger c_l: \rangle = \langle \overline{c_i^\dagger c_k} \rangle  :c_j^\dagger c_l:
 $$
 
 
@@ -99,7 +99,7 @@ $$
 \begin{multline}
 c_i^\dagger c_j^\dagger c_l c_k \approx
 \langle c_i^\dagger c_k \rangle c_j^\dagger c_l - \langle c_i^\dagger c_l \rangle c_j^\dagger c_k - \langle c_j^\dagger c_k \rangle c_i^\dagger c_l + \langle c_j^\dagger c_l \rangle c_i^\dagger c_k + \\
-\langle c_i^\dagger c_k \rangle  \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_l \rangle \langle c_j^\dagger c_k \rangle 
+\langle c_i^\dagger c_k \rangle  \langle c_j^\dagger c_l \rangle - \langle c_i^\dagger c_l \rangle \langle c_j^\dagger c_k \rangle
 \end{multline}
 $$
 
@@ -126,7 +126,7 @@ The interaction reads:
 
 $$
 v_{ijkl} = \iint w_{i}^*(r) w_{j}^*(r') V(r, r') w_{k}(r) w_l(r') dr dr' = \\
-\iint  V(|r - r'|) w_{i}^*(r)w_{k}(r) w_{j}^*(r')  w_l(r') dr dr' 
+\iint  V(|r - r'|) w_{i}^*(r)w_{k}(r) w_{j}^*(r')  w_l(r') dr dr'
 $$
 
 whereas $w_i$ is a wannier function on site i (and corresponding dof). Whenever one interchanges $i \to j, k \to l$, the Coulomb term is preserved $v_{ijkl} = v_{jilk}$
@@ -134,7 +134,7 @@ whereas $w_i$ is a wannier function on site i (and corresponding dof). Whenever 
 To make things more understandable, we are also going to explicitly split up position and spin indices: $i \to i \times \sigma$. In this notation, the Coulomb integral reads:
 
 $$
-v_{ijkl}^{\sigma_i \sigma_j \sigma_k \sigma_l} = 
+v_{ijkl}^{\sigma_i \sigma_j \sigma_k \sigma_l} =
 \iint V(|r - r'|) w_{i\times\sigma_i}^{*} (r)w_{k \times \sigma_k}(r) w_{j \times \sigma_j}^{*}(r')  w_{l\times \sigma_l}(r') dr dr' \delta_{\sigma_i \sigma_k} \delta_{\sigma_{j} \sigma_l}
 $$
 
@@ -149,7 +149,7 @@ where $v_{ij} = V(r_i, r_j)$.
 We shall re-define $i$ index to absorb spin:
 
 $$
-\delta_{ik} \times \delta_{\sigma_{i} \sigma_{k}} \to \delta_{ik} 
+\delta_{ik} \times \delta_{\sigma_{i} \sigma_{k}} \to \delta_{ik}
 $$
 
 in this notation the above reads:
@@ -170,7 +170,7 @@ $$
 c_i^\dagger = \sum_{k} U_{ik} b_k^\dagger
 $$
 
-where 
+where
 
 $$
 U_{ik} = \langle{i|\psi_k} \rangle.
@@ -225,7 +225,7 @@ V_0 = \frac{1}{2} \sum_{ijkl} v_{ijkl} \left(F_{jl} F_{ik} - F_{jk} F_{il} \righ
 \end{multline}
 $$
 
-where we identify the first term as the exchange (mixes indices) and the right one as the direct (diagonal in indicies).
+where we identify the first term as the exchange (mixes indices) and the right one as the direct (diagonal in indices).
 
 ## Translational Invariance
 
@@ -240,7 +240,7 @@ $$
 and we will Fourier transform the upper indices into k-space:
 
 $$
-O_{mn}(k) = \sum_{ij} O_{nm}^{ij} e^{-i k (R_i-R_j)} 
+O_{mn}(k) = \sum_{ij} O_{nm}^{ij} e^{-i k (R_i-R_j)}
 $$
 
 where I assumed $O$ (and thus all operators I will consider here) is local and thus diagonal in k-space.
@@ -254,12 +254,12 @@ $$
 Lets first consider the second (direct) term. Lets express the corresponding $F$ term in k-space:
 
 $$
-F_{pp}^{rr} = \int e^{i k (R_r-R_r)} F_{pp}(k) dk = \int F_{pp}(k) dk 
+F_{pp}^{rr} = \int e^{i k (R_r-R_r)} F_{pp}(k) dk = \int F_{pp}(k) dk
 $$
 
 Notice that in the final expression, there is no $rr$ dependence and thus this term is cell-periodic. Therefore, we shall redefine it as cell electron density $\rho$:
 $$
-F_{pp}^0 = F_{pp}(R = 0) = \int F_{pp}(k) dk 
+F_{pp}^0 = F_{pp}(R = 0) = \int F_{pp}(k) dk
 $$
 
 Now since $\rho$ has no $r$ dependence, we can proceed with the sum:
@@ -271,7 +271,7 @@ $$
 We are finally ready to Fourier transform the main result. Invoking convolution theorem and the results above gives us:
 
 $$
-V_{nm}(k) = \sum_{p} F_{pp}^0 v_{pn}(0) \delta_{nm} -F_{mn}(k) \circledast v_{mn}(k) = V_n^D - F_{mn}(k) \circledast v_{mn}(k) 
+V_{nm}(k) = \sum_{p} F_{pp}^0 v_{pn}(0) \delta_{nm} -F_{mn}(k) \circledast v_{mn}(k) = V_n^D - F_{mn}(k) \circledast v_{mn}(k)
 $$
 
 which does make sense. The first term (direct) is a potential term coming from the mean-field and the second term (exchange) is purely responsible for the hopping.

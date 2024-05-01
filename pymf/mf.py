@@ -17,7 +17,7 @@ def density_matrix_kgrid(kham, filling):
 
     Returns
     -------
-     np.ndarray, flaot
+     np.ndarray, float
          Density matrix in k-space and Fermi energy.
 
     Notes
