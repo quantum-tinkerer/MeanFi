@@ -48,7 +48,9 @@ def gap_prediction(U, V):
     guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
-    mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0, 'f_tol' : 1e-8})
+    mf_sol = solver(
+        model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0, "f_tol": 1e-8}
+    )
     gap = compute_gap(add_tb(h_0, mf_sol), nk=200)
 
     # Check if the gap is predicted correctly

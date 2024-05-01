@@ -9,6 +9,7 @@ from pymf.tb.tb import add_tb
 
 repeat_number = 10
 
+
 # %%
 def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
     """Gap relation for the Hubbard model.

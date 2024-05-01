@@ -35,6 +35,7 @@ def mf_rescaled(alpha, mf0):
     hamiltonian = add_tb(h_0, scale_tb(mf0, np.sign(alpha)))
     return total_energy(hamiltonian, rho)
 
+
 @pytest.mark.parametrize("seed", range(repeat_number))
 def test_mexican_hat(seed):
     np.random.seed(seed)
