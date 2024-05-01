@@ -1,86 +1,51 @@
-from . import utils
 import numpy as np
 
+from codes.mf import (
+    density_matrix,
+    meanfield,
+)
+from codes.tb.tb import add_tb
+
+
 class Model:
-    """
-    A period tight-binding model class.
+    def __init__(self, h_0, h_int, filling):
+        self.h_0 = h_0
+        self.h_int = h_int
+        self.filling = filling
 
-    Attributes
-    ----------
-    tb_model : dict
-        Non-interacting tight-binding model.
-    int_model : dict
-        Interacting tight-binding model.
-    Vk : function
-        Interaction potential V(k). Used if `int_model = None`.
-    guess : dict
-        Initial guess for self-consistent calculation.
-    dim : int
-        Number of translationally invariant real-space dimensions.
-    ndof : int
-        Number of internal degrees of freedom (orbitals).
-    hamiltonians_0 : nd-array
-        Non-interacting amiltonian evaluated on a k-point grid.
-    H_int : nd-array
-        Interacting amiltonian evaluated on a k-point grid.
-    """
+        _first_key = list(h_0)[0]
+        self._ndim = len(_first_key)
+        self._size = h_0[_first_key].shape[0]
+        self._local_key = tuple(np.zeros((self._ndim,), dtype=int))
 
-    def __init__(self, tb_model, int_model=None, Vk=None, guess=None):
-        self.tb_model = tb_model
-        self.dim = len([*tb_model.keys()][0])
-        if self.dim > 0:
-            self.hk = utils.model2hk(tb_model=tb_model)
-        self.int_model = int_model
-        if self.int_model is not None:
-            self.int_model = int_model
-            if self.dim > 0:
-                self.Vk = utils.model2hk(tb_model=int_model)
-        else:
-            if self.dim > 0:
-                self.Vk = Vk
-        self.ndof = len([*tb_model.values()][0])
-        self.guess = guess
-        if self.dim == 0:
-            self.hamiltonians_0 = tb_model[()]
-            self.H_int = int_model[()]
+        def _check_hermiticity(h):
+            # assert hermiticity of the Hamiltonian
+            # assert hermiticity of the Hamiltonian
+            for vector in h.keys():
+                op_vector = tuple(-1 * np.array(vector))
+                op_vector = tuple(-1 * np.array(vector))
+                assert np.allclose(h[vector], h[op_vector].conj().T)
 
-    def random_guess(self, vectors):
-        """
-        Generate random guess.
+        _check_hermiticity(h_0)
+        _check_hermiticity(h_int)
 
-        Parameters:
-        -----------
-        vectors : list of tuples
-            Hopping vectors for the mean-field corrections.
-        """
-        if self.int_model is None:
-            scale = 0.1
-        else:
-            scale = 0.1*(1+np.max(np.abs([*self.int_model.values()])))
-        self.guess = utils.generate_guess(
-            vectors=vectors,
-            ndof=self.ndof,
-            scale=scale
-        )
+    def mfield(self, mf_tb, nk=200):  # method or standalone?
+        """Compute single mean field iteration.
 
-    def kgrid_evaluation(self, nk):
-        """
-        Evaluates hamiltonians on a k-grid.
-
-        Parameters:
-        -----------
+        Parameters
+        ----------
+        mf_tb : dict
+            Mean-field tight-binding model.
         nk : int
-            Number of k-points along each direction.
+            Number of k-points in the grid.
+
+        Returns
+        -------
+        dict
+            New mean-field tight-binding model.
         """
-        self.hamiltonians_0, self.ks = utils.kgrid_hamiltonian(
-            nk=nk,
-            hk=self.hk,
-            dim=self.dim,
-            return_ks=True
-        )
-        self.H_int = utils.kgrid_hamiltonian(nk=nk, hk=self.Vk, dim=self.dim)
-        self.mf_k = utils.kgrid_hamiltonian(
-            nk=nk,
-            hk=utils.model2hk(self.guess),
-            dim=self.dim,
+        rho, fermi_energy = density_matrix(add_tb(self.h_0, mf_tb), self.filling, nk)
+        return add_tb(
+            meanfield(rho, self.h_int),
+            {self._local_key: -fermi_energy * np.eye(self._size)},
         )
