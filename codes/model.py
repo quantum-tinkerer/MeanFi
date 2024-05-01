@@ -30,9 +30,21 @@ class Model:
         _check_hermiticity(h_int)
 
     def mfield(self, mf_tb, nk=200):  # method or standalone?
-        rho, fermi_energy = density_matrix(
-            add_tb(self.h_0, mf_tb), self.filling, nk
-        )
+        """Compute single mean field iteration.
+
+        Parameters
+        ----------
+        mf_tb : dict
+            Mean-field tight-binding model.
+        nk : int
+            Number of k-points in the grid.
+
+        Returns
+        -------
+        dict
+            New mean-field tight-binding model.
+        """
+        rho, fermi_energy = density_matrix(add_tb(self.h_0, mf_tb), self.filling, nk)
         return add_tb(
             meanfield(rho, self.h_int),
             {self._local_key: -fermi_energy * np.eye(self._size)},

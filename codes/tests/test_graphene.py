@@ -64,6 +64,7 @@ def gap_prediction(U, V):
 # %%
 @pytest.mark.repeat(repeat_number)
 def test_gap():
+    """Test if the mean-field theory predicts the gap correctly for a random U and V."""
     U = np.random.uniform(0, 4)
     V = np.random.uniform(0, 1)
     gap_prediction(U, V)

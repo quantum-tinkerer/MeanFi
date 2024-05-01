@@ -22,14 +22,17 @@ def tb_to_rparams(tb):
     return complex_to_real(tb_to_flat(tb))  # placeholder for now
 
 
-def rparams_to_tb(rParams, key_list, size):
+def rparams_to_tb(r_params, key_list, size):
     """Extract mean-field tight-binding model from a set of real parameters.
 
     Parameters
     ----------
     r_params : dict
         Real parameters.
-    shape : tuple
+    key_list : list
+        List of the keys of the mean-field tight-binding model, meaning all the
+        hoppings.
+    size : tuple
         Shape of the mean-field tight-binding model.
 
     Returns
@@ -37,5 +40,5 @@ def rparams_to_tb(rParams, key_list, size):
     dict
         Mean-field tight-binding model.
     """
-    flat_matrix = real_to_complex(rParams)
+    flat_matrix = real_to_complex(r_params)
     return flat_to_tb(flat_matrix, (len(key_list), size, size), key_list)

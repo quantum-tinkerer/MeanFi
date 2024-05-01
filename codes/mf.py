@@ -9,7 +9,7 @@ def density_matrix_kgrid(kham, filling):
     """Calculate density matrix on a k-space grid.
 
     Parameters
-    ---------
+    ----------
     kham : npndarray
          Hamiltonian in k-space of shape (len(dim), norbs, norbs)
     filling : float

@@ -10,6 +10,7 @@ from codes.tb.utils import calculate_fermi_energy
 
 def cost(mf_param, Model, nk=100):
     """Define the cost function for fixed point iteration.
+
     The cost function is the difference between the input mean-field real space
     parametrisation and a new mean-field.
 

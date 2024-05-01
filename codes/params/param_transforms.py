@@ -20,8 +20,9 @@ def tb_to_flat(tb):
 
 
 def flat_to_tb(flat, shape, tb_keys):
-    """Reverse operation to `tb_to_flat` that takes a flat complex 1d array
-    and return the tight-binding dictionary.
+    """Reverse operation to `tb_to_flat`.
+
+    It takes a flat complex 1d array and return the tight-binding dictionary.
 
     Parameters
     ----------
@@ -54,11 +55,11 @@ def complex_to_real(z):
     Parameters
     ----------
     z : array
+        Complex array.
     """
     return np.concatenate((np.real(z), np.imag(z)))
 
 
 def real_to_complex(z):
-    """Undo `complex_to_real`.
-    """
+    """Undo `complex_to_real`."""
     return z[: len(z) // 2] + 1j * z[len(z) // 2 :]

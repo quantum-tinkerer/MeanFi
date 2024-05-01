@@ -38,5 +38,6 @@ def scale_tb(tb, scale):
 
 
 def compare_dicts(dict1, dict2, atol=1e-10):
+    """Compare two dictionaries."""
     for key in dict1.keys():
         assert np.allclose(dict1[key], dict2[key], atol=atol)

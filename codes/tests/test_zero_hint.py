@@ -20,6 +20,7 @@ repeat_number = 10
 # %%
 @pytest.mark.repeat(repeat_number)
 def test_zero_hint():
+    """Test the zero interaction case for the tight-binding model."""
     h_0_random = utils.generate_guess(random_hopping_vecs, ndof, scale=1)
     h_int_only_phases = utils.generate_guess(random_hopping_vecs, ndof, scale=0)
     guess = utils.generate_guess(random_hopping_vecs, ndof, scale=1)

@@ -7,7 +7,11 @@ from codes.tb.transforms import tb_to_khamvector
 
 
 def generate_guess(vectors, ndof, scale=1):
-    """Vectors : list
+    """Generate guess for a tight-binding model.
+
+    Parameters
+    ----------
+    vectors : list
         List of hopping vectors.
     ndof : int
         Number internal degrees of freedom (orbitals),
@@ -37,7 +41,7 @@ def generate_guess(vectors, ndof, scale=1):
 
 
 def generate_vectors(cutoff, dim):
-    """Generates hopping vectors up to a cutoff.
+    """Generate hopping vectors up to a cutoff.
 
     Parameters
     ----------
@@ -58,11 +62,11 @@ def compute_gap(tb, fermi_energy=0, nk=100):
 
     Parameters
     ----------
-     tb : dict
-     Tight-binding model for which to compute the gap.
+    tb : dict
+        Tight-binding model for which to compute the gap.
     fermi_energy : float
      Fermi energy.
-     n : int
+    nk : int
      Number of k-points to sample along each dimension.
 
     Returns
@@ -79,8 +83,7 @@ def compute_gap(tb, fermi_energy=0, nk=100):
 
 
 def calculate_fermi_energy(tb, filling, nk=100):
-    """Calculate the Fermi energy for a given filling.
-    """
+    """Calculate the Fermi energy for a given filling."""
     kham = tb_to_khamvector(tb, nk, ks=None)
     vals = np.linalg.eigvalsh(kham)
     return fermi_on_grid(vals, filling)

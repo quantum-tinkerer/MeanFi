@@ -8,8 +8,9 @@ sz = np.diag([1, -1])
 
 
 def graphene_extended_hubbard():
-    """ "
-    Return
+    """Create a graphene system with extended Hubbard interactions.
+
+    Return:
     ------
     bulk_graphene : kwant.builder.Builder
         The bulk graphene system.

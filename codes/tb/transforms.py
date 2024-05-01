@@ -12,6 +12,8 @@ def tb_to_khamvector(tb, nk, ks=None):
         A dictionary with real-space vectors as keys and complex np.arrays as values.
     nk : int
         Number of k-points along each direction.
+    ks : 1D-array
+        Set of k-points. Repeated for all directions.
 
     Returns
     -------
@@ -39,7 +41,7 @@ def tb_to_khamvector(tb, nk, ks=None):
 
 
 def ifftn_to_tb(ifft_array):
-    """Converts an array from ifftn to a tight-binding model format.
+    """Convert an array from ifftn to a tight-binding model format.
 
     Parameters
     ----------
@@ -65,10 +67,8 @@ def kham_to_tb(kham, hopping_vecs, ks=None):
     ----------
     kham : nd-array
         Bloch Hamiltonian matrix kham[k_x, ..., k_n, i, j]
-    h_0 : dict
-        Tight-binding model of non-interacting systems.
-    h_int : dict
-        Tight-binding model for interacting Hamiltonian.
+    hopping_vecs : list
+        List of hopping vectors, will be the keys to the tb.
     ks : 1D-array
         Set of k-points. Repeated for all directions. If the system is finite,
         ks=None`.
