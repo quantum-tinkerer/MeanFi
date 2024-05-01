@@ -42,14 +42,14 @@ def gap_prediction(U, V):
 
     # the mean-field calculation
     filling = 2
-    nk = 20
+    nk = 40
 
     h_int = utils.builder_to_tb(int_builder, params)
     guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
-    mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0})
-    gap = compute_gap(add_tb(h_0, mf_sol), nk=100)
+    mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0, 'f_tol' : 1e-8})
+    gap = compute_gap(add_tb(h_0, mf_sol), nk=200)
 
     # Check if the gap is predicted correctly
     if gap > 0.1:
