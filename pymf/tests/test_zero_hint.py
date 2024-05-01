@@ -29,7 +29,7 @@ def test_zero_hint(seed):
     guess = utils.generate_guess(random_hopping_vecs, ndof, scale=1)
     model = Model(h_0_random, h_int_only_phases, filling=filling)
 
-    mf_sol = solver(model, guess, nk=20)
+    mf_sol = solver(model, guess, nk=40, optimizer_kwargs={"M": 0, "f_tol": 1e-10})
     h_fermi = utils.calculate_fermi_energy(mf_sol, filling=filling, nk=20)
     mf_sol[zero_key] -= h_fermi * np.eye(mf_sol[zero_key].shape[0])
 
