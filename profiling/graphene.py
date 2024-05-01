@@ -5,9 +5,9 @@ import memray
 import numpy as np
 from pyinstrument import Profiler
 
-from codes.kwant_helper import kwant_examples, utils
-from codes.model import Model
-from codes.tb.utils import generate_guess
+from pymf.kwant_helper import kwant_examples, utils
+from pymf.model import Model
+from pymf.tb.utils import generate_guess
 
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()

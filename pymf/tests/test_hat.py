@@ -1,11 +1,11 @@
 # %%
 import numpy as np
-from codes.solvers import solver
-from codes.tb import utils
-from codes.model import Model
-from codes.tb.tb import add_tb, scale_tb
-from codes import mf
-from codes import observables
+from pymf.solvers import solver
+from pymf.tb import utils
+from pymf.model import Model
+from pymf.tb.tb import add_tb, scale_tb
+from pymf import mf
+from pymf import observables
 import pytest
 
 

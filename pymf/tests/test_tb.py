@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from scipy.fftpack import ifftn
 
-from codes.tb.tb import compare_dicts
-from codes.tb.transforms import ifftn_to_tb, tb_to_khamvector
+from pymf.tb.tb import compare_dicts
+from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 repeat_number = 10
 

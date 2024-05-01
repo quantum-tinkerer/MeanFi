@@ -2,8 +2,8 @@ from itertools import product
 
 import numpy as np
 
-from codes.mf import fermi_on_grid
-from codes.tb.transforms import tb_to_khamvector
+from pymf.mf import fermi_on_grid
+from pymf.tb.transforms import tb_to_khamvector
 
 
 def generate_guess(vectors, ndof, scale=1):

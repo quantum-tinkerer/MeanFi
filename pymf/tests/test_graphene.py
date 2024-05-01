@@ -2,11 +2,11 @@
 import numpy as np
 import pytest
 
-from codes.kwant_helper import kwant_examples, utils
-from codes.model import Model
-from codes.solvers import solver
-from codes.tb.tb import add_tb
-from codes.tb.utils import compute_gap, generate_guess
+from pymf.kwant_helper import kwant_examples, utils
+from pymf.model import Model
+from pymf.solvers import solver
+from pymf.tb.tb import add_tb
+from pymf.tb.utils import compute_gap, generate_guess
 
 repeat_number = 10
 # %%

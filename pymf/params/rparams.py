@@ -1,4 +1,4 @@
-from codes.params.param_transforms import (
+from pymf.params.param_transforms import (
     complex_to_real,
     flat_to_tb,
     real_to_complex,

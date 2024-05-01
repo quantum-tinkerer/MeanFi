@@ -2,10 +2,10 @@
 import numpy as np
 import pytest
 
-from codes.model import Model
-from codes.solvers import solver
-from codes.tb import utils
-from codes.tb.tb import add_tb, compare_dicts
+from pymf.model import Model
+from pymf.solvers import solver
+from pymf.tb import utils
+from pymf.tb.tb import add_tb, compare_dicts
 
 # %%
 cutoff = np.random.randint(1, 5)

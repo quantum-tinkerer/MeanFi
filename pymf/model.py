@@ -1,10 +1,10 @@
 import numpy as np
 
-from codes.mf import (
+from pymf.mf import (
     density_matrix,
     meanfield,
 )
-from codes.tb.tb import add_tb
+from pymf.tb.tb import add_tb
 
 
 class Model:

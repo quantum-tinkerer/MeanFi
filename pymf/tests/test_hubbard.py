@@ -3,10 +3,10 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from codes.model import Model
-from codes.solvers import solver
-from codes.tb import utils
-from codes.tb.tb import add_tb
+from pymf.model import Model
+from pymf.solvers import solver
+from pymf.tb import utils
+from pymf.tb.tb import add_tb
 
 repeat_number = 10
 

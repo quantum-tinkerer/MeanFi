@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.fftpack import ifftn
 
-from codes.tb.tb import add_tb
-from codes.tb.transforms import ifftn_to_tb, tb_to_khamvector
+from pymf.tb.tb import add_tb
+from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 
 def density_matrix_kgrid(kham, filling):

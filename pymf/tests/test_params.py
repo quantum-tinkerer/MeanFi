@@ -1,9 +1,9 @@
 # %%
 import pytest
 
-from codes.params.rparams import rparams_to_tb, tb_to_rparams
-from codes.tb.tb import compare_dicts
-from codes.tb.utils import generate_guess
+from pymf.params.rparams import rparams_to_tb, tb_to_rparams
+from pymf.tb.tb import compare_dicts
+from pymf.tb.utils import generate_guess
 
 repeat_number = 10
 
