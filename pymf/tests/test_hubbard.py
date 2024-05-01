@@ -41,8 +41,9 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
     assert np.abs(fit_gap - 1) < tol
 
 
-@pytest.mark.repeat(repeat_number)
-def test_gap_hubbard():
+@pytest.mark.parametrize("seed", range(repeat_number))
+def test_gap_hubbard(seed):
     """Test the gap prediction for the Hubbard model."""
+    np.random.seed(seed)
     Us = np.linspace(0.5, 5, 50, endpoint=True)
     gap_relation_hubbard(Us, nk=30, nk_dense=100, tol=1e-2)

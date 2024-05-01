@@ -17,9 +17,10 @@ matrix_size = 5
 nk = 10
 
 
-@pytest.mark.repeat(repeat_number)
-def test_fourier():
+@pytest.mark.parametrize("seed", range(repeat_number))
+def test_fourier(seed):
     """Test the Fourier transformation of the tight-binding model."""
+    np.random.seed(seed)
     keys = [np.arange(-max_order + 1, max_order) for i in range(ndim)]
     keys = it.product(*keys)
     h_0 = {key: (np.random.rand(matrix_size, matrix_size) - 0.5) * 2 for key in keys}
