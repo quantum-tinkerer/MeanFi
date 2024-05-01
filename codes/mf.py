@@ -60,8 +60,8 @@ def density_matrix(h, filling, nk):
             fermi,
         )
     else:
-        fermi = fermi_on_grid(h[()], filling)
-        return {(): density_matrix_kgrid(h[()], fermi)}, fermi
+        rho, fermi = density_matrix_kgrid(h[()], filling)
+        return {(): rho}, fermi
 
 
 def meanfield(density_matrix_tb, h_int):
