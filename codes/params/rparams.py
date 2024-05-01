@@ -1,14 +1,13 @@
 from codes.params.param_transforms import (
     complex_to_real,
-    tb_to_flat,
-    real_to_complex,
     flat_to_tb,
+    real_to_complex,
+    tb_to_flat,
 )
 
 
 def tb_to_rparams(tb):
-    """
-    Convert a mean-field tight-binding model to a set of real parameters.
+    """Convert a mean-field tight-binding model to a set of real parameters.
 
     Parameters
     ----------
@@ -24,8 +23,7 @@ def tb_to_rparams(tb):
 
 
 def rparams_to_tb(rParams, key_list, size):
-    """
-    Extract mean-field tight-binding model from a set of real parameters.
+    """Extract mean-field tight-binding model from a set of real parameters.
 
     Parameters
     ----------
@@ -39,6 +37,5 @@ def rparams_to_tb(rParams, key_list, size):
     dict
         Mean-field tight-binding model.
     """
-
     flat_matrix = real_to_complex(rParams)
     return flat_to_tb(flat_matrix, (len(key_list), size, size), key_list)

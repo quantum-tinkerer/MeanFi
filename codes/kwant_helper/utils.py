@@ -1,17 +1,17 @@
-import numpy as np
-import kwant
-from scipy.sparse import coo_array
-from itertools import product
 import inspect
 from copy import copy
+from itertools import product
+
+import kwant
+import numpy as np
+from scipy.sparse import coo_array
 
 
 def builder_to_tb(builder, params={}, return_data=False):
-    """
-    Constructs a tight-binding model dictionary from a `kwant.Builder`.
+    """Construct a tight-binding model dictionary from a `kwant.Builder`.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     builder : `kwant.Builder`
         Either builder for non-interacting system or interacting Hamiltonian.
     params : dict
@@ -19,8 +19,8 @@ def builder_to_tb(builder, params={}, return_data=False):
     return_data : bool
         Returns dictionary with sites and number of orbitals per site.
 
-    Returns:
-    --------
+    Returns
+    -------
     h_0 : dict
         Tight-binding model of non-interacting systems.
     data : dict
@@ -125,11 +125,10 @@ def builder_to_tb(builder, params={}, return_data=False):
 
 
 def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor=1):
-    """
-    Construct an auxiliary `kwant` system to build Hamiltonian matrix.
+    """Construct an auxiliary `kwant` system to build Hamiltonian matrix.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     builder : `kwant.Builder`
         Non-interacting `kwant` system.
     lattice : `kwant.lattice`
@@ -141,8 +140,8 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
     max_neighbor : int
         Maximal nearest-neighbor order.
 
-    Returns:
-    --------
+    Returns
+    -------
     int_builder : `kwant.Builder`
         Dummy `kwant.Builder` to compute interaction matrix.
     """

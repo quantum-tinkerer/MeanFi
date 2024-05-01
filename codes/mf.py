@@ -1,20 +1,22 @@
 import numpy as np
-from codes.tb.tb import add_tb
-from codes.tb.transforms import tb_to_khamvector, ifftn_to_tb
 from scipy.fftpack import ifftn
+
+from codes.tb.tb import add_tb
+from codes.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 
 def density_matrix_kgrid(kham, filling):
-    """
-     Parameters
-     ----------
-     kham : npndarray
+    """Calculate density matrix on a k-space grid.
+
+    Parameters
+    ---------
+    kham : npndarray
          Hamiltonian in k-space of shape (len(dim), norbs, norbs)
-     filling : float
+    filling : float
         Number of particles in a unit cell.
 
-     Returns
-     -------
+    Returns
+    -------
      np.ndarray, flaot
          Density matrix in k-space and Fermi energy.
 
@@ -31,9 +33,9 @@ def density_matrix_kgrid(kham, filling):
     rho_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
     return rho_krid, fermi
 
+
 def density_matrix(h, filling, nk):
-    """
-    Compute the density matrix in real-space tight-binding format.
+    """Compute the density matrix in real-space tight-binding format.
 
     Parameters
     ----------
@@ -61,15 +63,15 @@ def density_matrix(h, filling, nk):
         fermi = fermi_on_grid(h[()], filling)
         return {(): density_matrix_kgrid(h[()], fermi)}
 
+
 def meanfield(density_matrix_tb, h_int):
-    """
-    Compute the mean-field in k-space.
+    """Compute the mean-field in k-space.
 
     Parameters
     ----------
-    density_matrix : dict
+    density_matrix_tb : dict
         Density matrix in real-space tight-binding format.
-    int_model : dict
+    h_int : dict
         Interaction tb model.
 
     Returns
@@ -102,17 +104,17 @@ def meanfield(density_matrix_tb, h_int):
 
 
 def fermi_on_grid(vals, filling):
-    """
-     Compute the Fermi energy on a grid of k-points.
+    """Compute the Fermi energy on a grid of k-points.
 
-     Parameters
-     ----------
-     vals : ndarray
+    Parameters
+    ----------
+    vals : ndarray
         Eigenvalues of the hamiltonian in k-space of shape (len(dim), norbs, norbs)
-     filling : int
+    filling : int
          Number of particles in a unit cell.
-     Returns
-     -------
+
+    Returns
+    -------
     fermi_energy : float
          Fermi energy
     """

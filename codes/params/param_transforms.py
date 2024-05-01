@@ -2,16 +2,15 @@ import numpy as np
 
 
 def tb_to_flat(tb):
-    """
-    Convert a hermitian tight-binding dictionary to flat complex matrix.
+    """Convert a hermitian tight-binding dictionary to flat complex matrix.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     tb : dict with nd-array elements
         Hermitian tigh-binding dictionary
 
-    Returns:
-    -----------
+    Returns
+    -------
     flat : complex 1d numpy array
         Flattened tight-binding dictionary
     """
@@ -21,12 +20,11 @@ def tb_to_flat(tb):
 
 
 def flat_to_tb(flat, shape, tb_keys):
-    """
-    Reverse operation to `tb_to_flat` that takes a flat complex 1d array
+    """Reverse operation to `tb_to_flat` that takes a flat complex 1d array
     and return the tight-binding dictionary.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     flat : dict with nd-array elements
         Hermitian tigh-binding dictionary
     shape : tuple
@@ -34,8 +32,8 @@ def flat_to_tb(flat, shape, tb_keys):
     tb_keys : iterable
         original tb key elements
 
-    Returns:
-    -----------
+    Returns
+    -------
     tb : dict
         tight-binding dictionary
     """
@@ -51,18 +49,16 @@ def flat_to_tb(flat, shape, tb_keys):
 
 
 def complex_to_real(z):
-    """
-    Split real and imaginary parts of a complex array.
+    """Split real and imaginary parts of a complex array.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     z : array
     """
     return np.concatenate((np.real(z), np.imag(z)))
 
 
 def real_to_complex(z):
-    """
-    Undo `complex_to_real`.
+    """Undo `complex_to_real`.
     """
     return z[: len(z) // 2] + 1j * z[len(z) // 2 :]

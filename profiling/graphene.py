@@ -1,12 +1,13 @@
 # %%
-import numpy as np
-from codes.model import Model
-from codes.kwant_helper import kwant_examples
-from codes.kwant_helper import utils
-from codes.tb.utils import generate_guess
-from pyinstrument import Profiler
 import timeit
+
 import memray
+import numpy as np
+from pyinstrument import Profiler
+
+from codes.kwant_helper import kwant_examples, utils
+from codes.model import Model
+from codes.tb.utils import generate_guess
 
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()

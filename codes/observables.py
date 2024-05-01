@@ -2,8 +2,7 @@ import numpy as np
 
 
 def expectation_value(density_matrix, observable):
-    """
-    Compute the expectation value of an observable with respect to a density matrix.
+    """Compute the expectation value of an observable with respect to a density matrix.
 
     Parameters
     ----------

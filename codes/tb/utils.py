@@ -1,20 +1,21 @@
-import numpy as np
-from codes.tb.transforms import tb_to_khamvector
-from codes.mf import fermi_on_grid
 from itertools import product
+
+import numpy as np
+
+from codes.mf import fermi_on_grid
+from codes.tb.transforms import tb_to_khamvector
 
 
 def generate_guess(vectors, ndof, scale=1):
-    """
-    vectors : list
+    """Vectors : list
         List of hopping vectors.
     ndof : int
         Number internal degrees of freedom (orbitals),
     scale : float
         The scale of the guess. Maximum absolute value of each element of the guess.
 
-    Returns:
-    --------
+    Returns
+    -------
     guess : tb dictionary
         Guess in the form of a tight-binding model.
     """
@@ -36,29 +37,27 @@ def generate_guess(vectors, ndof, scale=1):
 
 
 def generate_vectors(cutoff, dim):
-    """
-    Generates hopping vectors up to a cutoff.
+    """Generates hopping vectors up to a cutoff.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     cutoff : int
         Maximum distance along each direction.
     dim : int
         Dimension of the vectors.
 
-    Returns:
-    --------
+    Returns
+    -------
     List of hopping vectors.
     """
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
 def compute_gap(tb, fermi_energy=0, nk=100):
-    """
-     Compute gap.
+    """Compute gap.
 
-     Parameters:
-     -----------
+    Parameters
+    ----------
      tb : dict
      Tight-binding model for which to compute the gap.
     fermi_energy : float
@@ -66,8 +65,8 @@ def compute_gap(tb, fermi_energy=0, nk=100):
      n : int
      Number of k-points to sample along each dimension.
 
-     Returns:
-     --------
+    Returns
+    -------
      gap : float
      Indirect gap.
     """
@@ -80,8 +79,7 @@ def compute_gap(tb, fermi_energy=0, nk=100):
 
 
 def calculate_fermi_energy(tb, filling, nk=100):
-    """
-    Calculate the Fermi energy for a given filling.
+    """Calculate the Fermi energy for a given filling.
     """
     kham = tb_to_khamvector(tb, nk, ks=None)
     vals = np.linalg.eigvalsh(kham)

@@ -1,12 +1,12 @@
 # %%
 import numpy as np
+import pytest
+
+from codes.kwant_helper import kwant_examples, utils
 from codes.model import Model
 from codes.solvers import solver
-from codes.kwant_helper import kwant_examples
-from codes.kwant_helper import utils
-from codes.tb.utils import compute_gap, generate_guess
 from codes.tb.tb import add_tb
-import pytest
+from codes.tb.utils import compute_gap, generate_guess
 
 repeat_number = 10
 # %%
@@ -16,8 +16,7 @@ h_0 = utils.builder_to_tb(graphene_builder)
 
 # %%
 def gap_prediction(U, V):
-    """
-    Test if the mean-field theory predicts the gap correctly for a given U and V.
+    """Test if the mean-field theory predicts the gap correctly for a given U and V.
 
     Parameters
     ----------

@@ -1,11 +1,12 @@
 # %%
 import numpy as np
+import pytest
+import xarray as xr
+
+from codes.model import Model
 from codes.solvers import solver
 from codes.tb import utils
 from codes.tb.tb import add_tb
-from codes.model import Model
-import xarray as xr
-import pytest
 
 repeat_number = 10
 

@@ -1,10 +1,10 @@
-import numpy as np
 import itertools as it
+
+import numpy as np
 
 
 def tb_to_khamvector(tb, nk, ks=None):
-    """
-    Real-space tight-binding model to hamiltonian on k-space grid.
+    """Real-space tight-binding model to hamiltonian on k-space grid.
 
     Parameters
     ----------
@@ -12,6 +12,7 @@ def tb_to_khamvector(tb, nk, ks=None):
         A dictionary with real-space vectors as keys and complex np.arrays as values.
     nk : int
         Number of k-points along each direction.
+
     Returns
     -------
     ndarray
@@ -36,9 +37,9 @@ def tb_to_khamvector(tb, nk, ks=None):
     )
     return np.sum(tb_array * k_dependency, axis=0)
 
+
 def ifftn_to_tb(ifft_array):
-    """
-    Converts an array from ifftn to a tight-binding model format.
+    """Converts an array from ifftn to a tight-binding model format.
 
     Parameters
     ----------
@@ -50,19 +51,18 @@ def ifftn_to_tb(ifft_array):
     dict
         A dictionary with real-space vectors as keys and complex np.arrays as values.
     """
-
     size = ifft_array.shape[:-2]
 
     keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
     keys = it.product(*keys)
     return {tuple(k): ifft_array[tuple(k)] for k in keys}
 
-def kham_to_tb(kham, hopping_vecs, ks=None):
-    """
-    Extract hopping matrices from Bloch Hamiltonian.
 
-    Parameters:
-    -----------
+def kham_to_tb(kham, hopping_vecs, ks=None):
+    """Extract hopping matrices from Bloch Hamiltonian.
+
+    Parameters
+    ----------
     kham : nd-array
         Bloch Hamiltonian matrix kham[k_x, ..., k_n, i, j]
     h_0 : dict
@@ -70,10 +70,11 @@ def kham_to_tb(kham, hopping_vecs, ks=None):
     h_int : dict
         Tight-binding model for interacting Hamiltonian.
     ks : 1D-array
-        Set of k-points. Repeated for all directions. If the system is finite, `ks=None`.
+        Set of k-points. Repeated for all directions. If the system is finite,
+        ks=None`.
 
-    Returns:
-    --------
+    Returns
+    -------
     scf_model : dict
         Tight-binding model of Hartree-Fock solution.
     """

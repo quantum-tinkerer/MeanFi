@@ -2,18 +2,17 @@ import numpy as np
 
 
 def add_tb(tb1, tb2):
-    """
-    Add up two tight-binding models together.
+    """Add up two tight-binding models together.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     tb1 : dict
         Tight-binding model.
     tb2 : dict
         Tight-binding model.
 
-    Returns:
-    --------
+    Returns
+    -------
     dict
         Sum of the two tight-binding models.
     """
@@ -21,18 +20,17 @@ def add_tb(tb1, tb2):
 
 
 def scale_tb(tb, scale):
-    """
-    Scale a tight-binding model.
+    """Scale a tight-binding model.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     tb : dict
         Tight-binding model.
     scale : float
         The scaling factor.
 
-    Returns:
-    --------
+    Returns
+    -------
     dict
         Scaled tight-binding model.
     """

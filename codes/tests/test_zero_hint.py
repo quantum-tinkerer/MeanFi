@@ -1,10 +1,11 @@
 # %%
 import numpy as np
+import pytest
+
+from codes.model import Model
 from codes.solvers import solver
 from codes.tb import utils
-from codes.tb.tb import compare_dicts, add_tb
-from codes.model import Model
-import pytest
+from codes.tb.tb import add_tb, compare_dicts
 
 # %%
 cutoff = np.random.randint(1, 5)

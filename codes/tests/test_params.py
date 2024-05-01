@@ -1,8 +1,9 @@
 # %%
-from codes.params.rparams import tb_to_rparams, rparams_to_tb
-from codes.tb.utils import generate_guess
-from codes.tb.tb import compare_dicts
 import pytest
+
+from codes.params.rparams import rparams_to_tb, tb_to_rparams
+from codes.tb.tb import compare_dicts
+from codes.tb.utils import generate_guess
 
 repeat_number = 10
 

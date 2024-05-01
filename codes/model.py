@@ -1,9 +1,11 @@
-from codes.tb.tb import add_tb
+import numpy as np
+
 from codes.mf import (
     density_matrix,
     meanfield,
 )
-import numpy as np
+from codes.tb.tb import add_tb
+
 
 class Model:
     def __init__(self, h_0, h_int, filling):

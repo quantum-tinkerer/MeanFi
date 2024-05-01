@@ -1,10 +1,12 @@
 # %%
-import numpy as np
-from codes.tb.tb import compare_dicts
 import itertools as it
-from codes.tb.transforms import tb_to_khamvector, ifftn_to_tb
-from scipy.fftpack import ifftn
+
+import numpy as np
 import pytest
+from scipy.fftpack import ifftn
+
+from codes.tb.tb import compare_dicts
+from codes.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 repeat_number = 10
 
