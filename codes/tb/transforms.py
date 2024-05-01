@@ -35,7 +35,7 @@ def tb_to_khamvector(tb, nk, ks=None):
         (...,) + (np.newaxis,) * 2
     ]
     tb_array = tb_array.reshape(
-        np.concatenate(([num_keys], [1] * ndim, tb_array.shape[1:]))
+        np.concatenate(([num_keys], [1] * ndim, tb_array.shape[1:])).astype(int)
     )
     return np.sum(tb_array * k_dependency, axis=0)
 
