@@ -124,15 +124,13 @@ def builder_to_tb(builder, params={}, return_data=False):
         return h_0
 
 
-def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor=1):
+def build_interacting_syst(builder, func_onsite, func_hop, max_neighbor=1):
     """Construct an auxiliary `kwant` system to build Hamiltonian matrix.
 
     Parameters
     ----------
     builder : `kwant.Builder`
         Non-interacting `kwant` system.
-    lattice : `kwant.lattice`
-        System lattice.
     func_onsite : function
         Onsite function.
     func_hop : function
@@ -145,6 +143,8 @@ def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor
     int_builder : `kwant.Builder`
         Dummy `kwant.Builder` to compute interaction matrix.
     """
+    lattice_info = list(builder.sites())[0][0]
+    lattice = kwant.lattice.general(lattice_info.prim_vecs, norbs=lattice_info.norbs)
     int_builder = kwant.Builder(kwant.TranslationalSymmetry(*builder.symmetry.periods))
     int_builder[builder.sites()] = func_onsite
     for neighbors in range(max_neighbor):

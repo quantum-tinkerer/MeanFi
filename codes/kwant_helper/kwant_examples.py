@@ -38,7 +38,6 @@ def graphene_extended_hubbard():
 
     syst_V = build_interacting_syst(
         builder=bulk_graphene,
-        lattice=graphene,
         func_onsite=onsite_int,
         func_hop=nn_int,
     )
