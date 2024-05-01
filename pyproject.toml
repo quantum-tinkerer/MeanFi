@@ -45,3 +45,7 @@ include = [
   "pyproject.toml",
   "AUTHORS.md",
 ]
+
+[tool.codespell]
+skip = "*.ipynb,"
+ignore-words-list = "multline,"
