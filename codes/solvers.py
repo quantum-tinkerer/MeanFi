@@ -42,7 +42,8 @@ def solver(
     mf_guess : numpy.array
         The initial guess for the mean-field tight-binding model.
     nk : int, optional
-        The number of k-points to use in the grid. The default is 100.
+        The number of k-points to use in the grid. The default is 100. In the
+        0-dimensional case, this parameter is ignored.
     optimizer : scipy.optimize, optional
         The optimizer to use to solve for fixed-points. The default is
         scipy.optimize.anderson.

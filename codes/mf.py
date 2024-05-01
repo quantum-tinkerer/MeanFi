@@ -61,7 +61,7 @@ def density_matrix(h, filling, nk):
         )
     else:
         fermi = fermi_on_grid(h[()], filling)
-        return {(): density_matrix_kgrid(h[()], fermi)}
+        return {(): density_matrix_kgrid(h[()], fermi)}, fermi
 
 
 def meanfield(density_matrix_tb, h_int):
