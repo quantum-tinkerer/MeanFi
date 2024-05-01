@@ -1,4 +1,3 @@
-# %%
 from codes.tb.tb import add_tb
 from codes.mf import (
     density_matrix,
@@ -36,17 +35,3 @@ class Model:
             meanfield(rho, self.h_int),
             {self._local_key: -fermi_energy * np.eye(self._size)},
         )
-
-
-# def rho(h, filling, nk):
-#     ndim = len(list(h)[0])
-#     if ndim > 0:
-#         kham = tb_to_khamvector(h, nk=nk)
-#         fermi = fermi_on_grid(kham, filling)
-#         return (
-#             ifftn_to_tb(ifftn(density_matrix(kham, fermi), axes=np.arange(ndim))),
-#             fermi,
-#         )
-#     else:
-#         fermi = fermi_on_grid(h[()], filling)
-#         return {(): density_matrix(h[()], fermi)}
