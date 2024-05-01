@@ -1,7 +1,6 @@
 # %%
 import numpy as np
 import pytest
-import xarray as xr
 
 from pymf.model import Model
 from pymf.solvers import solver
@@ -9,7 +8,6 @@ from pymf.tb import utils
 from pymf.tb.tb import add_tb
 
 repeat_number = 10
-
 
 # %%
 def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
@@ -39,19 +37,12 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
         _gap = utils.compute_gap(add_tb(h_0, mf_sol), fermi_energy=0, nk=nk_dense)
         gaps.append(_gap)
 
-    ds = xr.Dataset(
-        data_vars=dict(gap=(["Us"], gaps)),
-        coords=dict(
-            Us=Us,
-        ),
-    )
-
-    fit_gap = ds.gap.polyfit(dim="Us", deg=1).polyfit_coefficients[0].data
+    fit_gap = np.polyfit(Us, np.array(gaps), 1)[0]
     assert np.abs(fit_gap - 1) < tol
 
 
 @pytest.mark.repeat(repeat_number)
 def test_gap_hubbard():
     """Test the gap prediction for the Hubbard model."""
-    Us = np.linspace(0.5, 10, 20, endpoint=True)
-    gap_relation_hubbard(Us, nk=20, nk_dense=100, tol=1e-2)
+    Us = np.linspace(0.5, 5, 50, endpoint=True)
+    gap_relation_hubbard(Us, nk=30, nk_dense=100, tol=1e-2)
