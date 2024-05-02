@@ -1,7 +1,7 @@
 import kwant
 import numpy as np
 
-from codes.kwant_helper.utils import build_interacting_syst
+from pymf.kwant_helper.utils import build_interacting_syst
 
 s0 = np.identity(2)
 sz = np.diag([1, -1])
@@ -38,6 +38,7 @@ def graphene_extended_hubbard():
 
     syst_V = build_interacting_syst(
         builder=bulk_graphene,
+        lattice=graphene,
         func_onsite=onsite_int,
         func_hop=nn_int,
     )

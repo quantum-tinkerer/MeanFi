@@ -1,11 +1,11 @@
 # %%
 import numpy as np
-from codes.solvers import solver
-from codes.tb import utils
-from codes.model import Model
-from codes.tb.tb import add_tb, scale_tb
-from codes import mf
-from codes import observables
+from pymf.solvers import solver
+from pymf.tb import utils
+from pymf.model import Model
+from pymf.tb.tb import add_tb, scale_tb
+from pymf import mf
+from pymf import observables
 import pytest
 
 
@@ -31,13 +31,14 @@ h_int_U0 = {
 @np.vectorize
 def mf_rescaled(alpha, mf0):
     hamiltonian = add_tb(h_0, scale_tb(mf0, alpha))
-    rho, _ = mf.density_matrix(hamiltonian, filling=filling, nk=nk)
+    rho, _ = mf.construct_density_matrix(hamiltonian, filling=filling, nk=nk)
     hamiltonian = add_tb(h_0, scale_tb(mf0, np.sign(alpha)))
     return total_energy(hamiltonian, rho)
 
 
-@pytest.mark.repeat(repeat_number)
-def test_mexican_hat():
+@pytest.mark.parametrize("seed", range(repeat_number))
+def test_mexican_hat(seed):
+    np.random.seed(seed)
     guess = utils.generate_guess(frozenset(h_int_U0), len(h_int_U0[(0,)]))
     _model = Model(h_0, h_int_U0, filling=filling)
     mf_sol_groundstate = solver(

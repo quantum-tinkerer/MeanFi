@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pymf"
+dynamic = ["version"]
+authors = [
+  {name="pymf developers"},
+]
+description = "Package to perform self-consistent mean-field calculations on tight-binding systems"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: BSD License",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy>=1.23",
+    "scipy>=1.8",
+    "packaging>=22.0",  # For version parsing
+]
+[tool.hatch.version]
+source = "vcs"
+[tool.hatch.build.hooks.vcs]
+version-file = "pymf/_version.py"
+
+[project.urls]
+"Documentation" = "https://kwant-scf.readthedocs.io/en/latest/"
+"Repository" = "https://gitlab.kwant-project.org/qt/kwant-scf"
+"Bug Tracker" = "https://gitlab.kwant-project.org/qt/kwant-scf/-/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pymf"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "pymf",
+  "README.md",
+  "LICENSE",
+  "pyproject.toml",
+  "AUTHORS.md",
+]
+
+[tool.codespell]
+skip = "*.ipynb,"
+ignore-words-list = "multline,"

@@ -2,11 +2,38 @@
 import numpy as np
 import pytest
 
-from codes.kwant_helper import kwant_examples, utils
-from codes.model import Model
-from codes.solvers import solver
-from codes.tb.tb import add_tb
-from codes.tb.utils import compute_gap, generate_guess
+from pymf.kwant_helper import kwant_examples, utils
+from pymf.model import Model
+from pymf.solvers import solver
+from pymf.tb.tb import add_tb
+from pymf.tb.transforms import tb_to_khamvector
+from pymf.tb.utils import generate_guess
+
+
+def compute_gap(tb, fermi_energy=0, nk=100):
+    """Compute gap.
+
+    Parameters
+    ----------
+    tb : dict
+        Tight-binding model for which to compute the gap.
+    fermi_energy : float
+     Fermi energy.
+    nk : int
+     Number of k-points to sample along each dimension.
+
+    Returns
+    -------
+     gap : float
+     Indirect gap.
+    """
+    kham = tb_to_khamvector(tb, nk, ks=None)
+    vals = np.linalg.eigvalsh(kham)
+
+    emax = np.max(vals[vals <= fermi_energy])
+    emin = np.min(vals[vals > fermi_energy])
+    return np.abs(emin - emax)
+
 
 repeat_number = 10
 # %%
@@ -42,14 +69,16 @@ def gap_prediction(U, V):
 
     # the mean-field calculation
     filling = 2
-    nk = 20
+    nk = 40
 
     h_int = utils.builder_to_tb(int_builder, params)
     guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
-    mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0})
-    gap = compute_gap(add_tb(h_0, mf_sol), nk=100)
+    mf_sol = solver(
+        model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0, "f_tol": 1e-8}
+    )
+    gap = compute_gap(add_tb(h_0, mf_sol), nk=200)
 
     # Check if the gap is predicted correctly
     if gap > 0.1:
@@ -62,9 +91,10 @@ def gap_prediction(U, V):
 
 
 # %%
-@pytest.mark.repeat(repeat_number)
-def test_gap():
+@pytest.mark.parametrize("seed", range(repeat_number))
+def test_gap(seed):
     """Test if the mean-field theory predicts the gap correctly for a random U and V."""
+    np.random.seed(seed)
     U = np.random.uniform(0, 4)
     V = np.random.uniform(0, 1)
     gap_prediction(U, V)

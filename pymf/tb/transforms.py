@@ -1,5 +1,4 @@
-import itertools as it
-
+import itertools
 import numpy as np
 
 
@@ -34,9 +33,7 @@ def tb_to_khamvector(tb, nk, ks=None):
     k_dependency = np.exp(-1j * np.tensordot(keys, kgrid, 1))[
         (...,) + (np.newaxis,) * 2
     ]
-    tb_array = tb_array.reshape(
-        np.concatenate(([num_keys], [1] * ndim, tb_array.shape[1:])).astype(int)
-    )
+    tb_array = tb_array.reshape([num_keys] + [1] * ndim + list(tb_array.shape[1:]))
     return np.sum(tb_array * k_dependency, axis=0)
 
 
@@ -56,7 +53,7 @@ def ifftn_to_tb(ifft_array):
     size = ifft_array.shape[:-2]
 
     keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
-    keys = it.product(*keys)
+    keys = itertools.product(*keys)
     return {tuple(k): ifft_array[tuple(k)] for k in keys}
 
 

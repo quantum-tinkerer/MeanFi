@@ -2,8 +2,8 @@ from itertools import product
 
 import numpy as np
 
-from codes.mf import fermi_on_grid
-from codes.tb.transforms import tb_to_khamvector
+from pymf.mf import fermi_on_grid
+from pymf.tb.transforms import tb_to_khamvector
 
 
 def generate_guess(vectors, ndof, scale=1):
@@ -55,31 +55,6 @@ def generate_vectors(cutoff, dim):
     List of hopping vectors.
     """
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
-
-
-def compute_gap(tb, fermi_energy=0, nk=100):
-    """Compute gap.
-
-    Parameters
-    ----------
-    tb : dict
-        Tight-binding model for which to compute the gap.
-    fermi_energy : float
-     Fermi energy.
-    nk : int
-     Number of k-points to sample along each dimension.
-
-    Returns
-    -------
-     gap : float
-     Indirect gap.
-    """
-    kham = tb_to_khamvector(tb, nk, ks=None)
-    vals = np.linalg.eigvalsh(kham)
-
-    emax = np.max(vals[vals <= fermi_energy])
-    emin = np.min(vals[vals > fermi_energy])
-    return np.abs(emin - emax)
 
 
 def calculate_fermi_energy(tb, filling, nk=100):

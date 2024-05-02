@@ -3,9 +3,9 @@ from functools import partial
 import numpy as np
 import scipy
 
-from codes.params.rparams import rparams_to_tb, tb_to_rparams
-from codes.tb.tb import add_tb
-from codes.tb.utils import calculate_fermi_energy
+from pymf.params.rparams import rparams_to_tb, tb_to_rparams
+from pymf.tb.tb import add_tb
+from pymf.tb.utils import calculate_fermi_energy
 
 
 def cost(mf_param, Model, nk=100):

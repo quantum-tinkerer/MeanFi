@@ -1,12 +1,12 @@
 # %%
 import numpy as np
 import pytest
-import xarray as xr
 
-from codes.model import Model
-from codes.solvers import solver
-from codes.tb import utils
-from codes.tb.tb import add_tb
+from pymf.model import Model
+from pymf.solvers import solver
+from pymf.tb import utils
+from pymf.tb.tb import add_tb
+from pymf.tests.test_graphene import compute_gap
 
 repeat_number = 10
 
@@ -36,22 +36,16 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
         guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
         full_model = Model(h_0, h_int, filling=2)
         mf_sol = solver(full_model, guess, nk=nk)
-        _gap = utils.compute_gap(add_tb(h_0, mf_sol), fermi_energy=0, nk=nk_dense)
+        _gap = compute_gap(add_tb(h_0, mf_sol), fermi_energy=0, nk=nk_dense)
         gaps.append(_gap)
 
-    ds = xr.Dataset(
-        data_vars=dict(gap=(["Us"], gaps)),
-        coords=dict(
-            Us=Us,
-        ),
-    )
-
-    fit_gap = ds.gap.polyfit(dim="Us", deg=1).polyfit_coefficients[0].data
+    fit_gap = np.polyfit(Us, np.array(gaps), 1)[0]
     assert np.abs(fit_gap - 1) < tol
 
 
-@pytest.mark.repeat(repeat_number)
-def test_gap_hubbard():
+@pytest.mark.parametrize("seed", range(repeat_number))
+def test_gap_hubbard(seed):
     """Test the gap prediction for the Hubbard model."""
-    Us = np.linspace(0.5, 10, 20, endpoint=True)
-    gap_relation_hubbard(Us, nk=20, nk_dense=100, tol=1e-2)
+    np.random.seed(seed)
+    Us = np.linspace(0.5, 5, 50, endpoint=True)
+    gap_relation_hubbard(Us, nk=30, nk_dense=100, tol=1e-2)
