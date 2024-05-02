@@ -9,8 +9,30 @@ from pymf.tb.tb import add_tb
 
 class Model:
     def __init__(self, h_0, h_int, filling):
+        def _tb_type_check(tb):
+            for count, key in enumerate(tb):
+                if not isinstance(tb[key], np.ndarray):
+                    raise ValueError("Inputted dictionary values are not np.ndarray's")
+                shape = tb[key].shape
+                if count == 0:
+                    size = shape[0]
+                if not len(shape) == 2:
+                    raise ValueError(
+                        "Inputted dictionary values are not square matrices"
+                    )
+                if not size == shape[0]:
+                    raise ValueError(
+                        "Inputted dictionary elements shapes are not consistent"
+                    )
+
+        _tb_type_check(h_0)
         self.h_0 = h_0
+        _tb_type_check(h_int)
         self.h_int = h_int
+        if not isinstance(filling, (float, int)):
+            raise ValueError("Filling must be a float or an integer")
+        if not filling > 0:
+            raise ValueError("Filling must be a positive value")
         self.filling = filling
 
         _first_key = list(h_0)[0]
