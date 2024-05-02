@@ -6,7 +6,34 @@ from pymf.kwant_helper import kwant_examples, utils
 from pymf.model import Model
 from pymf.solvers import solver
 from pymf.tb.tb import add_tb
-from pymf.tb.utils import compute_gap, generate_guess
+from pymf.tb.transforms import tb_to_khamvector
+from pymf.tb.utils import generate_guess
+
+
+def compute_gap(tb, fermi_energy=0, nk=100):
+    """Compute gap.
+
+    Parameters
+    ----------
+    tb : dict
+        Tight-binding model for which to compute the gap.
+    fermi_energy : float
+     Fermi energy.
+    nk : int
+     Number of k-points to sample along each dimension.
+
+    Returns
+    -------
+     gap : float
+     Indirect gap.
+    """
+    kham = tb_to_khamvector(tb, nk, ks=None)
+    vals = np.linalg.eigvalsh(kham)
+
+    emax = np.max(vals[vals <= fermi_energy])
+    emin = np.min(vals[vals > fermi_energy])
+    return np.abs(emin - emax)
+
 
 repeat_number = 10
 # %%
