@@ -5,7 +5,7 @@ from pymf.tb.tb import add_tb
 from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 
-def density_matrix_kgrid(kham, filling):
+def construct_density_matrix_kgrid(kham, filling):
     """Calculate density matrix on a k-space grid.
 
     Parameters
@@ -19,11 +19,6 @@ def density_matrix_kgrid(kham, filling):
     -------
      np.ndarray, float
          Density matrix in k-space and Fermi energy.
-
-    Notes
-    -----
-    !! use filling instead of fermi_energy here?!
-
     """
     vals, vecs = np.linalg.eigh(kham)
     fermi = fermi_on_grid(vals, filling)
@@ -34,7 +29,7 @@ def density_matrix_kgrid(kham, filling):
     return rho_krid, fermi
 
 
-def density_matrix(h, filling, nk):
+def construct_density_matrix(h, filling, nk):
     """Compute the density matrix in real-space tight-binding format.
 
     Parameters
@@ -54,13 +49,13 @@ def density_matrix(h, filling, nk):
     ndim = len(list(h)[0])
     if ndim > 0:
         kham = tb_to_khamvector(h, nk=nk)
-        rho_grid, fermi = density_matrix_kgrid(kham, filling)
+        rho_grid, fermi = construct_density_matrix_kgrid(kham, filling)
         return (
             ifftn_to_tb(ifftn(rho_grid, axes=np.arange(ndim))),
             fermi,
         )
     else:
-        rho, fermi = density_matrix_kgrid(h[()], filling)
+        rho, fermi = construct_density_matrix_kgrid(h[()], filling)
         return {(): rho}, fermi
 
 
@@ -69,7 +64,7 @@ def meanfield(density_matrix_tb, h_int):
 
     Parameters
     ----------
-    density_matrix_tb : dict
+    density_matrix : dict
         Density matrix in real-space tight-binding format.
     h_int : dict
         Interaction tb model.

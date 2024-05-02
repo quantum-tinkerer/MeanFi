@@ -6,10 +6,10 @@ except ImportError:
     __version__ = "unknown"
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
-from .mf import density_matrix
+from .mf import construct_density_matrix
 
 __all__ = [
-    "density_matrix",
+    "construct_density_matrix",
     "__version__",
     "__version_tuple__",
 ]

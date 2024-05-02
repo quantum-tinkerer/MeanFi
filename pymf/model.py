@@ -1,7 +1,7 @@
 import numpy as np
 
 from pymf.mf import (
-    density_matrix,
+    construct_density_matrix,
     meanfield,
 )
 from pymf.tb.tb import add_tb
@@ -63,7 +63,9 @@ class Model:
         dict
             New mean-field tight-binding model.
         """
-        rho, fermi_energy = density_matrix(add_tb(self.h_0, mf_tb), self.filling, nk)
+        rho, fermi_energy = construct_density_matrix(
+            add_tb(self.h_0, mf_tb), self.filling, nk
+        )
         return add_tb(
             meanfield(rho, self.h_int),
             {self._local_key: -fermi_energy * np.eye(self._size)},

@@ -13,7 +13,7 @@ def expectation_value(density_matrix, observable):
 
     Returns
     -------
-    float
+    complex
         Expectation value.
     """
     return np.sum(

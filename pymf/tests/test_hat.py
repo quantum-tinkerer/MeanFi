@@ -31,7 +31,7 @@ h_int_U0 = {
 @np.vectorize
 def mf_rescaled(alpha, mf0):
     hamiltonian = add_tb(h_0, scale_tb(mf0, alpha))
-    rho, _ = mf.density_matrix(hamiltonian, filling=filling, nk=nk)
+    rho, _ = mf.construct_density_matrix(hamiltonian, filling=filling, nk=nk)
     hamiltonian = add_tb(h_0, scale_tb(mf0, np.sign(alpha)))
     return total_energy(hamiltonian, rho)
 
