@@ -22,7 +22,13 @@ We begin with the basic imports
 ```{code-cell} ipython3
 import numpy as np
 import matplotlib.pyplot as plt
-from codes import model, solvers, kwant_examples, kwant_helper, tb
+import numpy as np
+import matplotlib.pyplot as plt
+import pymf.model as model
+import pymf.solvers as solvers
+import pymf.tb as tb
+import pymf.kwant_helper.kwant_examples as kwant_examples
+import pymf.kwant_helper.utils as kwant_utils
 ```
 
 ##  Preparing the model
@@ -42,17 +48,19 @@ $$ Hubbardd $$
 Once we have both the non-interacting and the interacting part, we can assign the parameters for the Hubbard interaction and then combine both, together with a filling, into the model.
 
 ```{code-cell} ipython3
+U=1
+V=0.1
 params = dict(U=U, V=V)
 h_int = kwant_utils.builder_to_tb(int_builder, params)
-model = Model(h_0, h_int, filling=2)
+model = model.Model(h_0, h_int, filling=2)
 ```
 
-To start the meanfield calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same number of degrees as freedom as both the non-interacting and interacting part, so that they match.
+To start the meanfield calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same numbe of degrees as freedom as both the non-interacting and interacting part, so that they match.
 
 ```{code-cell} ipython3
-guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
-mf_sol = solver(model, guess, nk=18)
-full_sol = tb.add_tb(h_0, mf_sol)
+guess = tb.utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+mf_sol = solvers.solver(model, guess, nk=18)
+full_sol = tb.tb.add_tb(h_0, mf_sol)
 ```
 
 After we have defined the guess, we feed it together with the model into the meanfield solver. The meanfield solver will return a hopping dictionary with the meanfield approximation. We can then add this solution to the non-interacting part to get the full solution. In order to get the solution, we specified the number of k-points to be used in the calculation. This refers to the k-grid used in the Brillouin zone for the density matrix.

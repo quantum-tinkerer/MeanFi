@@ -7,6 +7,7 @@ except ImportError:
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
 from .mf import construct_density_matrix
+from . import mf
 
 __all__ = [
     "construct_density_matrix",
