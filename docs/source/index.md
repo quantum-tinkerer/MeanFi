@@ -19,6 +19,7 @@ kernelspec:
 :caption: Tutorials
 
 mf_notes.md
+graphene_example.md
 ```
 
 ## What is pymf?

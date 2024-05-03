@@ -55,7 +55,7 @@ h_int = kwant_utils.builder_to_tb(int_builder, params)
 model = model.Model(h_0, h_int, filling=2)
 ```
 
-To start the meanfield calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same numbe of degrees as freedom as both the non-interacting and interacting part, so that they match.
+To start the meanfield calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same number of degrees as freedom as both the non-interacting and interacting part, so that they match.
 
 ```{code-cell} ipython3
 guess = tb.utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
@@ -67,4 +67,6 @@ After we have defined the guess, we feed it together with the model into the mea
 
 ## Creating a phase diagram
 
-We can now create a phase diagram by varying the Hubbard interaction strength and the nearest neighbor interaction strength. We will use the same hopping dictionary for the non-interacting part as before. We will vary the onsite Hubbard interaction strength from
+We can now create a phase diagram of the gap of the interacting solution. We will use the same hopping dictionary for the non-interacting part as before. We will vary the onsite Hubbard interactio $U$ strength from $0$ to $2$ and the nearest neighbor interaction strength $V$ from $0$ to $1.5$.
+
+```{code-cell} ipython3
