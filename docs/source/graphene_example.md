@@ -22,12 +22,12 @@ We begin with the basic imports
 ```{code-cell} ipython3
 import numpy as np
 import matplotlib.pyplot as plt
-from codes imort model, solvers, kwant_examples, kwant_helper, tb
+from codes import model, solvers, kwant_examples, kwant_helper, tb
 ```
 
 ##  Preparing the model
 
-We first translate this model from a Kwant system to a tight-binding dictionary. In the tight-binding dictionary the keys denote the hoppings while the values are the hopping amplitudes. 
+We first translate this model from a Kwant system to a tight-binding dictionary. In the tight-binding dictionary the keys denote the hoppings while the values are the hopping amplitudes.
 
 ```{code-cell} ipython3
 # Create translationally-invariant `kwant.Builder`
@@ -35,6 +35,28 @@ graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 h_0 = kwant_utils.builder_to_tb(graphene_builder)
 ```
 
-We also use Kwant to create the Hubbard interaction. The interaction terms are  described by: 
+We also use Kwant to create the Hubbard interaction. The interaction terms are  described by:
 
 $$ Hubbardd $$
+
+Once we have both the non-interacting and the interacting part, we can assign the parameters for the Hubbard interaction and then combine both, together with a filling, into the model.
+
+```{code-cell} ipython3
+params = dict(U=U, V=V)
+h_int = kwant_utils.builder_to_tb(int_builder, params)
+model = Model(h_0, h_int, filling=2)
+```
+
+To start the meanfield calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same number of degrees as freedom as both the non-interacting and interacting part, so that they match.
+
+```{code-cell} ipython3
+guess = utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+mf_sol = solver(model, guess, nk=18)
+full_sol = tb.add_tb(h_0, mf_sol)
+```
+
+After we have defined the guess, we feed it together with the model into the meanfield solver. The meanfield solver will return a hopping dictionary with the meanfield approximation. We can then add this solution to the non-interacting part to get the full solution. In order to get the solution, we specified the number of k-points to be used in the calculation. This refers to the k-grid used in the Brillouin zone for the density matrix.
+
+## Creating a phase diagram
+
+We can now create a phase diagram by varying the Hubbard interaction strength and the nearest neighbor interaction strength. We will use the same hopping dictionary for the non-interacting part as before. We will vary the onsite Hubbard interaction strength from
