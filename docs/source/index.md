@@ -23,6 +23,14 @@ graphene_example.md
 hubbard_1d.md
 ```
 
+```{toctree}
+:hidden:
+:maxdepth: 1
+:caption: Documentation
+
+documentation/pymf.md
+```
+
 ## What is pymf?
 
 ## Why pymf?
