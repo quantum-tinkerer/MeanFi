@@ -21,6 +21,14 @@ kernelspec:
 mf_notes.md
 ```
 
+```{toctree}
+:hidden:
+:maxdepth: 1
+:caption: Documentation
+
+documentation/pymf.md
+```
+
 ## What is pymf?
 
 ## Why pymf?
