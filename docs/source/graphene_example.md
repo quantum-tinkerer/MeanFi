@@ -142,16 +142,16 @@ cdw_order_parameter[(0,0)] = np.kron(sz, np.eye(2))
 We choose a point in the phase diagram where we expect there to be a CDW phase and calculate the expectation value with the CDW order parameter. In order to do this we first construct the density matrix from the mean field solution. We perform this calculation over the complete phase diagram where we calculated the gap earlier:
 
 ```{code-cell} ipython3
-expectation_value_list = []
+cdw_list = []
 for mf_sol in mf_sols.flatten():
     rho, _ = mf.construct_density_matrix(tb.tb.add_tb(h_0, mf_sol), filling=2, nk=40)
     expectation_value = observables.expectation_value(rho, cdw_order_parameter)
-    expectation_value_list.append(expectation_value)
+    cdw_list.append(expectation_value)
 ```
 
 ```{code-cell} ipython3
-expectation_value_list = np.asarray(expectation_value_list).reshape(mf_sols.shape)
-plt.imshow(np.abs(expectation_value_list.T.real), extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
+cdw_list = np.asarray(cdw_list).reshape(mf_sols.shape)
+plt.imshow(np.abs(cdw_list.T.real), extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
 plt.colorbar()
 plt.xlabel('V')
 plt.ylabel('U')
@@ -160,3 +160,42 @@ plt.show()
 ```
 
 ### Spin density wave
+
+To check the other phase we expect in the graphene phase diagram, we construct a spin density wave order parameter. In our chosen graphene system the spin density wave has $SU(2)$ symmetry. This means that we need to sum over the pauli matrices when constructing this order parameter. We can construct the order parameter as:
+
+```{code-cell} ipython3
+sx = np.array([[0, 1], [1, 0]])
+sy = np.array([[0, -1j], [1j, 0]])
+
+s_list = [sx, sy, sz]
+
+order_parameter_list = []
+for s in s_list:
+    order_parameter = {}
+    order_parameter[(0,0)] =  np.kron(sz, s)
+    order_parameter_list.append(order_parameter)
+```
+
+Then, similar to what we did in the CDW phase, we calculate the expectation value of the order parameter with the density matrix of the mean field solution over the complete phase diagram. The main subtlety here is that we need to sum over expectation value of all SDW direction order parameters defined in order to get the total spin density wave order parameter.
+
+```{code-cell} ipython3
+sdw_list = []
+for mf_sol in mf_sols.flatten():
+    rho, _ = mf.construct_density_matrix(tb.tb.add_tb(h_0, mf_sol), filling=2, nk=40)
+    expectation_values = []
+    for order_parameter in order_parameter_list:
+        expectation_value = observables.expectation_value(rho, order_parameter)
+        expectation_values.append(expectation_value)
+
+    sdw_list.append(np.sum(np.array(expectation_values)**2))
+```
+
+```{code-cell} ipython3
+sdw_list = np.asarray(sdw_list).reshape(mf_sols.shape)
+plt.imshow(np.abs(sdw_list.T.real), extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
+plt.colorbar()
+plt.xlabel('V')
+plt.ylabel('U')
+plt.title('Spin Density Wave Order Parameter')
+plt.show()
+```
