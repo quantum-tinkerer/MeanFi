@@ -12,44 +12,46 @@ def _check_hermiticity(h):
         op_vector = tuple(-1 * np.array(vector))
         op_vector = tuple(-1 * np.array(vector))
         if not np.allclose(h[vector], h[op_vector].conj().T):
-            raise ValueError("Hamiltonian is not Hermitian.")
+            raise ValueError("Tight-binding dictionary must be hermitian.")
 
 
 def _tb_type_check(tb):
     for count, key in enumerate(tb):
         if not isinstance(tb[key], np.ndarray):
-            raise ValueError("Inputted dictionary values are not np.ndarray's")
+            raise ValueError(
+                "Values of the tight-binding dictionary must be numpy arrays"
+            )
         shape = tb[key].shape
         if count == 0:
             size = shape[0]
         if not len(shape) == 2:
-            raise ValueError("Inputted dictionary values are not square matrices")
+            raise ValueError(
+                "Values of the tight-binding dictionary must be square matrices"
+            )
         if not size == shape[0]:
-            raise ValueError("Inputted dictionary elements shapes are not consistent")
+            raise ValueError(
+                "Values of the tight-binding dictionary must have consistent shape"
+            )
 
 
 class Model:
     """
-    Data class which defines the mean-field tight-binding problem
-    and computes the mean-field Hamiltonian.
+    Data class which defines the interacting tight-binding problem.
 
     Parameters
     ----------
     h_0 :
-        Non-interacting Hamiltonian.
+        Non-interacting hermitian Hamiltonian tight-binding dictionary.
     h_int :
-        Interaction Hamiltonian.
+        Interaction hermitian Hamiltonian tight-binding dictionary.
+        The interaction must be of density-density type, h_int[R][i, j] * c_i^dagger(R) c_j^dagger(0) c_j(0) c_i(R).
+        For example in 1D system with ndof internal degrees of freedom,
+        h_int[(2,)] = U * np.ones((ndof, ndof)) is a Coulomb repulsion interaction
+        with strength U between unit cells separated by 2 lattice vectors, where
+        the interaction is the same between all internal degrees of freedom.
     filling :
-        Filling of the system.
-
-    Attributes
-    ----------
-    h_0 :
-        Non-interacting Hamiltonian.
-    h_int :
-        Interaction Hamiltonian.
-    filling :
-        Filling of the system.
+        Number of particles in a unit cell.
+        Used to determine the Fermi level.
     """
 
     def __init__(self, h_0: tb_type, h_int: tb_type, filling: float) -> None:
@@ -71,24 +73,24 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def mfield(self, mf_tb: tb_type, nk: int = 200) -> tb_type:
-        """Compute single mean field iteration.
+    def mfield(self, mf: tb_type, nk: int = 200) -> tb_type:
+        """Computes a new mean-field correction from a given one.
 
         Parameters
         ----------
-        mf_tb :
-            Mean-field tight-binding model.
+        mf :
+            Initial mean-field correction tight-binding dictionary.
         nk :
-            Number of k-points in the grid along a single direction.
+            Number of k-points in a grid to sample the Brillouin zone along each dimension.
             If the system is 0-dimensional (finite), this parameter is ignored.
 
         Returns
         -------
         :
-            New mean-field tight-binding model.
+            new mean-field correction tight-binding dictionary.
         """
         rho, fermi_energy = construct_density_matrix(
-            add_tb(self.h_0, mf_tb), self.filling, nk
+            add_tb(self.h_0, mf), self.filling, nk
         )
         return add_tb(
             meanfield(rho, self.h_int),

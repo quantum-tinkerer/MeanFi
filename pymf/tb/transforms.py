@@ -7,21 +7,24 @@ ks_type = Optional[np.ndarray]
 
 
 def tb_to_khamvector(tb: tb_type, nk: int, ks: ks_type = None) -> np.ndarray:
-    """Real-space tight-binding model to hamiltonian on k-space grid.
+    """Evaluate a tight-binding dictionary on a k-space grid.
 
     Parameters
     ----------
     tb :
-        A dictionary with real-space vectors as keys and complex np.arrays as values.
+        Tight-binding dictionary to evaluate on a k-space grid.
     nk :
-        Number of k-points along each direction.
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
     ks :
-        Set of k-points. Repeated for all directions.
+        Set of points along which to evalaute the k-point grid. Repeated for all dimensions.
+        If not provided, a linear grid is used based on nk.
 
     Returns
     -------
     :
-        Hamiltonian evaluated on a k-point grid.
+        Tight-binding dictionary evaluated on a k-space grid.
+        Has shape (nk, nk, ..., ndof, ndof), where ndof is number of internal degrees of freedom.
     """
     ndim = len(list(tb)[0])
     if ks is None:
@@ -41,17 +44,18 @@ def tb_to_khamvector(tb: tb_type, nk: int, ks: ks_type = None) -> np.ndarray:
 
 
 def ifftn_to_tb(ifft_array: np.ndarray) -> tb_type:
-    """Convert an array from ifftn to a tight-binding model format.
+    """
+    Convert the result of `scipy.fft.ifftn` to a tight-binding dictionary.
 
     Parameters
     ----------
     ifft_array :
-        An array obtained from ifftn.
-
+        Result of `scipy.fft.ifftn` to convert to a tight-binding dictionary.
+        The input to `scipy.fft.ifftn` should be from `tb_to_khamvector`.
     Returns
     -------
     :
-        A dictionary with real-space vectors as keys and complex np.arrays as values.
+        Tight-binding dictionary.
     """
     size = ifft_array.shape[:-2]
 
@@ -62,21 +66,20 @@ def ifftn_to_tb(ifft_array: np.ndarray) -> tb_type:
 
 def kham_to_tb(
     kham: np.ndarray,
-    hopping_vecs: list[tuple[None] | tuple[int, ...]],
+    tb_keys: list[tuple[None] | tuple[int, ...]],
     ks: ks_type = None,
 ) -> tb_type:
-    """Extract hopping matrices from Bloch Hamiltonian.
+    """Convert a Hamiltonian evaluated on a k-grid to a tight-binding dictionary.
 
     Parameters
     ----------
     kham :
-        Bloch Hamiltonian matrix kham[k_x, ..., k_n, i, j]
-    hopping_vecs :
-        List of hopping vectors, will be the keys to the tb.
+        Hamiltonian sampled on a grid of k-points with shape (nk, nk, ..., ndof, ndof),
+        where ndof is number of internal degrees of freedom.
+    tb_keys :
+        List of keys for which to compute the tight-binding dictionary.
     ks :
-        Set of k-points. Repeated for all directions.
-        If system is finite, this option is ignored.
-
+        I have no clue why we need this, so this goes on the chopping board.
     Returns
     -------
     :
@@ -94,16 +97,16 @@ def kham_to_tb(
         hopps = (
             np.einsum(
                 "ij,jkl->ikl",
-                np.exp(1j * np.einsum("ij,jk->ik", hopping_vecs, k_grid)),
+                np.exp(1j * np.einsum("ij,jk->ik", tb_keys, k_grid)),
                 kham,
             )
             * (dk / (2 * np.pi)) ** ndim
         )
 
-        h_0 = {}
-        for i, vector in enumerate(hopping_vecs):
-            h_0[tuple(vector)] = hopps[i]
+        h = {}
+        for i, vector in enumerate(tb_keys):
+            h[tuple(vector)] = hopps[i]
 
-        return h_0
+        return h
     else:
         return {(): kham}

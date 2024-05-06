@@ -1,4 +1,5 @@
 import numpy as np
+
 from pymf.tb.tb import tb_type
 
 
@@ -8,9 +9,9 @@ def expectation_value(density_matrix: tb_type, observable: tb_type) -> complex:
     Parameters
     ----------
     density_matrix :
-        Density matrix in tight-binding format.
+        Density matrix tight-binding dictionary.
     observable :
-        Observable in tight-binding format.
+        Observable tight-binding dictionary.
 
     Returns
     -------

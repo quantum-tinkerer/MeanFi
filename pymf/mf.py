@@ -1,80 +1,91 @@
 import numpy as np
 from scipy.fftpack import ifftn
 
-from pymf.tb.tb import add_tb
+from pymf.tb.tb import add_tb, tb_type
 from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 
-def construct_density_matrix_kgrid(kham, filling):
+def construct_density_matrix_kgrid(
+    kham: np.ndarray, filling: float
+) -> (np.ndarray, float):
     """Calculate density matrix on a k-space grid.
 
     Parameters
     ----------
-    kham : npndarray
-         Hamiltonian in k-space of shape (len(dim), norbs, norbs)
-    filling : float
+    kham :
+        Hamiltonian from which to construct the density matrix.
+        The hamiltonian is sampled on a grid of k-points and has shape (nk, nk, ..., ndof, ndof),
+        where ndof is number of internal degrees of freedom.
+    filling :
         Number of particles in a unit cell.
+        Used to determine the Fermi level.
 
     Returns
     -------
-     np.ndarray, float
-         Density matrix in k-space and Fermi energy.
+    :
+        Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi energy.
     """
     vals, vecs = np.linalg.eigh(kham)
     fermi = fermi_on_grid(vals, filling)
     unocc_vals = vals > fermi
     occ_vecs = vecs
     np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
-    rho_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
-    return rho_krid, fermi
+    density_matrix_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
+    return density_matrix_krid, fermi
 
 
-def construct_density_matrix(h, filling, nk):
+def construct_density_matrix(h: tb_type, filling: float, nk: int) -> (tb_type, float):
     """Compute the density matrix in real-space tight-binding format.
 
     Parameters
     ----------
-    h : dict
-        Tight-binding model.
-    filling : float
-        Filling of the system.
-    nk : int
-        Number of k-points in the grid.
+    h :
+        Hamiltonian tight-binding dictionary from which to construct the density matrix.
+    filling :
+        Number of particles in a unit cell.
+        Used to determine the Fermi level.
+    nk :
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
 
     Returns
     -------
-    (dict, float)
-        Density matrix in real-space tight-binding format and Fermi energy.
+    :
+        Density matrix tight-binding dictionary and Fermi energy.
     """
     ndim = len(list(h)[0])
     if ndim > 0:
         kham = tb_to_khamvector(h, nk=nk)
-        rho_grid, fermi = construct_density_matrix_kgrid(kham, filling)
+        density_matrix_krid, fermi = construct_density_matrix_kgrid(kham, filling)
         return (
-            ifftn_to_tb(ifftn(rho_grid, axes=np.arange(ndim))),
+            ifftn_to_tb(ifftn(density_matrix_krid, axes=np.arange(ndim))),
             fermi,
         )
     else:
-        rho, fermi = construct_density_matrix_kgrid(h[()], filling)
-        return {(): rho}, fermi
+        density_matrix, fermi = construct_density_matrix_kgrid(h[()], filling)
+        return {(): density_matrix}, fermi
 
 
-def meanfield(density_matrix_tb, h_int):
-    """Compute the mean-field in k-space.
+def meanfield(density_matrix: tb_type, h_int: tb_type) -> tb_type:
+    """Compute the mean-field correction from the density matrix.
 
     Parameters
     ----------
-    density_matrix : dict
-        Density matrix in real-space tight-binding format.
-    h_int : dict
-        Interaction tb model.
-
+    density_matrix :
+        Density matrix tight-binding dictionary.
+    h_int :
+        Interaction hermitian Hamiltonian tight-binding dictionary.
+        The interaction must be of density-density type, h_int[R][i, j] * c_i^dagger(R) c_j^dagger(0) c_j(0) c_i(R).
+        For example in 1D system with ndof internal degrees of freedom,
+        h_int[(2,)] = U * np.ones((ndof, ndof)) is a Coulomb repulsion interaction
+        with strength U between unit cells separated by 2 lattice vectors, where
+        the interaction is the same between all internal degrees of freedom.
     Returns
     -------
-    dict
-        Mean-field tb model.
+    :
+        Mean-field correction tight-binding dictionary.
     """
-    n = len(list(density_matrix_tb)[0])
+    n = len(list(density_matrix)[0])
     local_key = tuple(np.zeros((n,), dtype=int))
 
     direct = {
@@ -82,7 +93,7 @@ def meanfield(density_matrix_tb, h_int):
             np.array(
                 [
                     np.diag(
-                        np.einsum("pp,pn->n", density_matrix_tb[local_key], h_int[vec])
+                        np.einsum("pp,pn->n", density_matrix[local_key], h_int[vec])
                     )
                     for vec in frozenset(h_int)
                 ]
@@ -92,26 +103,26 @@ def meanfield(density_matrix_tb, h_int):
     }
 
     exchange = {
-        vec: -1 * h_int.get(vec, 0) * density_matrix_tb[vec]  # / (2 * np.pi)#**2
-        for vec in frozenset(h_int)
+        vec: -1 * h_int.get(vec, 0) * density_matrix[vec] for vec in frozenset(h_int)
     }
     return add_tb(direct, exchange)
 
 
-def fermi_on_grid(vals, filling):
+def fermi_on_grid(vals: np.ndarray, filling: float) -> float:
     """Compute the Fermi energy on a grid of k-points.
 
     Parameters
     ----------
-    vals : ndarray
-        Eigenvalues of the hamiltonian in k-space of shape (len(dim), norbs, norbs)
-    filling : int
-         Number of particles in a unit cell.
-
+    vals :
+        Eigenvalues of a hamiltonian sampled on a k-point grid with shape (nk, nk, ..., ndof, ndof),
+        where ndof is number of internal degrees of freedom.
+    filling :
+        Number of particles in a unit cell.
+        Used to determine the Fermi level.
     Returns
     -------
-    fermi_energy : float
-         Fermi energy
+    :
+        Fermi energy
     """
     norbs = vals.shape[-1]
     vals_flat = np.sort(vals.flatten())
