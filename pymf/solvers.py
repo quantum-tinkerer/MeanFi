@@ -30,7 +30,7 @@ def cost(mf_param: np.ndarray, model: Model, nk: int = 100) -> np.ndarray:
         1D real array that is the difference between the computed and inputted mean-field
         parametrisations
     """
-    shape = model._size
+    shape = model._ndof
     mf = rparams_to_tb(mf_param, list(model.h_int), shape)
     mf_new = model.mfield(mf, nk=nk)
     mf_params_new = tb_to_rparams(mf_new)
@@ -65,11 +65,11 @@ def solver(
     :
         Mean-field correction solution in the tight-binding dictionary format.
     """
-    shape = model._size
+    shape = model._ndof
     mf_params = tb_to_rparams(mf_guess)
     f = partial(cost, model=model, nk=nk)
     result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(model.h_int), shape
     )
     fermi = calculate_fermi_energy(add_tb(model.h_0, result), model.filling, nk=nk)
-    return add_tb(result, {model._local_key: -fermi * np.eye(model._size)})
+    return add_tb(result, {model._local_key: -fermi * np.eye(model._ndof)})
