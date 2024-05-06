@@ -57,6 +57,7 @@ def solver(
         If the system is 0-dimensional (finite), this parameter is ignored.
     optimizer :
         The solver used to solve the fixed point iteration.
+        Default uses `scipy.optimize.anderson`.
     optimizer_kwargs :
         The keyword arguments to pass to the optimizer.
 
