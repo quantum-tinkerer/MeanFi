@@ -33,6 +33,7 @@ We first translate this model from a Kwant system to a tight-binding dictionary.
 
 ```{code-cell} ipython3
 import pymf.kwant_helper.kwant_examples as kwant_examples
+import pymf.kwant_helper.utils as kwant_utils
 
 # Create translationally-invariant `kwant.Builder`
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
@@ -46,8 +47,6 @@ $$ Hubbardd $$
 Once we have both the non-interacting and the interacting part, we can assign the parameters for the Hubbard interaction and then combine both, together with a filling, into the model.
 
 ```{code-cell} ipython3
-import pymf.kwant_helper.utils as kwant_utils
-
 U=1
 V=0.1
 params = dict(U=U, V=V)
@@ -71,7 +70,7 @@ We can now create a phase diagram of the gap of the interacting solution. In ord
 
 ```{code-cell} ipython3
 def compute_gap(h, fermi_energy=0, nk=100):
-    kham = tb.transforms.tb_to_khamvector(h, nk, ks=None)
+    kham = pymf.tb_to_khamvector(h, nk, ks=None)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])
@@ -88,7 +87,7 @@ def gap_and_mf_sol(U, V, int_builder, h_0):
     _model = pymf.Model(h_0, h_int, filling=2)
     guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     mf_sol = pymf.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
-    gap = compute_gap(tb.tb.add_tb(h_0, mf_sol), fermi_energy=0, nk=300)
+    gap = compute_gap(pymf.add_tb(h_0, mf_sol), fermi_energy=0, nk=300)
     return gap, mf_sol
 ```
 
@@ -142,7 +141,7 @@ We choose a point in the phase diagram where we expect there to be a CDW phase a
 ```{code-cell} ipython3
 cdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _ = mf.construct_density_matrix(tb.tb.add_tb(h_0, mf_sol), filling=2, nk=40)
+    rho, _ = pymf.construct_density_matrix(pymf.add_tb(h_0, mf_sol), filling=2, nk=40)
     expectation_value = pymf.expectation_value(rho, cdw_order_parameter)
     cdw_list.append(expectation_value)
 ```
@@ -179,7 +178,7 @@ Then, similar to what we did in the CDW phase, we calculate the expectation valu
 ```{code-cell} ipython3
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _ = mf.construct_density_matrix(tb.tb.add_tb(h_0, mf_sol), filling=2, nk=40)
+    rho, _ = pymf.construct_density_matrix(pymf.add_tb(h_0, mf_sol), filling=2, nk=40)
     expectation_values = []
     for order_parameter in order_parameter_list:
         expectation_value = pymf.expectation_value(rho, order_parameter)
