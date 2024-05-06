@@ -67,7 +67,7 @@ class Model:
 
         _first_key = list(h_0)[0]
         self._ndim = len(_first_key)
-        self._size = h_0[_first_key].shape[0]
+        self._ndof = h_0[_first_key].shape[0]
         self._local_key = tuple(np.zeros((self._ndim,), dtype=int))
 
         _check_hermiticity(h_0)
@@ -94,5 +94,5 @@ class Model:
         )
         return add_tb(
             meanfield(rho, self.h_int),
-            {self._local_key: -fermi_energy * np.eye(self._size)},
+            {self._local_key: -fermi_energy * np.eye(self._ndof)},
         )
