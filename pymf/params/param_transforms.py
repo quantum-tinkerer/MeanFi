@@ -1,19 +1,20 @@
 import numpy as np
+
 from pymf.tb.tb import tb_type
 
 
 def tb_to_flat(tb: tb_type) -> np.ndarray:
-    """Convert a hermitian tight-binding dictionary to flat complex matrix.
+    """Parametrise a hermitian tight-binding dictionary by a flat complex vector.
 
     Parameters
     ----------
     tb :
-        Hermitian tigh-binding model
+        Hermitian tigh-binding dictionary
 
     Returns
     -------
-    flat :
-        1D complex array that parametrises the tb model.
+    :
+        1D complex array that parametrises the tight-binding dictionary.
     """
     if len(list(tb)[0]) == 0:
         matrix = np.array(list(tb.values()))
@@ -25,7 +26,7 @@ def tb_to_flat(tb: tb_type) -> np.ndarray:
 
 
 def flat_to_tb(
-    flat: np.ndarray,
+    tb_param_complex: np.ndarray,
     shape: tuple[int, int],
     tb_keys: list[tuple[None] | tuple[int, ...]],
 ) -> tb_type:
@@ -35,28 +36,28 @@ def flat_to_tb(
 
     Parameters
     ----------
-    flat :
+    tb_param_complex :
         1d complex array that parametrises the tb model.
     shape :
         Tuple (n, n) where n is the number of internal degrees of freedom
         (e.g. orbitals, spin, sublattice) within the tight-binding model.
     tb_keys :
-        A list of the keys within the tight-binding model (all the hoppings).
+        List of keys of the tight-binding dictionary.
 
     Returns
     -------
     tb :
-        tight-binding model
+        tight-binding dictionary
     """
     if len(tb_keys[0]) == 0:
         matrix = np.zeros((shape[-1], shape[-2]), dtype=complex)
-        matrix[np.triu_indices(shape[-1])] = flat
+        matrix[np.triu_indices(shape[-1])] = tb_param_complex
         matrix += matrix.conj().T
         matrix[np.diag_indices(shape[-1])] /= 2
         return {(): matrix}
     matrix = np.zeros(shape, dtype=complex)
     N = len(tb_keys) // 2 + 1
-    matrix[:N] = flat.reshape(N, *shape[1:])
+    matrix[:N] = tb_param_complex.reshape(N, *shape[1:])
     matrix[N:] = np.moveaxis(matrix[-(N + 1) :: -1], -1, -2).conj()
 
     tb_keys = np.array(list(tb_keys))

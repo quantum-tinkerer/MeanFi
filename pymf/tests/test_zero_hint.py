@@ -21,7 +21,7 @@ def test_zero_hint(seed):
     dim = np.random.randint(0, 3)
     ndof = np.random.randint(2, 10)
     filling = np.random.randint(1, ndof)
-    random_hopping_vecs = utils.generate_vectors(cutoff, dim)
+    random_hopping_vecs = utils.generate_tb_keys(cutoff, dim)
 
     zero_key = tuple([0] * dim)
     h_0_random = utils.generate_guess(random_hopping_vecs, ndof, scale=1)

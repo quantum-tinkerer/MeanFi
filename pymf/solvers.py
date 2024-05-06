@@ -9,52 +9,52 @@ from pymf.model import Model
 from pymf.tb.utils import calculate_fermi_energy
 
 
-def cost(mf_param: np.ndarray, model: Model, nk: Optional[int] = 100) -> np.ndarray:
-    """Define the cost function for fixed point iteration.
+def cost(mf_param: np.ndarray, model: Model, nk: int = 100) -> np.ndarray:
+    """Defines the cost function for root solver.
 
-    The cost function is the difference between the input mean-field real space
-    parametrisation and a new mean-field.
+    The cost function is the difference between the computed and inputted mean-field.
 
     Parameters
     ----------
     mf_param :
-        1D real array that parametrises the mean-field tight-binding correction.
+        1D real array that parametrises the mean-field correction.
     Model :
-        Object which defines the mean-field problem to solve.
+        Interacting tight-binding problem definition.
     nk :
-        The number of k-points to use in the grid.
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
 
     Returns
     -------
     :
-        1D real array which contains the difference between the input mean-field
-        and the new mean-field.
+        1D real array that is the difference between the computed and inputted mean-field
+        parametrisations
     """
     shape = model._size
-    mf_tb = rparams_to_tb(mf_param, list(model.h_int), shape)
-    mf_tb_new = model.mfield(mf_tb, nk=nk)
-    mf_params_new = tb_to_rparams(mf_tb_new)
+    mf = rparams_to_tb(mf_param, list(model.h_int), shape)
+    mf_new = model.mfield(mf, nk=nk)
+    mf_params_new = tb_to_rparams(mf_new)
     return mf_params_new - mf_param
 
 
 def solver(
     model: Model,
     mf_guess: np.ndarray,
-    nk: Optional[int] = 100,
+    nk: int = 100,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
-    optimizer_kwargs: Optional[dict[str, str]] = {},
+    optimizer_kwargs: Optional[dict[str, str]] = {"M": 0},
 ) -> tb_type:
-    """Solve the mean-field self-consistent equation.
+    """Solve for the mean-field correction through self-consistent root finding.
 
     Parameters
     ----------
     model :
-        The model object.
+        Interacting tight-binding problem definition.
     mf_guess :
-        The initial guess for the mean-field tight-binding model.
+        The initial guess for the mean-field correction in the tight-binding dictionary format.
     nk :
-        The number of k-points to use in the grid. The default is 100. In the
-        0-dimensional case, this parameter is ignored.
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
     optimizer :
         The solver used to solve the fixed point iteration.
     optimizer_kwargs :
@@ -63,7 +63,7 @@ def solver(
     Returns
     -------
     :
-        The mean-field tight-binding model.
+        Mean-field correction solution in the tight-binding dictionary format.
     """
     shape = model._size
     mf_params = tb_to_rparams(mf_guess)
