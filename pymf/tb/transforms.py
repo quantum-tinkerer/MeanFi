@@ -6,7 +6,7 @@ from pymf.tb.tb import tb_type
 ks_type = Optional[np.ndarray]
 
 
-def tb_to_khamvector(tb: tb_type, nk: int, ks: ks_type = None) -> np.ndarray:
+def tb_to_khamvector(tb: tb_type, nk: int) -> np.ndarray:
     """Evaluate a tight-binding dictionary on a k-space grid.
 
     Parameters
@@ -16,9 +16,6 @@ def tb_to_khamvector(tb: tb_type, nk: int, ks: ks_type = None) -> np.ndarray:
     nk :
         Number of k-points in a grid to sample the Brillouin zone along each dimension.
         If the system is 0-dimensional (finite), this parameter is ignored.
-    ks :
-        Set of points along which to evalaute the k-point grid. Repeated for all dimensions.
-        If not provided, a linear grid is used based on nk.
 
     Returns
     -------
@@ -27,9 +24,8 @@ def tb_to_khamvector(tb: tb_type, nk: int, ks: ks_type = None) -> np.ndarray:
         Has shape (nk, nk, ..., ndof, ndof), where ndof is number of internal degrees of freedom.
     """
     ndim = len(list(tb)[0])
-    if ks is None:
-        ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
-        ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
+    ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
+    ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
     kgrid = np.meshgrid(*([ks] * ndim), indexing="ij")
 
     num_keys = len(list(tb.keys()))
