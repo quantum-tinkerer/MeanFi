@@ -78,6 +78,6 @@ def calculate_fermi_energy(tb: tb_type, filling: float, nk: int = 100):
     :
         Fermi energy.
     """
-    kham = tb_to_khamvector(tb, nk, ks=None)
+    kham = tb_to_khamvector(tb, nk)
     vals = np.linalg.eigvalsh(kham)
     return fermi_on_grid(vals, filling)

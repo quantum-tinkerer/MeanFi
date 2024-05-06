@@ -27,7 +27,7 @@ def compute_gap(tb, fermi_energy=0, nk=100):
      gap : float
      Indirect gap.
     """
-    kham = tb_to_khamvector(tb, nk, ks=None)
+    kham = tb_to_khamvector(tb, nk)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])
