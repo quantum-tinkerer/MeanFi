@@ -1,24 +1,27 @@
 import itertools
 import numpy as np
+from typing import Optional
+from pymf.tb.tb import tb_type
+
+ks_type = Optional[np.ndarray]
 
 
-def tb_to_khamvector(tb, nk, ks=None):
+def tb_to_khamvector(tb: tb_type, nk: int, ks: ks_type = None) -> np.ndarray:
     """Real-space tight-binding model to hamiltonian on k-space grid.
 
     Parameters
     ----------
-    tb : dict
+    tb :
         A dictionary with real-space vectors as keys and complex np.arrays as values.
-    nk : int
+    nk :
         Number of k-points along each direction.
-    ks : 1D-array
+    ks :
         Set of k-points. Repeated for all directions.
 
     Returns
     -------
-    ndarray
+    :
         Hamiltonian evaluated on a k-point grid.
-
     """
     ndim = len(list(tb)[0])
     if ks is None:
@@ -37,17 +40,17 @@ def tb_to_khamvector(tb, nk, ks=None):
     return np.sum(tb_array * k_dependency, axis=0)
 
 
-def ifftn_to_tb(ifft_array):
+def ifftn_to_tb(ifft_array: np.ndarray) -> tb_type:
     """Convert an array from ifftn to a tight-binding model format.
 
     Parameters
     ----------
-    ifft_array : ndarray
+    ifft_array :
         An array obtained from ifftn.
 
     Returns
     -------
-    dict
+    :
         A dictionary with real-space vectors as keys and complex np.arrays as values.
     """
     size = ifft_array.shape[:-2]
@@ -57,22 +60,26 @@ def ifftn_to_tb(ifft_array):
     return {tuple(k): ifft_array[tuple(k)] for k in keys}
 
 
-def kham_to_tb(kham, hopping_vecs, ks=None):
+def kham_to_tb(
+    kham: np.ndarray,
+    hopping_vecs: list[tuple[None] | tuple[int, ...]],
+    ks: ks_type = None,
+) -> tb_type:
     """Extract hopping matrices from Bloch Hamiltonian.
 
     Parameters
     ----------
-    kham : nd-array
+    kham :
         Bloch Hamiltonian matrix kham[k_x, ..., k_n, i, j]
-    hopping_vecs : list
+    hopping_vecs :
         List of hopping vectors, will be the keys to the tb.
-    ks : 1D-array
-        Set of k-points. Repeated for all directions. If the system is finite,
-        ks=None`.
+    ks :
+        Set of k-points. Repeated for all directions.
+        If system is finite, this option is ignored.
 
     Returns
     -------
-    scf_model : dict
+    :
         Tight-binding model of Hartree-Fock solution.
     """
     if ks is not None:

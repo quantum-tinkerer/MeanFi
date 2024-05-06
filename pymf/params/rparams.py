@@ -4,40 +4,44 @@ from pymf.params.param_transforms import (
     real_to_complex,
     tb_to_flat,
 )
+import numpy as np
+from pymf.tb.tb import tb_type
 
 
-def tb_to_rparams(tb):
+def tb_to_rparams(tb: tb_type) -> np.ndarray:
     """Convert a mean-field tight-binding model to a set of real parameters.
 
     Parameters
     ----------
-    tb : dict
+    tb :
         Mean-field tight-binding model.
 
     Returns
     -------
-    dict
-        Real parameters.
+    :
+        1D real vector that parametrises the tb model.
     """
-    return complex_to_real(tb_to_flat(tb))  # placeholder for now
+    return complex_to_real(tb_to_flat(tb))
 
 
-def rparams_to_tb(r_params, key_list, size):
+def rparams_to_tb(
+    r_params: np.ndarray, key_list: list[tuple[None] | tuple[int, ...]], size: int
+) -> tb_type:
     """Extract mean-field tight-binding model from a set of real parameters.
 
     Parameters
     ----------
-    r_params : dict
+    r_params :
         Real parameters.
-    key_list : list
-        List of the keys of the mean-field tight-binding model, meaning all the
-        hoppings.
-    size : tuple
-        Shape of the mean-field tight-binding model.
+    key_list :
+        List of the keys within the tight-binding model (all the hoppings).
+    size :
+        Number of internal degrees of freedom (e.g. orbitals, spin, sublattice) within
+        the tight-binding model.
 
     Returns
     -------
-    dict
+    :
         Mean-field tight-binding model.
     """
     flat_matrix = real_to_complex(r_params)

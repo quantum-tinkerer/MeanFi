@@ -1,18 +1,19 @@
 import numpy as np
+from pymf.tb.tb import tb_type
 
 
-def tb_to_flat(tb):
+def tb_to_flat(tb: tb_type) -> np.ndarray:
     """Convert a hermitian tight-binding dictionary to flat complex matrix.
 
     Parameters
     ----------
-    tb : dict with nd-array elements
-        Hermitian tigh-binding dictionary
+    tb :
+        Hermitian tigh-binding model
 
     Returns
     -------
-    flat : complex 1d numpy array
-        Flattened tight-binding dictionary
+    flat :
+        1D complex array that parametrises the tb model.
     """
     if len(list(tb)[0]) == 0:
         matrix = np.array(list(tb.values()))
@@ -23,24 +24,29 @@ def tb_to_flat(tb):
     return sorted_vals[:N].flatten()
 
 
-def flat_to_tb(flat, shape, tb_keys):
+def flat_to_tb(
+    flat: np.ndarray,
+    shape: tuple[int, int],
+    tb_keys: list[tuple[None] | tuple[int, ...]],
+) -> tb_type:
     """Reverse operation to `tb_to_flat`.
 
     It takes a flat complex 1d array and return the tight-binding dictionary.
 
     Parameters
     ----------
-    flat : dict with nd-array elements
-        Hermitian tigh-binding dictionary
-    shape : tuple
-        shape of the tb elements
-    tb_keys : iterable
-        original tb key elements
+    flat :
+        1d complex array that parametrises the tb model.
+    shape :
+        Tuple (n, n) where n is the number of internal degrees of freedom
+        (e.g. orbitals, spin, sublattice) within the tight-binding model.
+    tb_keys :
+        A list of the keys within the tight-binding model (all the hoppings).
 
     Returns
     -------
-    tb : dict
-        tight-binding dictionary
+    tb :
+        tight-binding model
     """
     if len(tb_keys[0]) == 0:
         matrix = np.zeros((shape[-1], shape[-2]), dtype=complex)
@@ -59,17 +65,22 @@ def flat_to_tb(flat, shape, tb_keys):
     return tb
 
 
-def complex_to_real(z):
-    """Split real and imaginary parts of a complex array.
+def complex_to_real(z: np.ndarray) -> np.ndarray:
+    """Split and concatenate real and imaginary parts of a complex array.
 
     Parameters
     ----------
-    z : array
+    z :
         Complex array.
+
+    Returns
+    -------
+    :
+        Real array that concatenates the real and imaginary parts of the input array.
     """
     return np.concatenate((np.real(z), np.imag(z)))
 
 
-def real_to_complex(z):
+def real_to_complex(z: np.ndarray) -> np.ndarray:
     """Undo `complex_to_real`."""
     return z[: len(z) // 2] + 1j * z[len(z) // 2 :]

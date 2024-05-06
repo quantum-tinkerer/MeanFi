@@ -1,26 +1,27 @@
 from itertools import product
-
 import numpy as np
 
+from pymf.tb.tb import tb_type
 from pymf.mf import fermi_on_grid
 from pymf.tb.transforms import tb_to_khamvector
 
 
-def generate_guess(vectors, ndof, scale=1):
+def generate_guess(
+    vectors: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 1
+) -> tb_type:
     """Generate guess for a tight-binding model.
 
     Parameters
     ----------
-    vectors : list
+    vectors :
         List of hopping vectors.
-    ndof : int
-        Number internal degrees of freedom (orbitals),
-    scale : float
-        The scale of the guess. Maximum absolute value of each element of the guess.
-
+    ndof :
+        Number internal degrees of freedom (e.g. orbitals, spin, sublattice),
+    scale :
+        Scale of the random guess. Default is 1.
     Returns
     -------
-    guess : tb dictionary
+    :
         Guess in the form of a tight-binding model.
     """
     guess = {}
@@ -40,14 +41,14 @@ def generate_guess(vectors, ndof, scale=1):
     return guess
 
 
-def generate_vectors(cutoff, dim):
+def generate_vectors(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...]]:
     """Generate hopping vectors up to a cutoff.
 
     Parameters
     ----------
-    cutoff : int
+    cutoff :
         Maximum distance along each direction.
-    dim : int
+    dim :
         Dimension of the vectors.
 
     Returns
@@ -57,7 +58,7 @@ def generate_vectors(cutoff, dim):
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
-def calculate_fermi_energy(tb, filling, nk=100):
+def calculate_fermi_energy(tb: tb_type, filling: float, nk: int = 100):
     """Calculate the Fermi energy for a given filling."""
     kham = tb_to_khamvector(tb, nk, ks=None)
     vals = np.linalg.eigvalsh(kham)
