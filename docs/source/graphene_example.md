@@ -69,6 +69,7 @@ After we have defined the guess, we feed it together with the model into the mea
 
 ## Creating a phase diagram of the gap
 
+<<<<<<< HEAD
 We can now create a phase diagram of the gap of the interacting solution. In order to calculate the gap we first create a function which takes a hopping dictionary and a Fermi energy and returns the indirect gap. The gap is defined as the difference between the highest occupied and the lowest unoccupied energy level. We will use a dense k-grid to calculate the gap. In order to obtain the Hamiltonian on a dense k-grid, we use the `tb_to_khamvector` function from the `transforms` module.
 
 ```{code-cell} ipython3
@@ -199,3 +200,8 @@ plt.ylabel('U')
 plt.title('Spin Density Wave Order Parameter')
 plt.show()
 ```
+=======
+We can now create a phase diagram of the gap of the interacting solution. We will use the same hopping dictionary for the non-interacting part as before. We will vary the onsite Hubbard interactio $U$ strength from $0$ to $2$ and the nearest neighbor interaction strength $V$ from $0$ to $1.5$.
+
+```{code-cell} ipython3
+>>>>>>> b0c88cd (check everything locally and pipeline hopefully passes now)
