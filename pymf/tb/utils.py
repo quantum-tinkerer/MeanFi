@@ -53,7 +53,8 @@ def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...
 
     Returns
     -------
-    List of generated tight-binding dictionary keys up to a cutoff.
+    :
+        List of generated tight-binding dictionary keys up to a cutoff.
     """
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 

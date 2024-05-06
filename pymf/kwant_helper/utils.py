@@ -5,14 +5,16 @@ from typing import Callable
 from pymf.tb.tb import tb_type
 
 import kwant
+import kwant.lattice
+import kwant.builder
 import numpy as np
 from scipy.sparse import coo_array
 
 
 def builder_to_tb(
-    builder: kwant.Builder, params: dict = {}, return_data: bool = False
+    builder: kwant.builder.Builder, params: dict = {}, return_data: bool = False
 ) -> tb_type:
-    """Construct a tight-binding dictionary from a `kwant.Builder` system.
+    """Construct a tight-binding dictionary from a `kwant.builder.Builder` system.
 
     Parameters
     ----------
@@ -25,9 +27,9 @@ def builder_to_tb(
 
     Returns
     -------
-    h_0 :
+    :
         Tight-binding dictionary that corresponds to the builder.
-    data :
+    :
         Data with sites and number of orbitals. Only if `return_data=True`.
     """
     builder = copy(builder)
@@ -129,19 +131,19 @@ def builder_to_tb(
 
 
 def build_interacting_syst(
-    builder: kwant.Builder,
-    lattice: kwant.lattice,
+    builder: kwant.builder.Builder,
+    lattice: kwant.lattice.Polyatomic,
     func_onsite: Callable,
     func_hop: Callable,
     max_neighbor: int = 1,
-) -> kwant.Builder:
+) -> kwant.builder.Builder:
     """
     Construct an auxiliary `kwant` system that encodes the interactions.
 
     Parameters
     ----------
     builder :
-        Non-interacting `kwant` system.
+        Non-interacting `kwant.builder.Builder` system.
     lattice :
         Lattice of the system.
     func_onsite :
@@ -154,10 +156,12 @@ def build_interacting_syst(
 
     Returns
     -------
-    int_builder :
-        Auxiliary `kwant.Builder` that encodes the interactions of the system.
+    :
+        Auxiliary `kwant.builder.Builder` that encodes the interactions of the system.
     """
-    int_builder = kwant.Builder(kwant.TranslationalSymmetry(*builder.symmetry.periods))
+    int_builder = kwant.builder.Builder(
+        kwant.lattice.TranslationalSymmetry(*builder.symmetry.periods)
+    )
     int_builder[builder.sites()] = func_onsite
     for neighbors in range(max_neighbor):
         int_builder[lattice.neighbors(neighbors + 1)] = func_hop
