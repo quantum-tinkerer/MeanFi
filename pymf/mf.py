@@ -38,7 +38,7 @@ def construct_density_matrix_kgrid(
 def construct_density_matrix(
     h: tb_type, filling: float, nk: int
 ) -> Tuple[tb_type, float]:
-    """Compute the density matrix in real-space tight-binding format.
+    """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
     ----------
@@ -78,15 +78,19 @@ def meanfield(density_matrix: tb_type, h_int: tb_type) -> tb_type:
         Density matrix tight-binding dictionary.
     h_int :
         Interaction hermitian Hamiltonian tight-binding dictionary.
-        The interaction must be of density-density type, h_int[R][i, j] * c_i^dagger(R) c_j^dagger(0) c_j(0) c_i(R).
-        For example in 1D system with ndof internal degrees of freedom,
-        h_int[(2,)] = U * np.ones((ndof, ndof)) is a Coulomb repulsion interaction
-        with strength U between unit cells separated by 2 lattice vectors, where
-        the interaction is the same between all internal degrees of freedom.
     Returns
     -------
     :
         Mean-field correction tight-binding dictionary.
+
+    Notes
+    -----
+
+    The interaction h_int must be of density-density type.
+    For example in 1D system with ndof internal degrees of freedom,
+    h_int[(2,)] = U * np.ones((ndof, ndof)) is a Coulomb repulsion interaction
+    with strength U between unit cells separated by 2 lattice vectors, where
+    the interaction is the same between all internal degrees of freedom.
     """
     n = len(list(density_matrix)[0])
     local_key = tuple(np.zeros((n,), dtype=int))
