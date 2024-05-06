@@ -45,4 +45,4 @@ def rparams_to_tb(
         Tight-biding dictionary.
     """
     flat_matrix = real_to_complex(tb_params)
-    return flat_to_tb(flat_matrix, (len(tb_keys), ndof, ndof), tb_keys)
+    return flat_to_tb(flat_matrix, ndof, tb_keys)

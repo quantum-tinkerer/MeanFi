@@ -27,7 +27,7 @@ def tb_to_flat(tb: tb_type) -> np.ndarray:
 
 def flat_to_tb(
     tb_param_complex: np.ndarray,
-    shape: tuple[int, int],
+    ndof: int,
     tb_keys: list[tuple[None] | tuple[int, ...]],
 ) -> tb_type:
     """Reverse operation to `tb_to_flat`.
@@ -38,9 +38,8 @@ def flat_to_tb(
     ----------
     tb_param_complex :
         1d complex array that parametrises the tb model.
-    shape :
-        Tuple (n, n) where n is the number of internal degrees of freedom
-        (e.g. orbitals, spin, sublattice) within the tight-binding model.
+    ndof :
+        Number internal degrees of freedom within the unit cell.
     tb_keys :
         List of keys of the tight-binding dictionary.
 
@@ -49,6 +48,7 @@ def flat_to_tb(
     tb :
         tight-binding dictionary
     """
+    shape = (len(tb_keys), ndof, ndof)
     if len(tb_keys[0]) == 0:
         matrix = np.zeros((shape[-1], shape[-2]), dtype=complex)
         matrix[np.triu_indices(shape[-1])] = tb_param_complex
