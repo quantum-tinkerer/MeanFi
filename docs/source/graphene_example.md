@@ -24,13 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.pyplot as plt
-import pymf.model as model
-import pymf.solvers as solvers
-import pymf.mf as mf
-import pymf.tb as tb
-import pymf.observables as observables
-import pymf.kwant_helper.kwant_examples as kwant_examples
-import pymf.kwant_helper.utils as kwant_utils
+import pymf
 ```
 
 ##  Preparing the model
@@ -38,6 +32,8 @@ import pymf.kwant_helper.utils as kwant_utils
 We first translate this model from a Kwant system to a tight-binding dictionary. In the tight-binding dictionary the keys denote the hoppings while the values are the hopping amplitudes.
 
 ```{code-cell} ipython3
+import pymf.kwant_helper.kwant_examples as kwant_examples
+
 # Create translationally-invariant `kwant.Builder`
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 h_0 = kwant_utils.builder_to_tb(graphene_builder)
@@ -50,26 +46,27 @@ $$ Hubbardd $$
 Once we have both the non-interacting and the interacting part, we can assign the parameters for the Hubbard interaction and then combine both, together with a filling, into the model.
 
 ```{code-cell} ipython3
+import pymf.kwant_helper.utils as kwant_utils
+
 U=1
 V=0.1
 params = dict(U=U, V=V)
 h_int = kwant_utils.builder_to_tb(int_builder, params)
-_model = model.Model(h_0, h_int, filling=2)
+_model = pymf.Model(h_0, h_int, filling=2)
 ```
 
 To start the meanfield calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same number of degrees as freedom as both the non-interacting and interacting part, so that they match.
 
 ```{code-cell} ipython3
-guess = tb.utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
-mf_sol = solvers.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
-full_sol = tb.tb.add_tb(h_0, mf_sol)
+guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+mf_sol = pymf.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
+full_sol = pymf.add_tb(h_0, mf_sol)
 ```
 
 After we have defined the guess, we feed it together with the model into the meanfield solver. The meanfield solver will return a hopping dictionary with the meanfield approximation. We can then add this solution to the non-interacting part to get the full solution. In order to get the solution, we specified the number of k-points to be used in the calculation. This refers to the k-grid used in the Brillouin zone for the density matrix.
 
 ## Creating a phase diagram of the gap
 
-<<<<<<< HEAD
 We can now create a phase diagram of the gap of the interacting solution. In order to calculate the gap we first create a function which takes a hopping dictionary and a Fermi energy and returns the indirect gap. The gap is defined as the difference between the highest occupied and the lowest unoccupied energy level. We will use a dense k-grid to calculate the gap. In order to obtain the Hamiltonian on a dense k-grid, we use the `tb_to_khamvector` function from the `transforms` module.
 
 ```{code-cell} ipython3
@@ -88,9 +85,9 @@ Now that we can calculate the gap, we create a phase diagram of the gap as a fun
 def gap_and_mf_sol(U, V, int_builder, h_0):
     params = dict(U=U, V=V)
     h_int = kwant_utils.builder_to_tb(int_builder, params)
-    _model = model.Model(h_0, h_int, filling=2)
-    guess = tb.utils.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
-    mf_sol = solvers.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
+    _model = pymf.Model(h_0, h_int, filling=2)
+    guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+    mf_sol = pymf.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
     gap = compute_gap(tb.tb.add_tb(h_0, mf_sol), fermi_energy=0, nk=300)
     return gap, mf_sol
 ```
@@ -146,7 +143,7 @@ We choose a point in the phase diagram where we expect there to be a CDW phase a
 cdw_list = []
 for mf_sol in mf_sols.flatten():
     rho, _ = mf.construct_density_matrix(tb.tb.add_tb(h_0, mf_sol), filling=2, nk=40)
-    expectation_value = observables.expectation_value(rho, cdw_order_parameter)
+    expectation_value = pymf.expectation_value(rho, cdw_order_parameter)
     cdw_list.append(expectation_value)
 ```
 
@@ -185,7 +182,7 @@ for mf_sol in mf_sols.flatten():
     rho, _ = mf.construct_density_matrix(tb.tb.add_tb(h_0, mf_sol), filling=2, nk=40)
     expectation_values = []
     for order_parameter in order_parameter_list:
-        expectation_value = observables.expectation_value(rho, order_parameter)
+        expectation_value = pymf.expectation_value(rho, order_parameter)
         expectation_values.append(expectation_value)
 
     sdw_list.append(np.sum(np.array(expectation_values)**2))
@@ -200,8 +197,3 @@ plt.ylabel('U')
 plt.title('Spin Density Wave Order Parameter')
 plt.show()
 ```
-=======
-We can now create a phase diagram of the gap of the interacting solution. We will use the same hopping dictionary for the non-interacting part as before. We will vary the onsite Hubbard interactio $U$ strength from $0$ to $2$ and the nearest neighbor interaction strength $V$ from $0$ to $1.5$.
-
-```{code-cell} ipython3
->>>>>>> b0c88cd (check everything locally and pipeline hopefully passes now)
