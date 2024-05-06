@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.fftpack import ifftn
+from typing import Tuple
 
 from pymf.tb.tb import add_tb, tb_type
 from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
@@ -7,7 +8,7 @@ from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 def construct_density_matrix_kgrid(
     kham: np.ndarray, filling: float
-) -> (np.ndarray, float):
+) -> Tuple[np.ndarray, float]:
     """Calculate density matrix on a k-space grid.
 
     Parameters
@@ -34,7 +35,9 @@ def construct_density_matrix_kgrid(
     return density_matrix_krid, fermi
 
 
-def construct_density_matrix(h: tb_type, filling: float, nk: int) -> (tb_type, float):
+def construct_density_matrix(
+    h: tb_type, filling: float, nk: int
+) -> Tuple[tb_type, float]:
     """Compute the density matrix in real-space tight-binding format.
 
     Parameters
