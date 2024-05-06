@@ -4,7 +4,7 @@ from pymf.mf import (
     construct_density_matrix,
     meanfield,
 )
-from pymf.tb.tb import add_tb
+from pymf.tb.tb import add_tb, tb_type
 
 
 def _check_hermiticity(h):
@@ -29,7 +29,30 @@ def _tb_type_check(tb):
 
 
 class Model:
-    def __init__(self, h_0, h_int, filling):
+    """
+    Data class which defines the mean-field tight-binding problem
+    and computes the mean-field Hamiltonian.
+
+    Parameters
+    ----------
+    h_0 :
+        Non-interacting Hamiltonian.
+    h_int :
+        Interaction Hamiltonian.
+    filling :
+        Filling of the system.
+
+    Attributes
+    ----------
+    h_0 :
+        Non-interacting Hamiltonian.
+    h_int :
+        Interaction Hamiltonian.
+    filling :
+        Filling of the system.
+    """
+
+    def __init__(self, h_0: tb_type, h_int: tb_type, filling: float) -> None:
         _tb_type_check(h_0)
         self.h_0 = h_0
         _tb_type_check(h_int)
@@ -48,19 +71,20 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def mfield(self, mf_tb, nk=200):  # method or standalone?
+    def mfield(self, mf_tb: tb_type, nk: int = 200) -> tb_type:
         """Compute single mean field iteration.
 
         Parameters
         ----------
-        mf_tb : dict
+        mf_tb :
             Mean-field tight-binding model.
-        nk : int
-            Number of k-points in the grid.
+        nk :
+            Number of k-points in the grid along a single direction.
+            If the system is 0-dimensional (finite), this parameter is ignored.
 
         Returns
         -------
-        dict
+        :
             New mean-field tight-binding model.
         """
         rho, fermi_energy = construct_density_matrix(
