@@ -91,7 +91,7 @@ def compute_sol(U, h_0, nk, filling=2):
     }
     guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     full_model = pymf.Model(h_0, h_int, filling)
-    mf_sol = pymf.solver(full_model, guess, nk=nk)
+    mf_sol = pymf.solver(full_model, guess, nk=nk, optimizer_kwargs={"M":0})
     return pymf.add_tb(h_0, mf_sol)
 
 
