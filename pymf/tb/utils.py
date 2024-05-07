@@ -14,7 +14,7 @@ def generate_guess(
     Parameters
     ----------
     tb_keys :
-       List of tight-binding dictionary keys the guess contains.
+       List of hopping vectors (tight-binding dictionary keys) the guess contains.
     ndof :
         Number internal degrees of freedom within the unit cell.
     scale :
