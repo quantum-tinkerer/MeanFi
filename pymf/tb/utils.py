@@ -9,7 +9,7 @@ from pymf.tb.transforms import tb_to_kgrid
 def generate_guess(
     tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 1
 ) -> _tb_type:
-    """Generate guess tight-binding dictionary.
+    """Generate hermitian guess tight-binding dictionary.
 
     Parameters
     ----------
@@ -22,7 +22,7 @@ def generate_guess(
     Returns
     -------
     :
-        Guess tight-binding dictionary.
+        Hermitian guess tight-binding dictionary.
     """
     guess = {}
     for vector in tb_keys:
