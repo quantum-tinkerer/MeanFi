@@ -36,12 +36,6 @@ The ground-state density matrix reads:
 :::
 where $\beta = 1/ (k_B T)$ is the inverse temperature, $\mu$ is the chemical potential, and $\hat{N} = \sum_i c_i^\dagger c_i$ is the number operator.
 
-:::{admonition} Derivation of the mean-field Hamiltonian with Wicks theorem
-:class: dropdown info
-```{include} mf_details.md
-```
-:::
-
 ### Finite tight-binding grid
 
 To simplify the mean-field Hamiltonian, we assume a finite, normalised orthogonal tight-binding grid defined by the single-particle basis states:
