@@ -136,7 +136,7 @@ cdw_order_parameter = {}
 cdw_order_parameter[(0,0)] = np.kron(sz, np.eye(2))
 ```
 
-We choose a point in the phase diagram where we expect there to be a CDW phase and calculate the expectation value with the CDW order parameter. In order to do this we first construct the density matrix from the mean field solution. We perform this calculation over the complete phase diagram where we calculated the gap earlier:
+We choose a point in the phase diagram where we expect there to be a CDW phase and calculate the expectation value with the CDW order parameter. In order to do this we first construct the density matrix from the mean field solution. As the mean-field solution is in terms of a hopping dictionary, we can now freely choose the number of k-points on which we want to calculate the density-matrix. We perform this calculation over the complete phase diagram where we calculated the gap earlier:
 
 ```{code-cell} ipython3
 cdw_list = []
