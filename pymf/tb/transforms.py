@@ -1,5 +1,6 @@
 import itertools
 import numpy as np
+from scipy.fftpack import ifftn
 
 from pymf.tb.tb import _tb_type
 
@@ -35,6 +36,25 @@ def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
     ]
     tb_array = tb_array.reshape([num_keys] + [1] * ndim + list(tb_array.shape[1:]))
     return np.sum(tb_array * k_dependency, axis=0)
+
+
+def kgrid_to_tb(kgrid_array: np.ndarray) -> _tb_type:
+    """
+    Convert a k-space grid array to a tight-binding dictionary.
+
+    Parameters
+    ----------
+    kgrid_array :
+        K-space grid array to convert to a tight-binding dictionary.
+        The array should be of shape (nk, nk, ..., ndof, ndof),
+        where ndof is number of internal degrees of freedom.
+    Returns
+    -------
+    :
+        Tight-binding dictionary.
+    """
+    ndim = len(kgrid_array.shape) - 2
+    return ifftn_to_tb(ifftn(kgrid_array, axes=np.arange(ndim)))
 
 
 def ifftn_to_tb(ifft_array: np.ndarray) -> _tb_type:

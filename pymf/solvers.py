@@ -9,7 +9,7 @@ from pymf.model import Model
 from pymf.tb.utils import calculate_fermi_energy
 
 
-def cost(mf_param: np.ndarray, model: Model, nk: int = 100) -> np.ndarray:
+def cost(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted mean-field.
@@ -40,7 +40,7 @@ def cost(mf_param: np.ndarray, model: Model, nk: int = 100) -> np.ndarray:
 def solver(
     model: Model,
     mf_guess: np.ndarray,
-    nk: int = 100,
+    nk: int = 20,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0},
 ) -> _tb_type:

@@ -1,9 +1,8 @@
 import numpy as np
-from scipy.fftpack import ifftn
 from typing import Tuple
 
 from pymf.tb.tb import add_tb, _tb_type
-from pymf.tb.transforms import ifftn_to_tb, tb_to_kgrid
+from pymf.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
 def construct_density_matrix_kgrid(
@@ -61,7 +60,7 @@ def construct_density_matrix(
         kham = tb_to_kgrid(h, nk=nk)
         density_matrix_krid, fermi = construct_density_matrix_kgrid(kham, filling)
         return (
-            ifftn_to_tb(ifftn(density_matrix_krid, axes=np.arange(ndim))),
+            kgrid_to_tb(density_matrix_krid),
             fermi,
         )
     else:
