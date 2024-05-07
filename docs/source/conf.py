@@ -71,6 +71,8 @@ intersphinx_mapping = {
 
 default_role = "autolink"
 
+latex_elements = {"extrapackages": r"\usepackage{braket}"}
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 

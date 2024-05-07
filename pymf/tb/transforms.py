@@ -1,29 +1,30 @@
 import itertools
 import numpy as np
+from scipy.fftpack import ifftn
+
+from pymf.tb.tb import _tb_type
 
 
-def tb_to_khamvector(tb, nk, ks=None):
-    """Real-space tight-binding model to hamiltonian on k-space grid.
+def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
+    """Evaluate a tight-binding dictionary on a k-space grid.
 
     Parameters
     ----------
-    tb : dict
-        A dictionary with real-space vectors as keys and complex np.arrays as values.
-    nk : int
-        Number of k-points along each direction.
-    ks : 1D-array
-        Set of k-points. Repeated for all directions.
+    tb :
+        Tight-binding dictionary to evaluate on a k-space grid.
+    nk :
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
 
     Returns
     -------
-    ndarray
-        Hamiltonian evaluated on a k-point grid.
-
+    :
+        Tight-binding dictionary evaluated on a k-space grid.
+        Has shape (nk, nk, ..., ndof, ndof), where ndof is number of internal degrees of freedom.
     """
     ndim = len(list(tb)[0])
-    if ks is None:
-        ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
-        ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
+    ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
+    ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
     kgrid = np.meshgrid(*([ks] * ndim), indexing="ij")
 
     num_keys = len(list(tb.keys()))
@@ -37,66 +38,41 @@ def tb_to_khamvector(tb, nk, ks=None):
     return np.sum(tb_array * k_dependency, axis=0)
 
 
-def ifftn_to_tb(ifft_array):
-    """Convert an array from ifftn to a tight-binding model format.
+def kgrid_to_tb(kgrid_array: np.ndarray) -> _tb_type:
+    """
+    Convert a k-space grid array to a tight-binding dictionary.
 
     Parameters
     ----------
-    ifft_array : ndarray
-        An array obtained from ifftn.
-
+    kgrid_array :
+        K-space grid array to convert to a tight-binding dictionary.
+        The array should be of shape (nk, nk, ..., ndof, ndof),
+        where ndof is number of internal degrees of freedom.
     Returns
     -------
-    dict
-        A dictionary with real-space vectors as keys and complex np.arrays as values.
+    :
+        Tight-binding dictionary.
+    """
+    ndim = len(kgrid_array.shape) - 2
+    return ifftn_to_tb(ifftn(kgrid_array, axes=np.arange(ndim)))
+
+
+def ifftn_to_tb(ifft_array: np.ndarray) -> _tb_type:
+    """
+    Convert the result of `scipy.fft.ifftn` to a tight-binding dictionary.
+
+    Parameters
+    ----------
+    ifft_array :
+        Result of `scipy.fft.ifftn` to convert to a tight-binding dictionary.
+        The input to `scipy.fft.ifftn` should be from `tb_to_khamvector`.
+    Returns
+    -------
+    :
+        Tight-binding dictionary.
     """
     size = ifft_array.shape[:-2]
 
     keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
     keys = itertools.product(*keys)
     return {tuple(k): ifft_array[tuple(k)] for k in keys}
-
-
-def kham_to_tb(kham, hopping_vecs, ks=None):
-    """Extract hopping matrices from Bloch Hamiltonian.
-
-    Parameters
-    ----------
-    kham : nd-array
-        Bloch Hamiltonian matrix kham[k_x, ..., k_n, i, j]
-    hopping_vecs : list
-        List of hopping vectors, will be the keys to the tb.
-    ks : 1D-array
-        Set of k-points. Repeated for all directions. If the system is finite,
-        ks=None`.
-
-    Returns
-    -------
-    scf_model : dict
-        Tight-binding model of Hartree-Fock solution.
-    """
-    if ks is not None:
-        ndim = len(kham.shape) - 2
-        dk = np.diff(ks)[0]
-        nk = len(ks)
-        k_pts = np.tile(ks, ndim).reshape(ndim, nk)
-        k_grid = np.array(np.meshgrid(*k_pts))
-        k_grid = k_grid.reshape(k_grid.shape[0], np.prod(k_grid.shape[1:]))
-        kham = kham.reshape(np.prod(kham.shape[:ndim]), *kham.shape[-2:])
-
-        hopps = (
-            np.einsum(
-                "ij,jkl->ikl",
-                np.exp(1j * np.einsum("ij,jk->ik", hopping_vecs, k_grid)),
-                kham,
-            )
-            * (dk / (2 * np.pi)) ** ndim
-        )
-
-        h_0 = {}
-        for i, vector in enumerate(hopping_vecs):
-            h_0[tuple(vector)] = hopps[i]
-
-        return h_0
-    else:
-        return {(): kham}

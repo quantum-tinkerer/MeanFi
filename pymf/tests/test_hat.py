@@ -1,17 +1,21 @@
 # %%
 import numpy as np
-from pymf.solvers import solver
-from pymf.tb import utils
-from pymf.model import Model
-from pymf.tb.tb import add_tb, scale_tb
-from pymf import mf
-from pymf import observables
 import pytest
+
+from pymf import (
+    Model,
+    solver,
+    generate_guess,
+    scale_tb,
+    add_tb,
+    expectation_value,
+    construct_density_matrix,
+)
 
 
 # %%
 def total_energy(ham_tb, rho_tb):
-    return np.real(observables.expectation_value(rho_tb, ham_tb))
+    return np.real(expectation_value(rho_tb, ham_tb))
 
 
 # %%
@@ -35,10 +39,10 @@ for ndim in np.arange(4):
 
 # %%
 @np.vectorize
-def mf_rescaled(alpha, mf0, h0):
-    hamiltonian = add_tb(h0, scale_tb(mf0, alpha))
-    rho, _ = mf.construct_density_matrix(hamiltonian, filling=filling, nk=nk)
-    hamiltonian = add_tb(h0, scale_tb(mf0, np.sign(alpha)))
+def mf_rescaled(alpha, mf0):
+    hamiltonian = add_tb(h_0, scale_tb(mf0, alpha))
+    rho, _ = construct_density_matrix(hamiltonian, filling=filling, nk=nk)
+    hamiltonian = add_tb(h_0, scale_tb(mf0, np.sign(alpha)))
     return total_energy(hamiltonian, rho)
 
 
@@ -46,7 +50,7 @@ def mf_rescaled(alpha, mf0, h0):
 def test_mexican_hat(seed):
     np.random.seed(seed)
     for h0, h_int in zip(h0s, h_ints):
-        guess = utils.generate_guess(frozenset(h_int), ndof)
+        guess = generate_guess(frozenset(h_int), ndof)
         _model = Model(h0, h_int, filling=filling)
         mf_sol_groundstate = solver(
             _model, mf_guess=guess, nk=nk, optimizer_kwargs={"M": 0}

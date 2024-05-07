@@ -3,11 +3,13 @@ import numpy as np
 import pytest
 
 from pymf.kwant_helper import kwant_examples, utils
-from pymf.model import Model
-from pymf.solvers import solver
-from pymf.tb.tb import add_tb
-from pymf.tb.transforms import tb_to_khamvector
-from pymf.tb.utils import generate_guess
+from pymf import (
+    Model,
+    solver,
+    tb_to_kgrid,
+    generate_guess,
+    add_tb,
+)
 
 
 def compute_gap(tb, fermi_energy=0, nk=100):
@@ -27,7 +29,7 @@ def compute_gap(tb, fermi_energy=0, nk=100):
      gap : float
      Indirect gap.
     """
-    kham = tb_to_khamvector(tb, nk, ks=None)
+    kham = tb_to_kgrid(tb, nk)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])

@@ -18,7 +18,16 @@ kernelspec:
 :maxdepth: 1
 :caption: Tutorials
 
+```
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+:caption: Documentation
+
 mf_notes.md
+algorithm.md
+documentation/pymf.md
 ```
 
 ## What is pymf?

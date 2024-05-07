@@ -1,29 +1,36 @@
 import inspect
 from copy import copy
 from itertools import product
+from typing import Callable
 
-import kwant
 import numpy as np
 from scipy.sparse import coo_array
+import kwant
+import kwant.lattice
+import kwant.builder
+
+from pymf.tb.tb import _tb_type
 
 
-def builder_to_tb(builder, params={}, return_data=False):
-    """Construct a tight-binding model dictionary from a `kwant.Builder`.
+def builder_to_tb(
+    builder: kwant.builder.Builder, params: dict = {}, return_data: bool = False
+) -> _tb_type:
+    """Construct a tight-binding dictionary from a `kwant.builder.Builder` system.
 
     Parameters
     ----------
-    builder : `kwant.Builder`
-        Either builder for non-interacting system or interacting Hamiltonian.
-    params : dict
-        Dictionary of parameters to evaluate the Hamiltonian.
-    return_data : bool
+    builder :
+       system to convert to tight-binding dictionary.
+    params :
+        Dictionary of parameters to evaluate the builder on.
+    return_data :
         Returns dictionary with sites and number of orbitals per site.
 
     Returns
     -------
-    h_0 : dict
-        Tight-binding model of non-interacting systems.
-    data : dict
+    :
+        Tight-binding dictionary that corresponds to the builder.
+    :
         Data with sites and number of orbitals. Only if `return_data=True`.
     """
     builder = copy(builder)
@@ -124,28 +131,38 @@ def builder_to_tb(builder, params={}, return_data=False):
         return h_0
 
 
-def build_interacting_syst(builder, lattice, func_onsite, func_hop, max_neighbor=1):
-    """Construct an auxiliary `kwant` system to build Hamiltonian matrix.
+def build_interacting_syst(
+    builder: kwant.builder.Builder,
+    lattice: kwant.lattice.Polyatomic,
+    func_onsite: Callable,
+    func_hop: Callable,
+    max_neighbor: int = 1,
+) -> kwant.builder.Builder:
+    """
+    Construct an auxiliary `kwant` system that encodes the interactions.
 
     Parameters
     ----------
-    builder : `kwant.Builder`
-        Non-interacting `kwant` system.
-    func_onsite : function
-        Onsite function.
-    func_hop : function
-        Hopping function.
-    max_neighbor : int
-        Maximal nearest-neighbor order.
+    builder :
+        Non-interacting `kwant.builder.Builder` system.
+    lattice :
+        Lattice of the system.
+    func_onsite :
+        Onsite interactions function.
+    func_hop :
+        Hopping/inter unit cell interactions function.
+    max_neighbor :
+        The maximal number of neighbouring unit cells (along a lattice vector)
+        connected by interaction. Interaction goes to zero after this distance.
 
     Returns
     -------
-    int_builder : `kwant.Builder`
-        Dummy `kwant.Builder` to compute interaction matrix.
+    :
+        Auxiliary `kwant.builder.Builder` that encodes the interactions of the system.
     """
-    # lattice_info = list(builder.sites())[0][0]
-    # lattice = kwant.lattice.general(lattice_info.prim_vecs, norbs=lattice_info.norbs)
-    int_builder = kwant.Builder(kwant.TranslationalSymmetry(*builder.symmetry.periods))
+    int_builder = kwant.builder.Builder(
+        kwant.lattice.TranslationalSymmetry(*builder.symmetry.periods)
+    )
     int_builder[builder.sites()] = func_onsite
     for neighbors in range(max_neighbor):
         int_builder[lattice.neighbors(neighbors + 1)] = func_hop
