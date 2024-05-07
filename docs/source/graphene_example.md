@@ -109,8 +109,8 @@ We chose to initialize a new guess for each $U$ value, but not for each $V$ valu
 We can now compute the phase diagram and then plot it
 
 ```{code-cell} ipython3
-Us = np.linspace(0, 4, 5)
-Vs = np.linspace(0, 1.5, 5)
+Us = np.linspace(0, 4, 10)
+Vs = np.linspace(0, 1.5, 10)
 gap, mf_sols = compute_phase_diagram(Us, Vs, int_builder, h_0)
 plt.imshow(gap.T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
 plt.colorbar()
