@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Graphene and extended Hubbard
+# Graphene with interactions
 
 ## The physics
 

@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# 1d Hubbard
+# 1D Hubbard on spin chain
 
 To simulate how the package can be used to simulate infinite systems, we show how to use it with a tight-binding model in 1 dimension.
 We exemplify this by computing the ground state of an infinite spinful chain with onsite interactions.
