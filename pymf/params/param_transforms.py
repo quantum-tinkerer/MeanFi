@@ -1,9 +1,9 @@
 import numpy as np
 
-from pymf.tb.tb import tb_type
+from pymf.tb.tb import _tb_type
 
 
-def tb_to_flat(tb: tb_type) -> np.ndarray:
+def tb_to_flat(tb: _tb_type) -> np.ndarray:
     """Parametrise a hermitian tight-binding dictionary by a flat complex vector.
 
     Parameters
@@ -29,7 +29,7 @@ def flat_to_tb(
     tb_param_complex: np.ndarray,
     ndof: int,
     tb_keys: list[tuple[None] | tuple[int, ...]],
-) -> tb_type:
+) -> _tb_type:
     """Reverse operation to `tb_to_flat`.
 
     It takes a flat complex 1d array and return the tight-binding dictionary.

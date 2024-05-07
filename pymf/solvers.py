@@ -4,7 +4,7 @@ import scipy
 from typing import Optional, Callable
 
 from pymf.params.rparams import rparams_to_tb, tb_to_rparams
-from pymf.tb.tb import add_tb, tb_type
+from pymf.tb.tb import add_tb, _tb_type
 from pymf.model import Model
 from pymf.tb.utils import calculate_fermi_energy
 
@@ -43,7 +43,7 @@ def solver(
     nk: int = 100,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0},
-) -> tb_type:
+) -> _tb_type:
     """Solve for the mean-field correction through self-consistent root finding.
 
     Parameters

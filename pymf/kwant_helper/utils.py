@@ -2,18 +2,19 @@ import inspect
 from copy import copy
 from itertools import product
 from typing import Callable
-from pymf.tb.tb import tb_type
 
+import numpy as np
+from scipy.sparse import coo_array
 import kwant
 import kwant.lattice
 import kwant.builder
-import numpy as np
-from scipy.sparse import coo_array
+
+from pymf.tb.tb import _tb_type
 
 
 def builder_to_tb(
     builder: kwant.builder.Builder, params: dict = {}, return_data: bool = False
-) -> tb_type:
+) -> _tb_type:
     """Construct a tight-binding dictionary from a `kwant.builder.Builder` system.
 
     Parameters

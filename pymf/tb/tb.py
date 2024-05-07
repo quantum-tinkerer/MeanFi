@@ -1,9 +1,9 @@
 import numpy as np
 
-tb_type = dict[tuple[()] | tuple[int, ...], np.ndarray]
+_tb_type = dict[tuple[()] | tuple[int, ...], np.ndarray]
 
 
-def add_tb(tb1: tb_type, tb2: tb_type) -> tb_type:
+def add_tb(tb1: _tb_type, tb2: _tb_type) -> _tb_type:
     """Add up two tight-binding dictionaries together.
 
     Parameters
@@ -21,7 +21,7 @@ def add_tb(tb1: tb_type, tb2: tb_type) -> tb_type:
     return {k: tb1.get(k, 0) + tb2.get(k, 0) for k in frozenset(tb1) | frozenset(tb2)}
 
 
-def scale_tb(tb: tb_type, scale: float) -> tb_type:
+def scale_tb(tb: _tb_type, scale: float) -> _tb_type:
     """Scale a tight-binding dictionary by a constant.
 
     Parameters

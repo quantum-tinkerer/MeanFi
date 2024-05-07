@@ -2,7 +2,7 @@ import numpy as np
 from scipy.fftpack import ifftn
 from typing import Tuple
 
-from pymf.tb.tb import add_tb, tb_type
+from pymf.tb.tb import add_tb, _tb_type
 from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
 
 
@@ -36,8 +36,8 @@ def construct_density_matrix_kgrid(
 
 
 def construct_density_matrix(
-    h: tb_type, filling: float, nk: int
-) -> Tuple[tb_type, float]:
+    h: _tb_type, filling: float, nk: int
+) -> Tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
@@ -69,7 +69,7 @@ def construct_density_matrix(
         return {(): density_matrix}, fermi
 
 
-def meanfield(density_matrix: tb_type, h_int: tb_type) -> tb_type:
+def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     """Compute the mean-field correction from the density matrix.
 
     Parameters

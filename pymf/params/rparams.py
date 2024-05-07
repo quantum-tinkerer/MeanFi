@@ -6,10 +6,10 @@ from pymf.params.param_transforms import (
     real_to_complex,
     tb_to_flat,
 )
-from pymf.tb.tb import tb_type
+from pymf.tb.tb import _tb_type
 
 
-def tb_to_rparams(tb: tb_type) -> np.ndarray:
+def tb_to_rparams(tb: _tb_type) -> np.ndarray:
     """Parametrise a hermitian tight-binding dictionary by a real vector.
 
     Parameters
@@ -27,7 +27,7 @@ def tb_to_rparams(tb: tb_type) -> np.ndarray:
 
 def rparams_to_tb(
     tb_params: np.ndarray, tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int
-) -> tb_type:
+) -> _tb_type:
     """Extract a hermitian tight-binding dictionary from a real vector parametrisation.
 
     Parameters
