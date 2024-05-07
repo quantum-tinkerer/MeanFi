@@ -1,12 +1,10 @@
 import itertools
 import numpy as np
-from typing import Optional
-from pymf.tb.tb import tb_type
 
-ks_type = Optional[np.ndarray]
+from pymf.tb.tb import _tb_type
 
 
-def tb_to_khamvector(tb: tb_type, nk: int) -> np.ndarray:
+def tb_to_khamvector(tb: _tb_type, nk: int) -> np.ndarray:
     """Evaluate a tight-binding dictionary on a k-space grid.
 
     Parameters
@@ -39,7 +37,7 @@ def tb_to_khamvector(tb: tb_type, nk: int) -> np.ndarray:
     return np.sum(tb_array * k_dependency, axis=0)
 
 
-def ifftn_to_tb(ifft_array: np.ndarray) -> tb_type:
+def ifftn_to_tb(ifft_array: np.ndarray) -> _tb_type:
     """
     Convert the result of `scipy.fft.ifftn` to a tight-binding dictionary.
 

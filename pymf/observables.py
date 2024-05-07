@@ -1,9 +1,9 @@
 import numpy as np
 
-from pymf.tb.tb import tb_type
+from pymf.tb.tb import _tb_type
 
 
-def expectation_value(density_matrix: tb_type, observable: tb_type) -> complex:
+def expectation_value(density_matrix: _tb_type, observable: _tb_type) -> complex:
     """Compute the expectation value of an observable with respect to a density matrix.
 
     Parameters

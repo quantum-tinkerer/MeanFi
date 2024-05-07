@@ -4,7 +4,7 @@ from pymf.mf import (
     construct_density_matrix,
     meanfield,
 )
-from pymf.tb.tb import add_tb, tb_type
+from pymf.tb.tb import add_tb, _tb_type
 
 
 def _check_hermiticity(h):
@@ -57,7 +57,7 @@ class Model:
     the interaction is the same between all internal degrees of freedom.
     """
 
-    def __init__(self, h_0: tb_type, h_int: tb_type, filling: float) -> None:
+    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float) -> None:
         _tb_type_check(h_0)
         self.h_0 = h_0
         _tb_type_check(h_int)
@@ -76,7 +76,7 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def mfield(self, mf: tb_type, nk: int = 200) -> tb_type:
+    def mfield(self, mf: _tb_type, nk: int = 200) -> _tb_type:
         """Computes a new mean-field correction from a given one.
 
         Parameters

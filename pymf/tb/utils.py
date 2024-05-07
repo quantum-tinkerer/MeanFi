@@ -1,14 +1,14 @@
 from itertools import product
 import numpy as np
 
-from pymf.tb.tb import tb_type
+from pymf.tb.tb import _tb_type
 from pymf.mf import fermi_on_grid
 from pymf.tb.transforms import tb_to_khamvector
 
 
 def generate_guess(
     tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 1
-) -> tb_type:
+) -> _tb_type:
     """Generate guess tight-binding dictionary.
 
     Parameters
@@ -59,7 +59,7 @@ def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
-def calculate_fermi_energy(tb: tb_type, filling: float, nk: int = 100):
+def calculate_fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
     """
     Calculate the Fermi energy of a given tight-binding dictionary.
 
