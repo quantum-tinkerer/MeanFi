@@ -18,12 +18,8 @@ kernelspec:
 :maxdepth: 1
 :caption: Tutorials
 
-
-mf_notes.md
-algorithm.md
-hubbard_1d.md
-graphene_example.md
-
+tutorial/hubbard_1d.md
+tutorial/graphene_example.md
 ```
 
 ```{toctree}
@@ -31,8 +27,8 @@ graphene_example.md
 :maxdepth: 1
 :caption: Documentation
 
-mf_notes.md
-algorithm.md
+documentation/mf_notes.md
+documentation/algorithm.md
 documentation/pymf.md
 ```
 
