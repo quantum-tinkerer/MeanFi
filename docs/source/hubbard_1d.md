@@ -21,12 +21,15 @@ First, the basic imports are done.
 import numpy as np
 import matplotlib.pyplot as plt
 import pymf
+from tqdm import tqdm
 ```
 
 After this, we start by constructing the non-interacting Hamiltonian. As we expect the ground state to be an antiferromagnet, we build a two-atom cell. We name the two sublattices, $A$ and $B$. The Hamiltonian is then:
+
 $$
 H_0 = \sum_i c_{i, B}^{\dagger}c_{i, A} + c_{i, A}^{\dagger}c_{i+1, B} + h.c.
 $$
+
 We write down the spinful part by simply taking $H_0(k) \otimes \mathbb{1}$.
 
 To translat ethis Hamiltonian into a tight-binding model, we specify the hopping vectors together with the hopping amplitudes. We ensure that the Hamiltonian is hermitian by letting the hopping amplitudes from $A$ to $B$ be the complex conjugate of the hopping amplitudes from $B$ to $A$.
@@ -36,7 +39,7 @@ hopp = np.kron(np.array([[0, 1], [0, 0]]), np.eye(2))
 h_0 = {(0,): hopp + hopp.T.conj(), (1,): hopp, (-1,): hopp.T.conj()}
 ```
 
-We verify this tight-binding model by plotting the band structure and observing the two bands due to the Brillouin zone folding. In order to do this we transform the tight-binding model into a Hamiltonian on a k-point grid using the `tb_to_khamvector` and then diagonalize it.
+We verify this tight-binding model by plotting the band structure and observing the two bands due to the Brillouin zone folding. In order to do this we transform the tight-binding model into a Hamiltonian on a k-point grid using the `tb_to_kgrid` and then diagonalize it.
 
 ```{code-cell} ipython3
 # Set number of k-points
@@ -70,10 +73,10 @@ This is simply constructed by writing:
 
 ```{code-cell} ipython3
 U=0.5
-h_int = {(0,): U * np.kron(np.ones((2, 2)), np.eye(2)),}
+h_int = {(0,): U * np.kron(np.eye(2), np.ones((2,2))),}
 ```
 
-In order to find a mean-field solution, we combine the non interacting Hamiltonian with the interaction Hamiltonian and the relevant filling into a `Model` object. We then generate a starting guess for the mean-field solution and solve the model using the `solver` function. It is important to note that the guess will influence the possible solutions which the `solver` can find in the mean-field procedure. The `generate_guess` function generates a random Hermitian tight-binding dictionary, with the keys provided as hopping vectors and the values of the size as specified.
+In order to find a mean-field solution, we combine the non interacting Hamiltonian with the interaction Hamiltonian and the relevant filling into a `Model` object. We then generate a starting guess for the mean-field solution and solve the model using the `solver` function. It is important to note that the guess will influence the possible solutions which the `solver` can find in the mean-field procedure. The `generate_guess` function generates a random Hermitian tight-binding dictionary, with the keys provided as hopping vectors and the values of the size as specified. We specifically choose the keys, meaning the hopping vectors, for the `guess` to be the same as the hopping vectors for the interaction Hamiltonian. This is because we do not expect the mean-field solution to contain terms more than the hoppings from the interacting part.
 
 ```{code-cell} ipython3
 filling = 2
@@ -91,12 +94,12 @@ def compute_sol(U, h_0, nk, filling=2):
     }
     guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     full_model = pymf.Model(h_0, h_int, filling)
-    mf_sol = pymf.solver(full_model, guess, nk=nk, optimizer_kwargs={"M":0})
+    mf_sol = pymf.solver(full_model, guess, nk=nk)
     return pymf.add_tb(h_0, mf_sol)
 
 
 def compute_gap_and_vals(full_sol, nk_dense, fermi_energy=0):
-    h_kgrid = pymf.tb_to_khamvector(full_sol, nk_dense)
+    h_kgrid = pymf.tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
 
     emax = np.max(vals[vals <= fermi_energy])
@@ -119,3 +122,20 @@ def compute_phase_diagram(
 
     return np.asarray(gaps, dtype=float), np.asarray(vals)
 ```
+
+Now we run this function over a larger range of $U$ values and plot the gap as a function of $U$.
+
+```{code-cell} ipython3
+Us = np.linspace(0, 8, 40, endpoint=True)
+nk, nk_dense = 40, 100
+gap, vals = compute_phase_diagram(Us=Us, nk=nk, nk_dense=nk_dense)
+```
+
+```{code-cell} ipython3
+plt.plot(Us, gap, c="k")
+plt.xlabel("$U$")
+plt.ylabel("Gap")
+plt.show()
+```
+
+As expected, there is a critical $U$ around $U=1$ where the gap opens. Furthermore, at large $U$, the gap scales linearly with $U$.

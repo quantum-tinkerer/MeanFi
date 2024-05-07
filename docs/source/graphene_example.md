@@ -66,7 +66,7 @@ After we have defined the guess, we feed it together with the model into the mea
 
 ## Creating a phase diagram of the gap
 
-We can now create a phase diagram of the gap of the interacting solution. In order to calculate the gap we first create a function which takes a hopping dictionary and a Fermi energy and returns the indirect gap. The gap is defined as the difference between the highest occupied and the lowest unoccupied energy level. We will use a dense k-grid to calculate the gap. In order to obtain the Hamiltonian on a dense k-grid, we use the `tb_to_khamvector` function from the `transforms` module.
+We can now create a phase diagram of the gap of the interacting solution. In order to calculate the gap we first create a function which takes a hopping dictionary and a Fermi energy and returns the indirect gap. The gap is defined as the difference between the highest occupied and the lowest unoccupied energy level. We will use a dense k-grid to calculate the gap. In order to obtain the Hamiltonian on a dense k-grid, we use the `tb_to_kgrid` function from pymf.
 
 ```{code-cell} ipython3
 def compute_gap(h, fermi_energy=0, nk=100):
@@ -104,7 +104,7 @@ def compute_phase_diagram(Us, Vs, int_builder, h_0):
   mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
   return gaps, mf_sols
 ```
-We chose to initialize a new guess for each $U$ value, but not for each $V$ value. Instead, for consecutive $V$ values we use the previous mean-field solution as a guess. We do this because the mean-field solution is expected to be smooth in the interaction strength and therefore by using an inspired guess we can speed up the calculation.
+We chose to initialize a new guess for each new $U$ and $V$ value. For certain mean-field problems, one might want to reuse the mean-field solution of a nearby parameter as the next guess in order to speed up computations. However, as the size of this system is still small, we can afford to initialize a new guess for each new $U$ and $V$ value.
 
 We can now compute the phase diagram and then plot it
 
