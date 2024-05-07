@@ -76,7 +76,7 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def mfield(self, mf: _tb_type, nk: int = 200) -> _tb_type:
+    def mfield(self, mf: _tb_type, nk: int = 20) -> _tb_type:
         """Computes a new mean-field correction from a given one.
 
         Parameters
