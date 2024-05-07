@@ -2,8 +2,8 @@ from itertools import product
 import numpy as np
 
 from pymf.tb.tb import _tb_type
-from pymf.mf import fermi_on_grid
-from pymf.tb.transforms import tb_to_khamvector
+from pymf.mf import fermi_on_kgrid
+from pymf.tb.transforms import tb_to_kgrid
 
 
 def generate_guess(
@@ -79,6 +79,6 @@ def calculate_fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
     :
         Fermi energy.
     """
-    kham = tb_to_khamvector(tb, nk)
+    kham = tb_to_kgrid(tb, nk)
     vals = np.linalg.eigvalsh(kham)
-    return fermi_on_grid(vals, filling)
+    return fermi_on_kgrid(vals, filling)

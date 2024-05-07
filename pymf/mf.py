@@ -3,7 +3,7 @@ from scipy.fftpack import ifftn
 from typing import Tuple
 
 from pymf.tb.tb import add_tb, _tb_type
-from pymf.tb.transforms import ifftn_to_tb, tb_to_khamvector
+from pymf.tb.transforms import ifftn_to_tb, tb_to_kgrid
 
 
 def construct_density_matrix_kgrid(
@@ -27,7 +27,7 @@ def construct_density_matrix_kgrid(
         Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi energy.
     """
     vals, vecs = np.linalg.eigh(kham)
-    fermi = fermi_on_grid(vals, filling)
+    fermi = fermi_on_kgrid(vals, filling)
     unocc_vals = vals > fermi
     occ_vecs = vecs
     np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
@@ -58,7 +58,7 @@ def construct_density_matrix(
     """
     ndim = len(list(h)[0])
     if ndim > 0:
-        kham = tb_to_khamvector(h, nk=nk)
+        kham = tb_to_kgrid(h, nk=nk)
         density_matrix_krid, fermi = construct_density_matrix_kgrid(kham, filling)
         return (
             ifftn_to_tb(ifftn(density_matrix_krid, axes=np.arange(ndim))),
@@ -115,7 +115,7 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     return add_tb(direct, exchange)
 
 
-def fermi_on_grid(vals: np.ndarray, filling: float) -> float:
+def fermi_on_kgrid(vals: np.ndarray, filling: float) -> float:
     """Compute the Fermi energy on a grid of k-points.
 
     Parameters

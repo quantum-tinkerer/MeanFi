@@ -4,7 +4,7 @@ import numpy as np
 from pymf.tb.tb import _tb_type
 
 
-def tb_to_khamvector(tb: _tb_type, nk: int) -> np.ndarray:
+def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
     """Evaluate a tight-binding dictionary on a k-space grid.
 
     Parameters
