@@ -28,7 +28,9 @@ h_ints = []
 for ndim in np.arange(4):
     keys = utils.generate_vectors(cutoff, ndim)
     h0s.append(utils.generate_guess(keys, ndof))
-    h_ints.append(utils.generate_guess(keys, ndof))
+    h_int = utils.generate_guess(keys, ndof)
+    h_int[keys[len(keys) // 2]] += U0
+    h_ints.append(h_int)
 
 
 # %%
