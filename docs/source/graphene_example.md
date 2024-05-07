@@ -70,7 +70,7 @@ We can now create a phase diagram of the gap of the interacting solution. In ord
 
 ```{code-cell} ipython3
 def compute_gap(h, fermi_energy=0, nk=100):
-    kham = pymf.tb_to_khamvector(h, nk, ks=None)
+    kham = pymf.tb_to_kgrid(h, nk)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])

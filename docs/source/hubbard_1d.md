@@ -42,7 +42,7 @@ We verify this tight-binding model by plotting the band structure and observing 
 # Set number of k-points
 nk = 100
 ks = np.linspace(0, 2*np.pi, nk, endpoint=False)
-hamiltonians_0 = pymf.tb_to_khamvector(h_0, nk, ks=ks)
+hamiltonians_0 = pymf.tb_to_kgrid(h_0, nk)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
 plt.plot(ks, vals, c="k")
