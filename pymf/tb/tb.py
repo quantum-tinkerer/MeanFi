@@ -1,6 +1,6 @@
 import numpy as np
 
-tb_type = dict[tuple[None] | tuple[int, ...], np.ndarray]
+tb_type = dict[tuple[()] | tuple[int, ...], np.ndarray]
 
 
 def add_tb(tb1: tb_type, tb2: tb_type) -> tb_type:
