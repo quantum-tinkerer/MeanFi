@@ -196,3 +196,17 @@ plt.ylabel('U')
 plt.title('Spin Density Wave Order Parameter')
 plt.show()
 ```
+
+## Full phase diagram
+
+Finally, we can combine the gap, CDW and SDW phase diagrams into one plot. We naively do this by plotting the order parameter of CDW minus the order parameter of SDW. Furthermore, we normalize the gap such that it is between $0$ and $1$ and can thus be used for the transparency.
+
+```{code-cell} ipython3
+import matplotlib.ticker as mticker
+normalized_gap = gap/np.max(gap)
+plt.imshow(np.abs(cdw_list.T.real)-np.abs(sdw_list.T.real), extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto', cmap="coolwarm", alpha=normalized_gap.T)
+plt.colorbar(ticks=[-1.75, 0, 1.75], format=mticker.FixedFormatter(['SDW', '0', 'CDW']), label='Order parameter', extend='both')
+plt.xlabel('V')
+plt.ylabel('U')
+plt.show()
+```
