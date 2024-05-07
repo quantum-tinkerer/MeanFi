@@ -83,3 +83,39 @@ mf_sol = pymf.solver(full_model, guess, nk=nk)
 ```
 
 The `solver` function returns only the mean-field correction to the non-interacting Hamiltonian. To get the full Hamiltonian, we add the mean-field correction to the non-interacting Hamiltonian. To take a look at whether the result is correct, we first do the mean-field computation for a wider range of $U$ values and then plot the gap as a function of $U$.
+
+```{code-cell} ipython3
+def compute_sol(U, h_0, nk, filling=2):
+    h_int = {
+        (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
+    }
+    guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+    full_model = pymf.Model(h_0, h_int, filling)
+    mf_sol = pymf.solver(full_model, guess, nk=nk)
+    return pymf.add_tb(h_0, mf_sol)
+
+
+def compute_gap_and_vals(full_sol, nk_dense, fermi_energy=0):
+    h_kgrid = pymf.tb_to_khamvector(full_sol, nk_dense)
+    vals = np.linalg.eigvalsh(h_kgrid)
+
+    emax = np.max(vals[vals <= fermi_energy])
+    emin = np.min(vals[vals > fermi_energy])
+    return np.abs(emin - emax), vals
+
+
+def compute_phase_diagram(
+    Us,
+    nk,
+    nk_dense,
+):
+    gaps = []
+    vals = []
+    for U in tqdm(Us):
+        full_sol = compute_sol(U, h_0, nk)
+        gap, _vals = compute_gap_and_vals(full_sol, nk_dense)
+        gaps.append(gap)
+        vals.append(_vals)
+
+    return np.asarray(gaps, dtype=float), np.asarray(vals)
+```
