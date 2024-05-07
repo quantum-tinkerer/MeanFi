@@ -21,7 +21,6 @@ First, the basic imports are done.
 import numpy as np
 import matplotlib.pyplot as plt
 import pymf
-from tqdm import tqdm
 ```
 
 After this, we start by constructing the non-interacting Hamiltonian. As we expect the ground state to be an antiferromagnet, we build a two-atom cell. We name the two sublattices, $A$ and $B$. The Hamiltonian is then:
@@ -114,7 +113,7 @@ def compute_phase_diagram(
 ):
     gaps = []
     vals = []
-    for U in tqdm(Us):
+    for U in Us:
         full_sol = compute_sol(U, h_0, nk)
         gap, _vals = compute_gap_and_vals(full_sol, nk_dense)
         gaps.append(gap)
