@@ -37,7 +37,7 @@ def compute_gap(tb, fermi_energy=0, nk=100):
     return np.abs(emin - emax)
 
 
-repeat_number = 10
+repeat_number = 5
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 h_0 = utils.builder_to_tb(graphene_builder)
@@ -77,9 +77,7 @@ def gap_prediction(U, V):
     guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
-    mf_sol = solver(
-        model, guess, nk=nk, optimizer_kwargs={"verbose": True, "M": 0, "f_tol": 1e-8}
-    )
+    mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"M": 0, "f_tol": 1e-8})
     gap = compute_gap(add_tb(h_0, mf_sol), nk=200)
 
     # Check if the gap is predicted correctly

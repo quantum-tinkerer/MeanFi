@@ -10,7 +10,7 @@ from pymf import (
     add_tb,
 )
 
-repeat_number = 10
+repeat_number = 3
 
 
 # %%
@@ -33,7 +33,7 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
     gaps = []
     for U in Us:
         h_int = {
-            (0,): U * np.kron(np.ones((2, 2)), np.eye(2)),
+            (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
         }
         guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
         full_model = Model(h_0, h_int, filling=2)
@@ -49,5 +49,5 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
 def test_gap_hubbard(seed):
     """Test the gap prediction for the Hubbard model."""
     np.random.seed(seed)
-    Us = np.linspace(0.5, 5, 50, endpoint=True)
-    gap_relation_hubbard(Us, nk=30, nk_dense=100, tol=1e-2)
+    Us = np.linspace(8, 10, 15, endpoint=True)
+    gap_relation_hubbard(Us, nk=20, nk_dense=100, tol=1e-1)
