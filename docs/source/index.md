@@ -20,6 +20,7 @@ kernelspec:
 
 mf_notes.md
 graphene_example.md
+hubbard_1d.md
 ```
 
 ## What is pymf?

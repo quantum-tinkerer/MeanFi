@@ -42,7 +42,7 @@ We verify this tight-binding model by plotting the band structure and observing 
 # Set number of k-points
 nk = 100
 ks = np.linspace(0, 2*np.pi, nk, endpoint=False)
-hamiltonians_0 = pymf.tb_to_khamvector(h_0, nk, 1, ks=ks)
+hamiltonians_0 = pymf.tb_to_khamvector(h_0, nk, ks=ks)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
 plt.plot(ks, vals, c="k")
@@ -69,12 +69,14 @@ $$
 This is simply constructed by writing:
 
 ```{code-cell} ipython3
+U=0.5
 h_int = {(0,): U * np.kron(np.ones((2, 2)), np.eye(2)),}
 ```
 
 In order to find a meanfield solution, we combine the non interacting Hamiltonian with the interaction Hamiltonian and the relevant filling into a `Model` object. We then generate a starting guess for the meanfield solution and solve the model using the `solver` function. It is important to note that the guess will influence the possible solutions which the `solver` can find in the meanfield procedure. The `generate_guess` function generates a random Hermitian tight-binding dictionary, with the keys provided as hopping vectors and the values of the size as specified.
 
 ```{code-cell} ipython3
+filling = 2
 full_model = pymf.Model(h_0, h_int, filling)
 guess = pymf.generate_guess(frozenset(h_int), ndof=4)
 mf_sol = pymf.solver(full_model, guess, nk=nk)
