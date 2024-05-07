@@ -18,7 +18,6 @@ kernelspec:
 :maxdepth: 1
 :caption: Tutorials
 
-mf_notes.md
 ```
 
 ```{toctree}
@@ -26,6 +25,8 @@ mf_notes.md
 :maxdepth: 1
 :caption: Documentation
 
+mf_notes.md
+algorithm.md
 documentation/pymf.md
 ```
 
