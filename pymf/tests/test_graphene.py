@@ -6,7 +6,7 @@ from pymf.kwant_helper import kwant_examples, utils
 from pymf import (
     Model,
     solver,
-    tb_to_khamvector,
+    tb_to_kgrid,
     generate_guess,
     add_tb,
 )
@@ -29,7 +29,7 @@ def compute_gap(tb, fermi_energy=0, nk=100):
      gap : float
      Indirect gap.
     """
-    kham = tb_to_khamvector(tb, nk)
+    kham = tb_to_kgrid(tb, nk)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])
