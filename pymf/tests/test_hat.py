@@ -18,38 +18,18 @@ def total_energy(ham_tb, rho_tb):
 U0 = 1
 filling = 2
 nk = 20
-repeat_number = 10
+repeat_number = 3
+ndof = 4
+cutoff = 1
 
-hopp = np.kron(np.array([[0, 1], [0, 0]]), np.eye(2))
+h0s = []
+h_ints = []
 
-# 0D
-h0_0d = {(): hopp + hopp.T.conj()}
-h_int_0d = {(): U0 * np.kron(np.eye(2), np.ones((2, 2)))}
-
-# 1D
-h0_1d = {(0,): hopp + hopp.T.conj(), (1,): hopp, (-1,): hopp.T.conj()}
-h_int_1d = {
-    (0,): U0 * np.kron(np.eye(2), np.ones((2, 2))),
-}
-
-# 2D
-h0_2d = {
-    (0, 0): hopp + hopp.T.conj(),
-    (0, 1): hopp,
-    (0, -1): hopp.T.conj(),
-}
-h_int_2d = {
-    (0, 0): U0 * np.kron(np.eye(2), np.ones((2, 2))),
-}
-
-# 3D
-h0_3d = {(0, 0, 0): hopp + hopp.T.conj(), (0, 0, 1): hopp, (0, 0, -1): hopp.T.conj()}
-h_int_3d = {
-    (0, 0, 0): U0 * np.kron(np.eye(2), np.ones((2, 2))),
-}
-
-h0s = [h0_0d, h0_1d, h0_2d, h0_3d]
-h_ints = [h_int_0d, h_int_1d, h_int_2d, h_int_3d]
+for ndim in np.arange(4):
+    keys = utils.generate_vectors(cutoff, ndim)
+    h0s.append(utils.generate_guess(keys, ndof))
+    h_int = {keys[len(keys) // 2]: U0 * np.kron(np.eye(2), np.ones((2, 2)))}
+    h_ints.append(h_int)
 
 
 # %%
@@ -65,7 +45,7 @@ def mf_rescaled(alpha, mf0, h0):
 def test_mexican_hat(seed):
     np.random.seed(seed)
     for h0, h_int in zip(h0s, h_ints):
-        guess = utils.generate_guess(frozenset(h_int), len(hopp))
+        guess = utils.generate_guess(frozenset(h_int), ndof)
         _model = Model(h0, h_int, filling=filling)
         mf_sol_groundstate = solver(
             _model, mf_guess=guess, nk=nk, optimizer_kwargs={"M": 0}
