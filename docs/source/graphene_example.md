@@ -15,7 +15,7 @@ kernelspec:
 
 ## The physics
 
-This tutorial serves as a simple example of using the meanfield algorithm in two dimensions in combination with using Kwant. We will consider a simple tight-binding model of graphene with a Hubbard interaction. The graphene system is first created using Kwant. For the basics of creating graphene with Kwant we refer to [this](https://kwant-project.org/doc/1/tutorial/graphene) tutorial.
+This tutorial serves as a simple example of using the mean-field algorithm in two dimensions in combination with using Kwant. We will consider a simple tight-binding model of graphene with a Hubbard interaction. The graphene system is first created using Kwant. For the basics of creating graphene with Kwant we refer to [this](https://kwant-project.org/doc/1/tutorial/graphene) tutorial.
 
 We begin with the basic imports
 
@@ -54,7 +54,7 @@ h_int = kwant_utils.builder_to_tb(int_builder, params)
 _model = pymf.Model(h_0, h_int, filling=2)
 ```
 
-To start the meanfield calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same number of degrees as freedom as both the non-interacting and interacting part, so that they match.
+To start the mean-field calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same number of degrees as freedom as both the non-interacting and interacting part, so that they match.
 
 ```{code-cell} ipython3
 guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
@@ -62,7 +62,7 @@ mf_sol = pymf.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
 full_sol = pymf.add_tb(h_0, mf_sol)
 ```
 
-After we have defined the guess, we feed it together with the model into the meanfield solver. The meanfield solver will return a hopping dictionary with the meanfield approximation. We can then add this solution to the non-interacting part to get the full solution. In order to get the solution, we specified the number of k-points to be used in the calculation. This refers to the k-grid used in the Brillouin zone for the density matrix.
+After we have defined the guess, we feed it together with the model into the mean-field solver. The mean-field solver will return a hopping dictionary with the mean-field approximation. We can then add this solution to the non-interacting part to get the full solution. In order to get the solution, we specified the number of k-points to be used in the calculation. This refers to the k-grid used in the Brillouin zone for the density matrix.
 
 ## Creating a phase diagram of the gap
 

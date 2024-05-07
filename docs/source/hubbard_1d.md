@@ -73,7 +73,7 @@ U=0.5
 h_int = {(0,): U * np.kron(np.ones((2, 2)), np.eye(2)),}
 ```
 
-In order to find a meanfield solution, we combine the non interacting Hamiltonian with the interaction Hamiltonian and the relevant filling into a `Model` object. We then generate a starting guess for the meanfield solution and solve the model using the `solver` function. It is important to note that the guess will influence the possible solutions which the `solver` can find in the meanfield procedure. The `generate_guess` function generates a random Hermitian tight-binding dictionary, with the keys provided as hopping vectors and the values of the size as specified.
+In order to find a mean-field solution, we combine the non interacting Hamiltonian with the interaction Hamiltonian and the relevant filling into a `Model` object. We then generate a starting guess for the mean-field solution and solve the model using the `solver` function. It is important to note that the guess will influence the possible solutions which the `solver` can find in the mean-field procedure. The `generate_guess` function generates a random Hermitian tight-binding dictionary, with the keys provided as hopping vectors and the values of the size as specified.
 
 ```{code-cell} ipython3
 filling = 2
@@ -82,4 +82,4 @@ guess = pymf.generate_guess(frozenset(h_int), ndof=4)
 mf_sol = pymf.solver(full_model, guess, nk=nk)
 ```
 
-The `solver` function returns only the meanfield correction to the non-interacting Hamiltonian. To get the full Hamiltonian, we add the meanfield correction to the non-interacting Hamiltonian. To take a look at whether the result is correct, we first do the meanfield computation for a wider range of $U$ values and then plot the gap as a function of $U$.
+The `solver` function returns only the mean-field correction to the non-interacting Hamiltonian. To get the full Hamiltonian, we add the mean-field correction to the non-interacting Hamiltonian. To take a look at whether the result is correct, we first do the mean-field computation for a wider range of $U$ values and then plot the gap as a function of $U$.
