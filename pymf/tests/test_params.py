@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from pymf.params.rparams import rparams_to_tb, tb_to_rparams
 from pymf.tb.tb import compare_dicts
-from pymf.tb.utils import generate_guess
+from pymf import generate_guess
 
 repeat_number = 10
 

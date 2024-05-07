@@ -14,7 +14,7 @@ from .solvers import solver
 from .model import Model
 from .observables import expectation_value
 from .tb.tb import add_tb, scale_tb
-from .tb.transforms import kham_to_tb, tb_to_khamvector
+from .tb.transforms import tb_to_kgrid, kgrid_to_tb
 from .tb.utils import generate_guess, calculate_fermi_energy
 
 
@@ -28,8 +28,8 @@ __all__ = [
     "calculate_fermi_energy",
     "construct_density_matrix",
     "meanfield",
-    "kham_to_tb",
-    "tb_to_khamvector",
+    "tb_to_kgrid",
+    "kgrid_to_tb",
     "__version__",
     "__version_tuple__",
 ]
