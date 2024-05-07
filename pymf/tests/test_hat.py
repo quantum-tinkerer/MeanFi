@@ -28,8 +28,7 @@ h_ints = []
 for ndim in np.arange(4):
     keys = utils.generate_vectors(cutoff, ndim)
     h0s.append(utils.generate_guess(keys, ndof))
-    h_int = {keys[len(keys) // 2]: U0 * np.kron(np.eye(2), np.ones((2, 2)))}
-    h_ints.append(h_int)
+    h_ints.append(utils.generate_guess(keys, ndof))
 
 
 # %%
