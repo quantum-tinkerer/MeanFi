@@ -3,11 +3,13 @@ import numpy as np
 import pytest
 
 from pymf.kwant_helper import kwant_examples, utils
-from pymf.model import Model
-from pymf.solvers import solver
-from pymf.tb.tb import add_tb
-from pymf.tb.transforms import tb_to_khamvector
-from pymf.tb.utils import generate_guess
+from pymf import (
+    Model,
+    solver,
+    tb_to_khamvector,
+    generate_guess,
+    add_tb,
+)
 
 
 def compute_gap(tb, fermi_energy=0, nk=100):
