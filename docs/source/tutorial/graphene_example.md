@@ -68,7 +68,7 @@ To define the interactions, we need to specify two functions:
 * `nn_int(site1, site2)`: returns the interaction matrix between `site1` and `site2`.
 
 We feed these functions to the {autolink}`~pymf.kwant_helper.utils.build_interacting_syst` function, which constructs the `kwant.Builder` object encoding the interactions.
-All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~pymf.kwant_helper.utils.builder_to_tb` function
+All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~pymf.kwant_helper.utils.builder_to_tb` function.
 
 ```{code-cell} ipython3
 def onsite_int(site, U):
@@ -177,7 +177,7 @@ plt.show()
 This phase diagram has gap openings at the same places as shown in the [literature](https://arxiv.org/abs/1204.4531).
 
 We can now use the stored results in `mf_sols` to fully map out the phase diagram with order parameters.
-On top of the charge density wave (CDW), we also expect a spin density wave (SDW) in different regions of the phase diagram.
+On top of the charge density wave (CDW), we also expect a spin density wave (SDW) in a different region of the phase diagram.
 We construct the SDW order parameter with the same steps as before, but now we need to sum over the expectation values of the three Pauli matrices to account for the $SU(2)$ spin-rotation symmetry.
 
 ```{code-cell} ipython3
