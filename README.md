@@ -87,12 +87,8 @@ pip install pymf
 
 ## Citing `pymf`
 
-We provide `pymf` as a free software under BSD license. If you have used `pymf` for work that has lead to a scientific publication, please mention the fact that you used it explicitly in the text body. For example, you may add
-
-> the numerical calculations were performed using the pymf code
-
-to the description of your numerical calculations. In addition, we ask you to cite the Zenodo repository:
+If you have used `pymf` for work that has lead to a scientific publication, please cite us as:
 
 ```
-zenodo red here
+zenodo here
 ```
