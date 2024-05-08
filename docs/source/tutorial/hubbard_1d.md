@@ -108,6 +108,8 @@ The object `full_model` now contains all the information needed to solve the mea
 To find a mean-field solution, we first require a starting guess.
 In cases where the non-interacting Hamiltonian is highly degenerate, there exists several possible mean-field solutions, many of which are local and not global minima of the energy landscape.
 Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~pymf.tb.utils.generate_guess` function.
+It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
+Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_0` keys as an input to {autolink}`~pymf.tb.utils.generate_guess`.
 Finally, to solve the model, we use the {autolink}`~pymf.solvers.solver` function which by default employes a root-finding algorithm to find a self-consistent mean-field solution.
 
 ```{code-cell} ipython3
