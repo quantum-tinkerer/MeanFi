@@ -8,5 +8,6 @@
 
 ## Other contributors
 - Isidora Araya Day
+- José L. Lado
 
 ## Funding
