@@ -27,7 +27,8 @@ tutorial/graphene_example.md
 
 documentation/mf_notes.md
 documentation/algorithm.md
-documentation/pymf.md
+documentation/meanfi.md
+AUTHORS.md
 ```
 
 ```{include} ../../README.md
