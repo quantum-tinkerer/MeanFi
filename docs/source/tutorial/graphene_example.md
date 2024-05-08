@@ -75,7 +75,7 @@ def onsite_int(site, U):
     return U * sx
 
 def nn_int(site1, site2, V):
-    return V * sx
+    return V * np.ones((2, 2))
 
 builder_int = utils.build_interacting_syst(
     builder=bulk_graphene,
