@@ -87,7 +87,7 @@ pip install pymf
 
 ## Citing `pymf`
 
-If you have used `pymf` for work that has lead to a scientific publication, please cite us as:
+If you have used `pymf` for work that has led to a scientific publication, please cite us as:
 
 ```bibtex
 @misc{pymf,
