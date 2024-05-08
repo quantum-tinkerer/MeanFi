@@ -2,14 +2,14 @@
 
 ## What is `pymf`?
 
-`pymf` is a Python package that performs self-consistent mean-field calculations on tight-binding models.
-It aims to solve the following interacting many-body Hamiltonians:
+`pymf` is a Python package that performs self-consistent Hartree-Fock calculations on tight-binding models.
+It aims to find the groundstate of a Hamiltonian with density-density interactions
 
 $$
 \hat{H} = \hat{H_0} + \hat{V} = \sum_{ij} h_{ij} c^\dagger_{i} c_{j} + \frac{1}{2} \sum_{ij} v_{ij} \hat{n}_i \hat{n}_j,
 $$
 
-by finding the mean-field correction $\hat{V}_{\text{MF}}$ which approximates the interaction term:
+and computes the mean-field correction $\hat{V}_{\text{MF}}$ which approximates the interaction term:
 
 $$
 \hat{V} \approx \hat{V}_{\text{MF}} = \sum_{ij} \tilde{v}_{ij} c^\dagger_{i} c_{j}.
