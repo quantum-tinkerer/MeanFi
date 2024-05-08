@@ -1,0 +1,21 @@
+html[data-theme="light"] {
+    --pst-color-primary: rgb(4, 87, 13);
+    --pst-color-secondary: rgb(66, 96, 150);
+    --pst-color-border-tippy: rgb(0, 0, 0);
+    --pst-color-inline-code-links: rgb(4, 87, 13);
+    --pst-color-link-hover: var(--pst-color-secondary)
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: rgb(176, 217, 162);
+    --pst-color-secondary: rgb(125, 166, 244);
+    --pst-color-border-tippy: white;
+    --pst-color-inline-code-links: var(--pst-color-primary);
+    --pst-color-link-hover: var(--pst-color-secondary)
+}
+
+.tippy-box {
+    background-color:var(--pst-color-surface);
+    color:var(--pst-color-text-base);
+    border: 1px solid var(--pst-color-border-tippy);
+}
