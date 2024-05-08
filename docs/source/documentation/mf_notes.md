@@ -31,24 +31,25 @@ Such a task is often infeasible for large systems and one needs to resort to app
 ## Mean-field approximaton
 
 The first-order perturbative approximation to the interacting Hamiltonian is the Hartree-Fock approximation also known as the mean-field approximation.
-The mean-field approximates the quartic term $\hat{V}$ in {eq}`hamiltonian` as a sum of bilinear terms weighted by the expectation values the remaining operators:
+The mean-field approximates the quartic term $\hat{V}$ in {eq}`hamiltonian` as a sum of bilinear terms weighted by the expectation values of the remaining operators:
 :::{math}
 :label: mf_approx
 \hat{V} \approx \hat{V}_{\text{MF}} \equiv \sum_{ij} v_{ij} \left[
-\braket{c_i^\dagger c_i} c_j^\dagger c_j - \braket{c_i^\dagger c_j} c_j^\dagger c_i \right]
+\braket{c_i^\dagger c_i} c_j^\dagger c_j - \braket{c_i^\dagger c_j} c_j^\dagger c_i \right],
 :::
-we neglect the superconducting pairing and constant offset terms.
-The expectation value terms  $\langle c_i^\dagger c_j \rangle$ are due to the ground-state density matrix and therefore act as an effective field acting on the system.
-The ground-state density matrix reads:
+where we neglect the constant offset terms and the superconducting pairing (for now).
+The expectation value terms  $\langle c_i^\dagger c_j \rangle$ are due to the ground state density matrix and act as an effective field on the system.
+The ground state density matrix reads:
 :::{math}
 :label: density
 \rho_{ij} \equiv \braket{c_i^\dagger c_j } = \text{Tr}\left(e^{-\beta \left(\hat{H_0} + \hat{V}_{\text{MF}} - \mu \hat{N} \right)} c_i^\dagger c_j\right),
 :::
 where $\beta = 1/ (k_B T)$ is the inverse temperature, $\mu$ is the chemical potential, and $\hat{N} = \sum_i c_i^\dagger c_i$ is the number operator.
+Currently, we neglect thermal effects and so $\beta \to \infty$.
 
 ## Finite tight-binding grid
 
-To simplify the mean-field Hamiltonian, we assume a finite, normalised orthogonal tight-binding grid defined by the single-particle basis states:
+To simplify the mean-field Hamiltonian, we assume a finite, normalised, orthogonal tight-binding grid defined by the single-particle basis states:
 
 $$
 \ket{n} = c^\dagger_n\ket{\text{vac}}
@@ -71,7 +72,7 @@ $$
 n \to n, R_n.
 $$
 
-Because of the translationaly invariance, the physical properties of the system are independent of the absolute unit cell position $R_n$ and rather depend on the relative position between the two unit cells $R_{nm} = R_n - R_m$:
+Because of the translational invariance, the physical properties of the system are independent of the absolute unit cell position $R_n$, but rather depend on the relative position between the two unit cells $R_{nm} = R_n - R_m$:
 
 $$
 \rho_{mn} \to \rho_{mn}(R_{mn}).
