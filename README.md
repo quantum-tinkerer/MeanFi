@@ -68,7 +68,6 @@ Here is why you should use `pymf`:
 
 # What `pymf` doesn't do (yet)
 
-`pymf` is a work in progress.
 Here are some features that are not yet implemented but are planned for future releases:
 
 - **Superconductive order parameters**. Mean-field Hamiltonians do not include pairing terms.
