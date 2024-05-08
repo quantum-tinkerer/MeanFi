@@ -91,7 +91,7 @@ If you have used `pymf` for work that has lead to a scientific publication, plea
 
 ```bibtex
 @misc{pymf,
-  author = {Vilkelis, Kostas and Zijderveld,  R. Johanna and Manesco, Antonio L.R. and Akhmerov, Anton R.},
+  author = {Vilkelis, Kostas and Zijderveld,  R. Johanna and Akhmerov, Anton R. and Manesco, Antonio L.R.},
   doi = {10.5281/zenodo.11149850},
   month = {5},
   title = {pymf},
