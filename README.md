@@ -1,18 +1,23 @@
-# What is `pymf`?
+# `pymf`
+
+## What is `pymf`?
 
 `pymf` is a Python package that performs self-consistent mean-field calculations on tight-binding models.
 It aims to solve the following interacting many-body Hamiltonians:
+
 $$
 \hat{H} = \hat{H_0} + \hat{V} = \sum_{ij} h_{ij} c^\dagger_{i} c_{j} + \frac{1}{2} \sum_{ij} v_{ij} \hat{n}_i \hat{n}_j,
 $$
+
 by finding the mean-field correction $\hat{V}_{\text{MF}}$ which approximates the interaction term:
 
 $$
 \hat{V} \approx \hat{V}_{\text{MF}} = \sum_{ij} \tilde{v}_{ij} c^\dagger_{i} c_{j}.
 $$
 
-For more details on the theory, we refer to the documentation.
-# How to use `pymf`?
+For more details, refer to the [theory overview](docs/source/documentation/mf_notes.md) and [algorithm description](docs/source/documentation/algorithm.md).
+
+## How to use `pymf`?
 
 The calculation of a mean-field Hamiltonian is a simple 3-step process:
 
@@ -46,9 +51,9 @@ mf_correction = pymf.solver(model, guess)
 h_mf = pymf.add_tb(h_0, mf_correction)
 ```
 
-For more details and examples on how to use the package, we refer to the tutorials.
+For more details and examples on how to use the package, we refer to the [tutorials](docs/source/tutorial/hubbard_1d.md).
 
-# Why `pymf`?
+## Why `pymf`?
 
 Here is why you should use `pymf`:
 
@@ -66,7 +71,7 @@ Here is why you should use `pymf`:
     Introduces minimal overhead to the calculation of the mean-field Hamiltonian.
 
 
-# What `pymf` doesn't do (yet)
+## What `pymf` doesn't do (yet)
 
 Here are some features that are not yet implemented but are planned for future releases:
 
@@ -74,13 +79,13 @@ Here are some features that are not yet implemented but are planned for future r
 - **General interactions**. We allow only density-density interactions (e.g. Coulomb) which can be described by a second-order tensor.
 - **Temperature effects**. Density matrix calculations are done at zero temperature.
 
-# Installation
+## Installation
 
 ```
 pip install pymf
 ```
 
-# Citing `pymf`
+## Citing `pymf`
 
 We provide `pymf` as a free software under BSD license. If you have used `pymf` for work that has lead to a scientific publication, please mention the fact that you used it explicitly in the text body. For example, you may add
 

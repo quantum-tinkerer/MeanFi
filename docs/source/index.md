@@ -11,8 +11,6 @@ kernelspec:
   name: python3
 ---
 
-# pymf
-
 ```{toctree}
 :hidden:
 :maxdepth: 1
@@ -32,23 +30,6 @@ documentation/algorithm.md
 documentation/pymf.md
 ```
 
-## What is pymf?
-
-
-## Why pymf?
-
-
-## How does pymf work?
-
-## What does pymf not do yet?
-
-* Superconductivity
-
-## Installation
-
-```bash
-pip install .
+```{include} ../../README.md
+:relative-docs: docs/source/
 ```
-## Citing
-
-## Contributing
