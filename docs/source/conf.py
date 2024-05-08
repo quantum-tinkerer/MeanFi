@@ -23,9 +23,9 @@ sys.path.insert(0, package_path)
 
 # -- Project information -----------------------------------------------------
 
-project = "meanfi"
-copyright = "2024, meanfi developers"
-author = "meanfi developers"
+project = "MeanFi"
+copyright = "2024, MeanFi developers"
+author = "MeanFi developers"
 gitlab_url = "https://gitlab.kwant-project.org/qt/meanfi"
 
 # The full version, including alpha/beta/rc tags
@@ -88,7 +88,7 @@ autoclass_content = "both"
 # a list of builtin themes.
 #
 html_theme = "sphinx_book_theme"
-html_title = "MEANFI"
+html_title = "MeanFi"
 
 html_theme_options = {
     "repository_url": "https://gitlab.kwant-project.org/qt/kwant-scf",

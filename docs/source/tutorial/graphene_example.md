@@ -13,8 +13,8 @@ kernelspec:
 
 # Interacting graphene
 
-In the previous tutorial, we showed how to use `meanfi` to solve a simple 1D Hubbard model with onsite interactions.
-In this tutorial, we will apply `meanfi` to more complex system: graphene with onsite $U$ and nearest-neighbour $V$ interactions.
+In the previous tutorial, we showed how to use `MeanFi` to solve a simple 1D Hubbard model with onsite interactions.
+In this tutorial, we will apply `MeanFi` to more complex system: graphene with onsite $U$ and nearest-neighbour $V$ interactions.
 The system is more complicated in every aspect: the lattice structure, dimension of the problem, complexity of the interactions.
 And yet, the workflow is the same as in the previous tutorial and remains simple and straightforward.
 
@@ -100,7 +100,7 @@ filling = 2
 model = meanfi.Model(h_0, h_int, filling=2)
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
-guess = meanfi.generate_guess(int_keys, ndof)
+guess = meanfi.guess_tb(int_keys, ndof)
 mf_sol = meanfi.solver(model, guess, nk=18)
 h_full = meanfi.add_tb(h_0, mf_sol)
 ```
@@ -108,14 +108,14 @@ h_full = meanfi.add_tb(h_0, mf_sol)
 To investigate the effects of interaction on systems with more than one degree of freedom, it is more useful to consider the expectation values of various operators which serve as order parameters.
 For example, we can compute the charge density wave (CDW) order parameter which is defined as the difference in the charge density between the two sublattices.
 
-To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~meanfi.mf.construct_density_matrix` function.
+To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~meanfi.mf.density_matrix` function.
 We then feed it into {autolink}`~meanfi.observables.expectation_value` function together with the operator we want to measure.
 In this case, we compute the CDW order parameter by measuring the expectation value of the $\sigma_z$ operator acting on the graphene sublattice degree of freedom.
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-rho, _ = meanfi.construct_density_matrix(h_full, filling=filling, nk=40)
-rho_0, _ = meanfi.construct_density_matrix(h_0, filling=filling, nk=40)
+rho, _ = meanfi.density_matrix(h_full, filling=filling, nk=40)
+rho_0, _ = meanfi.density_matrix(h_0, filling=filling, nk=40)
 
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
@@ -157,7 +157,7 @@ for U in Us:
         h_int = utils.builder_to_tb(builder_int, params)
 
         model = meanfi.Model(h_0, h_int, filling=filling)
-        guess = meanfi.generate_guess(int_keys, ndof)
+        guess = meanfi.guess_tb(int_keys, ndof)
         mf_sol = meanfi.solver(model, guess, nk=18)
         mf_sols.append(mf_sol)
 
@@ -185,7 +185,7 @@ s_list = [sx, sy, sz]
 cdw_list = []
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _ = meanfi.construct_density_matrix(meanfi.add_tb(h_0, mf_sol), filling=filling, nk=40)
+    rho, _ = meanfi.density_matrix(meanfi.add_tb(h_0, mf_sol), filling=filling, nk=40)
 
     # Compute CDW order parameter
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator))**2)

@@ -65,3 +65,13 @@ run pre-commit:
     paths:
       - .pre-commit-cache
       - micromamba
+
+prepare zips:
+  image: gitlab.kwant-project.org:5005/qt/research-docker
+  before_script: []
+  when: manual
+  script:
+    - zip -r zenodo.zip *
+  artifacts:
+    paths:
+      - zenodo.zip

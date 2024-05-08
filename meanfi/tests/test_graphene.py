@@ -7,7 +7,7 @@ from meanfi import (
     Model,
     solver,
     tb_to_kgrid,
-    generate_guess,
+    guess_tb,
     add_tb,
 )
 
@@ -74,7 +74,7 @@ def gap_prediction(U, V):
     nk = 40
 
     h_int = utils.builder_to_tb(int_builder, params)
-    guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+    guess = guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
     model = Model(h_0, h_int, filling)
 
     mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"M": 0, "f_tol": 1e-8})

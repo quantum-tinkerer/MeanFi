@@ -6,7 +6,7 @@ from typing import Optional, Callable
 from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
 from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.model import Model
-from meanfi.tb.utils import calculate_fermi_energy
+from meanfi.tb.utils import fermi_energy
 
 
 def cost(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
@@ -72,5 +72,5 @@ def solver(
     result = rparams_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(model.h_int), shape
     )
-    fermi = calculate_fermi_energy(add_tb(model.h_0, result), model.filling, nk=nk)
+    fermi = fermi_energy(add_tb(model.h_0, result), model.filling, nk=nk)
     return add_tb(result, {model._local_key: -fermi * np.eye(model._ndof)})

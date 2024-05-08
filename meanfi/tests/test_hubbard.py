@@ -6,7 +6,7 @@ from meanfi.tests.test_graphene import compute_gap
 from meanfi import (
     Model,
     solver,
-    generate_guess,
+    guess_tb,
     add_tb,
 )
 
@@ -35,7 +35,7 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
         h_int = {
             (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
         }
-        guess = generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+        guess = guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
         full_model = Model(h_0, h_int, filling=2)
         mf_sol = solver(full_model, guess, nk=nk)
         _gap = compute_gap(add_tb(h_0, mf_sol), fermi_energy=0, nk=nk_dense)

@@ -1,4 +1,4 @@
-# meanfi authors
+# MeanFi authors
 
 ## Current meanfi maintainers
 - Kostas Vilkelis

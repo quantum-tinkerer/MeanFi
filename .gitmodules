@@ -1,3 +1,0 @@
-[submodule "data"]
-	url = ../kwant-scf-data
-	path = data

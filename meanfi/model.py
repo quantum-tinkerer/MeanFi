@@ -1,7 +1,7 @@
 import numpy as np
 
 from meanfi.mf import (
-    construct_density_matrix,
+    density_matrix,
     meanfield,
 )
 from meanfi.tb.tb import add_tb, _tb_type
@@ -50,11 +50,11 @@ class Model:
 
     Notes
     -----
+
     The interaction h_int must be of density-density type.
-    For example in 1D system with ndof internal degrees of freedom,
-    h_int[(2,)] = U * np.ones((ndof, ndof)) is a Coulomb repulsion interaction
-    with strength U between unit cells separated by 2 lattice vectors, where
-    the interaction is the same between all internal degrees of freedom.
+    For example, h_int[(1,)][i, j] = V means a repulsive interaction
+    of strength V between two particles with internal degrees of freedom i and j
+    separated by 1 lattice vector.
     """
 
     def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float) -> None:
@@ -92,9 +92,7 @@ class Model:
         :
             new mean-field correction tight-binding dictionary.
         """
-        rho, fermi_energy = construct_density_matrix(
-            add_tb(self.h_0, mf), self.filling, nk
-        )
+        rho, fermi_energy = density_matrix(add_tb(self.h_0, mf), self.filling, nk)
         return add_tb(
             meanfield(rho, self.h_int),
             {self._local_key: -fermi_energy * np.eye(self._ndof)},

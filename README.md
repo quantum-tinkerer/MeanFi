@@ -1,8 +1,8 @@
-# `meanfi`
+# `MeanFi`
 
-## What is `meanfi`?
+## What is `MeanFi`?
 
-`meanfi` is a Python package that performs self-consistent Hartree-Fock calculations on tight-binding models.
+`MeanFi` is a Python package that performs self-consistent Hartree-Fock calculations on tight-binding models.
 It aims to find the groundstate of a Hamiltonian with density-density interactions
 
 $$
@@ -17,7 +17,7 @@ $$
 
 For more details, refer to the [theory overview](docs/source/documentation/mf_notes.md) and [algorithm description](docs/source/documentation/algorithm.md).
 
-## How to use `meanfi`?
+## How to use `MeanFi`?
 
 The calculation of a mean-field Hamiltonian is a simple 3-step process:
 
@@ -44,7 +44,7 @@ h_int = {(0,) : onsite_interaction}
 model = meanfi.Model(h_0, h_int, filling=2)
 
 #Guess
-guess = meanfi.generate_guess(guess_hopping_keys, ndof)
+guess = meanfi.guess_tb(guess_hopping_keys, ndof)
 
 #Solve
 mf_correction = meanfi.solver(model, guess)
@@ -53,9 +53,9 @@ h_mf = meanfi.add_tb(h_0, mf_correction)
 
 For more details and examples on how to use the package, we refer to the [tutorials](docs/source/tutorial/hubbard_1d.md).
 
-## Why `meanfi`?
+## Why `MeanFi`?
 
-Here is why you should use `meanfi`:
+Here is why you should use `MeanFi`:
 
 * Simple
 
@@ -64,14 +64,14 @@ Here is why you should use `meanfi`:
 
 * Extensible
 
-    `meanfi`'s code is structured to be easy to understand, modify and extend.
+    `MeanFi`'s code is structured to be easy to understand, modify and extend.
 
 * Optimized numerical workflow
 
     Introduces minimal overhead to the calculation of the mean-field Hamiltonian.
 
 
-## What `meanfi` doesn't do (yet)
+## What `MeanFi` doesn't do (yet)
 
 Here are some features that are not yet implemented but are planned for future releases:
 
@@ -85,16 +85,16 @@ Here are some features that are not yet implemented but are planned for future r
 pip install meanfi
 ```
 
-## Citing `meanfi`
+## Citing `MeanFi`
 
-If you have used `meanfi` for work that has led to a scientific publication, please cite us as:
+If you have used `MeanFi` for work that has led to a scientific publication, please cite us as:
 
 ```bibtex
 @misc{meanfi,
   author = {Vilkelis, Kostas and Zijderveld,  R. Johanna and Akhmerov, Anton R. and Manesco, Antonio L.R.},
   doi = {10.5281/zenodo.11149850},
   month = {5},
-  title = {meanfi},
+  title = {MeanFi},
   year = {2024}
 }
 ```

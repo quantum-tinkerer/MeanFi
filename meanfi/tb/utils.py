@@ -6,7 +6,7 @@ from meanfi.mf import fermi_on_kgrid
 from meanfi.tb.transforms import tb_to_kgrid
 
 
-def generate_guess(
+def guess_tb(
     tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 1
 ) -> _tb_type:
     """Generate hermitian guess tight-binding dictionary.
@@ -59,7 +59,7 @@ def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
-def calculate_fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
+def fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
     """
     Calculate the Fermi energy of a given tight-binding dictionary.
 

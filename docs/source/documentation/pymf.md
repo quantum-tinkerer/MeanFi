@@ -13,7 +13,7 @@ To define the interactive problem, we use the following class:
 
 ```{eval-rst}
 .. automodule:: meanfi.mf
-   :members: meanfield, construct_density_matrix, construct_density_matrix_kgrid, fermi_on_kgrid
+   :members: meanfield, density_matrix, density_matrix_kgrid, fermi_on_kgrid
    :show-inheritance:
 ```
 

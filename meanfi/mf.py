@@ -5,9 +5,7 @@ from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def construct_density_matrix_kgrid(
-    kham: np.ndarray, filling: float
-) -> Tuple[np.ndarray, float]:
+def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, float]:
     """Calculate density matrix on a k-space grid.
 
     Parameters
@@ -30,13 +28,11 @@ def construct_density_matrix_kgrid(
     unocc_vals = vals > fermi
     occ_vecs = vecs
     np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
-    density_matrix_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
-    return density_matrix_krid, fermi
+    _density_matrix_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
+    return _density_matrix_krid, fermi
 
 
-def construct_density_matrix(
-    h: _tb_type, filling: float, nk: int
-) -> Tuple[_tb_type, float]:
+def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
@@ -58,14 +54,14 @@ def construct_density_matrix(
     ndim = len(list(h)[0])
     if ndim > 0:
         kham = tb_to_kgrid(h, nk=nk)
-        density_matrix_krid, fermi = construct_density_matrix_kgrid(kham, filling)
+        _density_matrix_krid, fermi = density_matrix_kgrid(kham, filling)
         return (
-            kgrid_to_tb(density_matrix_krid),
+            kgrid_to_tb(_density_matrix_krid),
             fermi,
         )
     else:
-        density_matrix, fermi = construct_density_matrix_kgrid(h[()], filling)
-        return {(): density_matrix}, fermi
+        _density_matrix, fermi = density_matrix_kgrid(h[()], filling)
+        return {(): _density_matrix}, fermi
 
 
 def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
@@ -86,10 +82,9 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     -----
 
     The interaction h_int must be of density-density type.
-    For example in 1D system with ndof internal degrees of freedom,
-    h_int[(2,)] = U * np.ones((ndof, ndof)) is a Coulomb repulsion interaction
-    with strength U between unit cells separated by 2 lattice vectors, where
-    the interaction is the same between all internal degrees of freedom.
+    For example, h_int[(1,)][i, j] = V means a repulsive interaction
+    of strength V between two particles with internal degrees of freedom i and j
+    separated by 1 lattice vector.
     """
     n = len(list(density_matrix)[0])
     local_key = tuple(np.zeros((n,), dtype=int))
