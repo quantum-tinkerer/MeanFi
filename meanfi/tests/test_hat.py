@@ -5,11 +5,11 @@ import pytest
 from meanfi import (
     Model,
     solver,
-    generate_guess,
+    guess_tb,
     scale_tb,
     add_tb,
     expectation_value,
-    construct_density_matrix,
+    density_matrix,
 )
 
 from meanfi.tb.utils import generate_tb_keys
@@ -33,7 +33,7 @@ cutoff = 1
 @np.vectorize
 def mf_rescaled(alpha, mf0, h0):
     hamiltonian = add_tb(h0, scale_tb(mf0, alpha))
-    rho, _ = construct_density_matrix(hamiltonian, filling=filling, nk=nk)
+    rho, _ = density_matrix(hamiltonian, filling=filling, nk=nk)
     hamiltonian = add_tb(h0, scale_tb(mf0, np.sign(alpha)))
     return total_energy(hamiltonian, rho)
 
@@ -45,13 +45,13 @@ def test_mexican_hat(seed):
     h_ints = []
     for ndim in np.arange(4):
         keys = generate_tb_keys(cutoff, ndim)
-        h0s.append(generate_guess(keys, ndof))
-        h_int = generate_guess(keys, ndof)
+        h0s.append(guess_tb(keys, ndof))
+        h_int = guess_tb(keys, ndof)
         h_int[keys[len(keys) // 2]] += U0
         h_ints.append(h_int)
 
     for h0, h_int in zip(h0s, h_ints):
-        guess = generate_guess(frozenset(h_int), ndof)
+        guess = guess_tb(frozenset(h_int), ndof)
         _model = Model(h0, h_int, filling=filling)
         mf_sol_groundstate = solver(
             _model, mf_guess=guess, nk=nk, optimizer_kwargs={"M": 0}

@@ -27,11 +27,11 @@ $$
 which is defined in {autolink}`~meanfi.model.Model.mfield` method.
 It performs the following steps:
 1. Calculate the total Hamiltonian $\hat{H}(R) = \hat{H_0}(R) + \hat{V}_{\text{init, MF}}(R)$ in real-space.
-2. ({autolink}`~meanfi.mf.construct_density_matrix`) Compute the ground-state density matrix $\rho_{mn}(R)$:
+2. ({autolink}`~meanfi.mf.density_matrix`) Compute the ground-state density matrix $\rho_{mn}(R)$:
     1. ({autolink}`~meanfi.tb.transforms.tb_to_kgrid`) Fourier transform the total Hamiltonian to momentum space $\hat{H}(R) \to \hat{H}(k)$.
     2. ({autolink}`numpy.linalg.eigh`) Diagonalize the Hamiltonian $\hat{H}(R)$ to obtain the eigenvalues and eigenvectors.
     3. ({autolink}`~meanfi.mf.fermi_on_kgrid`) Calculate the fermi level given the desired filling of the unit cell.
-    4.  ({autolink}`~meanfi.mf.construct_density_matrix_kgrid`) Calculate the density matrix $\rho_{mn}(k)$ using the eigenvectors and the fermi level.
+    4.  ({autolink}`~meanfi.mf.density_matrix_kgrid`) Calculate the density matrix $\rho_{mn}(k)$ using the eigenvectors and the fermi level.
     5. ({autolink}`~meanfi.tb.transforms.kgrid_to_tb`) Inverse Fourier transform the density matrix to real-space $\rho_{mn}(k) \to \rho_{mn}(R)$.
 3. ({autolink}`~meanfi.mf.meanfield`) Calculate the new mean-field correction $\hat{V}_{\text{new, MF}}(R)$ using {eq}`mf_infinite`.
 

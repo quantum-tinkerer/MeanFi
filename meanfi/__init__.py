@@ -7,7 +7,7 @@ except ImportError:
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
 from .mf import (
-    construct_density_matrix,
+    density_matrix,
     meanfield,
 )
 from .solvers import solver
@@ -15,7 +15,7 @@ from .model import Model
 from .observables import expectation_value
 from .tb.tb import add_tb, scale_tb
 from .tb.transforms import tb_to_kgrid, kgrid_to_tb
-from .tb.utils import generate_guess, calculate_fermi_energy
+from .tb.utils import guess_tb, fermi_energy
 
 
 __all__ = [
@@ -24,9 +24,9 @@ __all__ = [
     "expectation_value",
     "add_tb",
     "scale_tb",
-    "generate_guess",
-    "calculate_fermi_energy",
-    "construct_density_matrix",
+    "guess_tb",
+    "fermi_energy",
+    "density_matrix",
     "meanfield",
     "tb_to_kgrid",
     "kgrid_to_tb",

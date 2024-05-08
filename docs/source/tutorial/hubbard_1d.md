@@ -88,7 +88,7 @@ Because the interaction Hamiltonian is on-site, it must be defined only for the 
 Based on the kronecker product structure we defined earlier, the interaction Hamiltonian is:
 
 ```{code-cell} ipython3
-U=2
+U = 2
 s_x = np.array([[0, 1], [1, 0]])
 h_int = {(0,): U * np.kron(np.eye(2), s_x),}
 ```
@@ -110,15 +110,15 @@ The object `full_model` now contains all the information needed to solve the mea
 To find a mean-field solution, we first require a starting guess.
 In cases where the non-interacting Hamiltonian is highly degenerate, there exists several possible mean-field solutions, many of which are local and not global minima of the energy landscape.
 Therefore, the choice of the initial guess can significantly affect the final solution depending on the energy landscape.
-Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.generate_guess` function.
+Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.guess_tb` function.
 It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
-Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.generate_guess`.
+Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.guess_tb`.
 Finally, to solve the model, we use the {autolink}`~meanfi.solvers.solver` function which by default employes a root-finding [algorithm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.anderson.html) to find a self-consistent mean-field solution.
 
 ```{code-cell} ipython3
 filling = 2
 full_model = meanfi.Model(h_0, h_int, filling)
-guess = meanfi.generate_guess(frozenset(h_int), ndof=4)
+guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
 mf_sol = meanfi.solver(full_model, guess, nk=nk)
 ```
 
@@ -148,19 +148,19 @@ def compute_sol(U, h_0, nk, filling=2):
     h_int = {
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
     }
-    guess = meanfi.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+    guess = meanfi.guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
     full_model = meanfi.Model(h_0, h_int, filling)
     mf_sol = meanfi.solver(full_model, guess, nk=nk)
     return meanfi.add_tb(h_0, mf_sol)
 
 
-def compute_gap_and_vals(full_sol, nk_dense, fermi_energy=0):
+def compute_gap(full_sol, nk_dense, fermi_energy=0):
     h_kgrid = meanfi.tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
 
     emax = np.max(vals[vals <= fermi_energy])
     emin = np.min(vals[vals > fermi_energy])
-    return np.abs(emin - emax), vals
+    return np.abs(emin - emax)
 
 
 def compute_phase_diagram(
@@ -169,19 +169,16 @@ def compute_phase_diagram(
     nk_dense,
 ):
     gaps = []
-    vals = []
     for U in Us:
         full_sol = compute_sol(U, h_0, nk)
-        gap, _vals = compute_gap_and_vals(full_sol, nk_dense)
-        gaps.append(gap)
-        vals.append(_vals)
+        gaps.append(compute_gap(full_sol, nk_dense))
 
-    return np.asarray(gaps, dtype=float), np.asarray(vals)
+    return np.asarray(gaps, dtype=float)
 
 Us = np.linspace(0, 4, 40, endpoint=True)
-gap, vals = compute_phase_diagram(Us=Us, nk=20, nk_dense=100)
+gaps = compute_phase_diagram(Us=Us, nk=20, nk_dense=100)
 
-plt.plot(Us, gap, c="k")
+plt.plot(Us, gaps, c="k")
 plt.xlabel("$U / t$")
 plt.ylabel("$\Delta{E}/t$")
 plt.show()
