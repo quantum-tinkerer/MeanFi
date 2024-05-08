@@ -88,6 +88,7 @@ autoclass_content = "both"
 # a list of builtin themes.
 #
 html_theme = "sphinx_book_theme"
+html_title = "PYMF"
 
 html_theme_options = {
     "repository_url": "https://gitlab.kwant-project.org/qt/kwant-scf",
@@ -114,5 +115,5 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ["_static"]
-# html_css_files = ["local.css"]
+html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]

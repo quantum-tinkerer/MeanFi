@@ -11,13 +11,13 @@ kernelspec:
   name: python3
 ---
 
-# pymf
-
 ```{toctree}
 :hidden:
 :maxdepth: 1
 :caption: Tutorials
 
+tutorial/hubbard_1d.md
+tutorial/graphene_example.md
 ```
 
 ```{toctree}
@@ -25,24 +25,11 @@ kernelspec:
 :maxdepth: 1
 :caption: Documentation
 
-mf_notes.md
-algorithm.md
+documentation/mf_notes.md
+documentation/algorithm.md
 documentation/pymf.md
 ```
 
-## What is pymf?
-
-## Why pymf?
-
-## How does pymf work?
-
-## What does pymf not do yet?
-
-## Installation
-
-```bash
-pip install .
+```{include} ../../README.md
+:relative-docs: docs/source/
 ```
-## Citing
-
-## Contributing
