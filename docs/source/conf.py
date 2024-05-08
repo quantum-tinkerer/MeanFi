@@ -91,7 +91,7 @@ html_theme = "sphinx_book_theme"
 html_title = "MeanFi"
 
 html_theme_options = {
-    "repository_url": "https://gitlab.kwant-project.org/qt/kwant-scf",
+    "repository_url": "https://gitlab.kwant-project.org/qt/meanfi",
     "use_repository_button": True,
     "use_issues_button": True,
     "use_edit_page_button": True,
