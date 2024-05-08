@@ -54,7 +54,7 @@ Here is why you should use `pymf`:
 
 * Simple
 
-    The workflow is simple and straightforward.
+    The workflow is straightforward.
     Interface with `Kwant` allows easy creation of complicated tight-binding systems and interactions.
 
 * Extensible
