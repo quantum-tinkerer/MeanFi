@@ -48,4 +48,4 @@ include = [
 
 [tool.codespell]
 skip = "*.ipynb"
-ignore-words-list = "multline, ket, bra, braket"
+ignore-words-list = "multline, ket, bra, braket, nwo"
