@@ -47,7 +47,7 @@ Finding a mean-field solution is a 4-step process:
 import pymf
 
 model = pymf.Model(h_0, h_int, filling=filling)
-mf_sol = pymf.solver(model, guess)
+mf_sol = pymf.solver(model, guess, nk=nk)
 h_full = pymf.add_tb(h_0, mf_sol)
 ```
 
@@ -56,12 +56,15 @@ h_full = pymf.add_tb(h_0, mf_sol)
 Here is why you should use pymf:
 
 * Minimal
-  It contains the minimum of what you need to solve mean-field equations.
+
+  Pymf contains the minimum of what you need to solve mean-field equations.
 
 * Simple
+
   The workflow is simple and straightforward.
 
 * Time-effective
+
   As pymf uses tight-binding dictionaries as input and returns, you can calculate the mean-field corrections on a coarse grid, but use the full Hamiltonian on a fine grid for observables afterward.
 
 
