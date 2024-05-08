@@ -24,7 +24,7 @@ The calculation of a mean-field Hamiltonian is a simple 3-step process:
     - Particle filling number in the unit cell.
 2. **Guess**
 
-    Construct a starting guess for the mean-field correction as a tight-binding dictionary.
+    Construct a starting guess for the mean-field correction.
 
 3. **Solve**
 
