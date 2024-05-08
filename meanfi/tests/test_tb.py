@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from scipy.fftpack import ifftn
 
-from pymf.tb.tb import compare_dicts
-from pymf.tb.transforms import ifftn_to_tb, tb_to_kgrid
+from meanfi.tb.tb import compare_dicts
+from meanfi.tb.transforms import ifftn_to_tb, tb_to_kgrid
 
 repeat_number = 10
 

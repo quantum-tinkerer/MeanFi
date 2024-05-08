@@ -3,10 +3,10 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pymf"
+name = "meanfi"
 dynamic = ["version"]
 authors = [
-  {name="pymf developers"},
+  {name="meanfi developers"},
 ]
 description = "Package to perform self-consistent mean-field calculations on tight-binding systems"
 readme = "README.md"
@@ -27,7 +27,7 @@ dependencies = [
 [tool.hatch.version]
 source = "vcs"
 [tool.hatch.build.hooks.vcs]
-version-file = "pymf/_version.py"
+version-file = "meanfi/_version.py"
 
 [project.urls]
 "Documentation" = "https://kwant-scf.readthedocs.io/en/latest/"
@@ -35,11 +35,11 @@ version-file = "pymf/_version.py"
 "Bug Tracker" = "https://gitlab.kwant-project.org/qt/kwant-scf/-/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["pymf"]
+packages = ["meanfi"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "pymf",
+  "meanfi",
   "README.md",
   "LICENSE",
   "pyproject.toml",

@@ -5,14 +5,14 @@
 To define the interactive problem, we use the following class:
 
 ```{eval-rst}
-.. autoclass:: pymf.model.Model
+.. autoclass:: meanfi.model.Model
    :members: mfield
 ```
 
 ## Mean-field and density matrix
 
 ```{eval-rst}
-.. automodule:: pymf.mf
+.. automodule:: meanfi.mf
    :members: meanfield, construct_density_matrix, construct_density_matrix_kgrid, fermi_on_kgrid
    :show-inheritance:
 ```
@@ -20,7 +20,7 @@ To define the interactive problem, we use the following class:
 ## Observables
 
 ```{eval-rst}
-.. automodule:: pymf.observables
+.. automodule:: meanfi.observables
    :members: expectation_value
    :show-inheritance:
 ```
@@ -28,7 +28,7 @@ To define the interactive problem, we use the following class:
 ## Solvers
 
 ```{eval-rst}
-.. automodule:: pymf.solvers
+.. automodule:: meanfi.solvers
    :members: solver, cost
    :show-inheritance:
 ```
@@ -38,7 +38,7 @@ To define the interactive problem, we use the following class:
 ### Manipulation
 
 ```{eval-rst}
-.. automodule:: pymf.tb.tb
+.. automodule:: meanfi.tb.tb
    :members: add_tb, scale_tb
    :show-inheritance:
 ```
@@ -46,7 +46,7 @@ To define the interactive problem, we use the following class:
 ### Brillouin zone transformations
 
 ```{eval-rst}
-.. automodule:: pymf.tb.transforms
+.. automodule:: meanfi.tb.transforms
    :members:
    :show-inheritance:
 ```
@@ -54,7 +54,7 @@ To define the interactive problem, we use the following class:
 ### Parametrisation
 
 ```{eval-rst}
-.. automodule:: pymf.params.rparams
+.. automodule:: meanfi.params.rparams
    :members:
    :show-inheritance:
 ```
@@ -62,7 +62,7 @@ To define the interactive problem, we use the following class:
 ### Utility functions
 
 ```{eval-rst}
-.. automodule:: pymf.tb.utils
+.. automodule:: meanfi.tb.utils
    :members:
    :show-inheritance:
 ```
@@ -70,7 +70,7 @@ To define the interactive problem, we use the following class:
 ## `kwant` interface
 
 ```{eval-rst}
-.. automodule:: pymf.kwant_helper.utils
+.. automodule:: meanfi.kwant_helper.utils
    :members:
    :show-inheritance:
 ```

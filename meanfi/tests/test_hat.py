@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from pymf import (
+from meanfi import (
     Model,
     solver,
     generate_guess,
@@ -12,7 +12,7 @@ from pymf import (
     construct_density_matrix,
 )
 
-from pymf.tb.utils import generate_tb_keys
+from meanfi.tb.utils import generate_tb_keys
 
 
 # %%

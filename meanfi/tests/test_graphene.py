@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from pymf.kwant_helper import kwant_examples, utils
-from pymf import (
+from meanfi.kwant_helper import kwant_examples, utils
+from meanfi import (
     Model,
     solver,
     tb_to_kgrid,

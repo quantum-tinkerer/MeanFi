@@ -1,8 +1,8 @@
 import numpy as np
 from typing import Tuple
 
-from pymf.tb.tb import add_tb, _tb_type
-from pymf.tb.transforms import tb_to_kgrid, kgrid_to_tb
+from meanfi.tb.tb import add_tb, _tb_type
+from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
 def construct_density_matrix_kgrid(

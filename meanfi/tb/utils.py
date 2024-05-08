@@ -1,9 +1,9 @@
 from itertools import product
 import numpy as np
 
-from pymf.tb.tb import _tb_type
-from pymf.mf import fermi_on_kgrid
-from pymf.tb.transforms import tb_to_kgrid
+from meanfi.tb.tb import _tb_type
+from meanfi.mf import fermi_on_kgrid
+from meanfi.tb.transforms import tb_to_kgrid
 
 
 def generate_guess(

@@ -1,6 +1,6 @@
-# pymf authors
+# meanfi authors
 
-## Current pymf maintainers
+## Current meanfi maintainers
 - Kostas Vilkelis
 - R. Johanna Zijderveld
 - Anton R. Akhmerov

@@ -46,7 +46,7 @@ First, let's get the basic imports out of the way.
 ```{code-cell} ipython3
 import numpy as np
 import matplotlib.pyplot as plt
-import pymf
+import meanfi
 ```
 Now let us translate the non-interacting Hamiltonian $\hat{H_0}$ defined above into the basic input format for the package: a **tight-binding dictionary**.
 The tight-binding dictionary is a python dictionary where the keys are tuples of integers representing the hopping vectors and the values are the hopping matrices.
@@ -62,12 +62,12 @@ h_0 = {(0,): hopp + hopp.T.conj(), (1,): hopp, (-1,): hopp.T.conj()}
 Here `hopp` is the hopping matrix which we define as a kronecker product between sublattice and spin degrees of freedom: `np.array([[0, 1], [0, 0]])` corresponds to the hopping between sublattices and `np.eye(2)` leaves the spin degrees of freedom unchanged.
 In the corresponding tight-binding dictionary `h_0`, the key `(0,)` contains hopping within the unit cell and the keys `(1,)` and `(-1,)` correspond to the hopping between the unit cells to the right and left respectively.
 
-To verify the validity of `h_0`, we evaluate it in the reciprocal space using the {autolink}`~pymf.tb.transforms.tb_to_kgrid`, then diagonalize it and plot the band structure:
+To verify the validity of `h_0`, we evaluate it in the reciprocal space using the {autolink}`~meanfi.tb.transforms.tb_to_kgrid`, then diagonalize it and plot the band structure:
 
 ```{code-cell} ipython3
 nk = 50 # number of k-points
 ks = np.linspace(0, 2*np.pi, nk, endpoint=False)
-hamiltonians_0 = pymf.tb_to_kgrid(h_0, nk)
+hamiltonians_0 = meanfi.tb_to_kgrid(h_0, nk)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
 plt.plot(ks, vals, c="k")
@@ -96,11 +96,11 @@ Here `s_x` is the Pauli matrix acting on the spin degrees of freedom, which ensu
 
 ### Putting it all together
 
-To combine the non-interacting and interaction Hamiltonians, we use the {autolink}`~pymf.model.Model` class.
+To combine the non-interacting and interaction Hamiltonians, we use the {autolink}`~meanfi.model.Model` class.
 In addition to the Hamiltonians, we also need to specify the filling of the system --- the number of electrons per unit cell.
 ```{code-cell} ipython3
 filling = 2
-full_model = pymf.Model(h_0, h_int, filling)
+full_model = meanfi.Model(h_0, h_int, filling)
 ```
 
 The object `full_model` now contains all the information needed to solve the mean-field problem.
@@ -110,25 +110,25 @@ The object `full_model` now contains all the information needed to solve the mea
 To find a mean-field solution, we first require a starting guess.
 In cases where the non-interacting Hamiltonian is highly degenerate, there exists several possible mean-field solutions, many of which are local and not global minima of the energy landscape.
 Therefore, the choice of the initial guess can significantly affect the final solution depending on the energy landscape.
-Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~pymf.tb.utils.generate_guess` function.
+Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.generate_guess` function.
 It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
-Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~pymf.tb.utils.generate_guess`.
-Finally, to solve the model, we use the {autolink}`~pymf.solvers.solver` function which by default employes a root-finding [algorithm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.anderson.html) to find a self-consistent mean-field solution.
+Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.generate_guess`.
+Finally, to solve the model, we use the {autolink}`~meanfi.solvers.solver` function which by default employes a root-finding [algorithm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.anderson.html) to find a self-consistent mean-field solution.
 
 ```{code-cell} ipython3
 filling = 2
-full_model = pymf.Model(h_0, h_int, filling)
-guess = pymf.generate_guess(frozenset(h_int), ndof=4)
-mf_sol = pymf.solver(full_model, guess, nk=nk)
+full_model = meanfi.Model(h_0, h_int, filling)
+guess = meanfi.generate_guess(frozenset(h_int), ndof=4)
+mf_sol = meanfi.solver(full_model, guess, nk=nk)
 ```
 
-The {autolink}`~pymf.solvers.solver` function returns only the mean-field correction to the non-interacting Hamiltonian in the same tight-binding dictionary format.
+The {autolink}`~meanfi.solvers.solver` function returns only the mean-field correction to the non-interacting Hamiltonian in the same tight-binding dictionary format.
 To get the full Hamiltonian, we add the mean-field correction to the non-interacting Hamiltonian and plot the band structure just as before:
 
 ```{code-cell} ipython3
-h_mf = pymf.add_tb(h_0, mf_sol)
+h_mf = meanfi.add_tb(h_0, mf_sol)
 
-hamiltonians = pymf.tb_to_kgrid(h_mf, nk)
+hamiltonians = meanfi.tb_to_kgrid(h_mf, nk)
 vals, vecs = np.linalg.eigh(hamiltonians)
 plt.plot(ks, vals, c="k")
 plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
@@ -148,14 +148,14 @@ def compute_sol(U, h_0, nk, filling=2):
     h_int = {
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
     }
-    guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
-    full_model = pymf.Model(h_0, h_int, filling)
-    mf_sol = pymf.solver(full_model, guess, nk=nk)
-    return pymf.add_tb(h_0, mf_sol)
+    guess = meanfi.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
+    full_model = meanfi.Model(h_0, h_int, filling)
+    mf_sol = meanfi.solver(full_model, guess, nk=nk)
+    return meanfi.add_tb(h_0, mf_sol)
 
 
 def compute_gap_and_vals(full_sol, nk_dense, fermi_energy=0):
-    h_kgrid = pymf.tb_to_kgrid(full_sol, nk_dense)
+    h_kgrid = meanfi.tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
 
     emax = np.max(vals[vals <= fermi_energy])

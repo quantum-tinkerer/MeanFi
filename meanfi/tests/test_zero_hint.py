@@ -2,9 +2,9 @@
 import numpy as np
 import pytest
 
-from pymf.tb import utils
-from pymf.tb.tb import compare_dicts
-from pymf import Model, solver, generate_guess, add_tb, calculate_fermi_energy
+from meanfi.tb import utils
+from meanfi.tb.tb import compare_dicts
+from meanfi import Model, solver, generate_guess, add_tb, calculate_fermi_energy
 
 # %%
 repeat_number = 10

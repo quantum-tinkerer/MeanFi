@@ -1,8 +1,8 @@
-# `pymf`
+# `meanfi`
 
-## What is `pymf`?
+## What is `meanfi`?
 
-`pymf` is a Python package that performs self-consistent Hartree-Fock calculations on tight-binding models.
+`meanfi` is a Python package that performs self-consistent Hartree-Fock calculations on tight-binding models.
 It aims to find the groundstate of a Hamiltonian with density-density interactions
 
 $$
@@ -17,7 +17,7 @@ $$
 
 For more details, refer to the [theory overview](docs/source/documentation/mf_notes.md) and [algorithm description](docs/source/documentation/algorithm.md).
 
-## How to use `pymf`?
+## How to use `meanfi`?
 
 The calculation of a mean-field Hamiltonian is a simple 3-step process:
 
@@ -36,26 +36,26 @@ The calculation of a mean-field Hamiltonian is a simple 3-step process:
     Solve for the mean-field correction using the `solver` function and add it to the non-interacting part to obtain the total mean-field Hamiltonian.
 
 ```python
-import pymf
+import meanfi
 
 #Define
 h_0 = {(0,) : onsite, (1,) : hopping, (-1,) : hopping.T.conj()}
 h_int = {(0,) : onsite_interaction}
-model = pymf.Model(h_0, h_int, filling=2)
+model = meanfi.Model(h_0, h_int, filling=2)
 
 #Guess
-guess = pymf.generate_guess(guess_hopping_keys, ndof)
+guess = meanfi.generate_guess(guess_hopping_keys, ndof)
 
 #Solve
-mf_correction = pymf.solver(model, guess)
-h_mf = pymf.add_tb(h_0, mf_correction)
+mf_correction = meanfi.solver(model, guess)
+h_mf = meanfi.add_tb(h_0, mf_correction)
 ```
 
 For more details and examples on how to use the package, we refer to the [tutorials](docs/source/tutorial/hubbard_1d.md).
 
-## Why `pymf`?
+## Why `meanfi`?
 
-Here is why you should use `pymf`:
+Here is why you should use `meanfi`:
 
 * Simple
 
@@ -64,14 +64,14 @@ Here is why you should use `pymf`:
 
 * Extensible
 
-    `pymf`'s code is structured to be easy to understand, modify and extend.
+    `meanfi`'s code is structured to be easy to understand, modify and extend.
 
 * Optimized numerical workflow
 
     Introduces minimal overhead to the calculation of the mean-field Hamiltonian.
 
 
-## What `pymf` doesn't do (yet)
+## What `meanfi` doesn't do (yet)
 
 Here are some features that are not yet implemented but are planned for future releases:
 
@@ -82,19 +82,19 @@ Here are some features that are not yet implemented but are planned for future r
 ## Installation
 
 ```
-pip install pymf
+pip install meanfi
 ```
 
-## Citing `pymf`
+## Citing `meanfi`
 
-If you have used `pymf` for work that has led to a scientific publication, please cite us as:
+If you have used `meanfi` for work that has led to a scientific publication, please cite us as:
 
 ```bibtex
-@misc{pymf,
+@misc{meanfi,
   author = {Vilkelis, Kostas and Zijderveld,  R. Johanna and Akhmerov, Anton R. and Manesco, Antonio L.R.},
   doi = {10.5281/zenodo.11149850},
   month = {5},
-  title = {pymf},
+  title = {meanfi},
   year = {2024}
 }
 ```

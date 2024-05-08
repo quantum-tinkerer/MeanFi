@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from pymf.tests.test_graphene import compute_gap
-from pymf import (
+from meanfi.tests.test_graphene import compute_gap
+from meanfi import (
     Model,
     solver,
     generate_guess,

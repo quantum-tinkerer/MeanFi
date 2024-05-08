@@ -1,12 +1,12 @@
 import numpy as np
 
-from pymf.params.param_transforms import (
+from meanfi.params.param_transforms import (
     complex_to_real,
     flat_to_tb,
     real_to_complex,
     tb_to_flat,
 )
-from pymf.tb.tb import _tb_type
+from meanfi.tb.tb import _tb_type
 
 
 def tb_to_rparams(tb: _tb_type) -> np.ndarray:

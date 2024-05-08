@@ -13,8 +13,8 @@ kernelspec:
 
 # Interacting graphene
 
-In the previous tutorial, we showed how to use `pymf` to solve a simple 1D Hubbard model with onsite interactions.
-In this tutorial, we will apply `pymf` to more complex system: graphene with onsite $U$ and nearest-neighbour $V$ interactions.
+In the previous tutorial, we showed how to use `meanfi` to solve a simple 1D Hubbard model with onsite interactions.
+In this tutorial, we will apply `meanfi` to more complex system: graphene with onsite $U$ and nearest-neighbour $V$ interactions.
 The system is more complicated in every aspect: the lattice structure, dimension of the problem, complexity of the interactions.
 And yet, the workflow is the same as in the previous tutorial and remains simple and straightforward.
 
@@ -31,8 +31,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import kwant
 
-import pymf
-from pymf.kwant_helper import utils
+import meanfi
+from meanfi.kwant_helper import utils
 
 s0 = np.identity(2)
 sx = np.array([[0, 1], [1, 0]])
@@ -54,7 +54,7 @@ bulk_graphene[graphene.neighbors(1)] = s0
 ```
 
 The `bulk_graphene` object is a `kwant.Builder` object that represents the non-interacting graphene system.
-To convert it to a tight-binding dictionary, we use the {autolink}`~pymf.kwant_helper.utils.builder_to_tb` function:
+To convert it to a tight-binding dictionary, we use the {autolink}`~meanfi.kwant_helper.utils.builder_to_tb` function:
 
 ```{code-cell} ipython3
 h_0 = utils.builder_to_tb(bulk_graphene)
@@ -67,8 +67,8 @@ To define the interactions, we need to specify two functions:
 * `onsite_int(site)`: returns the onsite interaction matrix.
 * `nn_int(site1, site2)`: returns the interaction matrix between `site1` and `site2`.
 
-We feed these functions to the {autolink}`~pymf.kwant_helper.utils.build_interacting_syst` function, which constructs the `kwant.Builder` object encoding the interactions.
-All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~pymf.kwant_helper.utils.builder_to_tb` function.
+We feed these functions to the {autolink}`~meanfi.kwant_helper.utils.build_interacting_syst` function, which constructs the `kwant.Builder` object encoding the interactions.
+All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~meanfi.kwant_helper.utils.builder_to_tb` function.
 
 ```{code-cell} ipython3
 def onsite_int(site, U):
@@ -92,33 +92,33 @@ Because `nn_int` function returns the same interaction matrix for all site pairs
 
 ## Computing expectation values
 
-As before, we construct {autolink}`~pymf.model.Model` object to represent the full system to be solved via the mean-field approximation.
+As before, we construct {autolink}`~meanfi.model.Model` object to represent the full system to be solved via the mean-field approximation.
 We then generate a random guess for the mean-field solution and solve the system:
 
 ```{code-cell} ipython3
 filling = 2
-model = pymf.Model(h_0, h_int, filling=2)
+model = meanfi.Model(h_0, h_int, filling=2)
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
-guess = pymf.generate_guess(int_keys, ndof)
-mf_sol = pymf.solver(model, guess, nk=18)
-h_full = pymf.add_tb(h_0, mf_sol)
+guess = meanfi.generate_guess(int_keys, ndof)
+mf_sol = meanfi.solver(model, guess, nk=18)
+h_full = meanfi.add_tb(h_0, mf_sol)
 ```
 
 To investigate the effects of interaction on systems with more than one degree of freedom, it is more useful to consider the expectation values of various operators which serve as order parameters.
 For example, we can compute the charge density wave (CDW) order parameter which is defined as the difference in the charge density between the two sublattices.
 
-To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~pymf.mf.construct_density_matrix` function.
-We then feed it into {autolink}`~pymf.observables.expectation_value` function together with the operator we want to measure.
+To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~meanfi.mf.construct_density_matrix` function.
+We then feed it into {autolink}`~meanfi.observables.expectation_value` function together with the operator we want to measure.
 In this case, we compute the CDW order parameter by measuring the expectation value of the $\sigma_z$ operator acting on the graphene sublattice degree of freedom.
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-rho, _ = pymf.construct_density_matrix(h_full, filling=filling, nk=40)
-rho_0, _ = pymf.construct_density_matrix(h_0, filling=filling, nk=40)
+rho, _ = meanfi.construct_density_matrix(h_full, filling=filling, nk=40)
+rho_0, _ = meanfi.construct_density_matrix(h_0, filling=filling, nk=40)
 
-cdw_order_parameter = pymf.expectation_value(rho, cdw_operator)
-cdw_order_parameter_0 = pymf.expectation_value(rho_0, cdw_operator)
+cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
+cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
 
 print(f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}")
 print(f"CDW order parameter for non-interacting system: {np.round(np.abs(cdw_order_parameter_0), 2)}")
@@ -135,7 +135,7 @@ To that end, we first create a function that calculates the gap of the system gi
 
 ```{code-cell} ipython3
 def compute_gap(h, fermi_energy=0, nk=100):
-    kham = pymf.tb_to_kgrid(h, nk)
+    kham = meanfi.tb_to_kgrid(h, nk)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])
@@ -156,12 +156,12 @@ for U in Us:
         params = dict(U=U, V=V)
         h_int = utils.builder_to_tb(builder_int, params)
 
-        model = pymf.Model(h_0, h_int, filling=filling)
-        guess = pymf.generate_guess(int_keys, ndof)
-        mf_sol = pymf.solver(model, guess, nk=18)
+        model = meanfi.Model(h_0, h_int, filling=filling)
+        guess = meanfi.generate_guess(int_keys, ndof)
+        mf_sol = meanfi.solver(model, guess, nk=18)
         mf_sols.append(mf_sol)
 
-        gap = compute_gap(pymf.add_tb(h_0, mf_sol), fermi_energy=0, nk=100)
+        gap = compute_gap(meanfi.add_tb(h_0, mf_sol), fermi_energy=0, nk=100)
         gaps.append(gap)
 gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
 mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
@@ -185,16 +185,16 @@ s_list = [sx, sy, sz]
 cdw_list = []
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _ = pymf.construct_density_matrix(pymf.add_tb(h_0, mf_sol), filling=filling, nk=40)
+    rho, _ = meanfi.construct_density_matrix(meanfi.add_tb(h_0, mf_sol), filling=filling, nk=40)
 
     # Compute CDW order parameter
-    cdw_list.append(np.abs(pymf.expectation_value(rho, cdw_operator))**2)
+    cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator))**2)
 
     # Compute SDW order parameter
     sdw_value = 0
     for s_i in s_list:
       sdw_operator_i = {(0, 0) : np.kron(sz, s_i)}
-      sdw_value += np.abs(pymf.expectation_value(rho, sdw_operator_i))**2
+      sdw_value += np.abs(meanfi.expectation_value(rho, sdw_operator_i))**2
     sdw_list.append(sdw_value)
 
 cdw_list = np.asarray(cdw_list).reshape(mf_sols.shape)

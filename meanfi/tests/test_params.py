@@ -1,9 +1,9 @@
 # %%
 import pytest
 import numpy as np
-from pymf.params.rparams import rparams_to_tb, tb_to_rparams
-from pymf.tb.tb import compare_dicts
-from pymf import generate_guess
+from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
+from meanfi.tb.tb import compare_dicts
+from meanfi import generate_guess
 
 repeat_number = 10
 

@@ -9,7 +9,7 @@ import kwant
 import kwant.lattice
 import kwant.builder
 
-from pymf.tb.tb import _tb_type
+from meanfi.tb.tb import _tb_type
 
 
 def builder_to_tb(

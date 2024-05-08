@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 from scipy.fftpack import ifftn
 
-from pymf.tb.tb import _tb_type
+from meanfi.tb.tb import _tb_type
 
 
 def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:

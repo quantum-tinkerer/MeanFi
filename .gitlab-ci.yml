@@ -5,7 +5,7 @@ before_script:
   - export MAMBA_ROOT_PREFIX=micromamba
   - micromamba create -yf docs/environment.yml
   - eval "$(micromamba shell hook --shell bash)"
-  - micromamba activate pymf-docs
+  - micromamba activate meanfi-docs
 
 run tests:
   script:

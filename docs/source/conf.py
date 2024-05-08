@@ -13,9 +13,9 @@
 import os
 import sys
 
-import pymf  # noqa: F401
+import meanfi  # noqa: F401
 
-package_path = os.path.abspath("../pymf")
+package_path = os.path.abspath("../meanfi")
 # Suppress superfluous frozen modules warning.
 os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
 sys.path.insert(0, package_path)
@@ -23,14 +23,14 @@ sys.path.insert(0, package_path)
 
 # -- Project information -----------------------------------------------------
 
-project = "pymf"
-copyright = "2024, pymf developers"
-author = "pymf developers"
-gitlab_url = "https://gitlab.kwant-project.org/qt/pymf"
+project = "meanfi"
+copyright = "2024, meanfi developers"
+author = "meanfi developers"
+gitlab_url = "https://gitlab.kwant-project.org/qt/meanfi"
 
 # The full version, including alpha/beta/rc tags
-release = pymf.__version__
-major, minor = pymf.__version_tuple__[:2]
+release = meanfi.__version__
+major, minor = meanfi.__version_tuple__[:2]
 version = f"{major}.{minor}"
 
 # -- General configuration ---------------------------------------------------
@@ -88,7 +88,7 @@ autoclass_content = "both"
 # a list of builtin themes.
 #
 html_theme = "sphinx_book_theme"
-html_title = "PYMF"
+html_title = "MEANFI"
 
 html_theme_options = {
     "repository_url": "https://gitlab.kwant-project.org/qt/kwant-scf",

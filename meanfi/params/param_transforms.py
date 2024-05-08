@@ -1,6 +1,6 @@
 import numpy as np
 
-from pymf.tb.tb import _tb_type
+from meanfi.tb.tb import _tb_type
 
 
 def tb_to_flat(tb: _tb_type) -> np.ndarray:

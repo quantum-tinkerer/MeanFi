@@ -3,10 +3,10 @@ import numpy as np
 import scipy
 from typing import Optional, Callable
 
-from pymf.params.rparams import rparams_to_tb, tb_to_rparams
-from pymf.tb.tb import add_tb, _tb_type
-from pymf.model import Model
-from pymf.tb.utils import calculate_fermi_energy
+from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
+from meanfi.tb.tb import add_tb, _tb_type
+from meanfi.model import Model
+from meanfi.tb.utils import calculate_fermi_energy
 
 
 def cost(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
