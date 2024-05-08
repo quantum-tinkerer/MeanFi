@@ -14,8 +14,8 @@ kernelspec:
 
 ## Self-consistent mean-field loop
 
-In order to calculate the mean-field interaction in {eq}`mf_infinite`, we require the ground-state density matrix $\rho_{mn}(R)$.
-However, {eq}`density` is a functional of the mean-field interaction $\hat{V}_{\text{MF}}$ itself.
+To calculate the mean-field interaction in {eq}`mf_infinite`, we require the ground-state density matrix $\rho_{mn}(R)$.
+However, {eq}`density` is a function of the mean-field interaction $\hat{V}_{\text{MF}}$ itself.
 Therefore, we need to solve for both self-consistently.
 
 A single iteration of this self-consistency loop is a function that computes a new mean-field correction from a given one:
@@ -44,7 +44,7 @@ f : \hat{V}_{\text{MF}} \to f(\hat{V}_{\text{MF}}) \in \mathbb{R}^N.
 $$
 
 In the code, $f$ corresponds to the {autolink}`~pymf.params.rparams.tb_to_rparams` function (inverse is {autolink}`~pymf.params.rparams.rparams_to_tb`).
-Currently, $f$ parameterizes the mean-field interaction by taking only the upper triangular elements of the matrix $V_{\text{MF}, nm}(R)$ (the lower triangular part is redundant due to the Hermiticity of the Hamiltonian) and splitting it into a real and imaginary parts to form a real-valued vector.
+Currently, $f$ parameterizes the mean-field interaction by taking only the upper triangular elements of the matrix $V_{\text{MF}, nm}(R)$ (the lower triangular part is redundant due to the Hermiticity of the Hamiltonian) and splitting it into real and imaginary parts to form a real-valued vector.
 
 With this, we define the self-consistency criterion as a fixed-point problem:
 
@@ -52,6 +52,6 @@ $$
 f(\text{MF}(\hat{V}_{\text{MF}})) = f(\hat{V}_{\text{MF}}).
 $$
 
-Instead of solving the fixed point problem, we rewrite is as the difference of the two successive self-consistent mean-field iterations in {autolink}`~pymf.solvers.cost`.
+Instead of solving the fixed point problem, we rewrite it as the difference of the two successive self-consistent mean-field iterations in {autolink}`~pymf.solvers.cost`.
 That re-defines the problem into a root-finding problem which is more consistent with available numerical solvers such as {autolink}`~scipy.optimize.anderson`.
 That is exactly what we do in the {autolink}`~pymf.solvers.solver` function, although we also provide the option to use a custom optimizer.

@@ -14,7 +14,7 @@ kernelspec:
 
 ## Interacting problems
 
-In physics, one often encounters problems where a system of multiple particles interact with each other.
+In physics, one often encounters problems where a system of multiple particles interacts with each other.
 In this package, we consider a general electronic system with density-density interparticle interaction:
 
 :::{math}
@@ -22,16 +22,16 @@ In this package, we consider a general electronic system with density-density in
 \hat{H} = \hat{H_0} + \hat{V} = \sum_{ij} h_{ij} c^\dagger_{i} c_{j} + \frac{1}{2} \sum_{ij} v_{ij} c_i^\dagger c_j^\dagger c_j c_i
 :::
 
-where $c_i^\dagger$ and $c_i$ are creation and annihilation operators respectively for fermion in state $i$.
-The first term $\hat{H_0}$ is the non-interacting Hamiltonian which by itself is straightforward to solve in a single-particle basis by direct diagonalizations made easy through packages such as [kwant](https://kwant-project.org/).
-The second term $\hat{V}$ is density-density interaction term between two particles, for example Coulomb interaction.
-In order to solve the interacting problem exactly, one needs to diagonalize the full Hamiltonian $\hat{H}$ in the many-particle basis which grows exponentially with the number of particles.
+where $c_i^\dagger$ and $c_i$ are the creation and annihilation operators respectively for fermion in state $i$.
+The first term $\hat{H_0}$ is the non-interacting Hamiltonian which by itself is straightforward to solve on a single-particle basis by direct diagonalizations made easy through packages such as [kwant](https://kwant-project.org/).
+The second term $\hat{V}$ is the density-density interaction term between two particles, for example Coulomb interaction.
+To solve the interacting problem exactly, one needs to diagonalize the full Hamiltonian $\hat{H}$ in the many-particle basis which grows exponentially with the number of particles.
 Such a task is often infeasible for large systems and one needs to resort to approximations.
 
-## Mean-field approximaton
+## Mean-field approximation
 
 The first-order perturbative approximation to the interacting Hamiltonian is the Hartree-Fock approximation also known as the mean-field approximation.
-The mean-field approximates the quartic term $\hat{V}$ in {eq}`hamiltonian` as a sum of bilinear terms weighted by the expectation values of the remaining operators:
+The mean field approximates the quartic term $\hat{V}$ in {eq}`hamiltonian` as a sum of bilinear terms weighted by the expectation values of the remaining operators:
 :::{math}
 :label: mf_approx
 \hat{V} \approx \hat{V}_{\text{MF}} \equiv \sum_{ij} v_{ij} \left[
@@ -45,7 +45,7 @@ The ground state density matrix reads:
 \rho_{ij} \equiv \braket{c_i^\dagger c_j } = \text{Tr}\left(e^{-\beta \left(\hat{H_0} + \hat{V}_{\text{MF}} - \mu \hat{N} \right)} c_i^\dagger c_j\right),
 :::
 where $\beta = 1/ (k_B T)$ is the inverse temperature, $\mu$ is the chemical potential, and $\hat{N} = \sum_i c_i^\dagger c_i$ is the number operator.
-Currently, we neglect thermal effects and so $\beta \to \infty$.
+Currently, we neglect thermal effects so $\beta \to \infty$.
 
 ## Finite tight-binding grid
 
@@ -72,7 +72,7 @@ $$
 n \to n, R_n.
 $$
 
-Because of the translational invariance, the physical properties of the system are independent of the absolute unit cell position $R_n$, but rather depend on the relative position between the two unit cells $R_{nm} = R_n - R_m$:
+Because of the translational invariance, the physical properties of the system are independent of the absolute unit cell position $R_n$ but rather depend on the relative position between the two unit cells $R_{nm} = R_n - R_m$:
 
 $$
 \rho_{mn} \to \rho_{mn}(R_{mn}).
