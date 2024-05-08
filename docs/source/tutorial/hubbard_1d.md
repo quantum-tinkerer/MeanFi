@@ -41,17 +41,19 @@ With the model defined, we can now proceed to input the Hamiltonian into the pac
 
 ### Non-interacting Hamiltonian
 
-First, lets get the basic imports out of the way.
+First, let's get the basic imports out of the way.
 
 ```{code-cell} ipython3
 import numpy as np
 import matplotlib.pyplot as plt
 import pymf
 ```
-Now lets translate the non-interacting Hamiltonian $\hat{H_0}$ defined above into a basic input format for the package: a **tight-binding dictionary**.
+Now let us translate the non-interacting Hamiltonian $\hat{H_0}$ defined above into the basic input format for the package: a **tight-binding dictionary**.
 The tight-binding dictionary is a python dictionary where the keys are tuples of integers representing the hopping vectors and the values are the hopping matrices.
-For example, a key `(0,)` represents the onsite term and a key `(1,)` represents the hopping a single unit cell to the right.
-In the case of our 1D Hubbard model, non-interacting Hamiltonian is:
+For example, a key `(0,)` represents the onsite term in one dimension and a key `(1,)` represents the hopping a single unit cell to the right.
+In two dimensions a key `(0,0)` would represent the onsite term and `(1,0)` would represent hopping to the right in the direction of the first reciprocal lattice vector.
+In the case of our 1D Hubbard model, we only have an onsite term and hopping a single unit cell to the left and right.
+Thus our non-interacting Hamiltonian  becomes:
 
 ```{code-cell} ipython3
 hopp = np.kron(np.array([[0, 1], [0, 0]]), np.eye(2))
@@ -60,7 +62,7 @@ h_0 = {(0,): hopp + hopp.T.conj(), (1,): hopp, (-1,): hopp.T.conj()}
 Here `hopp` is the hopping matrix which we define as a kronecker product between sublattice and spin degrees of freedom: `np.array([[0, 1], [0, 0]])` corresponds to the hopping between sublattices and `np.eye(2)` leaves the spin degrees of freedom unchanged.
 In the corresponding tight-binding dictionary `h_0`, the key `(0,)` contains hopping within the unit cell and the keys `(1,)` and `(-1,)` correspond to the hopping between the unit cells to the right and left respectively.
 
-We verify the validity of `h_0`, we evaluate it in the reciprocal space using the {autolink}`~pymf.tb.transforms.tb_to_kgrid`, diagonalize it and plot the band structure:
+To verify the validity of `h_0`, we evaluate it in the reciprocal space using the {autolink}`~pymf.tb.transforms.tb_to_kgrid`, then diagonalize it and plot the band structure:
 
 ```{code-cell} ipython3
 nk = 50 # number of k-points
@@ -107,10 +109,11 @@ The object `full_model` now contains all the information needed to solve the mea
 
 To find a mean-field solution, we first require a starting guess.
 In cases where the non-interacting Hamiltonian is highly degenerate, there exists several possible mean-field solutions, many of which are local and not global minima of the energy landscape.
+Therefore, the choice of the initial guess can significantly affect the final solution depending on the energy landscape.
 Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~pymf.tb.utils.generate_guess` function.
 It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
-Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_0` keys as an input to {autolink}`~pymf.tb.utils.generate_guess`.
-Finally, to solve the model, we use the {autolink}`~pymf.solvers.solver` function which by default employes a root-finding algorithm to find a self-consistent mean-field solution.
+Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~pymf.tb.utils.generate_guess`.
+Finally, to solve the model, we use the {autolink}`~pymf.solvers.solver` function which by default employes a root-finding [algorithm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.anderson.html) to find a self-consistent mean-field solution.
 
 ```{code-cell} ipython3
 filling = 2
@@ -184,4 +187,4 @@ plt.ylabel("$\Delta{E}/t$")
 plt.show()
 ```
 
-We see that at around $U=1$ the gap opens up and the system transitions from a metal to an insulator.
+We see that at around $U=1$ the gap opens up and the system transitions from a metal to an insulator.  In order to more accurately determine the size of the gap, we chose to use a denser k-grid for the diagonalization of the mean-field solution.
