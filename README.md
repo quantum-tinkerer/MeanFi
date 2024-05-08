@@ -90,5 +90,11 @@ pip install pymf
 If you have used `pymf` for work that has lead to a scientific publication, please cite us as:
 
 ```
-zenodo here
+@misc{pymf,
+  author = {Vilkelis, Kostas and Zijderveld,  R. Johanna and Manesco, Antonio L.R. and Akhmerov, Anton R.},
+  doi = {10.5281/zenodo.11149850},
+  month = {5},
+  title = {pymf},
+  year = {2024}
+}
 ```
