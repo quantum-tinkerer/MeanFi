@@ -206,7 +206,7 @@ We naively do this by plotting the difference between CDW and SDW order paramete
 
 ```{code-cell} ipython3
 import matplotlib.ticker as mticker
-normalized_gap = gap/np.max(gap)
+normalized_gap = gaps/np.max(gaps)
 plt.imshow((cdw_list - sdw_list).T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto', cmap="coolwarm", alpha=normalized_gap.T, vmin=-2.6, vmax=2.6)
 plt.colorbar(ticks=[-2.6, 0, 2.6], format=mticker.FixedFormatter(['SDW', '0', 'CDW']), label='Order parameter', extend='both')
 plt.xlabel('V')
