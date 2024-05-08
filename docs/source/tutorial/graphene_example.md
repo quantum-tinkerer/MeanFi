@@ -11,62 +11,127 @@ kernelspec:
   name: python3
 ---
 
-# Graphene with interactions
+# Interacting graphene
 
-## The physics
+In the previous tutorial, we showed how to use `pymf` to solve a simple 1D Hubbard model with onsite interactions.
+In this tutorial, we will apply `pymf` to more complex system: graphene with onsite $U$ and nearest-neighbour $V$ interactions.
+The system is more complicated in every aspect: the lattice structure, dimension of the problem, complexity of the interactions.
+And yet, the workflow is the same as in the previous tutorial and remains simple and straightforward.
 
-This tutorial serves as a simple example of using the mean-field algorithm in two dimensions in combination with using Kwant. We will consider a simple tight-binding model of graphene with a Hubbard interaction. The graphene system is first created using Kwant. For the basics of creating graphene with Kwant we refer to [this](https://kwant-project.org/doc/1/tutorial/graphene) tutorial.
+## Building the system with `kwant`
 
-We begin with the basic imports
+### Non-interacting part
+
+As in the previous tutorial, we could construct a tight-binding dictionary of graphene by hand, but instead it is much easier to use [`kwant`](https://kwant-project.org/) to build the system.
+For a more detailed explanation on `kwant` see the [tutorial](https://kwant-project.org/doc/1/tutorial/graphene).
+
 
 ```{code-cell} ipython3
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
-import matplotlib.pyplot as plt
+import kwant
+
 import pymf
+from pymf.kwant_helper import utils
+
+s0 = np.identity(2)
+sx = np.array([[0, 1], [1, 0]])
+sy = np.array([[0, -1j], [1j, 0]])
+sz = np.diag([1, -1])
+
+# Create graphene lattice
+graphene = kwant.lattice.general([(1, 0), (1 / 2, np.sqrt(3) / 2)],
+                                 [(0, 0), (0, 1 / np.sqrt(3))], norbs=2)
+a, b = graphene.sublattices
+
+# Create bulk system
+bulk_graphene = kwant.Builder(kwant.TranslationalSymmetry(*graphene.prim_vecs))
+# Set onsite energy to zero
+bulk_graphene[a.shape((lambda pos: True), (0, 0))] = 0 * s0
+bulk_graphene[b.shape((lambda pos: True), (0, 0))] = 0 * s0
+# Add hoppings between sublattices
+bulk_graphene[graphene.neighbors(1)] = s0
 ```
 
-##  Preparing the model
-
-We first translate this model from a Kwant system to a tight-binding dictionary. In the tight-binding dictionary the keys denote the hoppings while the values are the hopping amplitudes.
+The `bulk_graphene` object is a `kwant.Builder` object that represents the non-interacting graphene system.
+To convert it to a tight-binding dictionary, we use the {autolink}`~pymf.kwant_helper.utils.builder_to_tb` function:
 
 ```{code-cell} ipython3
-import pymf.kwant_helper.kwant_examples as kwant_examples
-import pymf.kwant_helper.utils as kwant_utils
-
-# Create translationally-invariant `kwant.Builder`
-graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
-h_0 = kwant_utils.builder_to_tb(graphene_builder)
+h_0 = utils.builder_to_tb(bulk_graphene)
 ```
 
-We also use Kwant to create the Hubbard interaction. The interaction terms are  described by:
+### Interacting part
 
-$$ Hubbardd $$
+We utilize `kwant` to build the interaction tight-binding dictionary as well.
+To define the interactions, we need to specify two functions:
+* `onsite_int(site)`: returns the onsite interaction matrix.
+* `nn_int(site1, site2)`: returns the interaction matrix between `site1` and `site2`.
 
-Once we have both the non-interacting and the interacting part, we can assign the parameters for the Hubbard interaction and then combine both, together with a filling, into the model.
+We feed these functions to the {autolink}`~pymf.kwant_helper.utils.build_interacting_syst` function, which constructs the `kwant.Builder` object encoding the interactions.
+All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~pymf.kwant_helper.utils.builder_to_tb` function
 
 ```{code-cell} ipython3
-U=1
-V=0.1
-params = dict(U=U, V=V)
-h_int = kwant_utils.builder_to_tb(int_builder, params)
-_model = pymf.Model(h_0, h_int, filling=2)
+def onsite_int(site, U):
+    return U * np.ones((2, 2))
+
+def nn_int(site1, site2, V):
+    return V * np.ones((2, 2))
+
+builder_int = utils.build_interacting_syst(
+    builder=bulk_graphene,
+    lattice=graphene,
+    func_onsite=onsite_int,
+    func_hop=nn_int,
+    max_neighbor=1
+)
+params = dict(U=0.2, V=1.2)
+h_int = utils.builder_to_tb(builder_int, params)
 ```
 
-To start the mean-field calculation we also need a starting guess. We will use our random guess generator for this. It creates a random Hermitian hopping dictionary based on the hopping keys provided and the number of degrees of freedom specified. As we don't expect the mean-field solution to contain terms more than the hoppings from the interacting part, we can use the hopping keys from the interacting part. We will use the same number of degrees as freedom as both the non-interacting and interacting part, so that they match.
+Because `nn_int` function returns the same interaction matrix for all site pairs, we set `max_neighbor=1` to ensure that the interaction only extends to nearest-neighbours and is zero for longer distances.
+
+## Computing expectation values
+
+As before, we construct {autolink}`~pymf.model.Model` object to represent the full system to be solved via the mean-field approximation.
+We then generate a random guess for the mean-field solution and solve the system:
 
 ```{code-cell} ipython3
-guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
-mf_sol = pymf.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
-full_sol = pymf.add_tb(h_0, mf_sol)
+filling = 2
+model = pymf.Model(h_0, h_int, filling=2)
+int_keys = frozenset(h_int)
+ndof = len(list(h_0.values())[0])
+guess = pymf.generate_guess(int_keys, ndof)
+mf_sol = pymf.solver(model, guess, nk=18)
+h_full = pymf.add_tb(h_0, mf_sol)
 ```
 
-After we have defined the guess, we feed it together with the model into the mean-field solver. The mean-field solver will return a hopping dictionary with the mean-field approximation. We can then add this solution to the non-interacting part to get the full solution. In order to get the solution, we specified the number of k-points to be used in the calculation. This refers to the k-grid used in the Brillouin zone for the density matrix.
+To investigate the effects of interaction on systems with more than one degree of freedom, it is more useful to consider the expectation values of various operators which serve as order parameters.
+For example, we can compute the charge density wave (CDW) order parameter which is defined as the difference in the charge density between the two sublattices.
 
-## Creating a phase diagram of the gap
+To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~pymf.mf.construct_density_matrix` function.
+We then feed it into {autolink}`~pymf.observables.expectation_value` function together with the operator we want to measure.
+In this case, we compute the CDW order parameter by measuring the expectation value of the $\sigma_z$ operator acting on the graphene sublattice degree of freedom.
+```{code-cell} ipython3
+cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-We can now create a phase diagram of the gap of the interacting solution. In order to calculate the gap we first create a function which takes a hopping dictionary and a Fermi energy and returns the indirect gap. The gap is defined as the difference between the highest occupied and the lowest unoccupied energy level. We will use a dense k-grid to calculate the gap. In order to obtain the Hamiltonian on a dense k-grid, we use the `tb_to_kgrid` function from pymf.
+rho, _ = pymf.construct_density_matrix(h_full, filling=filling, nk=40)
+rho_0, _ = pymf.construct_density_matrix(h_0, filling=filling, nk=40)
+
+cdw_order_parameter = pymf.expectation_value(rho, cdw_operator)
+cdw_order_parameter_0 = pymf.expectation_value(rho_0, cdw_operator)
+
+print(f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}")
+print(f"CDW order parameter for non-interacting system: {np.round(np.abs(cdw_order_parameter_0), 2)}")
+```
+
+We see that the CDW order parameter is non-zero only for the interacting system, indicating the presence of a CDW phase.
+
+## Graphene phase diagram
+
+In the remaining part of this tutorial, we will utilize all the tools we have developed so far to create a phase diagram for the graphene system.
+
+To identify phase changes, it is convenient to track the gap of the system as a function of $U$ and $V$.
+To that end, we first create a function that calculates the gap of the system given the tight-binding dictionary and the Fermi energy.
 
 ```{code-cell} ipython3
 def compute_gap(h, fermi_energy=0, nk=100):
@@ -78,41 +143,30 @@ def compute_gap(h, fermi_energy=0, nk=100):
     return np.abs(emin - emax)
 ```
 
-Now that we can calculate the gap, we create a phase diagram of the gap as a function of the Hubbard interaction strength $U$ and the nearest neighbor interaction strength $V$. We vary the onsite Hubbard interactio $U$ strength from $0$ to $2$ and the nearest neighbor interaction strength $V$ from $0$ to $1.5$.
-
-```{code-cell} ipython3
-def gap_and_mf_sol(U, V, int_builder, h_0):
-    params = dict(U=U, V=V)
-    h_int = kwant_utils.builder_to_tb(int_builder, params)
-    _model = pymf.Model(h_0, h_int, filling=2)
-    guess = pymf.generate_guess(frozenset(h_int), len(list(h_0.values())[0]))
-    mf_sol = pymf.solver(_model, guess, nk=18, optimizer_kwargs={'M':0})
-    gap = compute_gap(pymf.add_tb(h_0, mf_sol), fermi_energy=0, nk=300)
-    return gap, mf_sol
-```
-
-```{code-cell} ipython3
-def compute_phase_diagram(Us, Vs, int_builder, h_0):
-  gaps = []
-  mf_sols = []
-  for U in Us:
-    for V in Vs:
-      gap, mf_sol = gap_and_mf_sol(U, V, int_builder, h_0)
-      gaps.append(gap)
-      mf_sols.append(mf_sol)
-  gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
-  mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
-  return gaps, mf_sols
-```
-We chose to initialize a new guess for each new $U$ and $V$ value. For certain mean-field problems, one might want to reuse the mean-field solution of a nearby parameter as the next guess in order to speed up computations. However, as the size of this system is still small, we can afford to initialize a new guess for each new $U$ and $V$ value.
-
-We can now compute the phase diagram and then plot it
+And proceed to compute the gap and the mean-field correction for a range of $U$ and $V$ values:
 
 ```{code-cell} ipython3
 Us = np.linspace(0, 4, 10)
 Vs = np.linspace(0, 1.5, 10)
-gap, mf_sols = compute_phase_diagram(Us, Vs, int_builder, h_0)
-plt.imshow(gap.T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
+
+gaps = []
+mf_sols = []
+for U in Us:
+    for V in Vs:
+        params = dict(U=U, V=V)
+        h_int = utils.builder_to_tb(builder_int, params)
+
+        model = pymf.Model(h_0, h_int, filling=filling)
+        guess = pymf.generate_guess(int_keys, ndof)
+        mf_sol = pymf.solver(model, guess, nk=18)
+        mf_sols.append(mf_sol)
+
+        gap = compute_gap(pymf.add_tb(h_0, mf_sol), fermi_energy=0, nk=100)
+        gaps.append(gap)
+gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
+mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
+
+plt.imshow(gaps.T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
 plt.colorbar()
 plt.xlabel('V')
 plt.ylabel('U')
@@ -122,90 +176,39 @@ plt.show()
 
 This phase diagram has gap openings at the same places as shown in the [literature](https://arxiv.org/abs/1204.4531).
 
-## Order parameters
-
-We might also want to calculate order parameters of the mean field solution. From literature we know to expect a charge density wave (CDW) and a spin density wave (SDW) in the mean field solution in different regions of the phase diagram. Here we show how to create both the CDW and SDW order parameters and evaluate them for the mean field solution in the phase diagram.
-
-### Charge density wave
-
-We first start with the CDW order parameter. In CDW the spins on different sublattices have opposite signs. This means that our order parameter can be constructed as:
+We can now use the stored results in `mf_sols` to fully map out the phase diagram with order parameters.
+On top of the charge density wave (CDW), we also expect a spin density wave (SDW) in different regions of the phase diagram.
+We construct the SDW order parameter with the same steps as before, but now we need to sum over the expectation values of the three Pauli matrices to account for the $SU(2)$ spin-rotation symmetry.
 
 ```{code-cell} ipython3
-sz = np.array([[1, 0], [0, -1]])
-cdw_order_parameter = {}
-cdw_order_parameter[(0,0)] = np.kron(sz, np.eye(2))
-```
-
-We choose a point in the phase diagram where we expect there to be a CDW phase and calculate the expectation value with the CDW order parameter. In order to do this we first construct the density matrix from the mean field solution. As the mean-field solution is in terms of a hopping dictionary, we can now freely choose the number of k-points on which we want to calculate the density-matrix. We perform this calculation over the complete phase diagram where we calculated the gap earlier:
-
-```{code-cell} ipython3
-cdw_list = []
-for mf_sol in mf_sols.flatten():
-    rho, _ = pymf.construct_density_matrix(pymf.add_tb(h_0, mf_sol), filling=2, nk=40)
-    expectation_value = pymf.expectation_value(rho, cdw_order_parameter)
-    cdw_list.append(expectation_value)
-```
-
-```{code-cell} ipython3
-cdw_list = np.asarray(cdw_list).reshape(mf_sols.shape)
-plt.imshow(np.abs(cdw_list.T.real), extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
-plt.colorbar()
-plt.xlabel('V')
-plt.ylabel('U')
-plt.title('Charge Density Wave Order Parameter')
-plt.show()
-```
-
-### Spin density wave
-
-To check the other phase we expect in the graphene phase diagram, we construct a spin density wave order parameter. In our chosen graphene system the spin density wave has $SU(2)$ symmetry. This means that we need to sum over the pauli matrices when constructing this order parameter. We can construct the order parameter as:
-
-```{code-cell} ipython3
-sx = np.array([[0, 1], [1, 0]])
-sy = np.array([[0, -1j], [1j, 0]])
-
 s_list = [sx, sy, sz]
-
-order_parameter_list = []
-for s in s_list:
-    order_parameter = {}
-    order_parameter[(0,0)] =  np.kron(sz, s)
-    order_parameter_list.append(order_parameter)
-```
-
-Then, similar to what we did in the CDW phase, we calculate the expectation value of the order parameter with the density matrix of the mean field solution over the complete phase diagram. The main subtlety here is that we need to sum over expectation value of all SDW direction order parameters defined in order to get the total spin density wave order parameter.
-
-```{code-cell} ipython3
+cdw_list = []
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _ = pymf.construct_density_matrix(pymf.add_tb(h_0, mf_sol), filling=2, nk=40)
-    expectation_values = []
-    for order_parameter in order_parameter_list:
-        expectation_value = pymf.expectation_value(rho, order_parameter)
-        expectation_values.append(expectation_value)
+    rho, _ = pymf.construct_density_matrix(pymf.add_tb(h_0, mf_sol), filling=filling, nk=40)
 
-    sdw_list.append(np.sum(np.array(expectation_values)**2))
-```
+    # Compute CDW order parameter
+    cdw_list.append(np.abs(pymf.expectation_value(rho, cdw_operator))**2)
 
-```{code-cell} ipython3
+    # Compute SDW order parameter
+    sdw_value = 0
+    for s_i in s_list:
+      sdw_operator_i = {(0, 0) : np.kron(sz, s_i)}
+      sdw_value += np.abs(pymf.expectation_value(rho, sdw_operator_i))**2
+    sdw_list.append(sdw_value)
+
+cdw_list = np.asarray(cdw_list).reshape(mf_sols.shape)
 sdw_list = np.asarray(sdw_list).reshape(mf_sols.shape)
-plt.imshow(np.abs(sdw_list.T.real), extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
-plt.colorbar()
-plt.xlabel('V')
-plt.ylabel('U')
-plt.title('Spin Density Wave Order Parameter')
-plt.show()
 ```
 
-## Full phase diagram
-
-Finally, we can combine the gap, CDW and SDW phase diagrams into one plot. We naively do this by plotting the order parameter of CDW minus the order parameter of SDW. Furthermore, we normalize the gap such that it is between $0$ and $1$ and can thus be used for the transparency.
+Finally, we can combine the gap, CDW and SDW order parameters into one plot.
+We naively do this by plotting the difference between CDW and SDW order parameters and indicate the gap with the transparency.
 
 ```{code-cell} ipython3
 import matplotlib.ticker as mticker
 normalized_gap = gap/np.max(gap)
-plt.imshow(np.abs(cdw_list.T.real)-np.abs(sdw_list.T.real), extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto', cmap="coolwarm", alpha=normalized_gap.T)
-plt.colorbar(ticks=[-1.75, 0, 1.75], format=mticker.FixedFormatter(['SDW', '0', 'CDW']), label='Order parameter', extend='both')
+plt.imshow((cdw_list - sdw_list).T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto', cmap="coolwarm", alpha=normalized_gap.T, vmin=-2.6, vmax=2.6)
+plt.colorbar(ticks=[-2.6, 0, 2.6], format=mticker.FixedFormatter(['SDW', '0', 'CDW']), label='Order parameter', extend='both')
 plt.xlabel('V')
 plt.ylabel('U')
 plt.show()
