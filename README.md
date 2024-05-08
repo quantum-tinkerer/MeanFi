@@ -66,7 +66,7 @@ Here is why you should use `pymf`:
 
     `pymf`'s code is structured to be easy to understand, modify and extend.
 
-* Sufficiently time-effective
+* Optimized numerical workflow
 
     Introduces minimal overhead to the calculation of the mean-field Hamiltonian.
 
