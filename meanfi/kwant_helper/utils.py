@@ -52,8 +52,8 @@ def builder_to_tb(
         col = copy(row)
         row, col = np.array([*product(row, col)]).T
         try:
+            _params = {}
             for arg in inspect.getfullargspec(val).args:
-                _params = {}
                 if arg in params:
                     _params[arg] = params[arg]
             val = val(site, **_params)
@@ -80,8 +80,8 @@ def builder_to_tb(
         ]
         row, col = np.array([*product(row, col)]).T
         try:
+            _params = {}
             for arg in inspect.getfullargspec(val).args:
-                _params = {}
                 if arg in params:
                     _params[arg] = params[arg]
             val = val(a, b, **_params)
