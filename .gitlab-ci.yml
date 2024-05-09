@@ -5,7 +5,7 @@ before_script:
   - export MAMBA_ROOT_PREFIX=micromamba
   - micromamba create -yf docs/environment.yml
   - eval "$(micromamba shell hook --shell bash)"
-  - micromamba activate pymf-docs
+  - micromamba activate meanfi-docs
 
 run tests:
   script:
@@ -65,3 +65,35 @@ run pre-commit:
     paths:
       - .pre-commit-cache
       - micromamba
+
+prepare zips:
+  image: gitlab.kwant-project.org:5005/qt/research-docker
+  before_script: []
+  when: manual
+  script:
+    - zip -r zenodo.zip *
+  artifacts:
+    paths:
+      - zenodo.zip
+
+publish to test pypi:
+  needs:
+    - run tests
+    - run docs
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
+  script:
+    - micromamba install -c conda-forge -y hatch hatch-vcs
+    - hatch build
+    - hatch publish -u __token__ -a $PYPI_TEST_TOKEN -r test
+
+publish to pypi:
+  needs:
+    - run tests
+    - run docs
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
+  script:
+    - micromamba install -c conda-forge -y hatch hatch-vcs
+    - hatch build
+    - hatch publish -u __token__ -a $PYPI_TOKEN

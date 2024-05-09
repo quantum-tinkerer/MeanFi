@@ -13,9 +13,9 @@
 import os
 import sys
 
-import pymf  # noqa: F401
+import meanfi  # noqa: F401
 
-package_path = os.path.abspath("../pymf")
+package_path = os.path.abspath("../meanfi")
 # Suppress superfluous frozen modules warning.
 os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
 sys.path.insert(0, package_path)
@@ -23,14 +23,14 @@ sys.path.insert(0, package_path)
 
 # -- Project information -----------------------------------------------------
 
-project = "pymf"
-copyright = "2024, pymf developers"
-author = "pymf developers"
-gitlab_url = "https://gitlab.kwant-project.org/qt/pymf"
+project = "MeanFi"
+copyright = "2024, MeanFi developers"
+author = "MeanFi developers"
+gitlab_url = "https://gitlab.kwant-project.org/qt/meanfi"
 
 # The full version, including alpha/beta/rc tags
-release = pymf.__version__
-major, minor = pymf.__version_tuple__[:2]
+release = meanfi.__version__
+major, minor = meanfi.__version_tuple__[:2]
 version = f"{major}.{minor}"
 
 # -- General configuration ---------------------------------------------------
@@ -71,6 +71,8 @@ intersphinx_mapping = {
 
 default_role = "autolink"
 
+latex_elements = {"extrapackages": r"\usepackage{braket}"}
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
@@ -86,9 +88,10 @@ autoclass_content = "both"
 # a list of builtin themes.
 #
 html_theme = "sphinx_book_theme"
+html_title = "MeanFi"
 
 html_theme_options = {
-    "repository_url": "https://gitlab.kwant-project.org/qt/kwant-scf",
+    "repository_url": "https://gitlab.kwant-project.org/qt/meanfi",
     "use_repository_button": True,
     "use_issues_button": True,
     "use_edit_page_button": True,
@@ -112,5 +115,5 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ["_static"]
-# html_css_files = ["local.css"]
+html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]

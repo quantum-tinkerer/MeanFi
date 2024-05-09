@@ -5,9 +5,9 @@ import memray
 import numpy as np
 from pyinstrument import Profiler
 
-from pymf.kwant_helper import kwant_examples, utils
-from pymf.model import Model
-from pymf.tb.utils import generate_guess
+from meanfi.kwant_helper import kwant_examples, utils
+from meanfi.model import Model
+from meanfi.tb.utils import guess_tb
 
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
@@ -19,7 +19,7 @@ nk = 600
 h_int = utils.builder_to_tb(int_builder, params)
 h_0 = utils.builder_to_tb(graphene_builder)
 norbs = len(list(h_0.values())[0])
-guess = generate_guess(frozenset(h_int), norbs)
+guess = guess_tb(frozenset(h_int), norbs)
 
 model = Model(h_0, h_int, filling)
 

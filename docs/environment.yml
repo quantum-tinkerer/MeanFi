@@ -1,4 +1,4 @@
-name: pymf-docs
+name: meanfi-docs
 
 channels:
   - conda-forge
