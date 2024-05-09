@@ -75,3 +75,15 @@ prepare zips:
   artifacts:
     paths:
       - zenodo.zip
+
+publish to test pypi:
+  needs:
+    - run tests
+    - run docs
+    - run nox
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
+  script:
+    - micromamba install -c conda-forge -y hatch hatch-vcs
+    - hatch build
+    - hatch publish -u __token__ -a $PYPI_TEST_TOKEN -r test
