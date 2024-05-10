@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.4
+    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -25,13 +25,11 @@ And yet, the workflow is the same as in the previous tutorial and remains simple
 As in the previous tutorial, we could construct a tight-binding dictionary of graphene by hand, but instead it is much easier to use [`kwant`](https://kwant-project.org/) to build the system.
 For a more detailed explanation on `kwant` see the [tutorial](https://kwant-project.org/doc/1/tutorial/graphene).
 
-
 ```{code-cell} ipython3
-import numpy as np
-import matplotlib.pyplot as plt
 import kwant
-
+import matplotlib.pyplot as plt
 import meanfi
+import numpy as np
 from meanfi.kwant_helper import utils
 
 s0 = np.identity(2)
@@ -40,8 +38,9 @@ sy = np.array([[0, -1j], [1j, 0]])
 sz = np.diag([1, -1])
 
 # Create graphene lattice
-graphene = kwant.lattice.general([(1, 0), (1 / 2, np.sqrt(3) / 2)],
-                                 [(0, 0), (0, 1 / np.sqrt(3))], norbs=2)
+graphene = kwant.lattice.general(
+    [(1, 0), (1 / 2, np.sqrt(3) / 2)], [(0, 0), (0, 1 / np.sqrt(3))], norbs=2
+)
 a, b = graphene.sublattices
 
 # Create bulk system
@@ -111,6 +110,7 @@ For example, we can compute the charge density wave (CDW) order parameter which 
 To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~meanfi.mf.density_matrix` function.
 We then feed it into {autolink}`~meanfi.observables.expectation_value` function together with the operator we want to measure.
 In this case, we compute the CDW order parameter by measuring the expectation value of the $\sigma_z$ operator acting on the graphene sublattice degree of freedom.
+
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
@@ -120,8 +120,12 @@ rho_0, _ = meanfi.density_matrix(h_0, filling=filling, nk=40)
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
 
-print(f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}")
-print(f"CDW order parameter for non-interacting system: {np.round(np.abs(cdw_order_parameter_0), 2)}")
+print(
+    f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}"
+)
+print(
+    f"CDW order parameter for non-interacting system: {np.round(np.abs(cdw_order_parameter_0), 2)}"
+)
 ```
 
 We see that the CDW order parameter is non-zero only for the interacting system, indicating the presence of a CDW phase.
@@ -166,11 +170,11 @@ for U in Us:
 gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
 mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
 
-plt.imshow(gaps.T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto')
+plt.imshow(gaps.T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin="lower", aspect="auto")
 plt.colorbar()
-plt.xlabel('V')
-plt.ylabel('U')
-plt.title('Gap')
+plt.xlabel("V")
+plt.ylabel("U")
+plt.title("Gap")
 plt.show()
 ```
 
@@ -188,13 +192,13 @@ for mf_sol in mf_sols.flatten():
     rho, _ = meanfi.density_matrix(meanfi.add_tb(h_0, mf_sol), filling=filling, nk=40)
 
     # Compute CDW order parameter
-    cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator))**2)
+    cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)
 
     # Compute SDW order parameter
     sdw_value = 0
     for s_i in s_list:
-      sdw_operator_i = {(0, 0) : np.kron(sz, s_i)}
-      sdw_value += np.abs(meanfi.expectation_value(rho, sdw_operator_i))**2
+        sdw_operator_i = {(0, 0): np.kron(sz, s_i)}
+        sdw_value += np.abs(meanfi.expectation_value(rho, sdw_operator_i)) ** 2
     sdw_list.append(sdw_value)
 
 cdw_list = np.asarray(cdw_list).reshape(mf_sols.shape)
@@ -206,10 +210,25 @@ We naively do this by plotting the difference between CDW and SDW order paramete
 
 ```{code-cell} ipython3
 import matplotlib.ticker as mticker
-normalized_gap = gaps/np.max(gaps)
-plt.imshow((cdw_list - sdw_list).T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin='lower', aspect='auto', cmap="coolwarm", alpha=normalized_gap.T, vmin=-2.6, vmax=2.6)
-plt.colorbar(ticks=[-2.6, 0, 2.6], format=mticker.FixedFormatter(['SDW', '0', 'CDW']), label='Order parameter', extend='both')
-plt.xlabel('V')
-plt.ylabel('U')
+
+normalized_gap = gaps / np.max(gaps)
+plt.imshow(
+    (cdw_list - sdw_list).T,
+    extent=(Us[0], Us[-1], Vs[0], Vs[-1]),
+    origin="lower",
+    aspect="auto",
+    cmap="coolwarm",
+    alpha=normalized_gap.T,
+    vmin=-2.6,
+    vmax=2.6,
+)
+plt.colorbar(
+    ticks=[-2.6, 0, 2.6],
+    format=mticker.FixedFormatter(["SDW", "0", "CDW"]),
+    label="Order parameter",
+    extend="both",
+)
+plt.xlabel("V")
+plt.ylabel("U")
 plt.show()
 ```

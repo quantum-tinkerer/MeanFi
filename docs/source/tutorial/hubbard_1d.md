@@ -4,12 +4,13 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.4
+    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
+
 # 1D Hubbard model
 
 ## Background physics
@@ -48,6 +49,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import meanfi
 ```
+
 Now let us translate the non-interacting Hamiltonian $\hat{H_0}$ defined above into the basic input format for the package: a **tight-binding dictionary**.
 The tight-binding dictionary is a python dictionary where the keys are tuples of integers representing the hopping vectors and the values are the hopping matrices.
 For example, a key `(0,)` represents the onsite term in one dimension and a key `(1,)` represents the hopping a single unit cell to the right.
@@ -59,14 +61,15 @@ Thus our non-interacting Hamiltonian  becomes:
 hopp = np.kron(np.array([[0, 1], [0, 0]]), np.eye(2))
 h_0 = {(0,): hopp + hopp.T.conj(), (1,): hopp, (-1,): hopp.T.conj()}
 ```
+
 Here `hopp` is the hopping matrix which we define as a kronecker product between sublattice and spin degrees of freedom: `np.array([[0, 1], [0, 0]])` corresponds to the hopping between sublattices and `np.eye(2)` leaves the spin degrees of freedom unchanged.
 In the corresponding tight-binding dictionary `h_0`, the key `(0,)` contains hopping within the unit cell and the keys `(1,)` and `(-1,)` correspond to the hopping between the unit cells to the right and left respectively.
 
 To verify the validity of `h_0`, we evaluate it in the reciprocal space using the {autolink}`~meanfi.tb.transforms.tb_to_kgrid`, then diagonalize it and plot the band structure:
 
 ```{code-cell} ipython3
-nk = 50 # number of k-points
-ks = np.linspace(0, 2*np.pi, nk, endpoint=False)
+nk = 50  # number of k-points
+ks = np.linspace(0, 2 * np.pi, nk, endpoint=False)
 hamiltonians_0 = meanfi.tb_to_kgrid(h_0, nk)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
@@ -90,14 +93,18 @@ Based on the kronecker product structure we defined earlier, the interaction Ham
 ```{code-cell} ipython3
 U = 2
 s_x = np.array([[0, 1], [1, 0]])
-h_int = {(0,): U * np.kron(np.eye(2), s_x),}
+h_int = {
+    (0,): U * np.kron(np.eye(2), s_x),
+}
 ```
+
 Here `s_x` is the Pauli matrix acting on the spin degrees of freedom, which ensures that the interaction is only between electrons with opposite spins whereas the `np.eye(2)` ensures that the interaction is only between electrons on the same sublattice.
 
 ### Putting it all together
 
 To combine the non-interacting and interaction Hamiltonians, we use the {autolink}`~meanfi.model.Model` class.
 In addition to the Hamiltonians, we also need to specify the filling of the system --- the number of electrons per unit cell.
+
 ```{code-cell} ipython3
 filling = 2
 full_model = meanfi.Model(h_0, h_int, filling)
@@ -174,6 +181,7 @@ def compute_phase_diagram(
         gaps.append(compute_gap(full_sol, nk_dense))
 
     return np.asarray(gaps, dtype=float)
+
 
 Us = np.linspace(0, 4, 40, endpoint=True)
 gaps = compute_phase_diagram(Us=Us, nk=20, nk_dense=100)
