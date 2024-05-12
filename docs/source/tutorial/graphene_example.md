@@ -110,6 +110,7 @@ For example, we can compute the charge density wave (CDW) order parameter which 
 To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~meanfi.mf.density_matrix` function.
 We then feed it into {autolink}`~meanfi.observables.expectation_value` function together with the operator we want to measure.
 In this case, we compute the CDW order parameter by measuring the expectation value of the $\sigma_z$ operator acting on the graphene sublattice degree of freedom.
+
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
