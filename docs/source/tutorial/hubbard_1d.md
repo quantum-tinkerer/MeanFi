@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.4
+    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -65,8 +65,8 @@ In the corresponding tight-binding dictionary `h_0`, the key `(0,)` contains hop
 To verify the validity of `h_0`, we evaluate it in the reciprocal space using the {autolink}`~meanfi.tb.transforms.tb_to_kgrid`, then diagonalize it and plot the band structure:
 
 ```{code-cell} ipython3
-nk = 50 # number of k-points
-ks = np.linspace(0, 2*np.pi, nk, endpoint=False)
+nk = 50  # number of k-points
+ks = np.linspace(0, 2 * np.pi, nk, endpoint=False)
 hamiltonians_0 = meanfi.tb_to_kgrid(h_0, nk)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
@@ -90,8 +90,11 @@ Based on the kronecker product structure we defined earlier, the interaction Ham
 ```{code-cell} ipython3
 U = 2
 s_x = np.array([[0, 1], [1, 0]])
-h_int = {(0,): U * np.kron(np.eye(2), s_x),}
+h_int = {
+    (0,): U * np.kron(np.eye(2), s_x),
+}
 ```
+
 Here `s_x` is the Pauli matrix acting on the spin degrees of freedom, which ensures that the interaction is only between electrons with opposite spins whereas the `np.eye(2)` ensures that the interaction is only between electrons on the same sublattice.
 
 ### Putting it all together
