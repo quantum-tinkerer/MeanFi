@@ -4,6 +4,7 @@ from typing import Callable
 import numpy as np
 from scipy.sparse import coo_array
 import kwant
+from kwant.builder import Site
 import kwant.lattice
 import kwant.builder
 
@@ -57,10 +58,7 @@ def builder_to_tb(
         data = np.array(val).flatten()
         onsite_value = coo_array((data, (row, col)), shape=tb_shape).toarray()
 
-        if onsite_idx in h_0:
-            h_0[onsite_idx] += onsite_value
-        else:
-            h_0[onsite_idx] = onsite_value
+        h_0[onsite_idx] = h_0.get(onsite_idx, 0) + onsite_value
 
     for (site1, site2), val in builder.hopping_value_pairs():
         site2_dom = builder.symmetry.which(site2)
@@ -87,26 +85,85 @@ def builder_to_tb(
 
         hop_key = tuple(site2_dom)
         hop_key_back = tuple(-site2_dom)
-        if hop_key in h_0:
-            h_0[hop_key] += hopping_value
-            if np.linalg.norm(site2_dom) == 0:
-                h_0[hop_key] += hopping_value.conj().T
-            else:
-                h_0[hop_key_back] += hopping_value.conj().T
-        else:
-            h_0[hop_key] = hopping_value
-            if np.linalg.norm(site2_dom) == 0:
-                h_0[hop_key] += hopping_value.conj().T
-            else:
-                h_0[hop_key_back] = hopping_value.conj().T
+        h_0[hop_key] = h_0.get(hop_key, 0) + hopping_value
+        h_0[hop_key_back] = h_0.get(hop_key_back, 0) + hopping_value.T.conj()
 
     if return_data:
         data = {}
-        data["norbs"] = norbs_list
-        data["positions"] = [site.pos for site in sites_list]
+        data["periods"] = prim_vecs
+        data["sites"] = sites_list
         return h_0, data
     else:
         return h_0
+
+
+def tb_to_builder(
+    h_0: _tb_type, sites_list: list[Site, ...], periods: np.ndarray
+) -> kwant.builder.Builder:
+    """
+    Construct a `kwant.builder.Builder` from a tight-binding dictionary.
+
+    Parameters
+    ----------
+    h_0 :
+        Tight-binding dictionary.
+    sites_list :
+        List of sites in the builder's unit cell.
+    periods :
+        2d array with periods of the translational symmetry.
+
+    Returns
+    -------
+    :
+        `kwant.builder.Builder` that corresponds to the tight-binding dictionary.
+    """
+
+    builder = kwant.Builder(kwant.TranslationalSymmetry(*periods))
+    onsite_idx = tuple([0] * len(list(h_0)[0]))
+
+    norbs_list = [site.family.norbs for site in sites_list]
+    norbs_list = [1 if norbs is None else norbs for norbs in norbs_list]
+
+    def site_to_tbIdxs(site):
+        site_idx = sites_list.index(site)
+        return (np.sum(norbs_list[:site_idx]) + range(norbs_list[site_idx])).astype(int)
+
+    # assemble the sites first
+    for site in sites_list:
+        tb_idxs = site_to_tbIdxs(site)
+        value = h_0[onsite_idx][
+            tb_idxs[0] : tb_idxs[-1] + 1, tb_idxs[0] : tb_idxs[-1] + 1
+        ]
+        builder[site] = value
+
+    # connect hoppings within the unit-cell
+    for site1, site2 in product(sites_list, sites_list):
+        if site1 == site2:
+            continue
+        tb_idxs1 = site_to_tbIdxs(site1)
+        tb_idxs2 = site_to_tbIdxs(site2)
+        value = h_0[onsite_idx][
+            tb_idxs1[0] : tb_idxs1[-1] + 1, tb_idxs2[0] : tb_idxs2[-1] + 1
+        ]
+        if np.all(value == 0):
+            continue
+        builder[(site1, site2)] = value
+
+    # connect hoppings between unit-cells
+    for key in h_0:
+        if key == onsite_idx:
+            continue
+        for site1, site2_fd in product(sites_list, sites_list):
+            site2 = builder.symmetry.act(key, site2_fd)
+            tb_idxs1 = site_to_tbIdxs(site1)
+            tb_idxs2 = site_to_tbIdxs(site2_fd)
+            value = h_0[key][
+                tb_idxs1[0] : tb_idxs1[-1] + 1, tb_idxs2[0] : tb_idxs2[-1] + 1
+            ]
+            if np.all(value == 0):
+                continue
+            builder[(site1, site2)] = value
+    return builder
 
 
 def build_interacting_syst(
