@@ -1,5 +1,6 @@
 from itertools import product
 from typing import Callable
+import inspect
 
 import numpy as np
 from scipy.sparse import coo_array
@@ -7,6 +8,7 @@ import kwant
 from kwant.builder import Site
 import kwant.lattice
 import kwant.builder
+
 
 from meanfi.tb.tb import _tb_type
 
@@ -49,7 +51,7 @@ def builder_to_tb(
         row, col = np.array([*product(tb_idx, tb_idx)]).T
 
         if callable(val):
-            param_keys = val.__code__.co_varnames[1:]
+            param_keys = inspect.getfullargspec(val).args[1:]
             try:
                 val = val(site, *[params[key] for key in param_keys])
             except KeyError as key:
@@ -74,7 +76,7 @@ def builder_to_tb(
         row, col = np.array([*product(tb_idx1, tb_idx2)]).T
 
         if callable(val):
-            param_keys = val.__code__.co_varnames[2:]
+            param_keys = inspect.getfullargspec(val).args[2:]
             try:
                 val = val(site1, site2, *[params[key] for key in param_keys])
             except KeyError as key:
