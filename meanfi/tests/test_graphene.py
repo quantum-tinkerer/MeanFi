@@ -5,6 +5,7 @@ import pytest
 from meanfi.kwant_helper import kwant_examples, utils
 from meanfi import (
     Model,
+    fermi_energy,
     solver,
     tb_to_kgrid,
     guess_tb,
@@ -78,7 +79,9 @@ def gap_prediction(U, V):
     model = Model(h_0, h_int, filling)
 
     mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"M": 0, "f_tol": 1e-8})
-    gap = compute_gap(add_tb(h_0, mf_sol), nk=200)
+    mf_full = add_tb(h_0, mf_sol)
+    EF = fermi_energy(mf_full, filling=filling, nk=nk)
+    gap = compute_gap(mf_full, fermi_energy=EF, nk=200)
 
     # Check if the gap is predicted correctly
     if gap > 0.1:
