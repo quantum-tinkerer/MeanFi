@@ -1,6 +1,4 @@
 import numpy as np
-from typing import Tuple
-
 
 from meanfi.mf import (
     density_matrix,
