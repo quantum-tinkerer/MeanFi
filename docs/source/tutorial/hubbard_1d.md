@@ -76,7 +76,7 @@ vals, vecs = np.linalg.eigh(hamiltonians_0)
 plt.plot(ks, vals, c="k")
 plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
 plt.xlim(0, 2 * np.pi)
-plt.ylabel("$E$")
+plt.ylabel("$E - E_F$")
 plt.xlabel("$k / a$")
 plt.show()
 ```
@@ -140,7 +140,7 @@ vals, vecs = np.linalg.eigh(hamiltonians)
 plt.plot(ks, vals, c="k")
 plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
 plt.xlim(0, 2 * np.pi)
-plt.ylabel("$E$")
+plt.ylabel("$E - E_F$")
 plt.xlabel("$k / a$")
 plt.show()
 ```
@@ -160,12 +160,10 @@ def compute_sol(U, h_0, nk, filling=2):
     mf_sol = meanfi.solver(full_model, guess, nk=nk)
     return meanfi.add_tb(h_0, mf_sol)
 
-from meanfi.mf import fermi_on_kgrid
-def compute_gap(full_sol, nk_dense, filling=filling):
+
+def compute_gap(full_sol, nk_dense, fermi_energy=0):
     h_kgrid = meanfi.tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
-
-    fermi_energy = fermi_on_kgrid(vals, filling=filling)
 
     emax = np.max(vals[vals <= fermi_energy])
     emin = np.min(vals[vals > fermi_energy])
