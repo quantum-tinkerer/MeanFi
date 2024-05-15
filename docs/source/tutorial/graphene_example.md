@@ -165,7 +165,7 @@ for U in Us:
 
         model = meanfi.Model(h_0, h_int, filling=filling)
         guess = meanfi.guess_tb(int_keys, ndof)
-        mf_sol = meanfi.solver(model, guess, nk=18)
+        mf_sol = meanfi.solver(model, guess, nk=20)
         mf_sols.append(mf_sol)
 
         gap = compute_gap(meanfi.add_tb(h_0, mf_sol))
