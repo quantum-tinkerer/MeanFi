@@ -138,9 +138,12 @@ To identify phase changes, it is convenient to track the gap of the system as a 
 To that end, we first create a function that calculates the gap of the system given the tight-binding dictionary and the Fermi energy.
 
 ```{code-cell} ipython3
-def compute_gap(h, fermi_energy=0, nk=100):
+from meanfi.mf import fermi_on_kgrid
+def compute_gap(h, filling=filling, nk=100):
     kham = meanfi.tb_to_kgrid(h, nk)
     vals = np.linalg.eigvalsh(kham)
+
+    fermi_energy = fermi_on_kgrid(vals, filling=filling)
 
     emax = np.max(vals[vals <= fermi_energy])
     emin = np.min(vals[vals > fermi_energy])
@@ -165,7 +168,7 @@ for U in Us:
         mf_sol = meanfi.solver(model, guess, nk=18)
         mf_sols.append(mf_sol)
 
-        gap = compute_gap(meanfi.add_tb(h_0, mf_sol), fermi_energy=0, nk=100)
+        gap = compute_gap(meanfi.add_tb(h_0, mf_sol))
         gaps.append(gap)
 gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
 mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))

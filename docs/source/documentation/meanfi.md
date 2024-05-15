@@ -6,7 +6,7 @@ To define the interactive problem, we use the following class:
 
 ```{eval-rst}
 .. autoclass:: meanfi.model.Model
-   :members: mfield
+   :members: mfield, density_matrix
 ```
 
 ## Mean-field and density matrix
@@ -29,7 +29,7 @@ To define the interactive problem, we use the following class:
 
 ```{eval-rst}
 .. automodule:: meanfi.solvers
-   :members: solver, cost
+   :members: solver, solver_mf, cost_mf, cost_density
    :show-inheritance:
 ```
 
