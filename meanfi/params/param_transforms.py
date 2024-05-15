@@ -16,13 +16,15 @@ def tb_to_flat(tb: _tb_type) -> np.ndarray:
     :
         1D complex array that parametrises the tight-binding dictionary.
     """
-    if len(list(tb)[0]) == 0:
-        matrix = np.array(list(tb.values()))
-        matrix = matrix.reshape((matrix.shape[-2], matrix.shape[-1]))
-        return matrix[np.triu_indices(matrix.shape[-1])].flatten()
-    N = len(tb.keys()) // 2 + 1
-    sorted_vals = np.array(list(tb.values()))[np.lexsort(np.array(list(tb.keys())).T)]
-    return sorted_vals[:N].flatten()
+    ndim = len(list(tb)[0])
+    onsite_key = tuple(np.zeros((ndim,), dtype=int))
+
+    hopping_keys = sorted([key for key in tb.keys() if key != onsite_key])
+    hopping_keys = hopping_keys[: len(hopping_keys) // 2]
+
+    onsite_val = tb[onsite_key][np.triu_indices(tb[onsite_key].shape[-1])].flatten()
+    hopping_vals = [tb[key].flatten() for key in hopping_keys]
+    return np.concatenate([onsite_val] + hopping_vals)
 
 
 def flat_to_tb(
@@ -48,21 +50,31 @@ def flat_to_tb(
     tb :
         tight-binding dictionary
     """
-    shape = (len(tb_keys), ndof, ndof)
-    if len(tb_keys[0]) == 0:
-        matrix = np.zeros((shape[-1], shape[-2]), dtype=complex)
-        matrix[np.triu_indices(shape[-1])] = tb_param_complex
-        matrix += matrix.conj().T
-        matrix[np.diag_indices(shape[-1])] /= 2
-        return {(): matrix}
-    matrix = np.zeros(shape, dtype=complex)
-    N = len(tb_keys) // 2 + 1
-    matrix[:N] = tb_param_complex.reshape(N, *shape[1:])
-    matrix[N:] = np.moveaxis(matrix[-(N + 1) :: -1], -1, -2).conj()
+    ndim = len(tb_keys[0])
 
-    tb_keys = np.array(list(tb_keys))
-    sorted_keys = tb_keys[np.lexsort(tb_keys.T)]
-    tb = dict(zip(map(tuple, sorted_keys), matrix))
+    hopping_shape = (len(tb_keys) - 1, ndof, ndof)
+
+    onsite_idxs = ndof + ndof * (ndof - 1) // 2
+    onsite_key = tuple(np.zeros((ndim,), dtype=int))
+
+    # first build onsite matrix
+    onsite_matrix = np.zeros((ndof, ndof), dtype=complex)
+    onsite_matrix[np.triu_indices(ndof)] = tb_param_complex[:onsite_idxs]
+    onsite_matrix += onsite_matrix.conj().T
+    onsite_matrix[np.diag_indices(ndof)] /= 2
+
+    # then build hopping matrices
+    hopping_matrices = np.zeros(hopping_shape, dtype=complex)
+    N = len(tb_keys) // 2
+    hopping_matrices[:N] = tb_param_complex[onsite_idxs:].reshape(N, *hopping_shape[1:])
+    hopping_matrices[N:] = np.moveaxis(
+        np.flip(hopping_matrices[:N], axis=0), -1, -2
+    ).conj()
+
+    # combine all into a dictionary
+    hopping_keys = sorted([key for key in tb_keys if key != onsite_key])
+    tb = {key: hopping_matrices[i] for i, key in enumerate(hopping_keys)}
+    tb[onsite_key] = onsite_matrix
     return tb
 
 
