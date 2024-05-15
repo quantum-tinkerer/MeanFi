@@ -78,7 +78,7 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def density_matrix(self, rho: _tb_type, nk: int = 20) -> Tuple[_tb_type, float]:
+    def density_matrix(self, rho: _tb_type, nk: int = 20) -> _tb_type:
         """Computes the density matrix from a given initial density matrix.
 
         Parameters

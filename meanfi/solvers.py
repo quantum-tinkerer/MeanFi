@@ -42,12 +42,13 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted density matrix
-    reduced to the hoppings present in the h_int.
+    reduced to the hoppings only present in the h_int.
 
     Parameters
     ----------
     rho_params :
-        1D real array that parametrises the density matrix.
+        1D real array that parametrises the density matrix reduced to the
+        hoppings (keys) present in h_int.
     Model :
         Interacting tight-binding problem definition.
     nk :
@@ -57,8 +58,8 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
     Returns
     -------
     :
-        1D real array that is the difference between the computed and inputted mean-field
-        parametrisations
+        1D real array that is the difference between the computed and inputted
+        density matrix parametrisations reduced to the hoppings present in h_int.
     """
     shape = model._ndof
     rho_red = rparams_to_tb(rho_params, list(model.h_int), shape)
