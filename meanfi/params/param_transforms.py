@@ -22,9 +22,14 @@ def tb_to_flat(tb: _tb_type) -> np.ndarray:
     hopping_keys = sorted([key for key in tb.keys() if key != onsite_key])
     hopping_keys = hopping_keys[: len(hopping_keys) // 2]
 
-    onsite_val = tb[onsite_key][np.triu_indices(tb[onsite_key].shape[-1])].flatten()
+    onsite_upper_vals = tb[onsite_key][
+        np.triu_indices(tb[onsite_key].shape[-1], k=1)
+    ].flatten()
+    onsite_diag_vals = np.diag(tb[onsite_key]).real.flatten()
+
     hopping_vals = [tb[key].flatten() for key in hopping_keys]
-    return np.concatenate([onsite_val] + hopping_vals)
+    complex_vals = np.concatenate([onsite_upper_vals, *hopping_vals])
+    return np.concatenate([onsite_diag_vals, complex_to_real(complex_vals)])
 
 
 def flat_to_tb(
@@ -57,16 +62,22 @@ def flat_to_tb(
     onsite_idxs = ndof + ndof * (ndof - 1) // 2
     onsite_key = tuple(np.zeros((ndim,), dtype=int))
 
+    # reconstruct the complex values
+    onsite_diag_vals = tb_param_complex[:ndof]
+    complex_vals = real_to_complex(tb_param_complex[ndof:])
+    onsite_upper_vals = complex_vals[: onsite_idxs - ndof]
+    hopping_vals = complex_vals[(onsite_idxs - ndof) :]
+
     # first build onsite matrix
     onsite_matrix = np.zeros((ndof, ndof), dtype=complex)
-    onsite_matrix[np.triu_indices(ndof)] = tb_param_complex[:onsite_idxs]
+    onsite_matrix[np.triu_indices(ndof, k=1)] = onsite_upper_vals
     onsite_matrix += onsite_matrix.conj().T
-    onsite_matrix[np.diag_indices(ndof)] /= 2
+    onsite_matrix[np.diag_indices(ndof)] = onsite_diag_vals
 
     # then build hopping matrices
     hopping_matrices = np.zeros(hopping_shape, dtype=complex)
     N = len(tb_keys) // 2
-    hopping_matrices[:N] = tb_param_complex[onsite_idxs:].reshape(N, *hopping_shape[1:])
+    hopping_matrices[:N] = hopping_vals.reshape(N, *hopping_shape[1:])
     hopping_matrices[N:] = np.moveaxis(
         np.flip(hopping_matrices[:N], axis=0), -1, -2
     ).conj()

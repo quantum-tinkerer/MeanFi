@@ -1,9 +1,7 @@
 import numpy as np
 
 from meanfi.params.param_transforms import (
-    complex_to_real,
     flat_to_tb,
-    real_to_complex,
     tb_to_flat,
 )
 from meanfi.tb.tb import _tb_type
@@ -22,7 +20,7 @@ def tb_to_rparams(tb: _tb_type) -> np.ndarray:
     :
         1D real vector that parametrises the tight-binding dictionary.
     """
-    return complex_to_real(tb_to_flat(tb))
+    return tb_to_flat(tb)
 
 
 def rparams_to_tb(
@@ -44,5 +42,4 @@ def rparams_to_tb(
     :
         Tight-biding dictionary.
     """
-    flat_matrix = real_to_complex(tb_params)
-    return flat_to_tb(flat_matrix, ndof, tb_keys)
+    return flat_to_tb(tb_params, ndof, tb_keys)
