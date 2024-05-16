@@ -150,7 +150,8 @@ def solver_density(
         optimizer(f, rho_params, **optimizer_kwargs), list(model.h_int), shape
     )
     mf_result = meanfield(rho_result, model.h_int)
-    return mf_result
+    fermi = fermi_energy(add_tb(model.h_0, mf_result), model.filling, nk=nk)
+    return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
 
 
 solver = solver_density

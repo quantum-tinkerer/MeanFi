@@ -160,15 +160,12 @@ def compute_sol(U, h_0, nk, filling=2):
     mf_sol = meanfi.solver(full_model, guess, nk=nk)
     return meanfi.add_tb(h_0, mf_sol)
 
-from meanfi.mf import fermi_on_kgrid
 def compute_gap(full_sol, nk_dense, filling=filling):
     h_kgrid = meanfi.tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
 
-    fermi_energy = fermi_on_kgrid(vals, filling=filling)
-
-    emax = np.max(vals[vals <= fermi_energy])
-    emin = np.min(vals[vals > fermi_energy])
+    emax = np.max(vals[vals <= 0])
+    emin = np.min(vals[vals > 0])
     return np.abs(emin - emax)
 
 
@@ -179,6 +176,7 @@ def compute_phase_diagram(
 ):
     gaps = []
     for U in Us:
+        # print(U)
         full_sol = compute_sol(U, h_0, nk)
         gaps.append(compute_gap(full_sol, nk_dense))
 
@@ -186,7 +184,7 @@ def compute_phase_diagram(
 
 
 Us = np.linspace(0, 4, 30, endpoint=True)
-gaps = compute_phase_diagram(Us=Us, nk=20, nk_dense=100)
+gaps = compute_phase_diagram(Us=Us, nk=18, nk_dense=100)
 
 plt.plot(Us, gaps, c="k")
 plt.xlabel("$U / t$")
