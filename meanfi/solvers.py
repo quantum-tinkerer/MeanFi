@@ -62,10 +62,10 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
         density matrix parametrisations reduced to the hoppings present in h_int.
     """
     shape = model._ndof
-    rho_red = rparams_to_tb(rho_params, list(model.h_int), shape)
-    rho_new = model.density_matrix(rho_red, nk=nk)
-    rho_red_new = {key: rho_new[key] for key in model.h_int}
-    rho_params_new = tb_to_rparams(rho_red_new)
+    rho_reduced = rparams_to_tb(rho_params, list(model.h_int), shape)
+    rho_new = model.density_matrix(rho_reduced, nk=nk)
+    rho_reduced_new = {key: rho_new[key] for key in model.h_int}
+    rho_params_new = tb_to_rparams(rho_reduced_new)
     return rho_params_new - rho_params
 
 
@@ -143,9 +143,9 @@ def solver_density(
     rho_guess = density_matrix(
         add_tb(model.h_0, mf_guess), filling=model.filling, nk=nk
     )[0]
-    rho_guess_red = {key: rho_guess[key] for key in model.h_int}
+    rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
-    rho_params = tb_to_rparams(rho_guess_red)
+    rho_params = tb_to_rparams(rho_guess_reduced)
     f = partial(cost_density, model=model, nk=nk)
     rho_result = rparams_to_tb(
         optimizer(f, rho_params, **optimizer_kwargs), list(model.h_int), shape
