@@ -114,7 +114,7 @@ def solver_density(
     mf_guess: _tb_type,
     nk: int = 20,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
-    optimizer_kwargs: Optional[dict[str, str]] = {"M": 0},
+    optimizer_kwargs: Optional[dict[str, str]] = {"M": 0, "line_search": "wolfe"},
 ) -> _tb_type:
     """Solve for the mean-field correction through self-consistent root finding
     by finding the density matrix fixed point.
