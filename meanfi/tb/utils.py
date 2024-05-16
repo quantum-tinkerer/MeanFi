@@ -7,7 +7,7 @@ from meanfi.tb.transforms import tb_to_kgrid
 
 
 def guess_tb(
-    tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 1
+    tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 0.1
 ) -> _tb_type:
     """Generate hermitian guess tight-binding dictionary.
 
