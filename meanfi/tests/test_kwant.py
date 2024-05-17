@@ -16,13 +16,19 @@ def test_kwant_conversion(seed):
     ndim = np.random.randint(1, 3)
     cutoff = np.random.randint(1, 3)
     sites_in_cell = np.random.randint(1, 4)
-    ndof_per_site = np.random.randint(1, 5)
+    ndof_per_site = [np.random.randint(1, 5) for site in range(sites_in_cell)]
     keyList = generate_tb_keys(cutoff, ndim)
+    n_cells = np.random.randint(4)
 
     # set a dummy lattice to read sites from
-    lattice = kwant.lattice.general(np.eye(ndim), norbs=ndof_per_site)
+    lattice = kwant.lattice.general(
+        np.random.rand(ndim, ndim),
+        basis=np.random.rand(np.random.randint(1, 5), ndim),
+        norbs=ndof_per_site,
+    )
+
     dummy_tb = kwant.Builder(
-        kwant.TranslationalSymmetry(*sites_in_cell * lattice.prim_vecs)
+        kwant.TranslationalSymmetry(*n_cells * lattice.prim_vecs)
     )
     for site in range(sites_in_cell):
         dummy_tb[lattice(site, *[0 for _ in range(ndim - 1)])] = (
@@ -30,7 +36,7 @@ def test_kwant_conversion(seed):
         )
 
     # generate random and generate builder from it
-    random_tb = guess_tb(keyList, ndof_per_site * sites_in_cell)
+    random_tb = guess_tb(keyList, sum(ndof_per_site) * sites_in_cell * n_cells)
     random_builder = tb_to_builder(
         random_tb, list(dummy_tb.sites()), dummy_tb.symmetry.periods
     )
