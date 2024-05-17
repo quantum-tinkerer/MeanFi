@@ -18,6 +18,7 @@ kernelspec:
 
 tutorial/hubbard_1d.md
 tutorial/graphene_example.md
+tutorial/strained_graphene.md
 ```
 
 ```{toctree}
