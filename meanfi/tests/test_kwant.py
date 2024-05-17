@@ -13,7 +13,7 @@ repeat_number = 3
 
 @pytest.mark.parametrize("seed", range(repeat_number))
 def test_kwant_conversion(seed):
-    """Test the gap prediction for the Hubbard model."""
+    """Test conversion between Kwant and meanfi"""
     np.random.seed(seed)
     ndim = np.random.randint(1, 3)
     cutoff = np.random.randint(1, 3)
@@ -48,12 +48,12 @@ def test_kwant_conversion(seed):
 
 @pytest.mark.parametrize("seed", range(repeat_number))
 def test_kwant_supercell(seed):
+    """Test with Kwant supercell and callable onsite and hoppings."""
     np.random.seed(seed)
     ndim = np.random.randint(1, 3)
     cutoff = np.random.randint(1, 3)
     sites_in_cell = np.random.randint(1, 4)
     ndof_per_site = [np.random.randint(1, 4) for site in range(sites_in_cell)]
-    keyList = generate_tb_keys(cutoff, ndim)
     n_cells = np.random.randint(1, 4)
 
     vecs = np.random.rand(ndim, ndim)
@@ -108,13 +108,17 @@ def test_kwant_supercell(seed):
         site1, site2 = site_pair[0]
         if site1 == site2:
             assert np.isclose(
-                random_builder[site1](site=site1, alpha=params["alpha"], beta=params["beta"]),
+                random_builder[site1](
+                    site=site1, alpha=params["alpha"], beta=params["beta"]
+                ),
                 random_builder_test[site1],
             ).all()
         else:
             try:
                 assert np.isclose(
-                    random_builder[site1, site2](site1, site2, gamma=params["gamma"], delta=params["delta"]),
+                    random_builder[site1, site2](
+                        site1, site2, gamma=params["gamma"], delta=params["delta"]
+                    ),
                     random_builder_test[site1, site2],
                 ).all()
             except KeyError:
