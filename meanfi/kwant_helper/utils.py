@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Callable
+from typing import Callable, Optional
 import inspect
 
 import numpy as np
@@ -172,7 +172,7 @@ def build_interacting_syst(
     builder: kwant.builder.Builder,
     lattice: kwant.lattice.Polyatomic,
     func_onsite: Callable,
-    func_hop: Callable,
+    func_hop: Optional[Callable] = None,
     max_neighbor: int = 1,
 ) -> kwant.builder.Builder:
     """
@@ -201,6 +201,7 @@ def build_interacting_syst(
         kwant.lattice.TranslationalSymmetry(*builder.symmetry.periods)
     )
     int_builder[builder.sites()] = func_onsite
-    for neighbors in range(max_neighbor):
-        int_builder[lattice.neighbors(neighbors + 1)] = func_hop
+    if func_hop is not None:
+        for neighbors in range(max_neighbor):
+            int_builder[lattice.neighbors(neighbors + 1)] = func_hop
     return int_builder
