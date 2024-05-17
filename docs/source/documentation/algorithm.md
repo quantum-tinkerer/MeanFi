@@ -52,6 +52,6 @@ $$
 f(\text{MF}(\hat{V}_{\text{MF}})) = f(\hat{V}_{\text{MF}}).
 $$
 
-Instead of solving the fixed point problem, we rewrite it as the difference of the two successive self-consistent mean-field iterations in {autolink}`~meanfi.solvers.cost`.
+Instead of solving the fixed point problem, we rewrite it as the difference of the two successive self-consistent mean-field iterations in {autolink}`~meanfi.solvers.cost_mf`.
 That re-defines the problem into a root-finding problem which is more consistent with available numerical solvers such as {autolink}`~scipy.optimize.anderson`.
 That is exactly what we do in the {autolink}`~meanfi.solvers.solver` function, although we also provide the option to use a custom optimizer.

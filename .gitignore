@@ -28,6 +28,7 @@
 **/__pycache__/*
 *.py[cod]
 *.egg
+_version.py
 MANIFEST
 
 ### Jupyter temporaries
@@ -42,7 +43,9 @@ MANIFEST
 
 ### Testing and coverage reports
 htmlcov/
+junit.xml
 .tox/
+.nox/
 .coverage
 .coverage.*
 .cache
@@ -50,3 +53,6 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+
+### Documentation builds
+**/build/*
