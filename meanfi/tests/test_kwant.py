@@ -29,10 +29,10 @@ def test_kwant_conversion(seed):
 
     dummy_tb = kwant.Builder(kwant.TranslationalSymmetry(*n_cells * lattice.prim_vecs))
     for site in range(sites_in_cell):
-        for sublattice in lattice.sublattices:
+        for i, sublattice in enumerate(lattice.sublattices):
             for n in range(n_cells):
                 dummy_tb[sublattice(site, *[n for _ in range(ndim - 1)])] = (
-                    np.eye(sum(ndof_per_site)) * 2
+                    np.eye(ndof_per_site[i]) * 2
                 )
 
     # generate random and generate builder from it
