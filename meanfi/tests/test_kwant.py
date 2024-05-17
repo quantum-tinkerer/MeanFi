@@ -23,7 +23,7 @@ def test_kwant_conversion(seed):
     # set a dummy lattice to read sites from
     lattice = kwant.lattice.general(
         np.random.rand(ndim, ndim),
-        basis=np.random.rand(np.random.randint(1, 5), ndim),
+        basis=np.random.rand(sites_in_cell, ndim),
         norbs=ndof_per_site,
     )
 
@@ -31,9 +31,10 @@ def test_kwant_conversion(seed):
         kwant.TranslationalSymmetry(*n_cells * lattice.prim_vecs)
     )
     for site in range(sites_in_cell):
-        dummy_tb[lattice(site, *[0 for _ in range(ndim - 1)])] = (
-            np.eye(ndof_per_site) * 2
-        )
+        for sublattice in lattice.sublattices:
+            dummy_tb[sublattice(site, *[0 for _ in range(ndim - 1)])] = (
+                np.eye(sum(ndof_per_site)) * 2
+            )
 
     # generate random and generate builder from it
     random_tb = guess_tb(keyList, sum(ndof_per_site) * sites_in_cell * n_cells)
