@@ -42,7 +42,7 @@ def test_kwant_conversion(seed):
         random_tb, list(dummy_tb.sites()), dummy_tb.symmetry.periods
     )
     # convert builder back to tb and compare
-    random_builder_tb = builder_to_tb(random_builder, return_data=True)
+    random_builder_tb = builder_to_tb(random_builder)
     compare_dicts(random_tb, random_builder_tb)
 
 
@@ -107,13 +107,17 @@ def test_kwant_supercell(seed):
         site1, site2 = site_pair[0]
         if site1 == site2:
             assert np.isclose(
-                random_builder[site1](site=site1, alpha=params["alpha"], beta=params["beta"]),
+                random_builder[site1](
+                    site=site1, alpha=params["alpha"], beta=params["beta"]
+                ),
                 random_builder_test[site1],
             ).all()
         else:
             try:
                 assert np.isclose(
-                    random_builder[site1, site2](site1, site2, gamma=params["gamma"], delta=params["delta"]),
+                    random_builder[site1, site2](
+                        site1, site2, gamma=params["gamma"], delta=params["delta"]
+                    ),
                     random_builder_test[site1, site2],
                 ).all()
             except KeyError:
