@@ -183,7 +183,7 @@ def compute_phase_diagram(
     return np.asarray(gaps, dtype=float)
 
 
-Us = np.linspace(0, 4, 40, endpoint=True)
+Us = np.linspace(0, 4, 30, endpoint=True)
 gaps = compute_phase_diagram(Us=Us, nk=20, nk_dense=100)
 
 plt.plot(Us, gaps, c="k")
