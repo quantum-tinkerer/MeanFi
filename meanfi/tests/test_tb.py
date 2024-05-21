@@ -6,7 +6,8 @@ import pytest
 from scipy.fftpack import ifftn
 
 from meanfi.tb.tb import compare_dicts
-from meanfi.tb.transforms import ifftn_to_tb, tb_to_kgrid
+from meanfi.tb.utils import guess_tb, generate_tb_keys
+from meanfi.tb.transforms import ifftn_to_tb, tb_to_kgrid, tb_to_kfunc
 
 repeat_number = 10
 
@@ -27,3 +28,26 @@ def test_fourier(seed):
     kham = tb_to_kgrid(h_0, nk=nk)
     tb_new = ifftn_to_tb(ifftn(kham, axes=np.arange(ndim)))
     compare_dicts(h_0, tb_new)
+
+
+@pytest.mark.xfail
+@pytest.mark.parametrize("seed", range(repeat_number))
+def test_kfunc(seed):
+    np.random.seed(seed)
+    cutoff = np.random.randint(1, 4)
+    dim = np.random.randint(1, 3)
+    ndof = np.random.randint(2, 10)
+    nk = 10
+    random_hopping_vecs = generate_tb_keys(cutoff, dim)
+    random_tb = guess_tb(random_hopping_vecs, ndof, scale=1)
+
+    kfunc = tb_to_kfunc(random_tb)
+    kham = tb_to_kgrid(random_tb, nk=nk)
+
+    # evaluate kfunc on same grid as kham
+    ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
+    ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
+    kgrid = np.meshgrid(*([ks] * ndim), indexing="ij")
+    kham_kfunc = kfunc(*kgrid)
+
+    assert np.allclose(kham, kham_kfunc)
