@@ -13,11 +13,11 @@ kernelspec:
 
 # Strained graphene
 
-To showcase how meanfi can be used to study supercell calculations, we consider a strained graphene system. We use the physics and the system from https://arxiv.org/pdf/2104.00573
+We showcase the interface between `meanfi` and `Kwant` with a strained graphene supercell. In this tutorial, we qualitatively reproduce the results from [1](https://doi.org/10.1088/2053-1583/ac0b48).
 
 ## Model creation:
 
-We first create the atomistic model in kwant:
+We first create the atomistic model in `Kwant`. The complete source code of this example can be found in [`strained_graphene_kwant.py`](./scripts/strained_graphene_kwant.py). To reduce the computational cost, we perform the calculations with a $10 \times 10$ supercell whereas in [1](https://doi.org/10.1088/2053-1583/ac0b48) the calculations were performed with a $25 \times 25$ supercell. Thus, the agreement throughout the tutorial is only qualitative.
 
 ```{code-cell} ipython3
 import kwant
@@ -26,33 +26,32 @@ import meanfi
 import numpy as np
 from meanfi.kwant_helper import utils
 import scipy
-from scripts.strained_graphene_kwant import create_system, high_symmetry_line
+from scripts.strained_graphene_kwant import create_system
 ```
 
-We first want to check that our model is created correctly. To do this we plot the band structure of the non-interacting Hamiltonian of the atomistic model which we just created. In order to do this we define a k-path in the Brillouin zone which goes from $\Gamma$ to $K$ to $K'$ and back to $\Gamma$. We then calculate the band structure along this path.
+We verify the band structure of the Kwant model along a high-symmetry k-path.
 
 
 ```{code-cell} ipython3
-syst, bz_vertices, momentum_to_lattice = create_system(10)
-fsyst = syst.finalized()
+syst, lat, k_path = create_system(10)
+fsyst = kwant.wraparound.wraparound(syst).finalized()
 
 eks = []
 params = {"t": 1.0, "mu": 0.0, "delta_mu": 0.0, "xi": 6}
-nk = 50
-for k in high_symmetry_line(bz_vertices, nk):
-    k = momentum_to_lattice(k)
+for k in k_path:
     ham_k = fsyst.hamiltonian_submatrix(
         params={**params, **dict(k_x=k[0], k_y=k[1])}, sparse=False
     )
     energies = np.sort(np.linalg.eigvalsh(ham_k))
     eks.append(energies)
 
+nk = len(k_path)
 plt.plot(eks, c="k", lw=1)
 plt.ylabel(r"$E-E_F\ [eV]$")
 plt.ylim(-0.5, 0.5)
 plt.xlim(0, 149)
 plt.xticks(
-    [0, nk, int(1.5 * nk), int(2 * nk), int(3 * nk)],
+    [0, nk // 3, nk // 2, int(2 * nk // 3), nk],
     [r"$\Gamma$", r"$K$", r"$M$", r"$K^{\prime}$", r"$\Gamma$"],
 )
 plt.axvline(x=50, c="k", ls="--")
@@ -63,9 +62,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-This is qualitatively in agreement with Figure 2 from https://arxiv.org/pdf/2104.00573. The differences are due to the fact that we have chosen to show a smaller supercell here in order to not have the calculations take too long.
-
-Now that we have confirmed that the non-interacting model is as we expect we can turn to making the interacting part. We only add interactions to the onsite part and then once again use the kwant helper function `build_interacting_syst` to create the interacting system. We choose to only include onsite interactions.
+We now use the Kwant model to create the interacting Hamiltonian. Following [[1]](https://doi.org/10.1088/2053-1583/ac0b48), we consider only onsite interactions.
 
 ```{code-cell} ipython3
 def func_hop(site1, site2):
@@ -77,7 +74,7 @@ def func_onsite(site, U):
 
 
 int_builder = utils.build_interacting_syst(
-    bulk,
+    syst,
     lat,
     func_onsite,
     func_hop,
@@ -89,10 +86,11 @@ After we have created the interacting system we can use MeanFi again for getting
 
 ```{code-cell} ipython3
 from meanfi.kwant_helper import utils as utils
-h0 = utils.builder_to_tb(bulk, params=params)
+h0 = utils.builder_to_tb(syst, params=params)
 
 params_int = dict(U=2)
-filling = ndof/2
+ndof = [*h0.values()][0].shape[0]
+filling = ndof // 2
 h_int = utils.builder_to_tb(int_builder, params_int)
 mf_model = meanfi.Model(h0, h_int, filling=filling)
 ```

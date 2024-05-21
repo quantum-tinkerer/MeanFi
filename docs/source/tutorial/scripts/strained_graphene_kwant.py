@@ -57,8 +57,6 @@ def create_system(n=10, nk=50):
     # Define onsite and hopping energies
     bulk[lat.shape(lambda pos: True, (0, 0))] = 0 * pauli.s0
     bulk[lat.neighbors()] = hopping
-    # Wrap system
-    syst = kwant.wraparound.wraparound(bulk)
 
     # Get lattice points that neighbor the origin, in basis of lattice vectors
     reduced_vecs, transf = lll.lll(A.T)
@@ -77,4 +75,6 @@ def create_system(n=10, nk=50):
         k, _ = scipy.linalg.lstsq(A, k)[:2]
         return k
 
-    return syst, bz_vertices, momentum_to_lattice
+    k_path = np.array([momentum_to_lattice(k) for k in high_symmetry_line(bz_vertices)])
+    
+    return bulk, lat, k_path
