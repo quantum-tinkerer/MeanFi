@@ -155,7 +155,7 @@ plt.show()
 
 This is qualitatively in agreement with Figure 2 from https://arxiv.org/pdf/2104.00573. The differences are due to the fact that we have chosen to show a smaller supercell here in order to not have the calculations take too long.
 
-Now that we have confirmed that the non-interacting model is as we expect we can turn to making the interacting part. We only add interactions to the onsite part and then once again use the kwant helper function `build_interacting_syst` to create the interacting system.
+Now that we have confirmed that the non-interacting model is as we expect we can turn to making the interacting part. We only add interactions to the onsite part and then once again use the kwant helper function `build_interacting_syst` to create the interacting system. We choose to only include onsite interactions.
 
 ```{code-cell} ipython3
 def func_hop(site1, site2):
@@ -174,3 +174,30 @@ int_builder = utils.build_interacting_syst(
     max_neighbor=0,
 )
 ```
+
+After we have created the interacting system we can use MeanFi again for getting the solution. We turn both the non-interacting and interacting systems into tight binding dictionaries using the kwant utils. Then we combine them into a mean-field model.
+
+```{code-cell} ipython3
+from meanfi.kwant_helper import utils as utils
+params = {"t": 1.0, "mu": 0.0, "delta_mu": 0.0, "xi": 6.0}
+h0 = utils.builder_to_tb(bulk, params=params)
+
+params_int = dict(U=2)
+filling = ndof/2
+h_int = utils.builder_to_tb(int_builder, params_int)
+mf_model = meanfi.Model(h0, h_int, filling=filling)
+```
+
+Now getting the solution by providing a guess and the mean-field model to the solver. As this strained graphene system is larger than the previous examples we use a smaller sampling of k-points. Furthermore, to speed up the calculation we played around with the `optimizer_kwargs`.
+
+```{code-cell} ipython3
+guess = meanfi.guess_tb(frozenset(h_int), ndof=ndof)
+mf_sol = meanfi.solver(
+    mf_model,
+    guess,
+    nk=4,
+    optimizer_kwargs={"M": 10, "f_tol": 1e-3, "maxiter": 100, "verbose": True, 'line_search' : 'wolfe'},
+)
+```
+
+Let us now plot the bands of the mean-field solution.
