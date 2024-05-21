@@ -92,7 +92,6 @@ wrapped_fsyst = wrapped_syst.finalized()
 
 We first want to check that our model is created correctly. To do this we plot the band structure of the non-interacting Hamiltonian of the atomistic model which we just created. In order to do this we define a k-path in the Brillouin zone which goes from $\Gamma$ to $K$ to $K'$ and back to $\Gamma$. We then calculate the band structure along this path.
 
-
 ```{code-cell} ipython3
 :tags: [hide-input]
 def relevant_kpath(wrapped_syst, nk=50):
@@ -129,17 +128,15 @@ def momentum_to_lattice(k, wrapped_syst):
 
 eks = []
 params = {"t": 1.0, "mu": 0.0, "delta_mu": 0.0, "xi": 6.0}
-for k in relevant_kpath(wrapped_syst):
+k_points = relevant_kpath(wrapped_syst)
+for k in k_points:
     k = momentum_to_lattice(k, wrapped_syst)
     ham_k = wrapped_fsyst.hamiltonian_submatrix(
         params={**params, **dict(k_x=k[0], k_y=k[1])}, sparse=False
     )
     energies = np.sort(np.linalg.eigvalsh(ham_k))
     eks.append(energies)
-```
 
-```{code-cell} ipython3
-:tags: [hide-input]
 plt.plot(eks, c="k", lw=1)
 plt.ylabel(r"$E-E_F\ [eV]$")
 plt.ylim(-0.5, 0.5)
@@ -202,4 +199,60 @@ mf_sol = meanfi.solver(
 )
 ```
 
-Let us now plot the bands of the mean-field solution.
+Let us now plot the bands of the mean-field solution along the same k-path where we visualized the bands earlier.
+
+```{code-cell} ipython3
+eks = []
+full_sol = meanfi.add_tb(h0, mf_sol)
+sol_ofk = tb_to_kfunc(full_sol)
+for k in k_points:
+    hk = sol_ofk(momentum_to_lattice(k, wrapped_syst))
+    energies = np.linalg.eigvalsh(hk)
+    eks.append(np.sort(energies))
+```
+
+```{code-cell} ipython3
+:tags: [hide-input]
+plt.plot(eks, c="k", lw=1)
+plt.ylabel(r"$E-E_F\ [eV]$")
+plt.ylim(-0.1, 0.1)
+plt.xlim(0, 149)
+plt.xticks(
+    [0, 50, 75, 100, 150], [r"$\Gamma$", r"$K$", r"$M$", r"$K^{\prime}$", r"$\Gamma$"]
+)
+plt.axvline(x=50, c="k", ls="--")
+plt.axvline(x=75, c="k", ls="--")
+plt.axvline(x=100, c="k", ls="--")
+plt.axhline(y=0, c="k", ls="--")
+plt.tight_layout()
+plt.show()
+```
+
+Now we turn our tight-binding mean-field solution into a kwant builder such that we can calculate and visualize observables using Kwant's functionalities. To do this we simply provide the mean-field solution `mf_sol` as well as the sites and periods of the bulk system to the `tb_to_builder` function. We then wrap the system and finalize it.
+
+```{code-cell} ipython3
+mf_sol_builder = utils.tb_to_builder(
+    mf_sol, list(bulk.sites()), bulk.symmetry.periods
+)
+
+wrapped_syst_mfsol = kwant.wraparound.wraparound(mf_sol_builder)
+wrapped_fsyst_mfsol = wrapped_syst.finalized()
+```
+
+We want to look at the magnetization of the system. To do this we first need to define the magnetization direction. We do this by arbitrarily choosing the spin direction of one of the sites and defining the magnetization with respect to this direction.
+
+```{code-cell} ipython3
+_, reference_value = list(mf_sol_builder.site_value_pairs())[0]
+
+sigma_0 = np.eye(2)
+sigma_x = np.array([[0, 1], [1, 0]])
+sigma_y = np.array([[0, -1j], [1j, 0]])
+sigma_z = np.array([[1, 0], [0, -1]])
+
+magnetization_p_direction = []
+for sigma in [sigma_0, sigma_x, sigma_y, sigma_z]:
+    magnetization_p_direction.append(np.trace(sigma@reference_value)*sigma)
+
+reference_magnetization = sum(magnetization_p_direction)
+reference_magnetization = reference_magnetization / np.linalg.norm(reference_magnetization)
+```
