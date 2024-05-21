@@ -94,6 +94,7 @@ We first want to check that our model is created correctly. To do this we plot t
 
 
 ```{code-cell} ipython3
+:tags: [hide-input]
 def relevant_kpath(wrapped_syst, nk=50):
     lat_ndim = 2
     # columns of B are lattice vectors
@@ -138,6 +139,7 @@ for k in relevant_kpath(wrapped_syst):
 ```
 
 ```{code-cell} ipython3
+:tags: [hide-input]
 plt.plot(eks, c="k", lw=1)
 plt.ylabel(r"$E-E_F\ [eV]$")
 plt.ylim(-0.5, 0.5)
