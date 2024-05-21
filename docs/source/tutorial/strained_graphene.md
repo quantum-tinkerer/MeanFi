@@ -25,15 +25,17 @@ import matplotlib.pyplot as plt
 import meanfi
 import numpy as np
 from meanfi.kwant_helper import utils
-import scipy
 from scripts.strained_graphene_kwant import create_system
+from scripts.pauli import s0, sx, sy, sz
+
+sigmas = [s0, sx, sy, sz]
 ```
 
 We verify the band structure of the Kwant model along a high-symmetry k-path.
 
 ```{code-cell} ipython3
-syst, lat, k_path = create_system(10)
-fsyst = kwant.wraparound.wraparound(syst).finalized()
+h0_builder, lat, k_path = create_system(10)
+fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
 
 eks = []
 params = {"t": 1.0, "mu": 0.0, "delta_mu": 0.0, "xi": 6}
@@ -43,7 +45,11 @@ for k in k_path:
     )
     energies = np.sort(np.linalg.eigvalsh(ham_k))
     eks.append(energies)
+```
 
+
+```{code-cell} ipython3
+:tags: [hide-input]
 nk = len(k_path)
 plt.plot(eks, c="k", lw=1)
 plt.ylabel(r"$E-E_F\ [eV]$")
@@ -73,7 +79,7 @@ def func_onsite(site, U):
 
 
 int_builder = utils.build_interacting_syst(
-    syst,
+    h0_builder,
     lat,
     func_onsite,
     func_hop,
@@ -85,7 +91,7 @@ After we have created the interacting system we can use MeanFi again for getting
 
 ```{code-cell} ipython3
 from meanfi.kwant_helper import utils as utils
-h0 = utils.builder_to_tb(syst, params=params)
+h0 = utils.builder_to_tb(h0_builder, params=params)
 
 params_int = dict(U=2)
 ndof = [*h0.values()][0].shape[0]
@@ -104,7 +110,7 @@ mf_sol = meanfi.solver(
     nk=4,
     optimizer_kwargs={
         "M": 10,
-        "f_tol": 1e-3,
+        "f_tol": 1e-4,
         "maxiter": 100,
         "verbose": True,
         "line_search": "wolfe",
@@ -117,9 +123,9 @@ Let us now plot the bands of the mean-field solution along the same k-path where
 ```{code-cell} ipython3
 eks = []
 full_sol = meanfi.add_tb(h0, mf_sol)
-sol_ofk = tb_to_kfunc(full_sol)
-for k in k_points:
-    hk = sol_ofk(momentum_to_lattice(k, wrapped_syst))
+sol_ofk = meanfi.tb_to_kfunc(full_sol)
+for k in k_path:
+    hk = sol_ofk(k)
     energies = np.linalg.eigvalsh(hk)
     eks.append(np.sort(energies))
 ```
@@ -146,11 +152,11 @@ Now we turn our tight-binding mean-field solution into a kwant builder such that
 
 ```{code-cell} ipython3
 mf_sol_builder = utils.tb_to_builder(
-    mf_sol, list(bulk.sites()), bulk.symmetry.periods
+    mf_sol, list(h0_builder.sites()), h0_builder.symmetry.periods
 )
 
-wrapped_syst_mfsol = kwant.wraparound.wraparound(mf_sol_builder)
-wrapped_fsyst_mfsol = wrapped_syst.finalized()
+syst_mfsol = kwant.wraparound.wraparound(mf_sol_builder)
+fsyst_mfsol = syst_mfsol.finalized()
 ```
 
 We want to look at the magnetization of the system. To do this we first need to define the magnetization direction. We do this by arbitrarily choosing the spin direction of one of the sites and defining the magnetization with respect to this direction.
@@ -158,15 +164,60 @@ We want to look at the magnetization of the system. To do this we first need to 
 ```{code-cell} ipython3
 _, reference_value = list(mf_sol_builder.site_value_pairs())[0]
 
-sigma_0 = np.eye(2)
-sigma_x = np.array([[0, 1], [1, 0]])
-sigma_y = np.array([[0, -1j], [1j, 0]])
-sigma_z = np.array([[1, 0], [0, -1]])
-
 magnetization_p_direction = []
-for sigma in [sigma_0, sigma_x, sigma_y, sigma_z]:
+for sigma in sigmas:
     magnetization_p_direction.append(np.trace(sigma@reference_value)*sigma)
 
 reference_magnetization = sum(magnetization_p_direction)
 reference_magnetization = reference_magnetization / np.linalg.norm(reference_magnetization)
+```
+
+Now we plot the magnetization of the solution on the sites of the system. We do this by creating onsite functions which either calculate the magnetization or the absolute magnetization with respect to the reference magnetization direction.
+
+```{code-cell} ipython3
+def magnetisation(site):
+    matrix = mf_sol_builder.H[site][1]
+    return  np.trace(reference_magnetization@matrix).real
+
+def abs_magnetisation(site):
+    matrix = mf_sol_builder.H[site][1]
+    projected_magnetization = []
+    for sigma in sigmas[1:]:
+        projected_magnetization.append(np.trace(sigma@matrix))
+    return np.sqrt(np.sum(np.array(projected_magnetization)**2).real)
+
+def systemPlotter(systFinal, onsite, ax, cmap='seismic'):
+    """
+    Plots the system with the onsite potential given by the function onsite.
+    """
+    sites = systFinal.sites
+    density = [onsite(site) for site in sites]
+    kwant.plotter.density(systFinal, density, cmap=cmap, ax=ax, background="white")
+    return np.min(density), np.max(density)
+```
+
+```{code-cell} ipython3
+:tags: [hide-input]
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib
+
+fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+min_mag, max_mag = systemPlotter(fsyst_mfsol, magnetisation, ax=axs[0] )
+min_abs, max_abs = systemPlotter(fsyst_mfsol, abs_magnetisation, ax=axs[1], cmap='viridis')
+axs[0].set_title('Magnetisation')
+axs[1].set_title('Absolute Magnetisation')
+caxs = []
+for ax in axs:
+    ax.axis('off')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    caxs.append(cax)
+
+colorbar_mag = matplotlib.cm.ScalarMappable(cmap="seismic")
+colorbar_mag.set_clim(vmin=min_mag, vmax=max_mag)
+fig.colorbar(colorbar_mag, cax=caxs[0], orientation='vertical')
+
+colorbar_abs = matplotlib.cm.ScalarMappable(cmap="viridis")
+colorbar_abs.set_clim(vmin=min_abs, vmax=max_abs)
+fig.colorbar(colorbar_abs, cax=caxs[1], orientation='vertical')
 ```
