@@ -30,14 +30,13 @@ def test_fourier(seed):
     compare_dicts(h_0, tb_new)
 
 
-@pytest.mark.xfail
 @pytest.mark.parametrize("seed", range(repeat_number))
 def test_kfunc(seed):
     np.random.seed(seed)
     cutoff = np.random.randint(1, 4)
     dim = np.random.randint(1, 3)
     ndof = np.random.randint(2, 10)
-    nk = 10
+    nk = np.random.randint(3, 10)
     random_hopping_vecs = generate_tb_keys(cutoff, dim)
     random_tb = guess_tb(random_hopping_vecs, ndof, scale=1)
 
@@ -46,8 +45,12 @@ def test_kfunc(seed):
 
     # evaluate kfunc on same grid as kham
     ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
-    ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
-    kgrid = np.meshgrid(*([ks] * ndim), indexing="ij")
-    kham_kfunc = kfunc(*kgrid)
+    ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)
+    k_pts = np.tile(ks, dim).reshape(dim, nk)
 
-    assert np.allclose(kham, kham_kfunc)
+    ham_kfunc = []
+    for k in it.product(*k_pts):
+        ham_kfunc.append(kfunc(k))
+    ham_kfunc = np.array(ham_kfunc).reshape(*kham.shape)
+
+    assert np.allclose(kham, ham_kfunc)
