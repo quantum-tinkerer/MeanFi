@@ -67,14 +67,14 @@ def create_system(n=10, nk=50):
     # Will be used in 'outside_bz' function, later on.
     klat_points = 2 * np.pi * np.dot(klat_points, A.T)
     # Calculate the Voronoi cell vertices
-    vor = scipy.spatial.Voronoi(klat_points)
-    around_origin = vor.point_region[0]
-    bz_vertices = vor.vertices[vor.regions[around_origin]]
+    voronoi_cell = scipy.spatial.Voronoi(klat_points)
+    around_origin = voronoi_cell.point_region[0]
+    bz_vertices = voronoi_cell.vertices[voronoi_cell.regions[around_origin]]
 
     def momentum_to_lattice(k):
         k, _ = scipy.linalg.lstsq(A, k)[:2]
         return k
 
     k_path = np.array([momentum_to_lattice(k) for k in high_symmetry_line(bz_vertices)])
-    
+
     return bulk, lat, k_path
