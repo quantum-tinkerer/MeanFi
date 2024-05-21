@@ -1,5 +1,6 @@
 import itertools
 import numpy as np
+from typing import Callable
 from scipy.fftpack import ifftn
 
 from meanfi.tb.tb import _tb_type
@@ -76,3 +77,31 @@ def ifftn_to_tb(ifft_array: np.ndarray) -> _tb_type:
     keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
     keys = itertools.product(*keys)
     return {tuple(k): ifft_array[tuple(k)] for k in keys}
+
+
+def tb_to_kfunc(tb: _tb_type) -> Callable:
+    """
+    Fourier transforms a real-space tight-binding model to a k-space function.
+
+    Parameters
+    ----------
+    tb :
+        Tight-binding dictionary.
+
+    Returns
+    -------
+    :
+        A function that takes a k-space vector and returns a complex np.array.
+
+    Notes
+    -----
+    Function doesn't work for zero dimensions.
+    """
+
+    def kfunc(k):
+        ham = 0
+        for vector in tb.keys():
+            ham += tb[vector] * np.exp(-1j * np.dot(k, np.array(vector, dtype=float)))
+        return ham
+
+    return kfunc
