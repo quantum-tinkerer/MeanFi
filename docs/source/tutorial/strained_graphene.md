@@ -31,7 +31,6 @@ from scripts.strained_graphene_kwant import create_system
 
 We verify the band structure of the Kwant model along a high-symmetry k-path.
 
-
 ```{code-cell} ipython3
 syst, lat, k_path = create_system(10)
 fsyst = kwant.wraparound.wraparound(syst).finalized()
@@ -127,6 +126,7 @@ for k in k_points:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+
 plt.plot(eks, c="k", lw=1)
 plt.ylabel(r"$E-E_F\ [eV]$")
 plt.ylim(-0.1, 0.1)
