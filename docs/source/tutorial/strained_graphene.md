@@ -137,7 +137,7 @@ mf_sol = meanfi.solver(
         "f_tol": 1e-4,
         "maxiter": 100,
         "verbose": True,
-        "line_search": "wolfe",
+        "line_search": "armijo",
     },
 )
 ```
