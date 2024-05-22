@@ -36,18 +36,41 @@ We verify the band structure of the Kwant model along a high-symmetry k-path.
 ```{code-cell} ipython3
 %%time
 h0_builder, lat, k_path = create_system(10)
-fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
+```
 
+temp separation of cells to figure out where the issue is.
+```{code-cell} ipython3
+%%time
+fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
+```
+more separation
+
+```{code-cell} ipython3
+%%time
 eks = []
+hams_k = []
 params = {"t": 1.0, "mu": 0.0, "delta_mu": 0.0, "xi": 6}
 for k in k_path:
     ham_k = fsyst.hamiltonian_submatrix(
         params={**params, **dict(k_x=k[0], k_y=k[1])}, sparse=False
     )
+    hams_k.append(ham_k)
+    # energies = np.sort(np.linalg.eigvalsh(ham_k))
+    # eks.append(energies)
+```
+
+even more separation
+
+```{code-cell} ipython3
+%%time
+for ham_k in hams_k:
+    # ham_k = fsyst.hamiltonian_submatrix(
+    #     params={**params, **dict(k_x=k[0], k_y=k[1])}, sparse=False
+    # )
     energies = np.sort(np.linalg.eigvalsh(ham_k))
     eks.append(energies)
 ```
-
+last separation
 
 ```{code-cell} ipython3
 :tags: [hide-input]
