@@ -14,7 +14,7 @@ def high_symmetry_line(bz_vertices, nk=50):
     return np.concatenate((GammaK, KKprime, KprimeGamma))
 
 
-def create_system(n=10, nk=50):
+def create_system(n=10, nk=5):
     # Lattice constant (in nm)
     a = 0.142 * np.sqrt(3)
     # Hopping constant
@@ -75,6 +75,8 @@ def create_system(n=10, nk=50):
         k, _ = scipy.linalg.lstsq(A, k)[:2]
         return k
 
-    k_path = np.array([momentum_to_lattice(k) for k in high_symmetry_line(bz_vertices)])
+    k_path = np.array(
+        [momentum_to_lattice(k) for k in high_symmetry_line(bz_vertices, nk=nk)]
+    )
 
     return bulk, lat, k_path

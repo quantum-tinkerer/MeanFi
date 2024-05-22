@@ -34,6 +34,7 @@ sigmas = [s0, sx, sy, sz]
 We verify the band structure of the Kwant model along a high-symmetry k-path.
 
 ```{code-cell} ipython3
+%%time
 h0_builder, lat, k_path = create_system(10)
 fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
 
