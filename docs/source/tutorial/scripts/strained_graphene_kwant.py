@@ -14,15 +14,15 @@ def high_symmetry_line(bz_vertices, nk=50):
     return np.concatenate((GammaK, KKprime, KprimeGamma))
 
 
-def create_system(n=10, nk=5):
+def create_system(n=10, nk=50):
     # Lattice constant (in nm)
     a = 0.142 * np.sqrt(3)
-    # Hopping constant
-    t = 1
     # Length of the supercell (in nm)
     L_M = 18
     # Compute scaling factor
     scaling_factor = n / a / L_M
+    # Hopping constant
+    t = 1
     # hbar * v_F
     vF_times_hbar = 3 / 2
 
@@ -45,14 +45,14 @@ def create_system(n=10, nk=5):
         return np.sin(np.dot(b, r))
 
     # Set hopping landscape
-    def hopping(site1, site2, t, xi):
+    def hopping(site1, site2, xi):
         r1 = site1.pos
         r2 = site2.pos
         r_med = (r1 + r2) / 2
         dr = r1 - r2
         prefactor = vF_times_hbar * xi**2 / (L_M) ** 2
         _b = bs[np.argmin(np.cross(dr, bs))]
-        return (-t + prefactor * dt(r_med, _b)) * pauli.s0
+        return (-t + prefactor * dt(r_med, _b)) / scaling_factor * pauli.s0
 
     # Define onsite and hopping energies
     bulk[lat.shape(lambda pos: True, (0, 0))] = 0 * pauli.s0
@@ -75,8 +75,6 @@ def create_system(n=10, nk=5):
         k, _ = scipy.linalg.lstsq(A, k)[:2]
         return k
 
-    k_path = np.array(
-        [momentum_to_lattice(k) for k in high_symmetry_line(bz_vertices, nk=nk)]
-    )
+    k_path = np.array([momentum_to_lattice(k) for k in high_symmetry_line(bz_vertices)])
 
     return bulk, lat, k_path
