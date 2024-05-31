@@ -75,8 +75,8 @@ Here is why you should use `MeanFi`:
 
 Here are some features that are not yet implemented but are planned for future releases:
 
-- **Superconductive order parameters**. Mean-field Hamiltonians do not include pairing terms.
-- **General interactions**. We allow only density-density interactions (e.g. Coulomb) which can be described by a second-order tensor.
+- **Superconducting order parameters**. Mean-field Hamiltonians do not include pairing terms.
+- **General interactions**. We allow only density-density interactions (e.g. Coulomb) which can be described by a rank two tensor.
 - **Temperature effects**. Density matrix calculations are done at zero temperature.
 
 ## Installation
