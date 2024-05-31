@@ -18,6 +18,8 @@ We showcase the interface between `meanfi` and `Kwant` with a strained graphene 
 We first create the atomistic model in `Kwant`. The complete source code of this example can be found in [`strained_graphene_kwant.py`](./scripts/strained_graphene_kwant.py). To reduce the computational cost, we perform the calculations with a $16 \times 16$ supercell whereas in [1](https://doi.org/10.1088/2053-1583/ac0b48) the calculations were performed with a $25 \times 25$ supercell. Thus, the agreement throughout the tutorial is only qualitative.
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 import kwant
 import matplotlib.pyplot as plt
 import meanfi
@@ -36,6 +38,8 @@ h0_builder, lat, k_path = create_system(n=16)
 ```
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
 fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
 params = {"xi": 6}
 
