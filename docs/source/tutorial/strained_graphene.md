@@ -23,8 +23,8 @@ import matplotlib.pyplot as plt
 import meanfi
 import numpy as np
 from meanfi.kwant_helper import utils
-from scripts.strained_graphene_kwant import create_system
 from scripts.pauli import s0, sx, sy, sz
+from scripts.strained_graphene_kwant import create_system, plot_bands
 
 sigmas = [sx, sy, sz]
 ```
@@ -32,35 +32,21 @@ sigmas = [sx, sy, sz]
 We verify the band structure of the Kwant model along a high-symmetry k-path.
 
 ```{code-cell} ipython3
-h0_builder, lat, k_path = create_system(16, nk=20)
-fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
+h0_builder, lat, k_path = create_system(n=16)
+```
 
-eks = []
-hams_k = []
+```{code-cell} ipython3
+fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
 params = {"xi": 6}
-for k in k_path:
-    ham_k = fsyst.hamiltonian_submatrix(
+
+
+def hk(k):
+    return fsyst.hamiltonian_submatrix(
         params={**params, **dict(k_x=k[0], k_y=k[1])}, sparse=False
     )
-    hams_k.append(ham_k)
-    energies = np.sort(np.linalg.eigvalsh(ham_k))
-    eks.append(energies)
 
-nk = len(k_path)
-plt.plot(eks, c="k", lw=1)
-plt.ylabel(r"$E-E_F\ [eV]$")
-plt.ylim(-0.1, 0.1)
-plt.xlim(0, nk)
-plt.xticks(
-    [0, nk // 3, nk // 2, int(2 * nk // 3), nk],
-    [r"$\Gamma$", r"$K$", r"$M$", r"$K^{\prime}$", r"$\Gamma$"],
-)
-plt.axvline(x=nk//3, c="k", ls="--")
-plt.axvline(x=nk // 2, c="k", ls="--")
-plt.axvline(x=2 * nk // 3, c="k", ls="--")
-plt.axhline(y=0, c="k", ls="--")
-plt.tight_layout()
-plt.show()
+
+plot_bands(hk, k_path)
 ```
 
 We now use the Kwant model to create the interacting Hamiltonian. Following [[1]](https://doi.org/10.1088/2053-1583/ac0b48), we consider only onsite interactions.
@@ -87,7 +73,8 @@ After we have created the interacting system we can use MeanFi again for getting
 
 ```{code-cell} ipython3
 from meanfi.kwant_helper import utils as utils
-h0, data = utils.builder_to_tb(h0_builder, params=params, return_data=True)
+
+h0, data = utils.builder_to_tb(h0_builder, params={"xi": 6}, return_data=True)
 
 params_int = dict(U=0.6)
 ndof = [*h0.values()][0].shape[0]
@@ -96,11 +83,12 @@ h_int = utils.builder_to_tb(int_builder, params_int)
 mf_model = meanfi.Model(h0, h_int, filling=filling)
 ```
 
-Now getting the solution by providing a guess and the mean-field model to the solver. As this strained graphene system is larger than the previous examples we use a smaller sampling of k-points. Furthermore, to speed up the calculation we played around with the `optimizer_kwargs`.
+Now getting the solution by providing a guess and the mean-field model to the solver. To accelerate the convergence, we use an antiferromagnetic guess.
 
 ```{code-cell} ipython3
 def func_hop(site1, site2):
     return 0 * np.ones((2, 2))
+
 
 def func_onsite(site):
     if site.family == lat.sublattices[0]:
@@ -118,7 +106,11 @@ guess_builder = utils.build_interacting_syst(
 )
 
 guess = utils.builder_to_tb(guess_builder)
+```
 
+Due to the large supercell, lwe use a coarse k-point grid. Furthermore, to speed up the calculation we provide additional `optimizer_kwargs`.
+
+```{code-cell} ipython3
 mf_sol = meanfi.solver(
     mf_model,
     guess,
@@ -132,40 +124,18 @@ mf_sol = meanfi.solver(
 )
 ```
 
-Let us now plot the bands of the mean-field solution along the same k-path where we visualized the bands earlier.
+We now verify that the mean-field solution results in a gapped phase.
 
 ```{code-cell} ipython3
-eks = []
-full_sol = meanfi.add_tb(h0, mf_sol)
-sol_ofk = meanfi.tb_to_kfunc(full_sol)
-for k in k_path:
-    hk = sol_ofk(k)
-    energies = np.linalg.eigvalsh(hk)
-    eks.append(np.sort(energies))
-
-nk = len(k_path)
-plt.plot(eks, c="k", lw=1)
-plt.ylabel(r"$E-E_F\ [eV]$")
-plt.ylim(-0.1, 0.1)
-plt.xlim(0, nk)
-plt.xticks(
-    [0, nk // 3, nk // 2, int(2 * nk // 3), nk],
-    [r"$\Gamma$", r"$K$", r"$M$", r"$K^{\prime}$", r"$\Gamma$"],
-)
-plt.axvline(x=nk//3, c="k", ls="--")
-plt.axvline(x=nk // 2, c="k", ls="--")
-plt.axvline(x=2 * nk // 3, c="k", ls="--")
-plt.axhline(y=0, c="k", ls="--")
-plt.tight_layout()
-plt.show()
+mf_ham = meanfi.add_tb(h0, mf_sol)
+hk_mf = meanfi.tb_to_kfunc(mf_ham)
+plot_bands(hk_mf, k_path)
 ```
 
-Now we turn the mean-field corrections into a `kwant.Builder` such that we can visualize observables using Kwant's functionalities. We provide the mean-field solution `mf_sol` as well as the sites and periods of the bulk system to the `tb_to_builder` function. We then wrap the system and finalize it.
+Now we turn the mean-field corrections into a `kwant.Builder` such that we can visualize observables using Kwant's functionalities. We provide the mean-field solution `mf_sol` as well as the sites and periods of the bulk system to the `tb_to_builder` function.
 
 ```{code-cell} ipython3
-mf_sol_builder = utils.tb_to_builder(
-    mf_sol, data['sites'], data['periods']
-)
+mf_sol_builder = utils.tb_to_builder(mf_sol, data["sites"], data["periods"])
 ```
 
 We now plot the magnetization of the system. First, we define the magnetization direction. We do this by arbitrarily choosing the spin direction of one of the sites and defining the magnetization with respect to this direction.
@@ -173,11 +143,11 @@ We now plot the magnetization of the system. First, we define the magnetization 
 ```{code-cell} ipython3
 _, reference_value = list(mf_sol_builder.site_value_pairs())[0]
 
-magnetization_p_direction = []
+magnetization_direction = []
 for sigma in sigmas:
-    magnetization_p_direction.append(np.trace(sigma @ reference_value) * sigma)
+    magnetization_direction.append(np.trace(sigma @ reference_value) * sigma)
 
-reference_magnetization = sum(magnetization_p_direction)
+reference_magnetization = sum(magnetization_direction)
 reference_magnetization = reference_magnetization / np.linalg.norm(
     reference_magnetization
 )
@@ -199,7 +169,7 @@ def abs_magnetisation(site):
     return np.sqrt(np.sum(np.array(projected_magnetization) ** 2).real)
 
 
-def systemPlotter(syst, onsite, ax, cmap="seismic"):
+def systemPlotter(syst, onsite, ax, cmap):
     """
     Plots the system with the onsite potential given by the function onsite.
     """
@@ -218,20 +188,20 @@ def systemPlotter(syst, onsite, ax, cmap="seismic"):
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 fig, axs = plt.subplots(1, 2, figsize=(10, 5))
 
 
-titles = ['Magnetisation', 'Magnetisation magnitude']
-cmaps = ['coolwarm', 'viridis']
+titles = ["Magnetisation", "Magnetisation magnitude"]
+cmaps = ["coolwarm", "viridis"]
 onsites = [magnetisation, abs_magnetisation]
 for i, ax in enumerate(axs):
     vmin, vmax = systemPlotter(mf_sol_builder, onsites[i], ax=ax, cmap=cmaps[i])
-    ax.axis('off')
+    ax.axis("off")
     ax.set_title(titles[i])
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
     fig.colorbar(ax.collections[0], ax=ax, shrink=0.5)
 fig.show()
 ```
