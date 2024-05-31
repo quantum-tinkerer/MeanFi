@@ -67,7 +67,7 @@ def test_kwant_supercell(seed):
     def random_matrix_kwant_digest(n, m, k):
         matrix = np.zeros((n, m))
         for i in zip(it.product(range(n), range(m))):
-            matrix[*i[0]] = kwant.digest.uniform(str(n * m * np.prod(i[0]) + k))
+            matrix[i[0]] = kwant.digest.uniform(str(n * m * np.prod(i[0]) + k))
         return matrix
 
     def onsite(site, alpha, beta):
