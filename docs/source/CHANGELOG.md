@@ -1,1 +1,1 @@
-CHANGELOG.md
+/Users/rzijderveld/kwant-scf/CHANGELOG.md
