@@ -142,19 +142,18 @@ Now we turn the mean-field corrections into a `kwant.Builder` such that we can v
 mf_sol_builder = utils.tb_to_builder(mf_sol, data["sites"], data["periods"])
 ```
 
-We now plot the magnetization of the system. First, we define the magnetization direction. We do this by arbitrarily choosing the spin direction of one of the sites and defining the magnetization with respect to this direction.
+We now plot the magnetization of the system. First, we define the magnetization direction. We do extracting the exchange field at it site and finding the direction where all the spins are pointing to.
 
 ```{code-cell} ipython3
-_, reference_value = list(mf_sol_builder.site_value_pairs())[0]
+exchange_field = np.array([value[1] for value in list(mf_sol_builder.site_value_pairs())])
 
-magnetization_direction = []
-for sigma in sigmas:
-    magnetization_direction.append(np.trace(sigma @ reference_value) * sigma)
+magnetization_direction = np.zeros(3)
+for i, sigma in enumerate(sigmas):
+    for site_field in exchange_field:
+        magnetization_direction[i] += np.abs(np.trace(sigma @ site_field))
 
-reference_magnetization = sum(magnetization_direction)
-reference_magnetization = reference_magnetization / np.linalg.norm(
-    reference_magnetization
-)
+magnetization_direction /= np.linalg.norm(magnetization_direction)
+reference_magnetization = np.transpose(sigmas, (1, 2, 0)) @ magnetization_direction
 ```
 
 Now we plot the magnetization of the solution on the sites of the system. We do this by creating functions which calculate the magnetization and its magnitude with respect to the reference magnetization direction.
