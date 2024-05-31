@@ -33,6 +33,11 @@ run profiler:
       - memoryProfile.bin
 
 run docs:
+  variables:
+    OPENBLAS_NUM_THREADS : 1
+    OMP_NUM_THREADS : 1
+    MKL_DYNAMIC : FALSE
+    MKL_NUM_THREADS : 1
   script:
     - make -C docs/ html SPHINXOPTS="-WT --keep-going -n"
   artifacts:
