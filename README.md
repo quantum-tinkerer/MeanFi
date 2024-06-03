@@ -9,7 +9,7 @@ $$
 \hat{H} = \hat{H_0} + \hat{V} = \sum_{ij} h_{ij} c^\dagger_{i} c_{j} + \frac{1}{2} \sum_{ij} v_{ij} \hat{n}_i \hat{n}_j,
 $$
 
-and computes the mean-field correction $\hat{V}_{\text{MF}}$ which approximates the interaction term:
+and computes the mean-field correction $\hat{V}^{\text{MF}}$ which approximates the interaction term:
 
 $$
 \hat{V} \approx \hat{V}^{\text{MF}} =\sum_{ij} \tilde{v}\_{ij} c_{i}^{\dagger} c_{j}.
