@@ -12,7 +12,7 @@ $$
 and computes the mean-field correction $\hat{V}_{\text{MF}}$ which approximates the interaction term:
 
 $$
-\hat{V} \approx \hat{V}\_{\text{MF}} =\sum_{ij} \tilde{v}\_{ij} c^{\dagger}\_{i} c_{j}.
+\hat{V} \approx \hat{V}^{\text{MF}} =\sum_{ij} \tilde{v}\_{ij} c_{i}^{\dagger} c_{j}.
 $$
 
 For more details, refer to the [theory overview](https://meanfi.readthedocs.io/en/latest/documentation/mf_notes.html) and [algorithm description](https://meanfi.readthedocs.io/en/latest/documentation/algorithm.html).
@@ -51,7 +51,7 @@ mf_correction = meanfi.solver(model, guess)
 h_mf = meanfi.add_tb(h_0, mf_correction)
 ```
 
-For more details and examples on how to use the package, we refer to the [tutorials](docs/source/tutorial/hubbard_1d.md).
+For more details and examples on how to use the package, we refer to the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).
 
 ## Why `MeanFi`?
 
