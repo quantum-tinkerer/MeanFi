@@ -12,7 +12,7 @@ $$
 and computes the mean-field correction $\hat{V}^{\text{MF}}$ which approximates the interaction term:
 
 $$
-\hat{V} \approx \hat{V}^{\text{MF}} =\sum_{ij} \tilde{v}\_{ij} c_{i}^{\dagger} c_{j}.
+\hat{V} \approx \hat{V}^{\text{MF}} =\sum_{ij} \tilde{v}_{ij} c_{i}^{\dagger} c_{j}.
 $$
 
 For more details, refer to the [theory overview](https://meanfi.readthedocs.io/en/latest/documentation/mf_notes.html) and [algorithm description](https://meanfi.readthedocs.io/en/latest/documentation/algorithm.html).
