@@ -4,9 +4,10 @@ from typing import Callable
 from scipy.fftpack import ifftn
 
 from meanfi.tb.tb import _tb_type
+import sparse
 
 
-def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
+def tb_to_kgrid(tb, nk):
     """Evaluate a tight-binding dictionary on a k-space grid.
 
     Parameters
@@ -27,16 +28,19 @@ def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
     ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
     ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
     kgrid = np.meshgrid(*([ks] * ndim), indexing="ij")
+    kgrid = sparse.COO.from_numpy(kgrid)
 
     num_keys = len(list(tb.keys()))
-    tb_array = np.array(list(tb.values()))
-    keys = np.array(list(tb.keys()))
+    tb_array = sparse.stack([sparse.COO.from_scipy_sparse(mat) for mat in tb.values()])
+    keys = sparse.stack([sparse.COO.from_numpy(np.array(mat)) for mat in tb.keys()])
 
-    k_dependency = np.exp(-1j * np.tensordot(keys, kgrid, 1))[
-        (...,) + (np.newaxis,) * 2
-    ]
+    k_dependency = sparse.COO.from_numpy(
+        np.exp(-1j * sparse.tensordot(keys, kgrid, 1).todense())[
+            (...,) + (np.newaxis,) * 2
+        ]
+    )
     tb_array = tb_array.reshape([num_keys] + [1] * ndim + list(tb_array.shape[1:]))
-    return np.sum(tb_array * k_dependency, axis=0)
+    return sparse.sum(tb_array * k_dependency, axis=0)
 
 
 def kgrid_to_tb(kgrid_array: np.ndarray) -> _tb_type:

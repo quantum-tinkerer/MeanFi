@@ -58,7 +58,7 @@ def builder_to_tb(
                 raise KeyError(f"Parameter {key} not found in params.")
 
         data = np.array(val).flatten()
-        onsite_value = coo_array((data, (row, col)), shape=tb_shape).toarray()
+        onsite_value = coo_array((data, (row, col)), shape=tb_shape)
 
         h_0[onsite_idx] = h_0.get(onsite_idx, 0) + onsite_value
 
@@ -83,7 +83,7 @@ def builder_to_tb(
                 raise KeyError(f"Parameter {key} not found in params.")
 
         data = np.array(val).flatten()
-        hopping_value = coo_array((data, (row, col)), shape=tb_shape).toarray()
+        hopping_value = coo_array((data, (row, col)), shape=tb_shape)
 
         hop_key = tuple(site2_dom)
         hop_key_back = tuple(-site2_dom)
