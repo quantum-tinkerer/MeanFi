@@ -41,7 +41,7 @@ h0_builder, lat, k_path = create_system(n=16)
 :tags: [hide-input]
 
 fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
-params = {"xi": 6}
+params = {"xi": 7}
 
 
 def hk(k):
@@ -78,9 +78,9 @@ After we have created the interacting system we can use MeanFi again for getting
 ```{code-cell} ipython3
 from meanfi.kwant_helper import utils as utils
 
-h0, data = utils.builder_to_tb(h0_builder, params={"xi": 6}, return_data=True)
+h0, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
 
-params_int = dict(U=0.6)
+params_int = dict(U=0.8)
 ndof = [*h0.values()][0].shape[0]
 filling = ndof // 2
 h_int = utils.builder_to_tb(int_builder, params_int)
