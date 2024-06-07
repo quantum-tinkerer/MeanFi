@@ -16,7 +16,7 @@ def high_symmetry_line(bz_vertices, nk=50):
     return np.concatenate((GammaK, KKprime, KprimeGamma))
 
 
-def create_system(n=16, nk=25):
+def create_system(n=16, nk=15):
     # Hopping constant
     t = 1
     # hbar * v_F
