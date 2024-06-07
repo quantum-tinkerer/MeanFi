@@ -17,12 +17,6 @@ def high_symmetry_line(bz_vertices, nk=50):
 
 
 def create_system(n=16, nk=25):
-    # Lattice constant (in nm)
-    a = 0.142 * np.sqrt(3)
-    # Length of the supercell (in nm)
-    L_M = 18
-    # Compute scaling factor
-    scaling_factor = n / a / L_M
     # Hopping constant
     t = 1
     # hbar * v_F
@@ -37,6 +31,7 @@ def create_system(n=16, nk=25):
     # Defining supercell hopping modulation
     # Extract lattice vectors
     B = np.array(bulk.symmetry.periods).T
+    L_M = np.linalg.norm(B.T[0])
     # Compute reciprocal lattice vectors
     A = np.linalg.pinv(B).T
 
@@ -44,7 +39,7 @@ def create_system(n=16, nk=25):
 
     # Generate hoppig modulation
     def dt(r, b):
-        return np.sin(np.dot(b, r))
+        return np.sin(np.dot(b, r)) / np.linalg.norm(bs[0])
 
     # Set hopping landscape
     def hopping(site1, site2, xi):
@@ -52,9 +47,10 @@ def create_system(n=16, nk=25):
         r2 = site2.pos
         r_med = (r1 + r2) / 2
         dr = r1 - r2
-        prefactor = vF_times_hbar * xi**2 / (L_M) ** 2
-        _b = bs[np.argmin(np.cross(dr, bs))]
-        return (-t + prefactor * dt(r_med, _b)) / scaling_factor * pauli.s0
+        prefactor = vF_times_hbar * xi**2 / (L_M) ** 2 / np.sqrt(3)
+        _b = bs[np.argmin(np.abs(np.cross(dr, bs)))]
+        # print(np.cross(dr, _b))
+        return (t + prefactor * dt(r_med, _b)) * pauli.s0
 
     # Define onsite and hopping energies
     bulk[lat.shape(lambda pos: True, (0, 0))] = 0 * pauli.s0
