@@ -56,7 +56,7 @@ myst_enable_extensions = [
     "substitution",
     "colon_fence",
 ]
-nb_execution_timeout = 120
+nb_execution_timeout = 500
 nb_execution_raise_on_error = True
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
@@ -88,7 +88,7 @@ autoclass_content = "both"
 # a list of builtin themes.
 #
 html_theme = "sphinx_book_theme"
-html_title = "MeanFi"
+# html_title = "$MeanFi$"
 
 html_theme_options = {
     "repository_url": "https://gitlab.kwant-project.org/qt/meanfi",
@@ -99,10 +99,11 @@ html_theme_options = {
     "repository_branch": "main",
     "use_download_button": True,
     "home_page_in_toc": True,
-    # "logo": {
-    #     "image_light": "_static/logo.svg",
-    #     "image_dark": "_static/logo_dark.svg",
-    # },
+    "logo": {
+        "alt_text": "MeanFi",
+        "image_light": "logo_imgs/MeanFi_logo_light.svg",
+        "image_dark": "logo_imgs/MeanFi_logo_dark.svg",
+    },
     "extra_footer": (
         '<hr><div id="matomo-opt-out"></div>'
         '<script src="https://piwik.kwant-project.org/index.php?'

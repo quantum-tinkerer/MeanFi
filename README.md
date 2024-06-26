@@ -9,13 +9,13 @@ $$
 \hat{H} = \hat{H_0} + \hat{V} = \sum_{ij} h_{ij} c^\dagger_{i} c_{j} + \frac{1}{2} \sum_{ij} v_{ij} \hat{n}_i \hat{n}_j,
 $$
 
-and computes the mean-field correction $\hat{V}_{\text{MF}}$ which approximates the interaction term:
+and computes the mean-field correction $\hat{V}^{\text{MF}}$ which approximates the interaction term:
 
 $$
-\hat{V} \approx \hat{V}_{\text{MF}} = \sum_{ij} \tilde{v}_{ij} c^\dagger_{i} c_{j}.
+\hat{V} \approx \hat{V}^{\text{MF}} =\sum_{ij} \tilde{v}_{ij} c_{i}^{\dagger} c_{j}.
 $$
 
-For more details, refer to the [theory overview](docs/source/documentation/mf_notes.md) and [algorithm description](docs/source/documentation/algorithm.md).
+For more details, refer to the [theory overview](https://meanfi.readthedocs.io/en/latest/documentation/mf_notes.html) and [algorithm description](https://meanfi.readthedocs.io/en/latest/documentation/algorithm.html).
 
 ## How to use `MeanFi`?
 
@@ -51,7 +51,7 @@ mf_correction = meanfi.solver(model, guess)
 h_mf = meanfi.add_tb(h_0, mf_correction)
 ```
 
-For more details and examples on how to use the package, we refer to the [tutorials](docs/source/tutorial/hubbard_1d.md).
+For more details and examples on how to use the package, we refer to the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).
 
 ## Why `MeanFi`?
 
@@ -75,8 +75,8 @@ Here is why you should use `MeanFi`:
 
 Here are some features that are not yet implemented but are planned for future releases:
 
-- **Superconductive order parameters**. Mean-field Hamiltonians do not include pairing terms.
-- **General interactions**. We allow only density-density interactions (e.g. Coulomb) which can be described by a second-order tensor.
+- **Superconducting order parameters**. Mean-field Hamiltonians do not include pairing terms.
+- **General interactions**. We allow only density-density interactions (e.g. Coulomb) which can be described by a rank two tensor.
 - **Temperature effects**. Density matrix calculations are done at zero temperature.
 
 ## Installation
