@@ -34,7 +34,7 @@ The first-order perturbative approximation to the interacting Hamiltonian is the
 The mean field approximates the quartic term $\hat{V}$ in {eq}`hamiltonian` as a sum of bilinear terms weighted by the expectation values of the remaining operators:
 :::{math}
 :label: mf_approx
-\hat{V} \approx \hat{V}_{\text{MF}} \equiv \sum_{ij} v_{ij} \left[
+\hat{V} \approx \hat{V}_{\text{MF}} \equiv \frac12 \sum_{ij} v_{ij} \left[
 \braket{c_i^\dagger c_i} c_j^\dagger c_j - \braket{c_i^\dagger c_j} c_j^\dagger c_i \right],
 :::
 where we neglect the constant offset terms and the superconducting pairing (for now).
