@@ -119,8 +119,10 @@ def tb_to_builder(
     :
         `kwant.builder.Builder` that corresponds to the tight-binding dictionary.
     """
-
-    builder = kwant.Builder(kwant.TranslationalSymmetry(*periods))
+    if periods == ():
+        builder = kwant.Builder()
+    else:
+        builder = kwant.Builder(kwant.TranslationalSymmetry(*periods))
     onsite_idx = tuple([0] * len(list(h_0)[0]))
 
     norbs_list = [site.family.norbs for site in sites_list]
