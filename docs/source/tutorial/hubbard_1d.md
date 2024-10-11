@@ -74,7 +74,7 @@ hamiltonians_0 = meanfi.tb_to_kgrid(h_0, nk)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
 plt.plot(ks, vals, c="k")
-plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
+plt.xticks([0, np.pi, 2 * np.pi], [r"$0$", r"$\pi$", r"$2\pi$"])
 plt.xlim(0, 2 * np.pi)
 plt.ylabel("$E - E_F$")
 plt.xlabel("$k / a$")
@@ -138,10 +138,10 @@ h_mf = meanfi.add_tb(h_0, mf_sol)
 hamiltonians = meanfi.tb_to_kgrid(h_mf, nk)
 vals, vecs = np.linalg.eigh(hamiltonians)
 plt.plot(ks, vals, c="k")
-plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
+plt.xticks([0, np.pi, 2 * np.pi], [r"$0$", r"$\pi$", r"$2\pi$"])
 plt.xlim(0, 2 * np.pi)
-plt.ylabel("$E - E_F$")
-plt.xlabel("$k / a$")
+plt.ylabel(r"$E - E_F$")
+plt.xlabel(r"$k / a$")
 plt.show()
 ```
 
@@ -187,8 +187,8 @@ Us = np.linspace(0, 4, 30, endpoint=True)
 gaps = compute_phase_diagram(Us=Us, nk=20, nk_dense=100)
 
 plt.plot(Us, gaps, c="k")
-plt.xlabel("$U / t$")
-plt.ylabel("$\Delta{E}/t$")
+plt.xlabel(r"$U / t$")
+plt.ylabel(r"$\Delta{E}/t$")
 plt.show()
 ```
 
