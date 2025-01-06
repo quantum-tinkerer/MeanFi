@@ -1,4 +1,5 @@
 import numpy as np
+import sparse
 
 from meanfi.mf import (
     density_matrix,
@@ -17,7 +18,7 @@ def _check_hermiticity(h):
 
 def _tb_type_check(tb):
     for count, key in enumerate(tb):
-        if not isinstance(tb[key], np.ndarray):
+        if not isinstance(tb[key], (np.ndarray, sparse.SparseArray)):
             raise ValueError(
                 "Values of the tight-binding dictionary must be numpy arrays"
             )
