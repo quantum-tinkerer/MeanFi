@@ -48,5 +48,5 @@ include = [
 ]
 
 [tool.codespell]
-skip = "*.ipynb"
+skip = "*.ipynb, *.cls,*.bst,*.bib,*.lock"
 ignore-words-list = "multline, ket, bra, braket, nwo, mater, coo"

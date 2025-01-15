@@ -1,4 +1,5 @@
 import numpy as np
+import sparse
 
 from meanfi.tb.tb import _tb_type
 
@@ -54,7 +55,9 @@ def tb_to_rparams(tb: _tb_type) -> np.ndarray:
 
 
 def rparams_to_tb(
-    tb_params: np.ndarray, tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int
+    tb_params: np.ndarray | sparse.SparseArray,
+    tb_keys: list[tuple[None] | tuple[int, ...]],
+    ndof: int,
 ) -> _tb_type:
     """Extract a hermitian tight-binding dictionary from a real vector parametrisation.
 

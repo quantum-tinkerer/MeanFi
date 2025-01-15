@@ -1,11 +1,11 @@
 image: mambaorg/micromamba:1.4.3
 
 before_script:
-  - mkdir -p micromamba
-  - export MAMBA_ROOT_PREFIX=micromamba
-  - micromamba create -yf docs/environment.yml
-  - eval "$(micromamba shell hook --shell bash)"
-  - micromamba activate meanfi-docs
+  # Get pixi. We set HOME and SHELL for this to work in barebones images.
+  - export HOME=/root
+  - export SHELL=/bin/bash
+  - curl -fsSL https://pixi.sh/install.sh | bash
+  - source /root/.bashrc
 
 run tests:
   script:

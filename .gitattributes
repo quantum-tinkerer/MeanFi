@@ -3,3 +3,5 @@
 *.py filter=whitespace
 *.rst filter=whitespace
 *.md filter=whitespace
+# SCM syntax highlighting
+pixi.lock linguist-language=YAML linguist-generated=true
