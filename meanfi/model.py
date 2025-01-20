@@ -47,7 +47,10 @@ class Model:
     filling :
         Number of particles in a unit cell.
         Used to determine the Fermi level.
-
+    kT :
+        Temperature of the model. 
+        Used to calculate the occupation of states.
+        
     Notes
     -----
 
@@ -57,7 +60,7 @@ class Model:
     separated by 1 lattice vector.
     """
 
-    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float) -> None:
+    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float, kT: float = 0) -> None:
         _tb_type_check(h_0)
         self.h_0 = h_0
         _tb_type_check(h_int)
@@ -66,7 +69,10 @@ class Model:
             raise ValueError("Filling must be a float or an integer")
         if not filling > 0:
             raise ValueError("Filling must be a positive value")
+        if not kT >= 0:
+            raise ValueError("Temperature can not be a negative value")
         self.filling = filling
+        self.kT = kT
 
         _first_key = list(h_0)[0]
         self._ndim = len(_first_key)
@@ -93,7 +99,7 @@ class Model:
             Density matrix tight-binding dictionary.
         """
         mf = meanfield(rho, self.h_int)
-        return density_matrix(add_tb(self.h_0, mf), self.filling, nk)[0]
+        return density_matrix(add_tb(self.h_0, mf), self.filling, nk, self.kT)[0]
 
     def mfield(self, mf: _tb_type, nk: int = 20) -> _tb_type:
         """Computes a new mean-field correction from a given one.
@@ -111,7 +117,7 @@ class Model:
         :
             new mean-field correction tight-binding dictionary.
         """
-        rho, fermi_energy = density_matrix(add_tb(self.h_0, mf), self.filling, nk)
+        rho, fermi_energy = density_matrix(add_tb(self.h_0, mf), self.filling, nk, self.kT)
         return add_tb(
             meanfield(rho, self.h_int),
             {self._local_key: -fermi_energy * np.eye(self._ndof)},

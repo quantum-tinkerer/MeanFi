@@ -5,7 +5,7 @@ from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, float]:
+def density_matrix_kgrid(kham: np.ndarray, filling: float, kT: float = 0) -> Tuple[np.ndarray, float]:
     """Calculate density matrix on a k-space grid.
 
     Parameters
@@ -17,6 +17,8 @@ def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, 
     filling :
         Number of particles in a unit cell.
         Used to determine the Fermi level.
+    kT :
+        Temperature for use in the Fermi-Dirac distribution.
 
     Returns
     -------
@@ -25,14 +27,14 @@ def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, 
     """
     vals, vecs = np.linalg.eigh(kham)
     fermi = fermi_on_kgrid(vals, filling)
-    unocc_vals = vals > fermi
+    occ_distribution = np.sqrt(fermi_dirac(vals, kT, fermi))[..., np.newaxis]
     occ_vecs = vecs
-    np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
-    _density_matrix_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
-    return _density_matrix_krid, fermi
+    occ_vecs *= np.moveaxis(occ_distribution, -1, -2)
+    _density_matrix_kgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
+    return _density_matrix_kgrid, fermi
 
 
-def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, float]:
+def density_matrix(h: _tb_type, filling: float, nk: int, kT: float = 0) -> Tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
@@ -45,6 +47,8 @@ def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, floa
     nk :
         Number of k-points in a grid to sample the Brillouin zone along each dimension.
         If the system is 0-dimensional (finite), this parameter is ignored.
+    kT :
+        Temperature for use in the Fermi-Dirac distribution.
 
     Returns
     -------
@@ -54,13 +58,13 @@ def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, floa
     ndim = len(list(h)[0])
     if ndim > 0:
         kham = tb_to_kgrid(h, nk=nk)
-        _density_matrix_krid, fermi = density_matrix_kgrid(kham, filling)
+        _density_matrix_krid, fermi = density_matrix_kgrid(kham, filling, kT)
         return (
             kgrid_to_tb(_density_matrix_krid),
             fermi,
         )
     else:
-        _density_matrix, fermi = density_matrix_kgrid(h[()], filling)
+        _density_matrix, fermi = density_matrix_kgrid(h[()], filling, kT)
         return {(): _density_matrix}, fermi
 
 
@@ -136,3 +140,37 @@ def fermi_on_kgrid(vals: np.ndarray, filling: float) -> float:
     else:
         fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
         return fermi
+    
+def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
+    """
+    Calculate the value of the Fermi-Dirac distribution at energy `E` and temperature `T`.
+
+    Parameters
+    ----------
+    `E: np.ndarray(float)` :
+        The energy at which to find the value of the distribution. Can also be an array of values.
+    `kT: float` :
+        The temperature in Kelvin and Boltzmann constant.
+    `fermi: float` :
+        The Fermi level.
+
+    Returns
+    -------
+        The value of the Fermi-Dirac distribution.    
+    """
+    if kT == 0:
+        fd = E < fermi
+        return fd
+    else:
+        fd = np.empty_like(E)
+        exponent = (E - fermi) / kT
+        sign_mask = E >= fermi # Holds the indices for all positive values of the exponent.
+
+        # Precalculating the two options.
+        pos_exp = np.exp(-exponent[sign_mask])
+        neg_exp = np.exp(exponent[~sign_mask])
+        
+        fd[sign_mask] = pos_exp / (pos_exp + 1)
+        fd[~sign_mask] = 1 / (neg_exp + 1)
+
+        return fd
