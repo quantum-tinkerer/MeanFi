@@ -1,11 +1,11 @@
 import numpy as np
-from typing import Tuple
+from scipy.optimize import minimize
 
 from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def density_matrix_kgrid(kham: np.ndarray, filling: float, kT: float = 0) -> Tuple[np.ndarray, float]:
+def density_matrix_kgrid(kham: np.ndarray, filling: float, kT: float = 0) -> tuple[np.ndarray, float]:
     """Calculate density matrix on a k-space grid.
 
     Parameters
@@ -26,15 +26,19 @@ def density_matrix_kgrid(kham: np.ndarray, filling: float, kT: float = 0) -> Tup
         Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi energy.
     """
     vals, vecs = np.linalg.eigh(kham)
-    fermi = fermi_on_kgrid(vals, filling)
-    occ_distribution = np.sqrt(fermi_dirac(vals, kT, fermi))[..., np.newaxis]
+    fermi_0 = 0 #fermi_on_kgrid(vals, filling)
+
+    result = minimize(charge_difference, fermi_0, args=(ham, charge, kT, target_charge, nk, ndim, einsum_path), method='Nelder-Mead', options={'fatol': kT/2, 'xatol': kT/2})
+    opt_fermi = float(result.x)
+    
+    occ_distribution = np.sqrt(fermi_dirac(vals, kT, opt_fermi))[..., np.newaxis]
     occ_vecs = vecs
     occ_vecs *= np.moveaxis(occ_distribution, -1, -2)
     _density_matrix_kgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
-    return _density_matrix_kgrid, fermi
+    return _density_matrix_kgrid, opt_fermi
 
 
-def density_matrix(h: _tb_type, filling: float, nk: int, kT: float = 0) -> Tuple[_tb_type, float]:
+def density_matrix(h: _tb_type, filling: float, nk: int, kT: float = 0) -> tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
