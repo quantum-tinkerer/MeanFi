@@ -1,12 +1,11 @@
 import numpy as np
 import pytest
 
-from meanfi import (
-    guess_tb,
+from meanfi.mf import (
     add_tb,
     density_matrix,
 )
-from meanfi.tb.utils import generate_tb_keys
+from meanfi.tb.utils import generate_tb_keys, guess_tb
 
 
 repeat_number = 5
@@ -24,6 +23,7 @@ def test_minimizer_consistency(seed):
     keys = generate_tb_keys(cutoff, ndim)
     h_0 = guess_tb(keys, ndof)
 
+    print(h_0, filling, nk, kT)
     f_level = density_matrix(h_0, filling, nk, kT)[1]
     
     # Normalize the Hamiltonian.
@@ -39,3 +39,5 @@ def test_minimizer_consistency(seed):
     f_offset = density_matrix(h_offset, filling, nk, kT)[1]
 
     assert np.allclose(f_random, f_offset, kT/2, kT/2)
+
+test_minimizer_consistency(1)
