@@ -42,7 +42,7 @@ def trace_difference(fermi: float, vals: np.ndarray, expectation: np.ndarray, kT
     occ_distribution = fermi_dirac(vals, kT, fermi)
     trace = np.sum(expectation * occ_distribution)
 
-    return trace - (filling * nk**ndim)
+    return np.abs(trace - (filling * nk**ndim))
 
 def density_matrix(h: _tb_type, filling: float, nk: int, kT: float = 0) -> tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
