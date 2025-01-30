@@ -45,7 +45,7 @@ h_0 = utils.builder_to_tb(graphene_builder)
 
 
 # %%
-def gap_prediction(U, V):
+def gap_prediction(U, V, kT):
     """Test if the mean-field theory predicts the gap correctly for a given U and V.
 
     Parameters
@@ -54,6 +54,8 @@ def gap_prediction(U, V):
         The Hubbard U parameter. Rounded to one decimal.
     V : float
         The nearest-neighbor interaction parameter. Rounded to one decimal.
+    kT : float
+        The temperature of the model.
     """
     U = np.round(U, 1)
     V = np.round(V, 1)
@@ -76,7 +78,7 @@ def gap_prediction(U, V):
 
     h_int = utils.builder_to_tb(int_builder, params)
     guess = guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
-    model = Model(h_0, h_int, filling)
+    model = Model(h_0, h_int, filling, kT)
 
     mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"M": 0, "f_tol": 1e-8})
     mf_full = add_tb(h_0, mf_sol)
@@ -100,4 +102,7 @@ def test_gap(seed):
     np.random.seed(seed)
     U = np.random.uniform(0, 4)
     V = np.random.uniform(0, 1)
-    gap_prediction(U, V)
+    kT = [0, np.random.uniform(1e-6, 1e-2)]
+
+    for kT in kT:
+        gap_prediction(U, V, kT)
