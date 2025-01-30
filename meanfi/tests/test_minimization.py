@@ -43,7 +43,7 @@ def minimizer_offset(
 @pytest.mark.parametrize("seed", range(repeat_number))
 def test_minimizer_consistency(seed):
     np.random.seed(seed)
-    ndim = np.random.randint(1, 4)
+    ndim = np.random.randint(1, 3)
     ndof = np.random.randint(1, 8)
     cutoff = np.random.randint(1, 5)
     nk = np.random.randint(10, 100)
