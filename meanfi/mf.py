@@ -5,7 +5,9 @@ from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def density_matrix_kgrid(kham: np.ndarray, filling: float, nk: int, ndim: int, kT: float = 0) -> tuple[np.ndarray, float]:
+def density_matrix_kgrid(
+    kham: np.ndarray, filling: float, nk: int, ndim: int, kT: float = 0
+) -> tuple[np.ndarray, float]:
     """Calculate density matrix on a k-space grid.
 
     Parameters
@@ -28,23 +30,41 @@ def density_matrix_kgrid(kham: np.ndarray, filling: float, nk: int, ndim: int, k
     vals, vecs = np.linalg.eigh(kham)
     fermi_0 = fermi_on_kgrid(vals, filling)
 
-    full_diag = np.sum(np.moveaxis(vecs.conj(), -1, -2) @ vecs, axis=-2) 
-    result = minimize(trace_difference, fermi_0, args=(vals, full_diag, kT, filling, nk, ndim), method='Nelder-Mead', options={'fatol': kT/2, 'xatol': kT/2})
+    full_diag = np.sum(np.moveaxis(vecs.conj(), -1, -2) @ vecs, axis=-2)
+    result = minimize(
+        trace_difference,
+        fermi_0,
+        args=(vals, full_diag, kT, filling, nk, ndim),
+        method="Nelder-Mead",
+        options={"fatol": kT / 2, "xatol": kT / 2},
+    )
     opt_fermi = float(result.x)
-    
+
     occ_distribution = np.sqrt(fermi_dirac(vals, kT, opt_fermi))[..., np.newaxis]
     occ_vecs = vecs
     occ_vecs *= np.moveaxis(occ_distribution, -1, -2)
     _density_matrix_kgrid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
     return _density_matrix_kgrid, opt_fermi
 
-def trace_difference(fermi: float, vals: np.ndarray, expectation: np.ndarray, kT: float, filling: float, nk: int, ndim: int) -> float:
+
+def trace_difference(
+    fermi: float,
+    vals: np.ndarray,
+    expectation: np.ndarray,
+    kT: float,
+    filling: float,
+    nk: int,
+    ndim: int,
+) -> float:
     occ_distribution = fermi_dirac(vals, kT, fermi)
     trace = np.sum(expectation * occ_distribution)
 
     return np.abs(trace - (filling * nk**ndim))
 
-def density_matrix(h: _tb_type, filling: float, nk: int, kT: float = 0) -> tuple[_tb_type, float]:
+
+def density_matrix(
+    h: _tb_type, filling: float, nk: int, kT: float = 0
+) -> tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
@@ -122,6 +142,7 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     }
     return add_tb(direct, exchange)
 
+
 def fermi_on_kgrid(vals: np.ndarray, filling: float) -> float:
     """Compute the Fermi energy on a grid of k-points.
 
@@ -149,7 +170,8 @@ def fermi_on_kgrid(vals: np.ndarray, filling: float) -> float:
     else:
         fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
         return fermi
-    
+
+
 def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
     """
     Calculate the value of the Fermi-Dirac distribution at energy `E` and temperature `T`.
@@ -165,7 +187,7 @@ def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
 
     Returns
     -------
-        The value of the Fermi-Dirac distribution.    
+        The value of the Fermi-Dirac distribution.
     """
     if kT == 0:
         fd = E < fermi
@@ -173,12 +195,14 @@ def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
     else:
         fd = np.empty_like(E)
         exponent = (E - fermi) / kT
-        sign_mask = E >= fermi # Holds the indices for all positive values of the exponent.
+        sign_mask = (
+            E >= fermi
+        )  # Holds the indices for all positive values of the exponent.
 
         # Precalculating the two options.
         pos_exp = np.exp(-exponent[sign_mask])
         neg_exp = np.exp(exponent[~sign_mask])
-        
+
         fd[sign_mask] = pos_exp / (pos_exp + 1)
         fd[~sign_mask] = 1 / (neg_exp + 1)
 

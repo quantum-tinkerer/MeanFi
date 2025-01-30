@@ -48,9 +48,9 @@ class Model:
         Number of particles in a unit cell.
         Used to determine the Fermi level.
     kT :
-        Temperature of the model. 
+        Temperature of the model.
         Used to calculate the occupation of states.
-        
+
     Notes
     -----
 
@@ -60,7 +60,9 @@ class Model:
     separated by 1 lattice vector.
     """
 
-    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float, kT: float = 0) -> None:
+    def __init__(
+        self, h_0: _tb_type, h_int: _tb_type, filling: float, kT: float = 0
+    ) -> None:
         _tb_type_check(h_0)
         self.h_0 = h_0
         _tb_type_check(h_int)
@@ -117,7 +119,9 @@ class Model:
         :
             new mean-field correction tight-binding dictionary.
         """
-        rho, fermi_energy = density_matrix(add_tb(self.h_0, mf), self.filling, nk, self.kT)
+        rho, fermi_energy = density_matrix(
+            add_tb(self.h_0, mf), self.filling, nk, self.kT
+        )
         return add_tb(
             meanfield(rho, self.h_int),
             {self._local_key: -fermi_energy * np.eye(self._ndof)},
