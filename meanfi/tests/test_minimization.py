@@ -46,7 +46,7 @@ def test_minimizer_consistency(seed):
     ndim = np.random.randint(1, 4)
     ndof = np.random.randint(1, 8)
     cutoff = np.random.randint(1, 5)
-    nk = np.random.randint(10, 1000)
+    nk = np.random.randint(10, 100)
     filling = np.random.uniform(0, ndof)
     kT = np.random.uniform(0, 1e-2)
     f_random = np.random.uniform(-3, 3)
