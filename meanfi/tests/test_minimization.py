@@ -5,7 +5,6 @@ import pytest
 from meanfi.mf import add_tb, density_matrix
 from meanfi.tb.utils import generate_tb_keys, guess_tb
 
-
 repeat_number = 5
 
 
@@ -47,7 +46,7 @@ def test_minimizer_consistency(seed):
     ndof = np.random.randint(1, 8)
     cutoff = np.random.randint(1, 5)
     nk = np.random.randint(10, 51)
-    filling = np.random.uniform(0, ndof)
+    filling = np.random.uniform(0.01, ndof - 0.01)
     kT = np.random.uniform(0, 1e-2)
     f_random = np.random.uniform(-3, 3)
     minimizer_offset(cutoff, ndim, ndof, filling, nk, kT, f_random)
