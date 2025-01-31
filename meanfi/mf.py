@@ -28,17 +28,28 @@ def density_matrix_kgrid(
         Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi energy.
     """
     vals, vecs = np.linalg.eigh(kham)
-    fermi_0 = fermi_on_kgrid(vals, filling)
+    fermi_0 = 0
 
-    full_diag = np.sum(np.moveaxis(vecs.conj(), -1, -2) @ vecs, axis=-2)
-    result = minimize(
-        trace_difference,
-        fermi_0,
-        args=(vals, full_diag, kT, filling, nk, ndim),
-        method="Nelder-Mead",
-        options={"fatol": kT / 2, "xatol": kT / 2},
-    )
-    opt_fermi = float(result.x)
+    # Check if filling falls within reasonable limits. [0, ndof]
+    max_filling = vecs.shape[-1]
+    if (filling > max_filling) or (filling < 0):
+        raise ValueError(
+            f"Filling can not fall outside of possible range: ({0}, {max_filling})"
+        )
+    elif filling == max_filling:
+        opt_fermi = np.max(vals)
+    elif filling == 0:
+        opt_fermi = np.min(vals)
+    else:
+        full_diag = np.sum(np.moveaxis(vecs.conj(), -1, -2) @ vecs, axis=-2)
+        result = minimize(
+            trace_difference,
+            fermi_0,
+            args=(vals, full_diag, kT, filling, nk, ndim),
+            method="Nelder-Mead",
+            options={"fatol": kT / 2, "xatol": kT / 2},
+        )
+        opt_fermi = float(result.x)
 
     occ_distribution = np.sqrt(fermi_dirac(vals, kT, opt_fermi))[..., np.newaxis]
     occ_vecs = vecs
