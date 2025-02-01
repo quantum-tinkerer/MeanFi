@@ -5,7 +5,7 @@ from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, float]:
+def density_matrix_kgrid(kham: np.ndarray, fermi: float) -> Tuple[np.ndarray, float]:
     """Calculate density matrix on a k-space grid.
 
     Parameters
@@ -14,7 +14,7 @@ def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, 
         Hamiltonian from which to construct the density matrix.
         The hamiltonian is sampled on a grid of k-points and has shape (nk, nk, ..., ndof, ndof),
         where ndof is number of internal degrees of freedom.
-    filling :
+    fermi :
         Number of particles in a unit cell.
         Used to determine the Fermi level.
 
@@ -24,7 +24,6 @@ def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, 
         Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi energy.
     """
     vals, vecs = np.linalg.eigh(kham)
-    fermi = fermi_on_kgrid(vals, filling)
     unocc_vals = vals > fermi
     occ_vecs = vecs
     np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
@@ -32,14 +31,14 @@ def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, 
     return _density_matrix_krid, fermi
 
 
-def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, float]:
+def density_matrix(h: _tb_type, mu: float, nk: int) -> Tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
     ----------
     h :
         Hamiltonian tight-binding dictionary from which to construct the density matrix.
-    filling :
+    mu :
         Number of particles in a unit cell.
         Used to determine the Fermi level.
     nk :
@@ -54,13 +53,13 @@ def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, floa
     ndim = len(list(h)[0])
     if ndim > 0:
         kham = tb_to_kgrid(h, nk=nk)
-        _density_matrix_krid, fermi = density_matrix_kgrid(kham, filling)
+        _density_matrix_krid, fermi = density_matrix_kgrid(kham, mu)
         return (
             kgrid_to_tb(_density_matrix_krid),
             fermi,
         )
     else:
-        _density_matrix, fermi = density_matrix_kgrid(h[()], filling)
+        _density_matrix, fermi = density_matrix_kgrid(h[()], mu)
         return {(): _density_matrix}, fermi
 
 

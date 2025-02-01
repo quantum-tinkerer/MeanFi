@@ -5,6 +5,7 @@ from typing import Optional, Callable
 
 from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
 from meanfi.tb.tb import add_tb, _tb_type
+from meanfi.observables import expectation_value
 from meanfi.mf import density_matrix, meanfield
 from meanfi.model import Model
 from meanfi.tb.utils import fermi_energy
@@ -38,7 +39,7 @@ def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     return mf_params_new - mf_param
 
 
-def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
+def cost_density(rho_params_and_mu: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted density matrix
@@ -46,7 +47,7 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
 
     Parameters
     ----------
-    rho_params :
+    rho_params_and_mu :
         1D real array that parametrises the density matrix reduced to the
         hoppings (keys) present in h_int.
     Model :
@@ -62,11 +63,14 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
         density matrix parametrisations reduced to the hoppings present in h_int.
     """
     shape = model._ndof
+    rho_params = rho_params_and_mu[:-1]
+    mu = rho_params_and_mu[-1]
     rho_reduced = rparams_to_tb(rho_params, list(model.h_int), shape)
-    rho_new = model.density_matrix(rho_reduced, nk=nk)
+    rho_new = model.density_matrix(rho_reduced, mu, nk=nk)
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_rparams(rho_reduced_new)
-    return rho_params_new - rho_params
+    n_operator = {model._local_key : np.eye(model._ndof)}
+    return rho_params_new - rho_params + expectation_value(n_operator,rho_new) - model.filling
 
 
 def solver_mf(
