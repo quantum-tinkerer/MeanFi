@@ -76,13 +76,15 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def density_matrix(self, rho: _tb_type, nk: int = 20) -> _tb_type:
+    def density_matrix(self, rho: _tb_type, mu: float, nk: int = 20) -> _tb_type:
         """Computes the density matrix from a given initial density matrix.
 
         Parameters
         ----------
         rho :
             Initial density matrix tight-binding dictionary.
+        mu:
+            Chemical potential.
         nk :
             Number of k-points in a grid to sample the Brillouin zone along each dimension.
             If the system is 0-dimensional (finite), this parameter is ignored.
@@ -93,7 +95,7 @@ class Model:
             Density matrix tight-binding dictionary.
         """
         mf = meanfield(rho, self.h_int)
-        return density_matrix(add_tb(self.h_0, mf), self.filling, nk)[0]
+        return density_matrix(add_tb(self.h_0, mf), mu, nk)[0]
 
     def mfield(self, mf: _tb_type, nk: int = 20) -> _tb_type:
         """Computes a new mean-field correction from a given one.
