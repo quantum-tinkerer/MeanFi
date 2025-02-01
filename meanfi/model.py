@@ -78,7 +78,7 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def density_matrix(self, rho: _tb_type, mu: float, keys : list) -> _tb_type:
+    def density_matrix(self, rho: _tb_type, mu: float, nk: int = 20) -> _tb_type:
         """Computes the density matrix from a given initial density matrix.
 
         Parameters
@@ -97,8 +97,7 @@ class Model:
             Density matrix tight-binding dictionary.
         """
         mf = meanfield(rho, self.h_int)
-        rho, error, E_min, E_max = density_matrix(add_tb(self.h_0, mf), mu=mu, kT=self.kT, keys=keys, atol=self.atol)
-        return rho, E_min, E_max
+        return density_matrix(add_tb(self.h_0, mf), mu, nk)[0]
 
     def mfield(self, mf: _tb_type, nk: int = 20) -> _tb_type:
         """Computes a new mean-field correction from a given one.

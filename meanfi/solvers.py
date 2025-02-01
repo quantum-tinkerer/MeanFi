@@ -40,7 +40,7 @@ def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     return mf_params_new - mf_param
 
 
-def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False, bound_tol = 1e-1) -> np.ndarray:
+def cost_density(rho_params_and_mu: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted density matrix
@@ -67,27 +67,11 @@ def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = Fals
     rho_params = rho_params_and_mu[:-1]
     mu = rho_params_and_mu[-1]
     rho_reduced = rparams_to_tb(rho_params, list(model.h_int), shape)
-    keys = list(model.h_int)
-    rho_new, E_min, E_max = model.density_matrix(rho_reduced, mu=mu, keys=keys)
+    rho_new = model.density_matrix(rho_reduced, mu, nk=nk)
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_rparams(rho_reduced_new)
     n_operator = {model._local_key : np.eye(model._ndof)}
-    charge = np.real(expectation_value(n_operator, rho_new))
-    occupation_diff = np.real(charge - model.filling)
-
-    added_cost = 0
-    if charge > shape - bound_tol: 
-        added_cost = mu - E_max
-    if charge < bound_tol:
-        added_cost = mu - E_min
-
-    cost = np.array([*(rho_params_new - rho_params), occupation_diff + added_cost])
-
-    if debug:
-        message = f"Excess filling: {occupation_diff}, Chemical Potential: {mu}, Cost function: {np.linalg.norm(cost)}"
-        sys.stdout.write('\r' + message)
-        sys.stdout.flush()
-    return cost
+    return rho_params_new - rho_params + expectation_value(n_operator,rho_new) - model.filling
 
 
 def solver_mf(
