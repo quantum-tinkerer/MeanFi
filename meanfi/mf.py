@@ -28,23 +28,25 @@ def complex_cubature(integrand, a, b, args=(), cubature_kwargs={'atol' : 1e-6}):
     :
         Complex-valued integral and error estimate.
     """
+    def complex_integrand(k, *args):
+        value = integrand(k, *args)
+        value_real = value.real
+        value_imag = value.imag
+        return np.stack((value_real, value_imag), axis=-1, dtype=float)
 
-    def real_integrand(k, *args):
-        return integrand(k, *args).real
-    def imag_integrand(k, *args):
-        return integrand(k, *args).imag
+    result = cubature(complex_integrand, a, b, args=args, **cubature_kwargs)
+    
+    if result.status == 'converged':
+        integral_unpacked = result.estimate
+        error_unpacked = result.error
 
-    real_result = cubature(real_integrand, a, b, args=args, **cubature_kwargs)
-    imag_result = cubature(imag_integrand, a, b, args=args, **cubature_kwargs)
+        integral_real = integral_unpacked[..., 0]
+        integral_imag = integral_unpacked[..., 1]
 
-    real_integral = real_result.estimate
-    imag_integral = imag_result.estimate
+        error_real = error_unpacked[..., 0]
+        error_imag = error_unpacked[..., 1]
 
-    real_error = real_result.error
-    imag_error = imag_result.error
-
-    if (real_result.status and imag_result.status) == 'converged':
-        return real_integral + 1j * imag_integral, real_error + 1j * imag_error
+        return integral_real + 1j * integral_imag, error_real + 1j * error_imag
     else:
         raise ValueError('Integration did not converge')
 
@@ -68,6 +70,8 @@ def density_matrix(h: _tb_type, mu: float, beta : float, keys : list, atol=1e-5)
     :
         Density matrix tight-binding dictionary
     """
+    ndim = len(keys[0])
+
     def density_matrix_k(H_k, mu, beta=1e2):
         eigenvalues, U = np.linalg.eigh(H_k)
         fermi_distribution = 1.0 / (1.0 + np.exp(beta * (eigenvalues - mu)))
@@ -75,16 +79,20 @@ def density_matrix(h: _tb_type, mu: float, beta : float, keys : list, atol=1e-5)
         return density_matrix
     
     hkfunc = tb_to_kfunc(h)
-    def integrand(k, mu, beta, key):
-        H = hkfunc(k)
-        return np.exp(1j * np.dot(k, key))[:, np.newaxis, np.newaxis] * density_matrix_k(H, mu=mu, beta=beta) / (4*np.pi**2)
-    
+    def integrand(k, mu, beta, keys):
+        dm_k = density_matrix_k(hkfunc(k), mu=mu, beta=beta)
+        phase = np.exp(1j * np.dot(k, keys.T))
+        return dm_k[..., np.newaxis] * phase[:, np.newaxis, np.newaxis, :] / (2*np.pi)**ndim
+
     density_matrix_dict = {}
     error_dict = {}
-    for key in keys:
-        rho, error = complex_cubature(integrand, [-np.pi, -np.pi], [np.pi, np.pi], args=(mu, beta, np.array(key, dtype=float)), cubature_kwargs={'atol' : atol})
-        density_matrix_dict[key] = rho
-        error_dict[key] = error
+    
+    bounds_lower  = np.array([-np.pi] * ndim)
+    bounds_upper = np.array([np.pi] * ndim)
+    rho, error = complex_cubature(integrand, bounds_lower, bounds_upper, args=(mu, beta, np.array(keys, dtype=float)), cubature_kwargs={'atol' : atol})
+    for idx, key in enumerate(keys):
+        density_matrix_dict[key] = rho[..., idx]
+        error_dict[key] = error[..., idx]
     return density_matrix_dict, error_dict
 
 
