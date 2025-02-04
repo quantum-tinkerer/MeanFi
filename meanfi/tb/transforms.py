@@ -92,16 +92,29 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
     -------
     :
         A function that takes a k-space vector and returns a complex np.array.
+        For multiple k-points, the input k is expected to have shape (npoints, ndim).
 
     Notes
     -----
     Function doesn't work for zero dimensions.
-    """
-
-    def kfunc(k):
-        ham = 0
-        for vector in tb.keys():
-            ham += tb[vector] * np.exp(-1j * np.dot(k, np.array(vector, dtype=float)))
+"""
+    def kfunc(k: np.ndarray) -> np.ndarray:
+        if k.ndim == 1:
+            npoints = 1
+        else:
+            npoints = k.shape[0]
+        
+        # Use the shape of one of the matrices to preallocate ham.
+        sample_matrix = next(iter(tb.values()))
+        ham = np.zeros((npoints, *sample_matrix.shape), dtype=complex)
+        
+        for vector, matrix in tb.items():
+            vec = np.array(vector, dtype=float)
+            phase = np.exp(-1j * np.dot(k, vec))
+            ham += phase[:, np.newaxis, np.newaxis] * matrix
+        
+        if npoints == 1:
+            return ham[0]
         return ham
 
     return kfunc
