@@ -39,7 +39,7 @@ def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     return mf_params_new - mf_param
 
 
-def cost_density(rho_params_and_mu: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
+def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False) -> np.ndarray:
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted density matrix
@@ -66,11 +66,20 @@ def cost_density(rho_params_and_mu: np.ndarray, model: Model, nk: int = 20) -> n
     rho_params = rho_params_and_mu[:-1]
     mu = rho_params_and_mu[-1]
     rho_reduced = rparams_to_tb(rho_params, list(model.h_int), shape)
-    rho_new = model.density_matrix(rho_reduced, mu, nk=nk)
+    keys = list(model.h_int)
+    rho_new = model.density_matrix(rho_reduced, mu=mu, keys=keys)
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_rparams(rho_reduced_new)
     n_operator = {model._local_key : np.eye(model._ndof)}
-    return rho_params_new - rho_params + expectation_value(n_operator,rho_new) - model.filling
+    occupation_diff = np.real(expectation_value(n_operator, rho_new) - model.filling)
+    cost = np.array([*(rho_params_new - rho_params), occupation_diff])
+    if debug:
+        print("--------------------")
+        print(f"Occupation difference cost: {occupation_diff}")
+        print(f"Chemical Potential: {mu}")
+        print(f"Cost function: {np.sum(np.abs(rho_params_new - rho_params))}")
+        print("--------------------")
+    return cost
 
 
 def solver_mf(
@@ -116,9 +125,10 @@ def solver_mf(
 def solver_density(
     model: Model,
     mf_guess: _tb_type,
-    nk: int = 20,
+    mu_guess: float, 
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0, "line_search": "wolfe"},
+    debug: bool = False
 ) -> _tb_type:
     """Solve for the mean-field correction through self-consistent root finding
     by finding the density matrix fixed point.
@@ -144,19 +154,22 @@ def solver_density(
         Mean-field correction solution in the tight-binding dictionary format.
     """
     shape = model._ndof
+    keys = list(model.h_int)
     rho_guess = density_matrix(
-        add_tb(model.h_0, mf_guess), filling=model.filling, nk=nk
+        add_tb(model.h_0, mf_guess), mu=mu_guess, beta=model.beta, keys=keys, atol=model.atol
     )[0]
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
     rho_params = tb_to_rparams(rho_guess_reduced)
-    f = partial(cost_density, model=model, nk=nk)
+    rho_params_and_mu = np.concatenate([rho_params, [mu_guess]])
+    f = partial(cost_density, model=model, debug=debug)
+    result = optimizer(f, rho_params_and_mu, **optimizer_kwargs)
     rho_result = rparams_to_tb(
-        optimizer(f, rho_params, **optimizer_kwargs), list(model.h_int), shape
+        result[:-1], list(model.h_int), shape
     )
     mf_result = meanfield(rho_result, model.h_int)
-    fermi = fermi_energy(add_tb(model.h_0, mf_result), model.filling, nk=nk)
-    return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
+    print('Fermi energy is ', result[-1])
+    return add_tb(mf_result, {model._local_key: -result[-1] * np.eye(model._ndof)})
 
 
 solver = solver_density

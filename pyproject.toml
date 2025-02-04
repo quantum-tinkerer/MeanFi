@@ -19,12 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = [
-    "numpy>=1.23",
-    "scipy>=1.9",
-    "kwant>=1.4",
-    "packaging>=22.0",  # For version parsing
-]
+
 [tool.hatch.version]
 source = "vcs"
 [tool.hatch.build.hooks.vcs]
@@ -50,3 +45,19 @@ include = [
 [tool.codespell]
 skip = "*.ipynb"
 ignore-words-list = "multline, ket, bra, braket, nwo, mater"
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+meanfi = { path = ".", editable = true }
+
+
+[tool.pixi.dependencies]
+python = ">=3.12.8,<4"
+numpy = ">=2.2.2,<3"
+kwant = ">=1.5.0,<2"
+matplotlib = ">=3.10.0,<4"
+scipy = "==1.15.1"
+ipykernel = ">=6.29.5,<7"

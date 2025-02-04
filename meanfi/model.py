@@ -57,7 +57,7 @@ class Model:
     separated by 1 lattice vector.
     """
 
-    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float) -> None:
+    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float, atol=1e-5, beta=1e2) -> None:
         _tb_type_check(h_0)
         self.h_0 = h_0
         _tb_type_check(h_int)
@@ -67,6 +67,8 @@ class Model:
         if not filling > 0:
             raise ValueError("Filling must be a positive value")
         self.filling = filling
+        self.atol = atol
+        self.beta = beta
 
         _first_key = list(h_0)[0]
         self._ndim = len(_first_key)
@@ -76,7 +78,7 @@ class Model:
         _check_hermiticity(h_0)
         _check_hermiticity(h_int)
 
-    def density_matrix(self, rho: _tb_type, mu: float, nk: int = 20) -> _tb_type:
+    def density_matrix(self, rho: _tb_type, mu: float, keys : list) -> _tb_type:
         """Computes the density matrix from a given initial density matrix.
 
         Parameters
@@ -95,7 +97,7 @@ class Model:
             Density matrix tight-binding dictionary.
         """
         mf = meanfield(rho, self.h_int)
-        return density_matrix(add_tb(self.h_0, mf), mu, nk)[0]
+        return density_matrix(add_tb(self.h_0, mf), mu=mu, beta=self.beta, keys=keys, atol=self.atol)[0]
 
     def mfield(self, mf: _tb_type, nk: int = 20) -> _tb_type:
         """Computes a new mean-field correction from a given one.
