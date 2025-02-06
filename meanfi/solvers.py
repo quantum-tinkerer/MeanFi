@@ -1,3 +1,4 @@
+import sys
 from functools import partial
 import numpy as np
 import scipy
@@ -39,7 +40,7 @@ def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     return mf_params_new - mf_param
 
 
-def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False) -> np.ndarray:
+def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False, bound_tol = 1e-1) -> np.ndarray:
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted density matrix
@@ -67,18 +68,25 @@ def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = Fals
     mu = rho_params_and_mu[-1]
     rho_reduced = rparams_to_tb(rho_params, list(model.h_int), shape)
     keys = list(model.h_int)
-    rho_new = model.density_matrix(rho_reduced, mu=mu, keys=keys)
+    rho_new, E_min, E_max = model.density_matrix(rho_reduced, mu=mu, keys=keys)
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_rparams(rho_reduced_new)
     n_operator = {model._local_key : np.eye(model._ndof)}
-    occupation_diff = np.real(expectation_value(n_operator, rho_new) - model.filling)
-    cost = np.array([*(rho_params_new - rho_params), occupation_diff])
+    charge = np.real(expectation_value(n_operator, rho_new))
+    occupation_diff = np.real(charge - model.filling)
+
+    added_cost = 0
+    if charge > shape - bound_tol: 
+        added_cost = mu - E_max
+    if charge < bound_tol:
+        added_cost = mu - E_min
+
+    cost = np.array([*(rho_params_new - rho_params), occupation_diff + added_cost])
+
     if debug:
-        print("--------------------")
-        print(f"Occupation difference cost: {occupation_diff}")
-        print(f"Chemical Potential: {mu}")
-        print(f"Cost function: {np.sum(np.abs(rho_params_new - rho_params))}")
-        print("--------------------")
+        message = f"Excess filling: {occupation_diff}, Chemical Potential: {mu}, Cost function: {np.linalg.norm(cost)}"
+        sys.stdout.write('\r' + message)
+        sys.stdout.flush()
     return cost
 
 
@@ -156,7 +164,7 @@ def solver_density(
     shape = model._ndof
     keys = list(model.h_int)
     rho_guess = density_matrix(
-        add_tb(model.h_0, mf_guess), mu=mu_guess, beta=model.beta, keys=keys, atol=model.atol
+        add_tb(model.h_0, mf_guess), mu=mu_guess, kT=model.kT, keys=keys, atol=model.atol
     )[0]
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
