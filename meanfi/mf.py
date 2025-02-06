@@ -6,6 +6,42 @@ from meanfi.tb.transforms import tb_to_kfunc
 
 from scipy.integrate import cubature
 
+def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
+    """
+    Calculate the value of the Fermi-Dirac distribution at energy `E` and temperature `T`.
+
+    Parameters
+    ----------
+    `E: np.ndarray(float)` :
+        The energy at which to find the value of the distribution. Can also be an array of values.
+    `kT: float` :
+        The temperature in Kelvin and Boltzmann constant.
+    `fermi: float` :
+        The Fermi level.
+
+    Returns
+    -------
+        The value of the Fermi-Dirac distribution.
+    """
+    if kT == 0:
+        fd = E < fermi
+        return fd
+    else:
+        fd = np.empty_like(E, dtype=float)
+        exponent = (E - fermi) / kT
+        sign_mask = (
+            E >= fermi
+        )  # Holds the indices for all positive values of the exponent.
+        
+        # Precalculating the two options.
+        pos_exp = np.exp(-exponent[sign_mask])
+        neg_exp = np.exp(exponent[~sign_mask])
+
+        fd[sign_mask] = pos_exp / (pos_exp + 1)
+        fd[~sign_mask] = 1 / (neg_exp + 1)
+
+        return fd
+
 def complex_cubature(integrand, a, b, args=(), cubature_kwargs={'atol' : 1e-6}):
     """
     Integrate a complex-valued function using scipy.integrate.cubature.
