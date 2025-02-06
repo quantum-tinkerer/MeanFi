@@ -86,7 +86,7 @@ def complex_cubature(integrand, a, b, args=(), cubature_kwargs={'atol' : 1e-6}):
     else:
         raise ValueError('Integration did not converge')
 
-def density_matrix(h: _tb_type, mu: float, beta : float, keys : list, atol=1e-5) -> Tuple[_tb_type, float]:
+def density_matrix(h: _tb_type, mu: float, kT : float, keys : list, atol=1e-5) -> Tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
@@ -96,8 +96,8 @@ def density_matrix(h: _tb_type, mu: float, beta : float, keys : list, atol=1e-5)
     mu :
         Number of particles in a unit cell.
         Used to determine the Fermi level.
-    beta :
-        Inverse temperature.
+    kT :
+        Temperature.
     keys :
         List of keys to compute the density matrix for.
 
@@ -108,28 +108,42 @@ def density_matrix(h: _tb_type, mu: float, beta : float, keys : list, atol=1e-5)
     """
     ndim = len(keys[0])
 
-    def density_matrix_k(H_k, mu, beta=1e2):
+    def density_matrix_k(H_k, mu, kT=0):
         eigenvalues, U = np.linalg.eigh(H_k)
-        fermi_distribution = 1.0 / (1.0 + np.exp(beta * (eigenvalues - mu)))
-        density_matrix = U * fermi_distribution[:, None, :] @ U.conj().transpose(0, 2, 1)
-        return density_matrix
+        occupation = fermi_dirac(eigenvalues, kT, mu)
+        density_matrix = U * occupation[:, None, :] @ U.conj().transpose(0, 2, 1)
+        return density_matrix, eigenvalues[..., 0], eigenvalues[..., -1]
     
     hkfunc = tb_to_kfunc(h)
-    def integrand(k, mu, beta, keys):
-        dm_k = density_matrix_k(hkfunc(k), mu=mu, beta=beta)
+    def integrand(k, mu, kT, keys):
+        dm_k, evals_min, evals_max = density_matrix_k(hkfunc(k), mu=mu, kT=kT)
+        npts = dm_k.shape[0]
         phase = np.exp(1j * np.dot(k, keys.T))
-        return dm_k[..., np.newaxis] * phase[:, np.newaxis, np.newaxis, :] / (2*np.pi)**ndim
+        integrand_dm = dm_k[..., np.newaxis] * phase[:, np.newaxis, np.newaxis, :]
+        integrand_dm = integrand_dm.reshape(npts, -1)
+        evals_min = evals_min.reshape(npts, -1)
+        evals_max = evals_max.reshape(npts, -1)
+        return np.concatenate((integrand_dm, evals_min, evals_max), axis=-1) / (2*np.pi)**ndim
 
-    density_matrix_dict = {}
-    error_dict = {}
     
     bounds_lower  = np.array([-np.pi] * ndim)
     bounds_upper = np.array([np.pi] * ndim)
-    rho, error = complex_cubature(integrand, bounds_lower, bounds_upper, args=(mu, beta, np.array(keys, dtype=float)), cubature_kwargs={'atol' : atol})
+    result, error = complex_cubature(integrand, bounds_lower, bounds_upper, args=(mu, kT, np.array(keys, dtype=float)), cubature_kwargs={'atol' : atol})
+    E_min = result[..., -2]
+    E_max = result[..., -1]
+    rho = result[..., :-2]
+    error = error[..., :-2]
+
+    square = int(np.sqrt(rho.shape[-1] / len(keys)))
+    rho = rho.reshape(square, square, len(keys))
+    error = error.reshape(square, square, len(keys))
+
+    density_matrix_dict = {}
+    error_dict = {}
     for idx, key in enumerate(keys):
         density_matrix_dict[key] = rho[..., idx]
         error_dict[key] = error[..., idx]
-    return density_matrix_dict, error_dict
+    return density_matrix_dict, error_dict, E_min, E_max
 
 
 def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:

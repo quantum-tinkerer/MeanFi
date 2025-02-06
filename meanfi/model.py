@@ -57,7 +57,7 @@ class Model:
     separated by 1 lattice vector.
     """
 
-    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float, atol=1e-5, beta=1e2) -> None:
+    def __init__(self, h_0: _tb_type, h_int: _tb_type, filling: float, atol=1e-5, kT=0) -> None:
         _tb_type_check(h_0)
         self.h_0 = h_0
         _tb_type_check(h_int)
@@ -68,7 +68,7 @@ class Model:
             raise ValueError("Filling must be a positive value")
         self.filling = filling
         self.atol = atol
-        self.beta = beta
+        self.kT = kT
 
         _first_key = list(h_0)[0]
         self._ndim = len(_first_key)
@@ -97,7 +97,8 @@ class Model:
             Density matrix tight-binding dictionary.
         """
         mf = meanfield(rho, self.h_int)
-        return density_matrix(add_tb(self.h_0, mf), mu=mu, beta=self.beta, keys=keys, atol=self.atol)[0]
+        rho, error, E_min, E_max = density_matrix(add_tb(self.h_0, mf), mu=mu, kT=self.kT, keys=keys, atol=self.atol)
+        return rho, E_min, E_max
 
     def mfield(self, mf: _tb_type, nk: int = 20) -> _tb_type:
         """Computes a new mean-field correction from a given one.
