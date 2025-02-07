@@ -92,6 +92,9 @@ sphinx-togglebutton = "*"
 sphinx-copybutton = "*"
 make = "*"
 
+[tool.pixi.feature.docs.pypi-dependencies]
+sphinx-tippy = "*"
+
 [tool.pixi.feature.minimal.dependencies]
 python = "~=3.10"
 numpy = "~=1.25.0"
@@ -160,7 +163,7 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 docs-build = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
 
 [tool.pixi.feature.profiler.tasks]
-profiler = "python profiling/graphene.py\" && memray stats memoryProfile.bin\" && memray summary memoryProfile.bin\""
+profiler = "python profiling/graphene.py && memray stats memoryProfile.bin && memray summary memoryProfile.bin\""
 
 [tool.pixi.feature.precommit.tasks]
 git = "git"
