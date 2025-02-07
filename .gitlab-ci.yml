@@ -1,5 +1,8 @@
 image: ghcr.io/prefix-dev/pixi:0.40.1
 
+before_script:
+  - pixi global install git
+
 run tests:
   variables:
     GIT_STRATEGY: clone
