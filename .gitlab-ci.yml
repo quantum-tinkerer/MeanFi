@@ -1,11 +1,4 @@
-image: mambaorg/micromamba:1.4.3
-
-before_script:
-  - mkdir -p micromamba
-  - export MAMBA_ROOT_PREFIX=micromamba
-  - micromamba create -yf docs/environment.yml
-  - eval "$(micromamba shell hook --shell bash)"
-  - micromamba activate meanfi-docs
+image: ghcr.io/prefix-dev/pixi:0.40.1
 
 run tests:
   variables:
