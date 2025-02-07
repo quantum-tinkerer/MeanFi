@@ -63,6 +63,7 @@ pages:
     - run tests
     - run profiler
     - run docs
+    - run coverage
   script:
     - mkdir public
     - cp -r htmlcov public/
