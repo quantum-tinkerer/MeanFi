@@ -119,7 +119,7 @@ publish to pypi:
   needs:
     - run tests
     - run docs
-    - run nox
+    - run coverage
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
   script:
