@@ -87,6 +87,11 @@ pytest-regressions = "*"
 pytest-repeat = ">=0.9.3,<0.10"
 # pytest-ruff is not on conda
 
+[tool.pixi.feature.docs.dependencies]
+sphinx-togglebutton = "*"
+sphinx-copybutton = "*"
+make = "*"
+
 [tool.pixi.feature.minimal.dependencies]
 python = "~=3.10"
 numpy = "~=1.25.0"
@@ -104,6 +109,16 @@ python = "~=3.12"
 numpy = ">=1.26"
 scipy = ">=1.13"
 sympy = ">=1.4"
+
+[tool.pixi.feature.publish.dependencies]
+hatch = ">=1.7.0,<1.13"
+hatch-vcs = ">=0.4.0,<0.5"
+
+[tool.pixi.feature.profiler.dependencies]
+pyinstrument = "*"
+
+[tool.pixi.feature.profiler.pypi-dependencies]
+memray = "*"
 
 [tool.pixi.pypi-dependencies]
 skunk = { git = "https://github.com/akhmerov/skunk.git" }
@@ -123,6 +138,7 @@ meanfi = { path = ".", editable = true }
 [tool.pixi.environments]
 default = { solve-group = "default" }
 docs = { features = ["docs"], solve-group = "mid" }
+profiler = { features = ["profiler"], solve-group = "mid" }
 minimal = { features = ["minimal", "test"], solve-group = "minimal" }
 mid = { features = ["mid", "test"], solve-group = "mid" }
 latest = { features = ["latest", "test"], solve-group = "default" }
@@ -142,6 +158,9 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.docs.tasks]
 docs-build = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+
+[tool.pixi.feature.profiler.tasks]
+profiler = "python profiling/graphene.py\" && memray stats memoryProfile.bin\" && memray summary memoryProfile.bin\""
 
 [tool.pixi.feature.precommit.tasks]
 git = "git"
