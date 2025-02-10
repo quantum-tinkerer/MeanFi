@@ -116,16 +116,7 @@ pyinstrument = "*"
 memray = "*"
 
 [tool.pixi.pypi-dependencies]
-skunk = { git = "https://github.com/akhmerov/skunk.git" }
 pytest-ruff = ">=0.4.1,<0.5"
-
-[tool.pixi.target.linux-64.pypi-dependencies]
-meanfi = { path = ".", editable = true }
-
-[tool.pixi.target.osx-64.pypi-dependencies]
-meanfi = { path = ".", editable = true }
-
-[tool.pixi.target.win-64.pypi-dependencies]
 meanfi = { path = ".", editable = true }
 
 [tool.pixi.feature.empty.dependencies]
@@ -133,7 +124,7 @@ meanfi = { path = ".", editable = true }
 [tool.pixi.environments]
 default = { solve-group = "default" }
 docs = { features = ["docs"], solve-group = "mid" }
-profiler = { features = ["profiler"], solve-group = "mid" }
+profiler = { features = ["profiler", "mid"], solve-group = "mid" }
 minimal = { features = ["minimal", "test"], solve-group = "minimal" }
 mid = { features = ["mid", "test"], solve-group = "mid" }
 latest = { features = ["latest", "test"], solve-group = "default" }
