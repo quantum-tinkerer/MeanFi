@@ -1,9 +1,9 @@
 from itertools import product
+from collections import defaultdict
 from typing import Callable, Optional
 import inspect
 
 import numpy as np
-from scipy.sparse import coo_array
 import kwant
 from kwant.builder import Site
 import kwant.lattice
@@ -36,21 +36,20 @@ def builder_to_tb(
     """
     prim_vecs = builder.symmetry.periods
     dims = len(prim_vecs)
-    sites_list = [*builder.sites()]
+    idx_by_site = {site: idx for idx, site in enumerate(builder.sites())}
     norbs_list = [site.family.norbs for site in builder.sites()]
     if any(norbs is None for norbs in norbs_list):
         raise ValueError("Number of orbitals must be specified for all sites.")
 
+    offsets = np.cumsum([0] + norbs_list)
+
     tb_norbs = sum(norbs_list)
     tb_shape = (tb_norbs, tb_norbs)
     onsite_idx = tuple([0] * dims)
-    h_0 = {}
+    h_0 = defaultdict(lambda: np.zeros(tb_shape, dtype=complex))
 
+    onsite = h_0[onsite_idx]
     for site, val in builder.site_value_pairs():
-        site_idx = sites_list.index(site)
-        tb_idx = np.sum(norbs_list[:site_idx]) + range(norbs_list[site_idx])
-        row, col = np.array([*product(tb_idx, tb_idx)]).T
-
         if callable(val):
             param_keys = inspect.getfullargspec(val).args[1:]
             try:
@@ -58,24 +57,13 @@ def builder_to_tb(
             except KeyError as key:
                 raise KeyError(f"Parameter {key} not found in params.")
 
-        data = np.array(val).flatten()
-        onsite_value = coo_array((data, (row, col)), shape=tb_shape).toarray()
-
-        h_0[onsite_idx] = h_0.get(onsite_idx, 0) + onsite_value
+        site_idx = idx_by_site[site]
+        onsite[
+            offsets[site_idx] : offsets[site_idx + 1],
+            offsets[site_idx] : offsets[site_idx + 1],
+        ] = val
 
     for (site1, site2), val in builder.hopping_value_pairs():
-        site2_dom = builder.symmetry.which(site2)
-        site2_fd = builder.symmetry.to_fd(site2)
-
-        site1_idx, site2_idx = np.array(
-            [sites_list.index(site1), sites_list.index(site2_fd)]
-        )
-        tb_idx1, tb_idx2 = [
-            np.sum(norbs_list[:site1_idx]) + range(norbs_list[site1_idx]),
-            np.sum(norbs_list[:site2_idx]) + range(norbs_list[site2_idx]),
-        ]
-        row, col = np.array([*product(tb_idx1, tb_idx2)]).T
-
         if callable(val):
             param_keys = inspect.getfullargspec(val).args[2:]
             try:
@@ -83,18 +71,21 @@ def builder_to_tb(
             except KeyError as key:
                 raise KeyError(f"Parameter {key} not found in params.")
 
-        data = np.array(val).flatten()
-        hopping_value = coo_array((data, (row, col)), shape=tb_shape).toarray()
+        site2_dom = builder.symmetry.which(site2)
+        site2_fd = builder.symmetry.to_fd(site2)
 
-        hop_key = tuple(site2_dom)
-        hop_key_back = tuple(-site2_dom)
-        h_0[hop_key] = h_0.get(hop_key, 0) + hopping_value
-        h_0[hop_key_back] = h_0.get(hop_key_back, 0) + hopping_value.T.conj()
+        site1_idx, site2_idx = [idx_by_site[site1], idx_by_site[site2_fd]]
+        to_slice, from_slice = [
+            slice(offsets[idx], offsets[idx + 1]) for idx in [site1_idx, site2_idx]
+        ]
+
+        h_0[site2_dom][to_slice, from_slice] = val
+        h_0[-site2_dom][from_slice, to_slice] = val.T.conj()
 
     if return_data:
         data = {}
         data["periods"] = prim_vecs
-        data["sites"] = sites_list
+        data["sites"] = list(idx_by_site.keys())
         return h_0, data
     else:
         return h_0
