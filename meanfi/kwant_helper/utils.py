@@ -38,7 +38,8 @@ def builder_to_tb(
     dims = len(prim_vecs)
     sites_list = [*builder.sites()]
     norbs_list = [site.family.norbs for site in builder.sites()]
-    norbs_list = [1 if norbs is None else norbs for norbs in norbs_list]
+    if any(norbs is None for norbs in norbs_list):
+        raise ValueError("Number of orbitals must be specified for all sites.")
 
     tb_norbs = sum(norbs_list)
     tb_shape = (tb_norbs, tb_norbs)
