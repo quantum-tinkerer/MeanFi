@@ -56,3 +56,7 @@ coverage.xml
 
 ### Documentation builds
 **/build/*
+
+# pixi environments
+.pixi
+*.egg-info
