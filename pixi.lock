@@ -6760,8 +6760,8 @@ packages:
   timestamp: 1733255681319
 - pypi: .
   name: meanfi
-  version: 1.1.1.dev23+g822df69.d20250212
-  sha256: 8cfc6a38521ac7f6203f8f293b3f7c9cbe40816496db282f54c484fe2f2d4073
+  version: 1.1.1.dev24+gba2ca58.d20250212
+  sha256: 325de2922b41b75b27a8092b719615de75500ef34857d2b01268e5dd82fabd36
   requires_dist:
   - kwant>=1.4
   - numpy>=1.23

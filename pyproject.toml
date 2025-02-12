@@ -136,7 +136,8 @@ empty = { features = ["empty"], no-default-feature = true }
 zip = { features = ["zip"], no-default-feature = true }
 
 [tool.pixi.feature.test.tasks]
-tests = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning"
+tests = { cmd = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
+
 
 [tool.pixi.tasks]
 tests-minimal = "pixi run -e minimal tests"
