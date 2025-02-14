@@ -40,7 +40,7 @@ def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     return mf_params_new - mf_param
 
 
-def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False, bound_tol = 1e-1) -> np.ndarray:
+def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False, bound_tol = 1e-1, factor = 1) -> np.ndarray:
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted density matrix
@@ -74,14 +74,14 @@ def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = Fals
     n_operator = {model._local_key : np.eye(model._ndof)}
     charge = np.real(expectation_value(n_operator, rho_new))
     occupation_diff = np.real(charge - model.filling)
-
+    
     added_cost = 0
     if charge > shape - bound_tol: 
         added_cost = mu - E_max
     if charge < bound_tol:
         added_cost = mu - E_min
 
-    cost = np.array([*(rho_params_new - rho_params), occupation_diff + added_cost])
+    cost = np.array([*(rho_params_new - rho_params), factor*(occupation_diff + added_cost)], dtype=float).real
 
     if debug:
         message = f"Excess filling: {occupation_diff}, Chemical Potential: {mu}, Cost function: {np.linalg.norm(cost)}"
@@ -136,7 +136,10 @@ def solver_density(
     mu_guess: float, 
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0, "line_search": "wolfe"},
-    debug: bool = False
+    debug: bool = False,
+    factor = 1,
+    optimizer_return = False,
+    callback = None
 ) -> _tb_type:
     """Solve for the mean-field correction through self-consistent root finding
     by finding the density matrix fixed point.
@@ -169,15 +172,19 @@ def solver_density(
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
     rho_params = tb_to_rparams(rho_guess_reduced)
-    rho_params_and_mu = np.concatenate([rho_params, [mu_guess]])
-    f = partial(cost_density, model=model, debug=debug)
-    result = optimizer(f, rho_params_and_mu, **optimizer_kwargs)
+    rho_params_and_mu = np.concatenate([rho_params, [mu_guess]], dtype=float)
+
+    f = partial(cost_density, model=model, debug=debug, factor=factor)
+    result = optimizer(f, rho_params_and_mu, callback=callback, **optimizer_kwargs)
+    result_params = result.x
     rho_result = rparams_to_tb(
-        result[:-1], list(model.h_int), shape
+        result_params[:-1], list(model.h_int), shape
     )
     mf_result = meanfield(rho_result, model.h_int)
-    print('Fermi energy is ', result[-1])
-    return add_tb(mf_result, {model._local_key: -result[-1] * np.eye(model._ndof)})
 
+    tb_result = add_tb(mf_result, {model._local_key: -result_params[-1] * np.eye(model._ndof)})
+    if optimizer_return:
+        return tb_result, result
+    return tb_result
 
 solver = solver_density
