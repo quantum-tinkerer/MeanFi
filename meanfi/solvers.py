@@ -82,6 +82,7 @@ def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = Fals
         added_cost = mu - E_min
 
     cost = np.array([*(rho_params_new - rho_params), factor*(occupation_diff + added_cost)], dtype=float).real
+    cost_density.history.append((cost, rho_params_and_mu))
 
     if debug:
         message = f"Excess filling: {occupation_diff}, Chemical Potential: {mu}, Cost function: {np.linalg.norm(cost)}"
@@ -173,7 +174,7 @@ def solver_density(
 
     rho_params = tb_to_rparams(rho_guess_reduced)
     rho_params_and_mu = np.concatenate([rho_params, [mu_guess]], dtype=float)
-
+    cost_density.history = []
     f = partial(cost_density, model=model, debug=debug, factor=factor)
     result = optimizer(f, rho_params_and_mu, callback=callback, **optimizer_kwargs)
     result_params = result.x
