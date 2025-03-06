@@ -10,8 +10,8 @@ kernelspec:
   language: python
   name: python3
 ---
-
-```{toctree}
+<!-- Uncomment below when tutorials adapted to branch -->
+<!-- ```{toctree}
 :hidden:
 :maxdepth: 1
 :caption: Tutorials
@@ -19,7 +19,7 @@ kernelspec:
 tutorial/hubbard_1d.md
 tutorial/graphene_example.md
 tutorial/strained_graphene.md
-```
+``` -->
 
 ```{toctree}
 :hidden:

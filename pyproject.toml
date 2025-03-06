@@ -123,10 +123,48 @@ memray = "*"
 meanfi = { path = ".", editable = true }
 
 
-[tool.pixi.dependencies]
-python = ">=3.12.8,<4"
-numpy = ">=2.2.2,<3"
-kwant = ">=1.5.0,<2"
-matplotlib = ">=3.10.0,<4"
-scipy = "==1.15.1"
-ipykernel = ">=6.29.5,<7"
+[tool.pixi.environments]
+default = { solve-group = "default" }
+docs = { features = ["docs"], solve-group = "mid" }
+profiler = { features = ["profiler", "mid"], solve-group = "mid" }
+minimal = { features = ["minimal", "test"], solve-group = "minimal" }
+mid = { features = ["mid", "test"], solve-group = "mid" }
+latest = { features = ["latest", "test"], solve-group = "default" }
+precommit = { features = ["precommit"], no-default-feature = true }
+publish = { features = ["publish"], no-default-feature = true }
+empty = { features = ["empty"], no-default-feature = true }
+zip = { features = ["zip"], no-default-feature = true }
+
+[tool.pixi.feature.test.tasks]
+tests = { cmd = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
+
+
+[tool.pixi.tasks]
+tests-minimal = "pixi run -e minimal tests"
+tests-mid = "pixi run -e mid tests"
+tests-latest = "pixi run -e latest tests"
+tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
+
+[tool.pixi.feature.docs.tasks]
+# docs-build = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+docs-build = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n -D exclude_patterns='tutorial/*'\"" # delete this and uncomment above after fixing the tutorial
+
+[tool.pixi.feature.profiler.tasks]
+profiler = "python profiling/graphene.py && memray stats memoryProfile.bin && memray summary memoryProfile.bin"
+
+[tool.pixi.feature.precommit.tasks]
+git = "git"
+pre-commit = "pre-commit"
+
+[tool.pixi.feature.publish.tasks]
+build = "hatch build"
+publish = "hatch publish -u __token__"
+
+[tool.pixi.feature.zip.target.linux-64.dependencies]
+zip = "*"
+
+[tool.pixi.feature.zip.target.osx-64.dependencies]
+zip = ">=3.0,<4"
+
+[tool.pixi.feature.empty.system-requirements]
+libc = { family = "unix", version = "0" }
