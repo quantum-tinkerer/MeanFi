@@ -50,7 +50,7 @@ A solution to the mean-field problem requires two conditions:
    $$
    f(\text{MF}(\rho_{mn}(R),\mu)) = f(\rho_{mn}(R)).
    $$
-   
+
 2. **Filling constraint**: The trace of $\rho_{mn}(0)$ equals the target filling $\nu$, i.e., $\mathrm{Tr}[\rho_{mn}(0)] = \nu$.
 
 Since $\mu$ must also be adjusted to satisfy the filling constraint, one naive approach is to do a fixed-point iteration for $\rho_{mn}(R)$ at various values of $\mu$ until the desired $\nu$ is reached. However, such bisection-like methods can be slow.
@@ -60,6 +60,7 @@ Since $\mu$ must also be adjusted to satisfy the filling constraint, one naive a
 ### 1. Augmented Parameter Vector
 
 Rather than handling $\mu$ and $\rho_{mn}(R)$ separately, we can combine them. For clarity, let us denote
+
 $$
 \boldsymbol{\theta} = f(\rho_{mn}(R)) \in \mathbb{R}^N,
 $$
