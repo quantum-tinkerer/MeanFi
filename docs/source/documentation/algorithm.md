@@ -46,9 +46,11 @@ In the code, $f$ is represented by {autolink}`~meanfi.params.rparams.tb_to_rpara
 A solution to the mean-field problem requires two conditions:
 
 1. **Fixed point**: $\rho_{mn}(R)$ must be a fixed point of the mean-field iteration:
+
    $$
    f(\text{MF}(\rho_{mn}(R),\mu)) = f(\rho_{mn}(R)).
    $$
+   
 2. **Filling constraint**: The trace of $\rho_{mn}(0)$ equals the target filling $\nu$, i.e., $\mathrm{Tr}[\rho_{mn}(0)] = \nu$.
 
 Since $\mu$ must also be adjusted to satisfy the filling constraint, one naive approach is to do a fixed-point iteration for $\rho_{mn}(R)$ at various values of $\mu$ until the desired $\nu$ is reached. However, such bisection-like methods can be slow.
