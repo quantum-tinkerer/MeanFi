@@ -10,7 +10,7 @@ before_script:
   - pixi global install git
 
 run tests:
-  when: manual # delete when tests implemented
+  when: manual # delete when tests implemented and uncomment pages commands
   parallel:
     matrix:
       - PIXI_ENV:
@@ -40,7 +40,7 @@ run coverage:
 
 
 run profiler:
-  when: manual # delete when profiler implemented
+  when: manual # delete when profiler implemented and uncomment pages commands
   script:
     - pixi run profiler
   artifacts:
@@ -62,15 +62,15 @@ run docs:
 
 pages:
   needs:
-    - run tests
-    - run profiler
+    # - run tests
+    # - run profiler
     - run docs
-    - run coverage
+    # - run coverage
   script:
     - mkdir public
-    - cp -r htmlcov public/
+    # - cp -r htmlcov public/
     - cp -r docs/build public/
-    - cp -r timeProfile.html public/
+    # - cp -r timeProfile.html public/
   artifacts:
     paths:
       - public
