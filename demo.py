@@ -49,14 +49,13 @@ h_0 = utils.builder_to_tb(bulk_graphene)
 # will need to look into constrained optimization to fix this
 
 filling = 2+1e-4
-model = meanfi.Model(h_0, h_int, filling=filling, atol=1e-3, kT=1e-2)
+model = meanfi.Model(h_0, h_int, filling=filling, atol=1e-5, kT=1e-2)
 
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
 mf_guess = meanfi.guess_tb(int_keys, ndof)
 mu_guess = 0
-optimizer_kwargs={'M': 1, 'line_search' : 'wolfe', 'maxiter': 200}
-mf_sol = meanfi.solver(model, mf_guess, mu_guess, optimizer_kwargs=optimizer_kwargs, debug=True)
+mf_sol = meanfi.solver(model, mf_guess, mu_guess, debug=True)
 h_full = meanfi.add_tb(h_0, mf_sol)
 hfunc = tb_to_kfunc(h_full)
 
