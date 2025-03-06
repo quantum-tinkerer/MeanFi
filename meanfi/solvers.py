@@ -40,7 +40,7 @@ def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
     return mf_params_new - mf_param
 
 
-def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False, bound_tol = 1e-1, factor = 1) -> np.ndarray:
+def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = False, bound_tol: float = 1e-1, save_history: bool = False) -> np.ndarray:
     """Defines the cost function for root solver.
 
     The cost function is the difference between the computed and inputted density matrix
@@ -53,9 +53,13 @@ def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = Fals
         hoppings (keys) present in h_int.
     Model :
         Interacting tight-binding problem definition.
-    nk :
-        Number of k-points in a grid to sample the Brillouin zone along each dimension.
-        If the system is 0-dimensional (finite), this parameter is ignored.
+    debug :
+        Print debug information.
+    bound_tol :
+        Tolerance for the bounds of the filling.
+    save_history :
+        Save the history of the cost
+    
 
     Returns
     -------
@@ -81,8 +85,9 @@ def cost_density(rho_params_and_mu: np.ndarray, model: Model, debug: bool = Fals
     if charge < bound_tol:
         added_cost = mu - E_min
 
-    cost = np.array([*(rho_params_new - rho_params), factor*(occupation_diff + added_cost)], dtype=float).real
-    cost_density.history.append((cost, rho_params_and_mu))
+    cost = np.array([*(rho_params_new - rho_params), occupation_diff + added_cost], dtype=float).real
+    if save_history:
+        cost_density.history.append((cost, rho_params_and_mu))
 
     if debug:
         message = f"Excess filling: {occupation_diff}, Chemical Potential: {mu}, Cost function: {np.linalg.norm(cost)}"
@@ -138,9 +143,9 @@ def solver_density(
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0, "line_search": "wolfe"},
     debug: bool = False,
-    factor = 1,
     optimizer_return = False,
-    callback = None
+    callback = None,
+    save_history = False,
 ) -> _tb_type:
     """Solve for the mean-field correction through self-consistent root finding
     by finding the density matrix fixed point.
@@ -151,15 +156,21 @@ def solver_density(
         Interacting tight-binding problem definition.
     mf_guess :
         The initial guess for the mean-field correction in the tight-binding dictionary format.
-    nk :
-        Number of k-points in a grid to sample the Brillouin zone along each dimension.
-        If the system is 0-dimensional (finite), this parameter is ignored.
+    mu_guess :
+        The initial guess for the chemical potential.
     optimizer :
         The solver used to solve the fixed point iteration.
         Default uses `scipy.optimize.anderson`.
     optimizer_kwargs :
         The keyword arguments to pass to the optimizer.
-
+    debug :
+        Print debug information.
+    optimizer_return :
+        Return the optimizer result.
+    callback :
+        Callback function to be called after each iteration.
+    save_history :
+        Save the history of the cost function.
     Returns
     -------
     :
@@ -174,8 +185,9 @@ def solver_density(
 
     rho_params = tb_to_rparams(rho_guess_reduced)
     rho_params_and_mu = np.concatenate([rho_params, [mu_guess]], dtype=float)
-    cost_density.history = []
-    f = partial(cost_density, model=model, debug=debug, factor=factor)
+    if save_history:
+        cost_density.history = []
+    f = partial(cost_density, model=model, debug=debug, save_history=save_history)
     result = optimizer(f, rho_params_and_mu, callback=callback, **optimizer_kwargs)
     result_params = result.x
     rho_result = rparams_to_tb(
