@@ -8807,9 +8807,9 @@ packages:
   timestamp: 1733255681319
 - kind: pypi
   name: meanfi
-  version: 1.1.1.dev51+g37932eb.d20250306
+  version: 1.1.1.dev55+g00fe403.d20250306
   path: .
-  sha256: 5aa5672735da6a8adc3efebfade3ff2f589415160244b1ee30b1c3a9d80c739d
+  sha256: 1e9608405ed7f7cfe7778ed2c74d483137df9981c960e2a397881f99086584ff
   requires_dist:
   - kwant>=1.4
   - numpy>=1.23
