@@ -105,5 +105,5 @@ where $\mathbf{G}_k$ is an evolving approximation to the inverse Jacobian. Such 
 ### Chemical potential instability
 
 The chemical potential $\mu$ can be unstable during the root-finding process.
-This happens whenever chemical potential falls outside bandwidth, making a partial derivative of the density matrix with respect to $\mu$ zero. 
+This happens whenever chemical potential falls outside bandwidth, making a partial derivative of the density matrix with respect to $\mu$ zero.
 Currently, a simple linear cost function is added to the objective function to ensure $\mu$ remains within the bandwidth.
