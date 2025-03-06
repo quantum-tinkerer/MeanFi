@@ -31,12 +31,14 @@ bulk_graphene[graphene.neighbors(1)] = s0
 h_0 = utils.builder_to_tb(bulk_graphene)
 
 # %%
-# Step 2. Define the interaction tight-binding model. 
+# Step 2. Define the interaction tight-binding model.
 # For simplicity, we will only use the on-site interaction term here.
 # We will also build this through kwant.
 
+
 def onsite_int(site, U):
     return U * sx
+
 
 builder_int = utils.build_interacting_syst(
     builder=bulk_graphene,
@@ -62,11 +64,11 @@ mf_guess = meanfi.guess_tb(int_keys, ndof)
 
 mu_guess = 0
 
-# %% 
+# %%
 # Step 5. Solve for the mean-field solution.
 mf_sol = meanfi.solver(model, mf_guess, mu_guess, debug=True)
 
-# %% 
+# %%
 # Step 6. Analyze the solution
 h_full = meanfi.add_tb(h_0, mf_sol)
 hfunc = tb_to_kfunc(h_full)
@@ -82,6 +84,7 @@ for i, kx in enumerate(kx_vals):
 energies = np.array(energies)
 
 import matplotlib.pyplot as plt
+
 plt.figure(figsize=(6, 4))
 plt.plot(kx_vals, energies)
 plt.xlabel(r"$k_x$")
