@@ -10,6 +10,7 @@ before_script:
   - pixi global install git
 
 run tests:
+  when: manual # delete when tests implemented
   parallel:
     matrix:
       - PIXI_ENV:
@@ -39,6 +40,7 @@ run coverage:
 
 
 run profiler:
+  when: manual # delete when profiler implemented
   script:
     - pixi run profiler
   artifacts:
