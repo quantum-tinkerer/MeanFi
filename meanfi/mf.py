@@ -6,6 +6,7 @@ from meanfi.tb.transforms import tb_to_kfunc
 
 from scipy.integrate import cubature
 
+
 def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
     """
     Calculate the value of the Fermi-Dirac distribution at energy `E` and temperature `T`.
@@ -32,7 +33,7 @@ def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
         sign_mask = (
             E >= fermi
         )  # Holds the indices for all positive values of the exponent.
-        
+
         # Precalculating the two options.
         pos_exp = np.exp(-exponent[sign_mask])
         neg_exp = np.exp(exponent[~sign_mask])
@@ -42,7 +43,8 @@ def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
 
         return fd
 
-def complex_cubature(integrand, a, b, args=(), cubature_kwargs={'atol' : 1e-6}):
+
+def complex_cubature(integrand, a, b, args=(), cubature_kwargs={"atol": 1e-6}):
     """
     Integrate a complex-valued function using scipy.integrate.cubature.
 
@@ -64,6 +66,7 @@ def complex_cubature(integrand, a, b, args=(), cubature_kwargs={'atol' : 1e-6}):
     :
         Complex-valued integral and error estimate.
     """
+
     def complex_integrand(k, *args):
         value = integrand(k, *args)
         value_real = value.real
@@ -71,8 +74,8 @@ def complex_cubature(integrand, a, b, args=(), cubature_kwargs={'atol' : 1e-6}):
         return np.stack((value_real, value_imag), axis=-1, dtype=float)
 
     result = cubature(complex_integrand, a, b, args=args, **cubature_kwargs)
-    
-    if result.status == 'converged':
+
+    if result.status == "converged":
         integral_unpacked = result.estimate
         error_unpacked = result.error
 
@@ -84,9 +87,12 @@ def complex_cubature(integrand, a, b, args=(), cubature_kwargs={'atol' : 1e-6}):
 
         return integral_real + 1j * integral_imag, error_real + 1j * error_imag
     else:
-        raise ValueError('Integration did not converge')
+        raise ValueError("Integration did not converge")
 
-def density_matrix(h: _tb_type, mu: float, kT : float, keys : list, atol=1e-5) -> Tuple[_tb_type, float]:
+
+def density_matrix(
+    h: _tb_type, mu: float, kT: float, keys: list, atol=1e-5
+) -> Tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
@@ -113,8 +119,9 @@ def density_matrix(h: _tb_type, mu: float, kT : float, keys : list, atol=1e-5) -
         occupation = fermi_dirac(eigenvalues, kT, mu)
         density_matrix = U * occupation[:, None, :] @ U.conj().transpose(0, 2, 1)
         return density_matrix, eigenvalues[..., 0], eigenvalues[..., -1]
-    
+
     hkfunc = tb_to_kfunc(h)
+
     def integrand(k, mu, kT, keys):
         dm_k, evals_min, evals_max = density_matrix_k(hkfunc(k), mu=mu, kT=kT)
         npts = dm_k.shape[0]
@@ -123,12 +130,20 @@ def density_matrix(h: _tb_type, mu: float, kT : float, keys : list, atol=1e-5) -
         integrand_dm = integrand_dm.reshape(npts, -1)
         evals_min = evals_min.reshape(npts, -1)
         evals_max = evals_max.reshape(npts, -1)
-        return np.concatenate((integrand_dm, evals_min, evals_max), axis=-1) / (2*np.pi)**ndim
+        return (
+            np.concatenate((integrand_dm, evals_min, evals_max), axis=-1)
+            / (2 * np.pi) ** ndim
+        )
 
-    
-    bounds_lower  = np.array([-np.pi] * ndim)
+    bounds_lower = np.array([-np.pi] * ndim)
     bounds_upper = np.array([np.pi] * ndim)
-    result, error = complex_cubature(integrand, bounds_lower, bounds_upper, args=(mu, kT, np.array(keys, dtype=float)), cubature_kwargs={'atol' : atol})
+    result, error = complex_cubature(
+        integrand,
+        bounds_lower,
+        bounds_upper,
+        args=(mu, kT, np.array(keys, dtype=float)),
+        cubature_kwargs={"atol": atol},
+    )
     E_min = result[..., -2]
     E_max = result[..., -1]
     rho = result[..., :-2]
