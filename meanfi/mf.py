@@ -1,48 +1,200 @@
 import numpy as np
-from typing import Tuple
 
+from scipy.optimize import minimize
 from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def density_matrix_kgrid(kham: np.ndarray, filling: float) -> Tuple[np.ndarray, float]:
+def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
+    """
+    Calculate the value of the Fermi-Dirac distribution at energy `E` and temperature `T`.
+
+    Parameters
+    ----------
+    E: np.ndarray(float)
+        The energy at which to find the value of the distribution. Can also be an array of values.
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    fermi: float
+        The Fermi level.
+
+    Returns
+    -------
+        The value of the Fermi-Dirac distribution.
+    """
+    if kT == 0:
+        fd = E < fermi
+        return fd
+    else:
+        fd = np.empty_like(E)
+        exponent = (E - fermi) / kT
+        sign_mask = E >= fermi
+
+        pos_exp = np.exp(-exponent[sign_mask])
+        neg_exp = np.exp(exponent[~sign_mask])
+
+        fd[sign_mask] = pos_exp / (pos_exp + 1)
+        fd[~sign_mask] = 1 / (neg_exp + 1)
+
+        return fd
+
+
+def density_matrix_charge(
+    ham: _tb_type,
+    charge_op: np.ndarray,
+    kT: float,
+    fermi: float,
+    nk: int,
+    ndim: int,
+    einsum_path: list,
+) -> float:
+    """Nice documentation string."""
+    fermi_shift = {(0,) * ndim: -fermi * charge_op}
+    ham = add_tb(ham, fermi_shift)
+    kham = tb_to_kgrid(ham, nk)
+    vals, vecs = np.linalg.eigh(kham)
+
+    distribution = fermi_dirac(vals, kT, 0)
+    charge_expectation = np.einsum(
+        "...ji, jl, ...li, ...i",
+        vecs.conj(),
+        charge_op,
+        vecs,
+        distribution,
+        optimize=einsum_path,
+    ).sum() / (nk**ndim)
+
+    return charge_expectation
+
+
+def charge_difference(
+    fermi: float,
+    ham: _tb_type,
+    charge_op: np.ndarray,
+    target_charge: float,
+    kT: float,
+    nk: int,
+    ndim: int,
+    einsum_path: list,
+) -> float:
+    """Nice documentation string."""
+    charge_expectation = density_matrix_charge(
+        ham, charge_op, kT, fermi, nk, ndim, einsum_path
+    )
+    difference = charge_expectation - target_charge
+
+    return np.abs(difference)
+
+
+def construct_rho(
+    vals: np.ndarray, vecs: np.ndarray, kT: float, fermi: float
+) -> np.ndarray:
+    """Nice documentation string."""
+    occ_distribution = np.sqrt(fermi_dirac(vals, kT, fermi))
+    occ_distribution = occ_distribution[..., np.newaxis]
+    occ_vecs = np.copy(vecs)  # Copy may not be required
+    occ_vecs *= np.moveaxis(occ_distribution, -1, -2)
+    _density_matrix = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
+
+    return _density_matrix
+
+
+def density_matrix_kgrid(
+    ham: _tb_type,
+    charge_op: np.ndarray,
+    target_charge: float,
+    kT: float,
+    nk: int,
+    ndim: int,
+) -> tuple[np.ndarray, float]:
     """Calculate density matrix on a k-space grid.
 
     Parameters
     ----------
-    kham :
-        Hamiltonian from which to construct the density matrix.
-        The hamiltonian is sampled on a grid of k-points and has shape (nk, nk, ..., ndof, ndof),
-        where ndof is number of internal degrees of freedom.
-    filling :
-        Number of particles in a unit cell.
+    ham: _tb_type
+        Hamiltonian tight-binding dictionary from which to construct the density matrix.
+    charge_op: np.ndarray
+        Charge operator of the system, should have the same ndof as `ham`.
+    target_charge: float
+        Target charge of a unit cell.
         Used to determine the Fermi level.
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    nk: int
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
+    ndim: int
+        Number of dimensions in the system.
+
 
     Returns
     -------
     :
-        Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi energy.
+        Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi level.
     """
+    fermi_0 = 0
+
+    Q_vals = np.linalg.eigvalsh(charge_op)
+    Q_pos = Q_vals[Q_vals > 0].sum()
+    Q_neg = Q_vals[Q_vals < 0].sum()
+
+    if (target_charge > Q_pos - 0.01) or (
+        target_charge < Q_neg + 0.01
+    ):  # The 0.01 is somewhat arbitrary.
+        raise ValueError(
+            f"Target charge can not fall outside of possible range: ({Q_neg + 0.01}, {Q_pos - 0.01})"
+        )
+    else:
+        Q_shape = charge_op.shape
+
+        v_shape = np.empty((nk,) * ndim + Q_shape)
+        F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
+
+        einsum_path = np.einsum_path(
+            "...ji, jl, ...li, ...i",
+            v_shape,
+            Q_shape,  # charge_op
+            v_shape,
+            F_shape,
+            optimize="optimal",
+        )[0]
+
+        result = minimize(
+            charge_difference,
+            fermi_0,
+            args=(ham, charge_op, kT, target_charge, nk, ndim, einsum_path),
+            method="Nelder-Mead",
+            options={"fatol": kT / 2, "xatol": kT / 2},
+        )
+        opt_fermi = float(result.x)
+
+    Q_Ef = {(0,) * ndim: -opt_fermi * charge_op}
+    ham = add_tb(ham, Q_Ef)
+    kham = tb_to_kgrid(ham, nk)
     vals, vecs = np.linalg.eigh(kham)
-    fermi = fermi_on_kgrid(vals, filling)
-    unocc_vals = vals > fermi
-    occ_vecs = vecs
-    np.moveaxis(occ_vecs, -1, -2)[unocc_vals, :] = 0
-    _density_matrix_krid = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
-    return _density_matrix_krid, fermi
+
+    _density_matrix_kgrid = construct_rho(vals, vecs, kT, 0)
+
+    return _density_matrix_kgrid, opt_fermi
 
 
-def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, float]:
+def density_matrix(
+    ham: _tb_type, charge_op: np.ndarray, target_charge: float, kT: float, nk: int
+) -> tuple[_tb_type, float]:
     """Compute the real-space density matrix tight-binding dictionary.
 
     Parameters
     ----------
-    h :
+    ham: _tb_type
         Hamiltonian tight-binding dictionary from which to construct the density matrix.
-    filling :
-        Number of particles in a unit cell.
+    charge_op: np.ndarray
+        Charge operator of the system, should have the same ndof as `ham`.
+    target_charge: float
+        Target charge of a unit cell.
         Used to determine the Fermi level.
-    nk :
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    nk: int
         Number of k-points in a grid to sample the Brillouin zone along each dimension.
         If the system is 0-dimensional (finite), this parameter is ignored.
 
@@ -51,16 +203,17 @@ def density_matrix(h: _tb_type, filling: float, nk: int) -> Tuple[_tb_type, floa
     :
         Density matrix tight-binding dictionary and Fermi energy.
     """
-    ndim = len(list(h)[0])
+    ndim = len(list(ham)[0])
+
     if ndim > 0:
-        kham = tb_to_kgrid(h, nk=nk)
-        _density_matrix_krid, fermi = density_matrix_kgrid(kham, filling)
-        return (
-            kgrid_to_tb(_density_matrix_krid),
-            fermi,
+        _density_matrix_kgrid, fermi = density_matrix_kgrid(
+            ham, charge_op, target_charge, kT, nk, ndim
         )
+        return kgrid_to_tb(_density_matrix_kgrid), fermi
     else:
-        _density_matrix, fermi = density_matrix_kgrid(h[()], filling)
+        _density_matrix, fermi = density_matrix_kgrid(
+            ham, charge_op, target_charge, kT, nk, ndim
+        )
         return {(): _density_matrix}, fermi
 
 
@@ -107,32 +260,3 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
         vec: -1 * h_int.get(vec, 0) * density_matrix[vec] for vec in frozenset(h_int)
     }
     return add_tb(direct, exchange)
-
-
-def fermi_on_kgrid(vals: np.ndarray, filling: float) -> float:
-    """Compute the Fermi energy on a grid of k-points.
-
-    Parameters
-    ----------
-    vals :
-        Eigenvalues of a hamiltonian sampled on a k-point grid with shape (nk, nk, ..., ndof, ndof),
-        where ndof is number of internal degrees of freedom.
-    filling :
-        Number of particles in a unit cell.
-        Used to determine the Fermi level.
-    Returns
-    -------
-    :
-        Fermi energy
-    """
-    norbs = vals.shape[-1]
-    vals_flat = np.sort(vals.flatten())
-    ne = len(vals_flat)
-    ifermi = int(round(ne * filling / norbs))
-    if ifermi >= ne:
-        return vals_flat[-1]
-    elif ifermi == 0:
-        return vals_flat[0]
-    else:
-        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
-        return fermi
