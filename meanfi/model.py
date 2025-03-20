@@ -13,7 +13,7 @@ def _check_hermiticity(h):
         op_vector = tuple(-1 * np.array(vector))
         if not np.allclose(h[vector], h[op_vector].conj().T):
             raise ValueError("Tight-binding dictionary must be hermitian.")
-        
+
 
 def _charge_op_check(Q, ndof):
     if not Q.shape == (ndof, ndof):
@@ -62,7 +62,14 @@ class Model:
     separated by 1 lattice vector.
     """
 
-    def __init__(self, h_0: _tb_type, h_int: _tb_type, charge_op: np.ndarray, target_charge: float, kT: float) -> None:
+    def __init__(
+        self,
+        h_0: _tb_type,
+        h_int: _tb_type,
+        charge_op: np.ndarray,
+        target_charge: float,
+        kT: float,
+    ) -> None:
         _tb_type_check(h_0)
         self.h_0 = h_0
         _tb_type_check(h_int)
@@ -77,7 +84,7 @@ class Model:
             raise ValueError("Temperature must be a positive value.")
         self.kT = kT
 
-
+        
         _first_key = list(h_0)[0]
         self._ndim = len(_first_key)
         self._ndof = h_0[_first_key].shape[0]
@@ -107,7 +114,9 @@ class Model:
         """
         mf = meanfield(rho, self.h_int)
         # I am unsure which of these parameters should be part of the model and which are separate.
-        return density_matrix(add_tb(self.h_0, mf), self.charge_op, self.target_charge, self.kT, nk)[0]
+        return density_matrix(
+            add_tb(self.h_0, mf), self.charge_op, self.target_charge, self.kT, nk
+        )[0]
 
     def mfield(self, mf: _tb_type, nk: int = 20) -> _tb_type:
         """Computes a new mean-field correction from a given one.
@@ -125,7 +134,9 @@ class Model:
         :
             new mean-field correction tight-binding dictionary.
         """
-        rho, fermi_level = density_matrix(add_tb(self.h_0, mf), self.charge_op, self.target_charge, self.kT, nk)
+        rho, fermi_level = density_matrix(
+            add_tb(self.h_0, mf), self.charge_op, self.target_charge, self.kT, nk
+        )
         return add_tb(
             meanfield(rho, self.h_int),
             {self._local_key: -fermi_level * np.eye(self._ndof)},
