@@ -104,3 +104,51 @@ def rparams_to_tb(
     tb = {key: hopping_matrices[i] for i, key in enumerate(hopping_keys)}
     tb[onsite_key] = onsite_matrix
     return tb
+
+
+def tb_to_qparams(ham: _tb_type, Q_dict: dict) -> dict:
+    """Project a tight-binding Hamiltonian onto an orthogonal basis and return the parameters.
+
+    Parameters
+    ----------
+    ham: _tb_type
+        A tight-binding `_tb_type` Hamiltonian.
+    Q_dict: dict
+        A `dict` with the orthogonal basis matrices in a list for every hopping.
+
+    Returns
+    -------
+    A dictionary with the same hoppings as `ham` and `Q_dict` with an array of coefficients
+      equal to the number of matrices in the basis per hopping.
+    """
+    coeffs = {}
+
+    for hopping in ham:
+        coeffs[hopping] = np.array(
+            [np.trace(Q.conj().T @ ham[hopping]) for Q in Q_dict[hopping]]
+        )
+
+    return coeffs
+
+
+def qparams_to_tb(coeffs: dict, Q_dict: dict) -> _tb_type:
+    """Constructs a tight-binding Hamiltonian from a dictionary of coefficients and their corresponding basis matrices.
+
+    Parameters
+    ----------
+    coeffs: dict
+        A dictionary with an array of coefficients for every hopping.
+    Q_dict: dict
+        A dictionary with the same hopping and an array of basis matrices for every hopping.
+
+    Returns
+    -------
+    A tight-binding `_tb_type` Hamiltonian.
+    """
+    ham = {}
+
+    for hopping, coeff in coeffs.items():
+        # Could use Einsum, need to test speed.
+        ham[hopping] = np.tensordot(coeff, Q_dict[hopping], 1)
+
+    return ham
