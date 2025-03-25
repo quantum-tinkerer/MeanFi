@@ -49,9 +49,13 @@ class Model:
         Non-interacting hermitian Hamiltonian tight-binding dictionary.
     h_int :
         Interaction hermitian Hamiltonian tight-binding dictionary.
-    filling :
-        Number of particles in a unit cell.
+    charge_op:
+        Charge operator for the Model.
+    target_charge :
+        Charge of a unit cell.
         Used to determine the Fermi level.
+    kT:
+        Dimensionless temperature of the system.
 
     Notes
     -----
@@ -84,7 +88,6 @@ class Model:
             raise ValueError("Temperature must be a positive value.")
         self.kT = kT
 
-        
         _first_key = list(h_0)[0]
         self._ndim = len(_first_key)
         self._ndof = h_0[_first_key].shape[0]
