@@ -3,12 +3,17 @@ import numpy as np
 import scipy
 from typing import Optional, Callable
 
-from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
+from meanfi.params.rparams import (
+    rparams_to_tb,
+    tb_to_rparams,
+    qparams_to_tb,
+    tb_to_qparams,
+)
 from meanfi.tb.tb import add_tb, _tb_type
+from meanfi.tb.transforms import tb_to_ham_fam, ham_fam_to_ort_basis
 from meanfi.mf import density_matrix, meanfield
 from meanfi.model import Model
 from meanfi.tb.utils import fermi_energy
-import utils.tb_to_qsymm as tb_to_qsymm
 
 
 def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
@@ -232,23 +237,23 @@ def solver_density_symmetric(
     # User should provide a guess that is a tuple of (bloch_family, coefficients).
     # If this is not provided, we generate these ourselves.
     if guess == None:
-        ham_fam = tb_to_qsymm.tb_to_ham_fam((model.h_0, model.h_int), symmetries)
-        Q_basis = tb_to_qsymm.QR_decomposition(ham_fam)
+        ham_fam = tb_to_ham_fam((model.h_0, model.h_int), symmetries)
+        ham_basis = ham_fam_to_ort_basis(ham_fam)
 
         scale = 5  # Arbitrary right now
         random_coeffs = {}
         # Can these be complex?
-        for hopping in Q_basis:
-            amplitude = scale * np.random.rand(len(Q_basis[hopping]))
-            phase = 2 * np.pi * np.random.rand(len(Q_basis[hopping]))
+        for hopping in ham_basis:
+            amplitude = scale * np.random.rand(len(ham_basis[hopping]))
+            phase = 2 * np.pi * np.random.rand(len(ham_basis[hopping]))
             random_coeffs[hopping] = amplitude * np.exp(1j * phase)
 
-        mf_guess = tb_to_qsymm.construct_ham(random_coeffs, Q_basis)
+        mf_guess = qparams_to_tb(random_coeffs, ham_basis)
     else:
         ham_fam, coefficients = guess
-        Q_basis = tb_to_qsymm.QR_decomposition(ham_fam)
+        ham_basis = ham_fam_to_ort_basis(ham_fam)
 
-        mf_guess = tb_to_qsymm.construct_ham(coefficients, Q_basis)
+        mf_guess = qparams_to_tb(coefficients, ham_basis)
 
     # Not the right density matrix function.
     rho_guess = density_matrix(
@@ -256,12 +261,10 @@ def solver_density_symmetric(
     )[0]
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
-    rho_params = tb_to_qsymm.calculate_coefficients(rho_guess_reduced, Q_basis)
+    rho_params = tb_to_qparams(rho_guess_reduced, ham_basis)
 
-    f = partial(cost_density_symmetric, model=model, Q_basis=Q_basis, nk=nk)
-    rho_result = tb_to_qsymm.construct_ham(
-        optimizer(f, rho_params, **optimizer_kwargs), Q_basis
-    )
+    f = partial(cost_density_symmetric, model=model, Q_basis=ham_basis, nk=nk)
+    rho_result = qparams_to_tb(optimizer(f, rho_params, **optimizer_kwargs), ham_basis)
 
     # Not sure after this yet
     mf_result = meanfield(rho_result, model.h_int)
