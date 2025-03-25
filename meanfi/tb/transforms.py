@@ -182,7 +182,7 @@ def ham_fam_to_tb_dict(ham_fam: list) -> dict:
 
 def ham_fam_to_ort_basis(ham_fam: list) -> dict:
     """Finds an orthogonal `_tb_type` basis for a family of Hamiltonians using QR decomposition.
-    
+
     Parameters
     ----------
     ham_fam: list
