@@ -2,7 +2,9 @@ import itertools
 import numpy as np
 from typing import Callable
 from scipy.fftpack import ifftn
+from qsymm import bloch_family
 
+from collections import defaultdict
 from meanfi.tb.tb import _tb_type
 
 
@@ -105,3 +107,103 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
         return ham
 
     return kfunc
+
+
+def tb_to_ham_fam(hams: tuple, symmetries: list, nsites: int = 0) -> list:
+    """Generate a Hamiltonian Family for a given tight-binding dictionary.
+
+    Parameters
+    ----------
+    hams: tuple
+        A tuple of `_tb_type` Hamiltonians.
+    symmteries: list
+        A list of symmetries from `qsymm`.
+    nsites: int
+        Number of sites in a unit cell. Currently not used.
+
+    Returns
+    -------
+    A basis of all allowed Hamiltonians for the chosen symmetries and hoppings in the form of a `qsymm` list of `BlochModel`s.
+    """
+
+    hopp_real = list(set().union(*hams) if len(hams) > 1 else hams[0].keys())
+
+    ndof = hams[0][next(iter(hams[0]))].shape[-1]
+
+    hoppings = []
+    for vec in hopp_real:
+        hoppings.append(("a", "a", vec))
+
+    nsites = 0
+    norbs = [("a", ndof - nsites)]
+
+    ham_fam = bloch_family(hoppings, symmetries, norbs, bloch_model=True)
+
+    return ham_fam
+
+
+def qsymm_key_to_tb(ham_fam_key: tuple) -> tuple:
+    """Converts a `qsymm` `BlochModel` hopping to a `_tb_type` hopping.
+
+    Parameters
+    ----------
+    ham_fam_key: tuple
+        A `qsymm` `BlochModel` style hopping.
+
+    Returns
+    -------
+    A `_tb_type` hopping.
+    """
+    hopping, site = ham_fam_key
+    return tuple(hopping.astype(int))
+
+
+def ham_fam_to_tb_dict(ham_fam: list) -> dict:
+    """Converts a Hamiltonian Family into a dict with a list of allowed matrices per hopping.
+    Translation layer between a `bloch_family` and `_tb_type`.
+
+    Parameters
+    ----------
+    ham_fam: list
+        A list of `qsymm` `BlochModels`.
+
+    Returns
+    -------
+    A `dict` with the appropriate basis matrices in a list for every hopping.
+    """
+    ham_fam_dict = defaultdict(list)
+    for bloch in ham_fam:
+        for hop, matrix in bloch.items():
+            key = qsymm_key_to_tb(hop)
+            ham_fam_dict[key].append(matrix)
+
+    return ham_fam_dict
+
+
+def ham_fam_to_ort_basis(ham_fam: list) -> dict:
+    """Finds an orthogonal `_tb_type` basis for a family of Hamiltonians using QR decomposition.
+    
+    Parameters
+    ----------
+    ham_fam: list
+        A list of `qsymm` `BlochModels`
+
+    Returns
+    -------
+    A `dict` with the orthogonal basis matrices in a list for every hopping.
+    """
+    ham_fam_dict = ham_fam_to_tb_dict(ham_fam)
+
+    ort_dict = {}
+    for hopping in ham_fam_dict:
+        if hopping not in ham_fam_dict:
+            raise KeyError(f"No basis found for hopping {hopping}.")
+
+        basis = ham_fam_dict[hopping]
+
+        A = np.column_stack([H.flatten() for H in basis])
+        Q = np.linalg.qr(A, mode="reduced")[0]
+
+        ort_dict[hopping] = np.reshape(Q, (len(basis),) + basis[0].shape)
+
+    return ort_dict
