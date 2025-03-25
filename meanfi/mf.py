@@ -48,7 +48,32 @@ def density_matrix_charge(
     ndim: int,
     einsum_path: list,
 ) -> float:
-    """Nice documentation string."""
+    """
+    Calculate the charge of a Hamiltonian with a given `fermi` level offset.
+
+    Parameters
+    ----------
+    ham: _tb_type
+        Hamiltonian tight-binding dictionary for which to calculate the charge.
+    charge_op: np.ndarray
+        Charge operator of the system, should have the same ndof as `ham`.
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    fermi: float
+        The Fermi level.
+    nk: int
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
+    ndim: int
+        Number of dimensions in the system.
+    einsum_path: list
+        A `np.einsum_path` result providing the optimal order to perform the einsum calculation with.
+        Can also be a `np.einsum(optimize=...)` argument.
+
+    Returns
+    -------
+        The charge expectation for the Hamiltonian.
+    """
     fermi_shift = {(0,) * ndim: -fermi * charge_op}
     ham = add_tb(ham, fermi_shift)
     kham = tb_to_kgrid(ham, nk)
@@ -77,7 +102,35 @@ def charge_difference(
     ndim: int,
     einsum_path: list,
 ) -> float:
-    """Nice documentation string."""
+    """
+    Calculate the difference between the charge of a Hamiltonian and a chosen target charge.
+
+    Parameters
+    ----------
+    fermi: float
+        The Fermi level.
+    ham: _tb_type
+        Hamiltonian tight-binding dictionary for which to calculate the charge.
+    charge_op: np.ndarray
+        Charge operator of the system, should have the same ndof as `ham`.
+    target_charge: float
+        Target charge of a unit cell.
+        Used to determine the Fermi level.
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    nk: int
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
+    ndim: int
+        Number of dimensions in the system.
+    einsum_path: list
+        A `np.einsum_path` result providing the optimal order to perform the einsum calculation with.
+        Can also be a `np.einsum(optimize=...)` argument.
+
+    Returns
+    -------
+        The absolute difference between calculated charge and target charge.
+    """
     charge_expectation = density_matrix_charge(
         ham, charge_op, kT, fermi, nk, ndim, einsum_path
     )
@@ -89,7 +142,24 @@ def charge_difference(
 def construct_rho(
     vals: np.ndarray, vecs: np.ndarray, kT: float, fermi: float
 ) -> np.ndarray:
-    """Nice documentation string."""
+    """
+    Constructs a density matrix from a set of eigenvalues and vectors at a chosen temperature and Fermi level.
+
+    Parameters
+    ----------
+    vals: np.ndarray
+        An array of eigenvalues of the Hamiltonian.
+    vecs: np.ndarray
+        An array of eigenvectors of the Hamiltonian.
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    fermi: float
+        The Fermi level.
+
+    Returns
+    -------
+        The density matrix on a k-grid.
+    """
     occ_distribution = np.sqrt(fermi_dirac(vals, kT, fermi))
     occ_distribution = occ_distribution[..., np.newaxis]
     occ_vecs = np.copy(vecs)  # Copy may not be required
