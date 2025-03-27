@@ -152,3 +152,41 @@ def qparams_to_tb(coeffs: dict, Q_dict: dict) -> _tb_type:
         ham[hopping] = np.tensordot(coeff, Q_dict[hopping], 1)
 
     return ham
+
+
+def flatten_qparams(coeffs: dict):
+    """Flattens a coefficient dictionary into a list for passing to the optimizer."
+
+    Parameters
+    ----------
+    coeffs: dict
+        A dictionary with an array of coefficients for every hopping.
+
+    Returns
+    -------
+    A list with entries of the shape [key, coeffs].
+    """
+    hoppings = list(coeffs.keys())
+    coefficients = [np.array(coeffs[key]) for key in coeffs.keys()]
+
+    return list(zip(hoppings, coefficients))
+
+
+def unflatten_qparams(flat_coeffs: list):
+    """Construct a coefficient dictionary from a flattened list of coefficients.
+
+    Parameters
+    ----------
+    flat_coeffs: list
+        A list with entries of the shape [key, coeffs].
+
+    Returns
+    -------
+    A dictionary with an array of coefficients for every hopping.
+    """
+    coeffs = {}
+
+    for coeff in flat_coeffs:
+        coeffs[coeff[0]] = coeff[1]
+
+    return coeffs
