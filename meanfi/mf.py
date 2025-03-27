@@ -1,8 +1,8 @@
 import numpy as np
 
 from scipy.optimize import minimize
-from meanfi.tb.tb import add_tb, _tb_type
-from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
+from tb.tb import add_tb, _tb_type
+from tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
 def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
@@ -223,7 +223,7 @@ def density_matrix_kgrid(
         einsum_path = np.einsum_path(
             "...ji, jl, ...li, ...i",
             v_shape,
-            Q_shape,  # charge_op
+            charge_op,
             v_shape,
             F_shape,
             optimize="optimal",
@@ -330,3 +330,33 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
         vec: -1 * h_int.get(vec, 0) * density_matrix[vec] for vec in frozenset(h_int)
     }
     return add_tb(direct, exchange)
+
+
+def fermi_on_kgrid(vals: np.ndarray, target_charge: float) -> float:
+    """Compute the Fermi level on a grid of k-points.
+
+    Parameters
+    ----------
+    `vals: np.ndarray` :
+        Eigenvalues of a hamiltonian sampled on a k-point grid with shape (nk, nk, ..., ndof, ndof),
+        where ndof is number of internal degrees of freedom.
+    `filling: float` :
+        Number of particles in a unit cell.
+        Used to determine the Fermi level.
+
+    Returns
+    -------
+    :
+        Fermi level
+    """
+    norbs = vals.shape[-1]
+    vals_flat = np.sort(vals.flatten())
+    neig = len(vals_flat)
+    ifermi = int(round(neig * target_charge / norbs))
+    if ifermi >= neig:
+        return vals_flat[-1]
+    elif ifermi == 0:
+        return vals_flat[0]
+    else:
+        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
+        return fermi

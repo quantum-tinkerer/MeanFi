@@ -1,6 +1,6 @@
 import numpy as np
 
-from meanfi.tb.tb import _tb_type
+from tb.tb import _tb_type
 
 
 def complex_to_real(z: np.ndarray) -> np.ndarray:

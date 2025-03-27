@@ -1,9 +1,10 @@
+# %%
 from functools import partial
 import numpy as np
 import scipy
 from typing import Optional, Callable
 
-from meanfi.params.rparams import (
+from params.rparams import (
     rparams_to_tb,
     tb_to_rparams,
     qparams_to_tb,
@@ -11,11 +12,11 @@ from meanfi.params.rparams import (
     flatten_qparams,
     unflatten_qparams,
 )
-from meanfi.tb.tb import add_tb, _tb_type
-from meanfi.tb.transforms import tb_to_ham_fam, ham_fam_to_ort_basis
-from meanfi.mf import density_matrix, meanfield
-from meanfi.model import Model
-from meanfi.tb.utils import fermi_energy
+from tb.tb import add_tb, _tb_type
+from tb.transforms import tb_to_ham_fam, ham_fam_to_ort_basis
+from mf import density_matrix, meanfield
+from model import Model
+from tb.utils import fermi_energy
 
 
 def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
@@ -205,8 +206,8 @@ def solver_density(
 
 def solver_density_symmetric(
     model: Model,
+    symmetries: tuple,  # We may want to make the symmetries an optional part of the model.
     guess: tuple = None,
-    symmetries: tuple = None,  # We may want to make the symmetries an optional part of the model.
     nk: int = 20,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0, "line_search": "wolfe"},
@@ -260,7 +261,7 @@ def solver_density_symmetric(
 
     # Not the right density matrix function.
     rho_guess = density_matrix(
-        add_tb(model.h_0, mf_guess), filling=model.filling, nk=nk, kT=model.kT
+        add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
     )[0]
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
@@ -278,3 +279,86 @@ def solver_density_symmetric(
 
 
 solver = solver_density
+
+# %%
+from tb.utils import guess_tb, generate_tb_keys
+import qsymm
+
+
+def gen_normal_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
+    """Generate tight-binding Hamiltonian dictionary with hoppings up to a maximum `hopdist` in `ndim` dimensions.
+
+    Parameters
+    ----------
+    `hopdist: int`
+        Maximum distance along each dimension.
+    `ndim: int`
+        Dimensions of the tight-binding dictionary.
+    `ndof: int`
+        Number of internal degrees of freedom within the unit cell.
+    `scale: float`
+        This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
+
+    Returns
+    -------
+    :
+        A random Hermitian tight-binding dictionary.
+    """
+    # Generate the proper number of keys for all the possible hoppings.
+    tb_keys = generate_tb_keys(hopdist, ndim)
+
+    # Generate the dictionary for those keys.
+    h_dict = guess_tb(tb_keys, ndof, scale)
+
+    return h_dict
+
+
+def gen_superc_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
+    """Generate tight-binding superconducting Hamiltonian dictionary with hoppings up to a maximum `hopdist` in `ndim` dimensions.
+
+    Parameters
+    ----------
+    `hopdist: int`
+        Maximum distance along each dimension.
+    `ndim: int`
+        Dimensions of the tight-binding dictionary.
+    `ndof: int`
+        Number of internal degrees of freedom within the unit cell.
+    `scale: float`
+        This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
+
+    Returns
+    -------
+    :
+        A random hermitian superconducting tight-binding dictionary.
+    """
+    # Generate h_0
+    h_0 = gen_normal_tb(hopdist, ndim, ndof * 2, scale)
+    tau_x = np.kron(np.array([[0, 1], [1, 0]]), np.eye(ndof))
+
+    # Combine these into a superconducting Hamiltonian.
+    h_sc_dict = {}
+    for key in h_0:
+        h_sc_dict[key] = h_0[key] - (tau_x @ h_0[key].conj() @ tau_x)
+
+    return h_sc_dict
+
+
+cutoff = 1
+ndim = 1
+ndof = 1
+
+h_0 = gen_superc_tb(cutoff, ndim, ndof)
+h_int = gen_superc_tb(cutoff, ndim, ndof)
+tau_z = np.array([[1, 0], [0, -1]])
+Q = np.kron(tau_z, np.eye(ndof))
+target_Q = 0.5
+kT = 1e-3
+tau_x = np.kron(np.array([[0, 1], [1, 0]]), np.eye(ndof))
+PHS = qsymm.particle_hole(ndim, tau_x)
+
+symmetries = [PHS]
+
+model = Model(h_0, h_int, Q, target_Q, kT)
+
+print(solver_density_symmetric(model, symmetries))
