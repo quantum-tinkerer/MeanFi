@@ -8,6 +8,8 @@ from meanfi.params.rparams import (
     tb_to_rparams,
     qparams_to_tb,
     tb_to_qparams,
+    flatten_qparams,
+    unflatten_qparams,
 )
 from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_ham_fam, ham_fam_to_ort_basis
@@ -100,12 +102,13 @@ def cost_density_symmetric(
         1D real array that is the difference between the computed and inputted
         density matrix parametrisations reduced to the hoppings present in h_int.
     """
-    rho_reduced = tb_to_qsymm.construct_ham(rho_params, Q_basis)
+    rho_params = unflatten_qparams(rho_params)
+    rho_reduced = qparams_to_tb(rho_params, Q_basis)
     rho_new = model.density_matrix(rho_reduced, nk=nk)
 
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
-    rho_params_new = tb_to_qsymm.calculate_coefficients(rho_reduced_new, Q_basis)
-
+    rho_params_new = tb_to_qparams(rho_reduced_new, Q_basis)
+    rho_params_new = flatten_qparams(rho_params_new)
     # Calculate the difference between the new params.
     # (0,): [a1, a2, a3]
     # Instead of dict, maybe do keys + values
@@ -261,10 +264,12 @@ def solver_density_symmetric(
     )[0]
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
-    rho_params = tb_to_qparams(rho_guess_reduced, ham_basis)
+    rho_params = flatten_qparams(tb_to_qparams(rho_guess_reduced, ham_basis))
 
     f = partial(cost_density_symmetric, model=model, Q_basis=ham_basis, nk=nk)
-    rho_result = qparams_to_tb(optimizer(f, rho_params, **optimizer_kwargs), ham_basis)
+    rho_result = qparams_to_tb(
+        unflatten_qparams(optimizer(f, rho_params, **optimizer_kwargs)), ham_basis
+    )
 
     # Not sure after this yet
     mf_result = meanfield(rho_result, model.h_int)
