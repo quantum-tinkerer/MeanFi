@@ -1,9 +1,9 @@
 from itertools import product
 import numpy as np
 
-from meanfi.tb.tb import _tb_type
-from meanfi.mf import fermi_on_kgrid
-from meanfi.tb.transforms import tb_to_kgrid
+from tb.tb import _tb_type
+from mf import fermi_on_kgrid
+from tb.transforms import tb_to_kgrid
 
 
 def guess_tb(
@@ -47,7 +47,7 @@ def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...
     Parameters
     ----------
     cutoff :
-        Maximum distance along each dimension to generate tight-bindign dictionary keys for.
+        Maximum distance along each dimension to generate tight-binding dictionary keys for.
     dim :
         Dimension of the tight-binding dictionary.
 

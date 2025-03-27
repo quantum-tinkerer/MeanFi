@@ -5,7 +5,7 @@ from scipy.fftpack import ifftn
 from qsymm import bloch_family
 
 from collections import defaultdict
-from meanfi.tb.tb import _tb_type
+from tb.tb import _tb_type
 
 
 def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:

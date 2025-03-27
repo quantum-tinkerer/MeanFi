@@ -1,10 +1,10 @@
 import numpy as np
 
-from meanfi.mf import (
+from mf import (
     density_matrix,
     meanfield,
 )
-from meanfi.tb.tb import add_tb, _tb_type
+from tb.tb import add_tb, _tb_type
 
 
 def _check_hermiticity(h):
