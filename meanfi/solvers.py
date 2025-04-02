@@ -103,7 +103,7 @@ def cost_density_symmetric(
         1D real array that is the difference between the computed and inputted
         density matrix parametrisations reduced to the hoppings present in h_int.
     """
-    rho_params = unflatten_qparams(rho_params)
+    rho_params = unflatten_qparams(rho_params, Q_basis)
     rho_reduced = qparams_to_tb(rho_params, Q_basis)
     rho_new = model.density_matrix(rho_reduced, nk=nk)
 
@@ -239,6 +239,7 @@ def solver_density_symmetric(
     shape = model._ndof
 
     # User should provide a guess that is a tuple of (bloch_family, coefficients).
+    # What do we allow the user to guess?
     # If this is not provided, we generate these ourselves.
     if guess == None:
         ham_fam = tb_to_ham_fam((model.h_0, model.h_int), symmetries)
@@ -246,11 +247,9 @@ def solver_density_symmetric(
 
         scale = 5  # Arbitrary right now
         random_coeffs = {}
-        # Can these be complex?
+
         for hopping in ham_basis:
-            amplitude = scale * np.random.rand(len(ham_basis[hopping]))
-            phase = 2 * np.pi * np.random.rand(len(ham_basis[hopping]))
-            random_coeffs[hopping] = amplitude * np.exp(1j * phase)
+            random_coeffs[hopping] = scale * np.random.rand(len(ham_basis[hopping]))
 
         mf_guess = qparams_to_tb(random_coeffs, ham_basis)
     else:
@@ -269,12 +268,13 @@ def solver_density_symmetric(
 
     f = partial(cost_density_symmetric, model=model, Q_basis=ham_basis, nk=nk)
     rho_result = qparams_to_tb(
-        unflatten_qparams(optimizer(f, rho_params, **optimizer_kwargs)), ham_basis
+        unflatten_qparams(optimizer(f, rho_params, **optimizer_kwargs), ham_basis),
+        ham_basis,
     )
 
     # Not sure after this yet
     mf_result = meanfield(rho_result, model.h_int)
-    fermi = fermi_energy(add_tb(model.h_0, mf_result), model.filling, nk=nk)
+    fermi = fermi_energy(add_tb(model.h_0, mf_result), model.target_charge, nk=nk)
     return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
 
 
