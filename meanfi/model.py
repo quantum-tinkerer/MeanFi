@@ -15,9 +15,23 @@ def _check_hermiticity(h):
             raise ValueError("Tight-binding dictionary must be hermitian.")
 
 
-def _charge_op_check(Q, ndof):
+def _charge_op_check(Q, ndof, target_charge):
     if not Q.shape == (ndof, ndof):
         raise ValueError(f"Operator shape does not match expected: ({ndof}, {ndof})")
+
+    if not isinstance(target_charge, (float, int)):
+        raise ValueError("Target charge must be a float or an integer.")
+
+    Q_vals = np.linalg.eigvalsh(Q)
+    Q_pos = Q_vals[Q_vals > 0].sum()
+    Q_neg = Q_vals[Q_vals < 0].sum()
+
+    if (target_charge > Q_pos - 0.01) or (
+        target_charge < Q_neg + 0.01
+    ):  # The 0.01 is somewhat arbitrary.
+        raise ValueError(
+            f"Target charge can not fall outside of possible range: ({Q_neg + 0.01}, {Q_pos - 0.01})"
+        )
 
 
 def _tb_type_check(tb):
@@ -75,15 +89,13 @@ class Model:
         kT: float,
     ) -> None:
         _tb_type_check(h_0)
+        _check_hermiticity(h_0)
         self.h_0 = h_0
+
         _tb_type_check(h_int)
+        _check_hermiticity(h_int)
         self.h_int = h_int
-        if not isinstance(target_charge, (float, int)):
-            raise ValueError("Filling must be a float or an integer")
-        # Can replace this check with the charge check I have in mf.py
-        # if not filling > 0:
-        #     raise ValueError("Filling must be a positive value")
-        self.target_charge = target_charge
+
         if not kT >= 0:
             raise ValueError("Temperature must be a positive value.")
         self.kT = kT
@@ -93,11 +105,9 @@ class Model:
         self._ndof = h_0[_first_key].shape[0]
         self._local_key = tuple(np.zeros((self._ndim,), dtype=int))
 
-        _charge_op_check(charge_op, self._ndof)
+        _charge_op_check(charge_op, self._ndof, target_charge)
+        self.target_charge = target_charge
         self.charge_op = charge_op
-
-        _check_hermiticity(h_0)
-        _check_hermiticity(h_int)
 
     def density_matrix(self, rho: _tb_type, nk: int = 20) -> _tb_type:
         """Computes the density matrix from a given initial density matrix.
@@ -116,7 +126,7 @@ class Model:
             Density matrix tight-binding dictionary.
         """
         mf = meanfield(rho, self.h_int)
-        # I am unsure which of these parameters should be part of the model and which are separate.
+
         return density_matrix(
             add_tb(self.h_0, mf), self.charge_op, self.target_charge, self.kT, nk
         )[0]
