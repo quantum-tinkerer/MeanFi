@@ -8,6 +8,21 @@ from collections import defaultdict
 from tb.tb import _tb_type
 
 
+def sort_dict(d: dict) -> dict:
+    """Sorts a dictionary based on the keys.
+
+    Parameters
+    ----------
+    d: dict
+        A dictionary.
+
+    Returns
+    -------
+    A sorted dictionary.
+    """
+    return {key: d[key] for key in sorted(d.keys())}
+
+
 def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
     """Evaluate a tight-binding dictionary on a k-space grid.
 
@@ -190,7 +205,7 @@ def ham_fam_to_ort_basis(ham_fam: list) -> dict:
 
     Returns
     -------
-    A `dict` with the orthogonal basis matrices in a list for every hopping.
+    A sorted `dict` with the orthogonal basis matrices in a list for every hopping.
     """
     ham_fam_dict = ham_fam_to_tb_dict(ham_fam)
 
@@ -206,4 +221,4 @@ def ham_fam_to_ort_basis(ham_fam: list) -> dict:
 
         ort_dict[hopping] = np.reshape(Q, (len(basis),) + basis[0].shape)
 
-    return ort_dict
+    return sort_dict(ort_dict)
