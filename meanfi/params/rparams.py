@@ -1,5 +1,6 @@
 import numpy as np
 
+from itertools import chain
 from tb.tb import _tb_type
 
 
@@ -123,6 +124,7 @@ def tb_to_qparams(ham: _tb_type, Q_dict: dict) -> dict:
     """
     coeffs = {}
 
+    # Double check all the places that we need to ensure the dict is sorted.
     for hopping in ham:
         coeffs[hopping] = np.array(
             [np.trace(Q.conj().T @ ham[hopping]) for Q in Q_dict[hopping]]
@@ -139,7 +141,7 @@ def qparams_to_tb(coeffs: dict, Q_dict: dict) -> _tb_type:
     coeffs: dict
         A dictionary with an array of coefficients for every hopping.
     Q_dict: dict
-        A dictionary with the same hopping and an array of basis matrices for every hopping.
+        A dictionary with the same hoppings and an array of basis matrices for every hopping.
 
     Returns
     -------
@@ -164,21 +166,20 @@ def flatten_qparams(coeffs: dict):
 
     Returns
     -------
-    A list with entries of the shape [key, coeffs].
+    A flat list with the coefficients as values.
     """
-    hoppings = list(coeffs.keys())
-    coefficients = [np.array(coeffs[key]) for key in coeffs.keys()]
-
-    return list(zip(hoppings, coefficients))
+    return list(chain.from_iterable(coeffs.values()))
 
 
-def unflatten_qparams(flat_coeffs: list):
+def unflatten_qparams(flat_coeffs: list, Q_dict: dict):
     """Construct a coefficient dictionary from a flattened list of coefficients.
 
     Parameters
     ----------
     flat_coeffs: list
-        A list with entries of the shape [key, coeffs].
+        A flat list with the coefficients as values. This needs to have one coefficient for every matrix in `Q_dict`.
+    Q_dict: dict
+        A dictionary with hoppings and an array of basis matrices for every hopping.
 
     Returns
     -------
@@ -186,7 +187,11 @@ def unflatten_qparams(flat_coeffs: list):
     """
     coeffs = {}
 
-    for coeff in flat_coeffs:
-        coeffs[coeff[0]] = coeff[1]
+    offset = 0
+    for hopping in Q_dict.keys():
+        n_coeffs = len(Q_dict[hopping])
+        coeffs[hopping] = flat_coeffs[offset : offset + n_coeffs]
+
+        offset += n_coeffs
 
     return coeffs
