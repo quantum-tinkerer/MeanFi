@@ -39,6 +39,36 @@ def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
         return fd
 
 
+def fermi_on_kgrid(vals: np.ndarray, target_charge: float) -> float:
+    """Compute the Fermi level on a grid of k-points.
+
+    Parameters
+    ----------
+    `vals: np.ndarray` :
+        Eigenvalues of a hamiltonian sampled on a k-point grid with shape (nk, nk, ..., ndof, ndof),
+        where ndof is number of internal degrees of freedom.
+    `target_charge: float` :
+        Target charge of a unit cell.
+        Used to determine the Fermi level.
+
+    Returns
+    -------
+    :
+        Fermi level
+    """
+    norbs = vals.shape[-1]
+    vals_flat = np.sort(vals.flatten())
+    neig = len(vals_flat)
+    ifermi = int(round(neig * target_charge / norbs))
+    if ifermi >= neig:
+        return vals_flat[-1]
+    elif ifermi == 0:
+        return vals_flat[0]
+    else:
+        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
+        return fermi
+
+
 def density_matrix_charge(
     ham: _tb_type,
     charge_op: np.ndarray,
@@ -204,19 +234,8 @@ def density_matrix_kgrid(
     """
     fermi_0 = 0
 
-    Q_vals = np.linalg.eigvalsh(charge_op)
-    Q_pos = Q_vals[Q_vals > 0].sum()
-    Q_neg = Q_vals[Q_vals < 0].sum()
-
-    if (target_charge > Q_pos - 0.01) or (
-        target_charge < Q_neg + 0.01
-    ):  # The 0.01 is somewhat arbitrary.
-        raise ValueError(
-            f"Target charge can not fall outside of possible range: ({Q_neg + 0.01}, {Q_pos - 0.01})"
-        )
-    else:
+    if charge_op != np.eye(charge_op.shape[0]):
         Q_shape = charge_op.shape
-
         v_shape = np.empty((nk,) * ndim + Q_shape)
         F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
 
@@ -237,6 +256,13 @@ def density_matrix_kgrid(
             options={"fatol": kT / 2, "xatol": kT / 2},
         )
         opt_fermi = float(result.x)
+    elif kT > 0:
+        # Run that other option.
+        # Double check what this one is supposed to do.
+        opt_fermi = 0
+    else:  # Need to check if this is correct or if it should not run the 'normal' density matrix construction here.
+        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
+        opt_fermi = fermi_on_kgrid(vals, target_charge)
 
     Q_Ef = {(0,) * ndim: -opt_fermi * charge_op}
     ham = add_tb(ham, Q_Ef)
@@ -330,33 +356,3 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
         vec: -1 * h_int.get(vec, 0) * density_matrix[vec] for vec in frozenset(h_int)
     }
     return add_tb(direct, exchange)
-
-
-def fermi_on_kgrid(vals: np.ndarray, target_charge: float) -> float:
-    """Compute the Fermi level on a grid of k-points.
-
-    Parameters
-    ----------
-    `vals: np.ndarray` :
-        Eigenvalues of a hamiltonian sampled on a k-point grid with shape (nk, nk, ..., ndof, ndof),
-        where ndof is number of internal degrees of freedom.
-    `filling: float` :
-        Number of particles in a unit cell.
-        Used to determine the Fermi level.
-
-    Returns
-    -------
-    :
-        Fermi level
-    """
-    norbs = vals.shape[-1]
-    vals_flat = np.sort(vals.flatten())
-    neig = len(vals_flat)
-    ifermi = int(round(neig * target_charge / norbs))
-    if ifermi >= neig:
-        return vals_flat[-1]
-    elif ifermi == 0:
-        return vals_flat[0]
-    else:
-        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
-        return fermi
