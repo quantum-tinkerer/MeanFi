@@ -234,7 +234,7 @@ def density_matrix_kgrid(
     """
     fermi_0 = 0
 
-    if charge_op != np.eye(charge_op.shape[0]):
+    if (charge_op != np.eye(charge_op.shape[0])).all():
         Q_shape = charge_op.shape
         v_shape = np.empty((nk,) * ndim + Q_shape)
         F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
