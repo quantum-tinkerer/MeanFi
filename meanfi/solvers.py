@@ -240,12 +240,13 @@ def solver_density_symmetric(
 
     # User should provide a guess that is a tuple of (bloch_family, coefficients).
     # What do we allow the user to guess?
+    # Maybe make the bloch_family part of the model.
     # If this is not provided, we generate these ourselves.
     if guess == None:
         ham_fam = tb_to_ham_fam((model.h_0, model.h_int), symmetries)
         ham_basis = ham_fam_to_ort_basis(ham_fam)
 
-        scale = 5  # Arbitrary right now
+        scale = 5  # Arbitrary right now, turn into 1 and an optional parameter.
         random_coeffs = {}
 
         for hopping in ham_basis:
@@ -253,6 +254,7 @@ def solver_density_symmetric(
 
         mf_guess = qparams_to_tb(random_coeffs, ham_basis)
     else:
+        # Does not require symmetries.
         ham_fam, coefficients = guess
         ham_basis = ham_fam_to_ort_basis(ham_fam)
 
