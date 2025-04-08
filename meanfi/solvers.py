@@ -110,11 +110,8 @@ def cost_density_symmetric(
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_qparams(rho_reduced_new, Q_basis)
     rho_params_new = flatten_qparams(rho_params_new)
-    # Calculate the difference between the new params.
-    # (0,): [a1, a2, a3]
-    # Instead of dict, maybe do keys + values
 
-    return rho_params_new - rho_params
+    return rho_params_new
 
 
 def solver_mf(
@@ -355,12 +352,15 @@ h_int = gen_superc_tb(cutoff, ndim, ndof)
 tau_z = np.array([[1, 0], [0, -1]])
 Q = np.kron(tau_z, np.eye(ndof))
 target_Q = 0.5
-kT = 1e-3
+kT = 1e-4
 tau_x = np.kron(np.array([[0, 1], [1, 0]]), np.eye(ndof))
 PHS = qsymm.particle_hole(ndim, tau_x)
 
 symmetries = [PHS]
 
 model = Model(h_0, h_int, Q, target_Q, kT)
+
+print(h_0)
+print(h_int)
 
 print(solver_density_symmetric(model, symmetries))
