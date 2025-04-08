@@ -208,6 +208,7 @@ def solver_density_symmetric(
     model: Model,
     symmetries: tuple,  # We may want to make the symmetries an optional part of the model.
     guess: tuple = None,
+    scale: float = 1,
     nk: int = 20,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0, "line_search": "wolfe"},
@@ -246,7 +247,6 @@ def solver_density_symmetric(
         ham_fam = tb_to_ham_fam((model.h_0, model.h_int), symmetries)
         ham_basis = ham_fam_to_ort_basis(ham_fam)
 
-        scale = 5  # Arbitrary right now, turn into 1 and an optional parameter.
         random_coeffs = {}
 
         for hopping in ham_basis:
