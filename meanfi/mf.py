@@ -169,6 +169,43 @@ def charge_difference(
     return np.abs(difference)
 
 
+def charge_difference_eye(
+    fermi: float,
+    vals: np.ndarray,
+    kT: float,
+    target_charge: float,
+    nk: int,
+    ndim: int,
+) -> float:
+    """
+    Calculate the difference between the charge of a Hamiltonian and a chosen target charge.
+
+    Parameters
+    ----------
+    fermi: float
+        The Fermi level.
+    vals: np.ndarray
+        The Eigenvalues of the Hamiltonian.
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    target_charge: float
+        Target charge of a unit cell.
+        Used to determine the Fermi level.
+    nk: int
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
+    ndim: int
+        Number of dimensions in the system.
+
+    Returns
+    -------
+        The absolute difference between calculated charge and target charge.
+    """
+    charge = np.sum(fermi_dirac(vals, kT, fermi)) / (nk**ndim)
+
+    return np.abs(charge - target_charge)
+
+
 def construct_rho(
     vals: np.ndarray, vecs: np.ndarray, kT: float, fermi: float
 ) -> np.ndarray:
@@ -257,10 +294,17 @@ def density_matrix_kgrid(
         )
         opt_fermi = float(result.x)
     elif kT > 0:
-        # Run that other option.
-        # Double check what this one is supposed to do.
-        opt_fermi = 0
-    else:  # Need to check if this is correct or if it should not run the 'normal' density matrix construction here.
+        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
+
+        result = minimize(
+            charge_difference_eye,
+            fermi_0,
+            args=(vals, kT, target_charge, nk, ndim),
+            method="Nelder-Mead",
+            options={"fatol": kT / 2, "xatol": kT / 2},
+        )
+        opt_fermi = float(result.x)
+    else:
         vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
         opt_fermi = fermi_on_kgrid(vals, target_charge)
 
