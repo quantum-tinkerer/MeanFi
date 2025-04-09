@@ -2,6 +2,7 @@ import numpy as np
 
 from itertools import chain
 from tb.tb import _tb_type
+from tb.transforms import sort_dict
 
 
 def complex_to_real(z: np.ndarray) -> np.ndarray:
@@ -168,6 +169,8 @@ def flatten_qparams(coeffs: dict):
     -------
     A flat list with the coefficients as values.
     """
+    coeffs = sort_dict(coeffs)
+
     return list(chain.from_iterable(coeffs.values()))
 
 
@@ -186,6 +189,7 @@ def unflatten_qparams(flat_coeffs: list, Q_dict: dict):
     A dictionary with an array of coefficients for every hopping.
     """
     coeffs = {}
+    Q_dict = sort_dict(Q_dict)
 
     offset = 0
     for hopping in Q_dict.keys():
