@@ -104,12 +104,6 @@ html_theme_options = {
         "image_light": "logo_imgs/MeanFi_logo_light.svg",
         "image_dark": "logo_imgs/MeanFi_logo_dark.svg",
     },
-    "extra_footer": (
-        '<hr><div id="matomo-opt-out"></div>'
-        '<script src="https://piwik.kwant-project.org/index.php?'
-        "module=CoreAdminHome&action=optOutJS&divId=matomo-opt-out"
-        '&language=auto&showIntro=1"></script>'
-    ),
 }
 
 
