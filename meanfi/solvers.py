@@ -13,10 +13,10 @@ from params.rparams import (
     unflatten_qparams,
 )
 from tb.tb import add_tb, _tb_type
-from tb.transforms import tb_to_ham_fam, ham_fam_to_ort_basis
+from tb.transforms import ham_fam_to_ort_basis
 from mf import density_matrix, meanfield
 from model import Model
-from tb.utils import fermi_energy
+from tb.utils import fermi_energy, guess_coeffs
 
 
 def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
@@ -203,8 +203,8 @@ def solver_density(
 
 def solver_density_symmetric(
     model: Model,
-    symmetries: tuple,  # We may want to make the symmetries an optional part of the model.
-    guess: tuple = None,
+    bloch_family: list[dict],
+    guess: dict = None,
     scale: float = 1,
     nk: int = 20,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
@@ -215,11 +215,15 @@ def solver_density_symmetric(
 
     Parameters
     ----------
-    model :
+    model : Model
         Interacting tight-binding problem definition.
-    mf_guess :
-        The initial guess for the mean-field correction in the tight-binding dictionary format.
-    nk :
+    bloch_family : list[dict]
+        A list of `qsymm` `BlochModels` generated with `qsymm.bloch_family(..., bloch_model=True)` or `meanfi.tb.transforms.tb_to_ham_fam`.
+    guess : dict
+        An initial guess for the mean-field correction. Should be a dictionary of arrays of coefficients. One coefficient per basis matrix in the `bloch_family`.
+    scale: float
+        Scale of the random guess.
+    nk : int
         Number of k-points in a grid to sample the Brillouin zone along each dimension.
         If the system is 0-dimensional (finite), this parameter is ignored.
     optimizer :
@@ -233,31 +237,15 @@ def solver_density_symmetric(
     :
         Mean-field correction solution in the tight-binding dictionary format.
     """
+    ham_basis = ham_fam_to_ort_basis(bloch_family)
 
-    shape = model._ndof
-
-    # User should provide a guess that is a tuple of (bloch_family, coefficients).
-    # What do we allow the user to guess?
-    # Maybe make the bloch_family part of the model.
-    # If this is not provided, we generate these ourselves.
     if guess == None:
-        ham_fam = tb_to_ham_fam((model.h_0, model.h_int), symmetries)
-        ham_basis = ham_fam_to_ort_basis(ham_fam)
-
-        random_coeffs = {}
-
-        for hopping in ham_basis:
-            random_coeffs[hopping] = scale * np.random.rand(len(ham_basis[hopping]))
+        random_coeffs = guess_coeffs(ham_basis, scale)
 
         mf_guess = qparams_to_tb(random_coeffs, ham_basis)
     else:
-        # Does not require symmetries.
-        ham_fam, coefficients = guess
-        ham_basis = ham_fam_to_ort_basis(ham_fam)
+        mf_guess = qparams_to_tb(guess, ham_basis)
 
-        mf_guess = qparams_to_tb(coefficients, ham_basis)
-
-    # Not the right density matrix function.
     rho_guess = density_matrix(
         add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
     )[0]
@@ -344,11 +332,11 @@ def gen_superc_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_t
 
 
 cutoff = 1
-ndim = 1
+ndim = 2
 ndof = 1
 
-h_0 = gen_superc_tb(cutoff, ndim, ndof)
-h_int = gen_superc_tb(cutoff, ndim, ndof)
+h_0 = gen_superc_tb(cutoff, ndim, ndof, scale=0.5)
+h_int = gen_superc_tb(cutoff, ndim, ndof, scale=0.5)
 tau_z = np.array([[1, 0], [0, -1]])
 Q = np.kron(tau_z, np.eye(ndof))
 target_Q = 0.5
