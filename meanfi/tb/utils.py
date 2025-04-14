@@ -59,6 +59,29 @@ def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
+def guess_coeffs(tb_basis: dict, scale: float = 1) -> dict:
+    """Generate guess coefficient dictionary.
+
+    Parameters
+    ----------
+    tb_basis: dict
+        A tight binding dictionary with a list of basis matrices for every key.
+    scale: float
+        Scale of the random guess.
+
+    Returns
+    -------
+    :
+        Guess coefficient dictionary with a random guess coefficient for every basis matrix in `tb_basis`.
+    """
+    guess = {}
+
+    for key in tb_basis:
+        guess[key] = scale * np.random.rand(len(tb_basis[key]))
+
+    return guess
+
+
 def fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
     """
     Calculate the Fermi energy of a given tight-binding dictionary.
