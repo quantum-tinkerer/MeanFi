@@ -5,6 +5,30 @@ from tb.tb import add_tb, _tb_type
 from tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
+def fermi_distance(vals: np.ndarray, fermi: float) -> float:
+    """
+    Returns the distance of `fermi` to the nearest eigenvalue as long as `fermi` is not between the maximum and minimum value.
+
+    Parameters
+    ----------
+    vals: np.ndarray
+        The Eigenvalues of the Hamiltonian.
+    fermi: float
+        The Fermi level.
+
+    Returns
+    -------
+        The distance to the nearest eigenvalue. Can be negative if fermi is smaller than the minimum value.
+    """
+    vals = vals.flatten()
+
+    if fermi >= np.max(vals) or fermi <= np.min(vals):
+        closest_val = vals[np.argmin(np.abs(vals - fermi))]
+        return fermi - closest_val
+    else:
+        return 0
+
+
 def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
     """
     Calculate the value of the Fermi-Dirac distribution at energy `E` and temperature `T`.
@@ -119,7 +143,7 @@ def density_matrix_charge(
         optimize=einsum_path,
     ).sum() / (nk**ndim)
 
-    return charge_expectation
+    return charge_expectation + fermi_distance(vals, 2 * fermi)
 
 
 def charge_difference(
@@ -201,7 +225,9 @@ def charge_difference_eye(
     -------
         The absolute difference between calculated charge and target charge.
     """
-    charge = np.sum(fermi_dirac(vals, kT, fermi)) / (nk**ndim)
+    charge = np.sum(fermi_dirac(vals, kT, fermi)) / (nk**ndim) + fermi_distance(
+        vals, fermi
+    )
 
     return np.abs(charge - target_charge)
 
@@ -271,7 +297,8 @@ def density_matrix_kgrid(
     """
     fermi_0 = 0
 
-    if (charge_op != np.eye(charge_op.shape[0])).all():
+    if not (charge_op == np.eye(charge_op.shape[0])).all():
+
         Q_shape = charge_op.shape
         v_shape = np.empty((nk,) * ndim + Q_shape)
         F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
@@ -288,9 +315,9 @@ def density_matrix_kgrid(
         result = minimize(
             charge_difference,
             fermi_0,
-            args=(ham, charge_op, kT, target_charge, nk, ndim, einsum_path),
+            args=(ham, charge_op, target_charge, kT, nk, ndim, einsum_path),
             method="Nelder-Mead",
-            options={"fatol": kT / 2, "xatol": kT / 2},
+            options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed
         )
         opt_fermi = float(result.x)
     elif kT > 0:
@@ -301,7 +328,7 @@ def density_matrix_kgrid(
             fermi_0,
             args=(vals, kT, target_charge, nk, ndim),
             method="Nelder-Mead",
-            options={"fatol": kT / 2, "xatol": kT / 2},
+            options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed too
         )
         opt_fermi = float(result.x)
     else:
