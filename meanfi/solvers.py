@@ -270,6 +270,7 @@ solver = solver_density
 # %%
 from tb.utils import guess_tb, generate_tb_keys
 import qsymm
+from tb.transforms import tb_to_ham_fam
 
 
 def gen_normal_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
@@ -332,23 +333,24 @@ def gen_superc_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_t
 
 
 cutoff = 1
-ndim = 2
+ndim = 1
 ndof = 1
 
-h_0 = gen_superc_tb(cutoff, ndim, ndof, scale=0.5)
-h_int = gen_superc_tb(cutoff, ndim, ndof, scale=0.5)
+h_0 = gen_superc_tb(cutoff, ndim, ndof)
+h_int = gen_superc_tb(cutoff, ndim, ndof)
 tau_z = np.array([[1, 0], [0, -1]])
 Q = np.kron(tau_z, np.eye(ndof))
-target_Q = 0.5
-kT = 1e-4
+target_Q = 0
+kT = 1e-2
 tau_x = np.kron(np.array([[0, 1], [1, 0]]), np.eye(ndof))
 PHS = qsymm.particle_hole(ndim, tau_x)
 
 symmetries = [PHS]
 
 model = Model(h_0, h_int, Q, target_Q, kT)
+ham_fam = tb_to_ham_fam((h_0, h_int), symmetries)
 
 print(h_0)
 print(h_int)
 
-print(solver_density_symmetric(model, symmetries))
+print(solver_density_symmetric(model, ham_fam, nk=50))
