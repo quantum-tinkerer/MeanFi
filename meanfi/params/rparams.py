@@ -125,7 +125,6 @@ def tb_to_qparams(ham: _tb_type, Q_dict: dict) -> dict:
     """
     coeffs = {}
 
-    # Double check all the places that we need to ensure the dict is sorted.
     for hopping in ham:
         coeffs[hopping] = np.array(
             [np.trace(Q.conj().T @ ham[hopping]) for Q in Q_dict[hopping]]
@@ -151,7 +150,6 @@ def qparams_to_tb(coeffs: dict, Q_dict: dict) -> _tb_type:
     ham = {}
 
     for hopping, coeff in coeffs.items():
-        # Could use Einsum, need to test speed.
         ham[hopping] = np.tensordot(coeff, Q_dict[hopping], 1)
 
     return ham
