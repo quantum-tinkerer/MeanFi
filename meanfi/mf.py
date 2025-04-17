@@ -5,7 +5,7 @@ from tb.tb import add_tb, _tb_type
 from tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def fermi_distance(vals: np.ndarray, fermi: float) -> float:
+def fermi_distance(vals: np.ndarray, fermi: float) -> float:  # maybe rename this
     """
     Returns the distance of `fermi` to the nearest eigenvalue as long as `fermi` is not between the maximum and minimum value.
 
@@ -93,7 +93,7 @@ def fermi_on_kgrid(vals: np.ndarray, target_charge: float) -> float:
         return fermi
 
 
-def density_matrix_charge(
+def density_matrix_charge(  # Rename this, 'charge-expection'
     ham: _tb_type,
     charge_op: np.ndarray,
     kT: float,
@@ -102,7 +102,7 @@ def density_matrix_charge(
     ndim: int,
     einsum_path: list,
 ) -> float:
-    """
+    """Explain fermi distance
     Calculate the charge of a Hamiltonian with a given `fermi` level offset.
 
     Parameters
@@ -143,7 +143,7 @@ def density_matrix_charge(
         optimize=einsum_path,
     ).sum() / (nk**ndim)
 
-    return charge_expectation + fermi_distance(vals, 2 * fermi)
+    return charge_expectation + fermi_distance(vals, 2 * fermi)  # explain why
 
 
 def charge_difference(
@@ -193,7 +193,7 @@ def charge_difference(
     return np.abs(difference)
 
 
-def charge_difference_eye(
+def charge_difference_eye(  # Rename
     fermi: float,
     vals: np.ndarray,
     kT: float,
@@ -229,7 +229,7 @@ def charge_difference_eye(
         vals, fermi
     )
 
-    return np.abs(charge - target_charge)
+    return np.abs(charge - target_charge)  # clarify
 
 
 def construct_rho(
@@ -253,6 +253,7 @@ def construct_rho(
     -------
         The density matrix on a k-grid.
     """
+    # Remove fermi input (check first)
     occ_distribution = np.sqrt(fermi_dirac(vals, kT, fermi))
     occ_distribution = occ_distribution[..., np.newaxis]
     occ_vecs = np.copy(vecs)  # Copy may not be required
@@ -297,6 +298,8 @@ def density_matrix_kgrid(
     """
     fermi_0 = 0
 
+    # Change this order, do the ' is' check first
+    # Describe what is happenign here shortly
     if not (charge_op == np.eye(charge_op.shape[0])).all():
 
         Q_shape = charge_op.shape
@@ -335,6 +338,7 @@ def density_matrix_kgrid(
         vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
         opt_fermi = fermi_on_kgrid(vals, target_charge)
 
+    # Rename and check
     Q_Ef = {(0,) * ndim: -opt_fermi * charge_op}
     ham = add_tb(ham, Q_Ef)
     kham = tb_to_kgrid(ham, nk)

@@ -124,7 +124,7 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
     return kfunc
 
 
-def tb_to_ham_fam(hams: tuple, symmetries: list, nsites: int = 0) -> list:
+def tb_to_ham_fam(hams: tuple, symmetries: list) -> list:
     """Generate a Hamiltonian Family for a given tight-binding dictionary.
 
     Parameters
@@ -133,31 +133,33 @@ def tb_to_ham_fam(hams: tuple, symmetries: list, nsites: int = 0) -> list:
         A tuple of `_tb_type` Hamiltonians.
     symmteries: list
         A list of symmetries from `qsymm`.
-    nsites: int
-        Number of sites in a unit cell. Currently not used.
 
     Returns
     -------
     A basis of all allowed Hamiltonians for the chosen symmetries and hoppings in the form of a `qsymm` list of `BlochModel`s.
+
+    Example
+    -------
+
     """
 
-    hopp_real = list(set().union(*hams) if len(hams) > 1 else hams[0].keys())
+    hoppings = list(set().union(*hams) if len(hams) > 1 else hams[0].keys())
 
     ndof = hams[0][next(iter(hams[0]))].shape[-1]
 
-    hoppings = []
-    for vec in hopp_real:
-        hoppings.append(("a", "a", vec))
+    hop_vecs = []
+    for vec in hoppings:
+        # mm
+        hop_vecs.append(("a", "a", vec))
 
-    nsites = 0
-    norbs = [("a", ndof - nsites)]
+    norbs = [("a", ndof)]
 
-    ham_fam = bloch_family(hoppings, symmetries, norbs, bloch_model=True)
+    ham_fam = bloch_family(hop_vecs, symmetries, norbs, bloch_model=True)
 
     return ham_fam
 
 
-def qsymm_key_to_tb(ham_fam_key: tuple) -> tuple:
+def qsymm_key_to_tb(ham_fam_key: tuple) -> tuple:  # Move this into ham_fam_to_tb_dict
     """Converts a `qsymm` `BlochModel` hopping to a `_tb_type` hopping.
 
     Parameters
@@ -173,7 +175,9 @@ def qsymm_key_to_tb(ham_fam_key: tuple) -> tuple:
     return tuple(hopping.astype(int))
 
 
-def ham_fam_to_tb_dict(ham_fam: list) -> dict:
+def ham_fam_to_tb_dict(
+    ham_fam: list,
+) -> dict:  # Rephrase this maybe something with double keys
     """Converts a Hamiltonian Family into a dict with a list of allowed matrices per hopping.
     Translation layer between a `bloch_family` and `_tb_type`.
 
@@ -211,12 +215,10 @@ def ham_fam_to_ort_basis(ham_fam: list) -> dict:
 
     ort_dict = {}
     for hopping in ham_fam_dict:
-        if hopping not in ham_fam_dict:
-            raise KeyError(f"No basis found for hopping {hopping}.")
-
         basis = ham_fam_dict[hopping]
 
-        A = np.column_stack([H.flatten() for H in basis])
+        # Check this
+        A = np.column_stack([H.flatten() for H in basis])  # Rename H
         Q = np.linalg.qr(A, mode="reduced")[0]
 
         ort_dict[hopping] = np.reshape(Q, (len(basis),) + basis[0].shape)
