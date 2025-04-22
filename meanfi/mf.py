@@ -298,10 +298,22 @@ def density_matrix_kgrid(
     """
     fermi_0 = 0
 
-    # Change this order, do the ' is' check first
-    # Describe what is happenign here shortly
-    if not (charge_op == np.eye(charge_op.shape[0])).all():
+    # Three different ways of finding the Fermi-level for different systems.
+    if (charge_op == np.eye(charge_op.shape[0])).all():
+        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
+        if kT > 0:  # Non-Superconducting and finite temperature.
+            result = minimize(
+                charge_difference_eye,
+                fermi_0,
+                args=(vals, kT, target_charge, nk, ndim),
+                method="Nelder-Mead",
+                options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed
+            )
+            opt_fermi = float(result.x)
+        else:  # Non-Superconducting and zero temperature.
+            opt_fermi = fermi_on_kgrid(vals, target_charge)
 
+    else:  # Superconducting,
         Q_shape = charge_op.shape
         v_shape = np.empty((nk,) * ndim + Q_shape)
         F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
@@ -323,20 +335,6 @@ def density_matrix_kgrid(
             options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed
         )
         opt_fermi = float(result.x)
-    elif kT > 0:
-        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
-
-        result = minimize(
-            charge_difference_eye,
-            fermi_0,
-            args=(vals, kT, target_charge, nk, ndim),
-            method="Nelder-Mead",
-            options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed too
-        )
-        opt_fermi = float(result.x)
-    else:
-        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
-        opt_fermi = fermi_on_kgrid(vals, target_charge)
 
     # Rename and check
     Q_Ef = {(0,) * ndim: -opt_fermi * charge_op}
