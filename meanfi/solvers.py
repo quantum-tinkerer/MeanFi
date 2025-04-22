@@ -107,12 +107,13 @@ def cost_density_symmetric(
     rho_reduced = qparams_to_tb(rho_params, Q_basis)
     rho_new = model.density_matrix(rho_reduced, nk=nk)
 
-    # Check this
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_qparams(rho_reduced_new, Q_basis)
     rho_params_new = flatten_qparams(rho_params_new)
 
-    return np.array(rho_params_new) - np.array(flatten_qparams(rho_params))
+    return np.array(rho_params_new) - np.array(
+        flatten_qparams(rho_params)
+    )  # Add the arrayification
 
 
 def solver_mf(
@@ -247,11 +248,10 @@ def solver_density_symmetric(
     else:
         mf_guess = qparams_to_tb(guess, ham_basis)
 
-    # Why this here, and model.density elsewhere
     rho_guess = density_matrix(
         add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
     )[0]
-    # Check this?
+
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
     rho_params = flatten_qparams(tb_to_qparams(rho_guess_reduced, ham_basis))
@@ -264,7 +264,7 @@ def solver_density_symmetric(
 
     # Not sure after this yet
     mf_result = meanfield(rho_result, model.h_int)
-    # Check this?
+    # This should be changed.
     fermi = fermi_energy(add_tb(model.h_0, mf_result), model.target_charge, nk=nk)
     return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
 
