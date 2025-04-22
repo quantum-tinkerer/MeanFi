@@ -26,11 +26,9 @@ def _charge_op_check(Q, ndof, target_charge):
     Q_pos = Q_vals[Q_vals > 0].sum()
     Q_neg = Q_vals[Q_vals < 0].sum()
 
-    if (target_charge > Q_pos - 0.01) or (
-        target_charge < Q_neg + 0.01
-    ):  # The 0.01 is somewhat arbitrary.
+    if (target_charge > Q_pos) or (target_charge < Q_neg):
         raise ValueError(
-            f"Target charge can not fall outside of possible range: ({Q_neg + 0.01}, {Q_pos - 0.01})"
+            f"Target charge can not fall outside of possible range: ({Q_neg}, {Q_pos})"
         )
 
 
@@ -109,8 +107,8 @@ class Model:
         self.target_charge = target_charge
         self.charge_op = charge_op
 
-    def density_matrix(self, rho: _tb_type, nk: int = 20) -> _tb_type:
-        """Computes the density matrix from a given initial density matrix.
+    def density_matrix_iteration(self, rho: _tb_type, nk: int = 20) -> _tb_type:
+        """Computes a new density matrix from a given initial density matrix.
 
         Parameters
         ----------
