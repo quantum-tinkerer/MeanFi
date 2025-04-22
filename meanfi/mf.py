@@ -234,6 +234,94 @@ def charge_difference_nsc(
     return np.abs(difference)
 
 
+def fermi_level(
+    ham: _tb_type,
+    charge_op: np.ndarray,
+    target_charge: float,
+    kT: float,
+    nk: int,
+    ndim: int,
+) -> float:
+    """
+    Finds the Fermi level for a Hamiltonian and charge operator with a given target charge at a temperature `kT`.
+    It determines the Fermi level in one of three ways, depending on the system:
+
+    Superconducting system:
+        The Fermi level is found by running a minimization on the difference between the charge of the system and the `target_charge`.
+        This is the slowest method because a diagonalization is run for every iteration.
+    Non-superconducting system and finite temperature:
+        The Fermi level is found by running a minimization on the difference between the charge of the system and the `target_charge`.
+        This uses a different method than the superconducting systems since the diagonalization only happens outside the minimizer.
+    Non-superconducting system and zero temperature:
+        The Fermi level is computed directly without a need for a minimization. The Fermi level is simply set by direct calculation depending on the `target_charge`.
+
+    Parameters
+    ----------
+    ham: _tb_type
+        Hamiltonian tight-binding dictionary from which to construct the density matrix.
+    charge_op: np.ndarray
+        Charge operator of the system, should have the same ndof as `ham`.
+    target_charge: float
+        Target charge of a unit cell.
+        Used to determine the Fermi level.
+    kT: float
+        The temperature in Kelvin and Boltzmann constant.
+    nk: int
+        Number of k-points in a grid to sample the Brillouin zone along each dimension.
+        If the system is 0-dimensional (finite), this parameter is ignored.
+    ndim: int
+        Number of dimensions in the system.
+
+    Returns
+    -------
+        The Fermi level for a Hamiltonian with a `target_charge` at temperature `kT`.
+    """
+    fermi_0 = 0
+
+    # Three different ways of finding the Fermi-level for different systems.
+    if (charge_op == np.eye(charge_op.shape[0])).all():
+        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
+        if kT > 0:  # Non-Superconducting and finite temperature.
+            result = minimize(
+                charge_difference_nsc,
+                fermi_0,
+                args=(vals, kT, target_charge, nk, ndim),
+                method="Nelder-Mead",
+                options={
+                    "fatol": kT / 2,
+                    "xatol": kT / 2,
+                },  # Look into this, we only care about xtol.
+            )
+            opt_fermi = float(result.x)
+        else:  # Non-Superconducting and zero temperature.
+            opt_fermi = fermi_on_kgrid(vals, target_charge)
+
+    else:  # Superconducting,
+        Q_shape = charge_op.shape
+        v_shape = np.empty((nk,) * ndim + Q_shape)
+        F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
+
+        einsum_path = np.einsum_path(
+            "...ji, jl, ...li, ...i",
+            v_shape,
+            charge_op,
+            v_shape,
+            F_shape,
+            optimize="optimal",
+        )[0]
+
+        result = minimize(
+            charge_difference_sc,
+            fermi_0,
+            args=(ham, charge_op, target_charge, kT, nk, ndim, einsum_path),
+            method="Nelder-Mead",
+            options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed
+        )
+        opt_fermi = float(result.x)
+
+    return opt_fermi
+
+
 def construct_rho(vals: np.ndarray, vecs: np.ndarray, kT: float) -> np.ndarray:
     """
     Constructs a density matrix from a set of eigenvalues and vectors at a chosen temperature using the Fermi-Dirac distribution.
@@ -294,47 +382,8 @@ def density_matrix_kgrid(
     :
         Density matrix on a k-space grid with shape (nk, nk, ..., ndof, ndof) and Fermi level.
     """
-    fermi_0 = 0
+    opt_fermi = fermi_level(ham, charge_op, target_charge, kT, nk, ndim)
 
-    # Three different ways of finding the Fermi-level for different systems.
-    if (charge_op == np.eye(charge_op.shape[0])).all():
-        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
-        if kT > 0:  # Non-Superconducting and finite temperature.
-            result = minimize(
-                charge_difference_nsc,
-                fermi_0,
-                args=(vals, kT, target_charge, nk, ndim),
-                method="Nelder-Mead",
-                options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed
-            )
-            opt_fermi = float(result.x)
-        else:  # Non-Superconducting and zero temperature.
-            opt_fermi = fermi_on_kgrid(vals, target_charge)
-
-    else:  # Superconducting,
-        Q_shape = charge_op.shape
-        v_shape = np.empty((nk,) * ndim + Q_shape)
-        F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
-
-        einsum_path = np.einsum_path(
-            "...ji, jl, ...li, ...i",
-            v_shape,
-            charge_op,
-            v_shape,
-            F_shape,
-            optimize="optimal",
-        )[0]
-
-        result = minimize(
-            charge_difference_sc,
-            fermi_0,
-            args=(ham, charge_op, target_charge, kT, nk, ndim, einsum_path),
-            method="Nelder-Mead",
-            options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed
-        )
-        opt_fermi = float(result.x)
-
-    # Rename and check
     fermi_shift = {(0,) * ndim: -opt_fermi * charge_op}
     ham = add_tb(ham, fermi_shift)
     kham = tb_to_kgrid(ham, nk)
