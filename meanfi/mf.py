@@ -5,9 +5,10 @@ from tb.tb import add_tb, _tb_type
 from tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
-def fermi_distance(vals: np.ndarray, fermi: float) -> float:  # maybe rename this
+def fermi_minimizer_helper(vals: np.ndarray, fermi: float) -> float:
     """
     Returns the distance of `fermi` to the nearest eigenvalue as long as `fermi` is not between the maximum and minimum value.
+    This function is added to the charge in the two minimizers to 'unflatten' the tail where there are no extra eigenvalues to make sure the function converges.
 
     Parameters
     ----------
@@ -93,7 +94,7 @@ def fermi_on_kgrid(vals: np.ndarray, target_charge: float) -> float:
         return fermi
 
 
-def density_matrix_charge(  # Rename this, 'charge-expection'
+def charge_expectation(
     ham: _tb_type,
     charge_op: np.ndarray,
     kT: float,
@@ -102,8 +103,9 @@ def density_matrix_charge(  # Rename this, 'charge-expection'
     ndim: int,
     einsum_path: list,
 ) -> float:
-    """Explain fermi distance
+    """
     Calculate the charge of a Hamiltonian with a given `fermi` level offset.
+    Uses `fermi_minimizer_helper` to make sure the minimizer converges in the bandwidth.
 
     Parameters
     ----------
@@ -143,10 +145,10 @@ def density_matrix_charge(  # Rename this, 'charge-expection'
         optimize=einsum_path,
     ).sum() / (nk**ndim)
 
-    return charge_expectation + fermi_distance(vals, 2 * fermi)  # explain why
+    return charge_expectation + fermi_minimizer_helper(vals, 2 * fermi)
 
 
-def charge_difference(
+def charge_difference_sc(
     fermi: float,
     ham: _tb_type,
     charge_op: np.ndarray,
@@ -158,6 +160,7 @@ def charge_difference(
 ) -> float:
     """
     Calculate the difference between the charge of a Hamiltonian and a chosen target charge.
+    Required for superconducting systems, can work for non-superconducting systems too, but slower.
 
     Parameters
     ----------
@@ -185,15 +188,13 @@ def charge_difference(
     -------
         The absolute difference between calculated charge and target charge.
     """
-    charge_expectation = density_matrix_charge(
-        ham, charge_op, kT, fermi, nk, ndim, einsum_path
-    )
-    difference = charge_expectation - target_charge
+    calc_charge = charge_expectation(ham, charge_op, kT, fermi, nk, ndim, einsum_path)
+    difference = calc_charge - target_charge
 
     return np.abs(difference)
 
 
-def charge_difference_eye(  # Rename
+def charge_difference_nsc(
     fermi: float,
     vals: np.ndarray,
     kT: float,
@@ -203,6 +204,7 @@ def charge_difference_eye(  # Rename
 ) -> float:
     """
     Calculate the difference between the charge of a Hamiltonian and a chosen target charge.
+    Used for non-superconducting systems, required for finite temperatures.
 
     Parameters
     ----------
@@ -225,18 +227,17 @@ def charge_difference_eye(  # Rename
     -------
         The absolute difference between calculated charge and target charge.
     """
-    charge = np.sum(fermi_dirac(vals, kT, fermi)) / (nk**ndim) + fermi_distance(
-        vals, fermi
-    )
+    charge = np.sum(fermi_dirac(vals, kT, fermi)) / (nk**ndim)
+    +fermi_minimizer_helper(vals, fermi)
+    difference = charge - target_charge
 
-    return np.abs(charge - target_charge)  # clarify
+    return np.abs(difference)
 
 
-def construct_rho(
-    vals: np.ndarray, vecs: np.ndarray, kT: float, fermi: float
-) -> np.ndarray:
+def construct_rho(vals: np.ndarray, vecs: np.ndarray, kT: float) -> np.ndarray:
     """
-    Constructs a density matrix from a set of eigenvalues and vectors at a chosen temperature and Fermi level.
+    Constructs a density matrix from a set of eigenvalues and vectors at a chosen temperature using the Fermi-Dirac distribution.
+    The distribution uses `Fermi-level = 0`.
 
     Parameters
     ----------
@@ -246,15 +247,12 @@ def construct_rho(
         An array of eigenvectors of the Hamiltonian.
     kT: float
         The temperature in Kelvin and Boltzmann constant.
-    fermi: float
-        The Fermi level.
 
     Returns
     -------
         The density matrix on a k-grid.
     """
-    # Remove fermi input (check first)
-    occ_distribution = np.sqrt(fermi_dirac(vals, kT, fermi))
+    occ_distribution = np.sqrt(fermi_dirac(vals, kT, 0))
     occ_distribution = occ_distribution[..., np.newaxis]
     occ_vecs = np.copy(vecs)  # Copy may not be required
     occ_vecs *= np.moveaxis(occ_distribution, -1, -2)
@@ -303,7 +301,7 @@ def density_matrix_kgrid(
         vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
         if kT > 0:  # Non-Superconducting and finite temperature.
             result = minimize(
-                charge_difference_eye,
+                charge_difference_nsc,
                 fermi_0,
                 args=(vals, kT, target_charge, nk, ndim),
                 method="Nelder-Mead",
@@ -328,7 +326,7 @@ def density_matrix_kgrid(
         )[0]
 
         result = minimize(
-            charge_difference,
+            charge_difference_sc,
             fermi_0,
             args=(ham, charge_op, target_charge, kT, nk, ndim, einsum_path),
             method="Nelder-Mead",
@@ -337,12 +335,12 @@ def density_matrix_kgrid(
         opt_fermi = float(result.x)
 
     # Rename and check
-    Q_Ef = {(0,) * ndim: -opt_fermi * charge_op}
-    ham = add_tb(ham, Q_Ef)
+    fermi_shift = {(0,) * ndim: -opt_fermi * charge_op}
+    ham = add_tb(ham, fermi_shift)
     kham = tb_to_kgrid(ham, nk)
     vals, vecs = np.linalg.eigh(kham)
 
-    _density_matrix_kgrid = construct_rho(vals, vecs, kT, 0)
+    _density_matrix_kgrid = construct_rho(vals, vecs, kT)
 
     return _density_matrix_kgrid, opt_fermi
 
