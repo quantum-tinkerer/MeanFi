@@ -82,7 +82,9 @@ def guess_coeffs(tb_basis: dict, scale: float = 1) -> dict:
     return guess
 
 
-def fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
+def fermi_energy(
+    tb: _tb_type, filling: float, nk: int = 100
+):  # Check where this is called.
     """
     Calculate the Fermi energy of a given tight-binding dictionary.
 
