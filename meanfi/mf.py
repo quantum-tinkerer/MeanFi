@@ -246,13 +246,13 @@ def fermi_level(
     Finds the Fermi level for a Hamiltonian and charge operator with a given target charge at a temperature `kT`.
     It determines the Fermi level in one of three ways, depending on the system:
 
-    Superconducting system:
+    **Superconducting system:**
         The Fermi level is found by running a minimization on the difference between the charge of the system and the `target_charge`.
         This is the slowest method because a diagonalization is run for every iteration.
-    Non-superconducting system and finite temperature:
+    **Non-superconducting system and finite temperature:**
         The Fermi level is found by running a minimization on the difference between the charge of the system and the `target_charge`.
         This uses a different method than the superconducting systems since the diagonalization only happens outside the minimizer.
-    Non-superconducting system and zero temperature:
+    **Non-superconducting system and zero temperature:**
         The Fermi level is computed directly without a need for a minimization. The Fermi level is simply set by direct calculation depending on the `target_charge`.
 
     Parameters
