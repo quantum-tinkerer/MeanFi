@@ -342,7 +342,7 @@ def construct_rho(vals: np.ndarray, vecs: np.ndarray, kT: float) -> np.ndarray:
     """
     occ_distribution = np.sqrt(fermi_dirac(vals, kT, 0))
     occ_distribution = occ_distribution[..., np.newaxis]
-    occ_vecs = np.copy(vecs)  # Copy may not be required
+    occ_vecs = vecs
     occ_vecs *= np.moveaxis(occ_distribution, -1, -2)
     _density_matrix = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
 
