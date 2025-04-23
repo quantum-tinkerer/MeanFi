@@ -124,8 +124,11 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
     return kfunc
 
 
-def tb_to_ham_fam(hams: tuple, symmetries: list) -> list:
+def tb_to_ham_fam(
+    hams: tuple, symmetries: list
+) -> list:  # Give an example and change this to accept the hoppings directly.
     """Generate a Hamiltonian Family for a given tight-binding dictionary.
+    This function assumes a single site per unit cell, hence the `hop_vecs.append(("a", "a", vec))`.
 
     Parameters
     ----------
@@ -142,14 +145,12 @@ def tb_to_ham_fam(hams: tuple, symmetries: list) -> list:
     -------
 
     """
-
     hoppings = list(set().union(*hams) if len(hams) > 1 else hams[0].keys())
 
     ndof = hams[0][next(iter(hams[0]))].shape[-1]
 
     hop_vecs = []
     for vec in hoppings:
-        # mm
         hop_vecs.append(("a", "a", vec))
 
     norbs = [("a", ndof)]
@@ -159,27 +160,12 @@ def tb_to_ham_fam(hams: tuple, symmetries: list) -> list:
     return ham_fam
 
 
-def qsymm_key_to_tb(ham_fam_key: tuple) -> tuple:  # Move this into ham_fam_to_tb_dict
-    """Converts a `qsymm` `BlochModel` hopping to a `_tb_type` hopping.
-
-    Parameters
-    ----------
-    ham_fam_key: tuple
-        A `qsymm` `BlochModel` style hopping.
-
-    Returns
-    -------
-    A `_tb_type` hopping.
-    """
-    hopping, site = ham_fam_key
-    return tuple(hopping.astype(int))
-
-
-def ham_fam_to_tb_dict(
+def ham_fam_to_single_dict(
     ham_fam: list,
-) -> dict:  # Rephrase this maybe something with double keys
+) -> dict:
     """Converts a Hamiltonian Family into a dict with a list of allowed matrices per hopping.
     Translation layer between a `bloch_family` and `_tb_type`.
+    It combines the values with the same keys in the `ham_fam` into an array of those values for that key.
 
     Parameters
     ----------
@@ -193,7 +179,7 @@ def ham_fam_to_tb_dict(
     ham_fam_dict = defaultdict(list)
     for bloch in ham_fam:
         for hop, matrix in bloch.items():
-            key = qsymm_key_to_tb(hop)
+            key = tuple(hop[0].astype(int))
             ham_fam_dict[key].append(matrix)
 
     return ham_fam_dict
@@ -211,15 +197,14 @@ def ham_fam_to_ort_basis(ham_fam: list) -> dict:
     -------
     A sorted `dict` with the orthogonal basis matrices in a list for every hopping.
     """
-    ham_fam_dict = ham_fam_to_tb_dict(ham_fam)
+    ham_fam_dict = ham_fam_to_single_dict(ham_fam)
 
     ort_dict = {}
     for hopping in ham_fam_dict:
         basis = ham_fam_dict[hopping]
 
-        # Check this
-        A = np.column_stack([H.flatten() for H in basis])  # Rename H
-        Q = np.linalg.qr(A, mode="reduced")[0]
+        stacked_basis = np.column_stack([ham.flatten() for ham in basis])
+        Q = np.linalg.qr(stacked_basis, mode="reduced")[0]
 
         ort_dict[hopping] = np.reshape(Q, (len(basis),) + basis[0].shape)
 
