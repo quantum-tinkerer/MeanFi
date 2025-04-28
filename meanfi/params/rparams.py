@@ -26,7 +26,7 @@ def real_to_complex(z: np.ndarray) -> np.ndarray:
     return z[: len(z) // 2] + 1j * z[len(z) // 2 :]
 
 
-def tb_to_rparams(tb: _tb_type) -> np.ndarray:
+def tb_to_params(tb: _tb_type) -> np.ndarray:
     """Parametrise a hermitian tight-binding dictionary by a real vector.
 
     Parameters
@@ -55,7 +55,7 @@ def tb_to_rparams(tb: _tb_type) -> np.ndarray:
     return np.concatenate([onsite_diag_vals, complex_to_real(complex_vals)])
 
 
-def rparams_to_tb(
+def params_to_tb(
     tb_params: np.ndarray, tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int
 ) -> _tb_type:
     """Extract a hermitian tight-binding dictionary from a real vector parametrisation.
@@ -108,39 +108,40 @@ def rparams_to_tb(
     return tb
 
 
-def tb_to_qparams(ham: _tb_type, Q_dict: dict) -> dict:
+def tb_to_projection(ham: _tb_type, basis_dict: dict) -> dict:
     """Project a tight-binding Hamiltonian onto an orthogonal basis and return the parameters.
 
     Parameters
     ----------
     ham: _tb_type
         A tight-binding `_tb_type` Hamiltonian.
-    Q_dict: dict
+    basis_dict: dict
         A `dict` with the orthogonal basis matrices in a list for every hopping.
 
     Returns
     -------
-    A dictionary with the same hoppings as `ham` and `Q_dict` with an array of coefficients
+    A dictionary with the same hoppings as `ham` and `basis_dict` with an array of coefficients
       equal to the number of matrices in the basis per hopping.
     """
     coeffs = {}
 
     for hopping in ham:
         coeffs[hopping] = np.array(
-            [np.trace(Q.conj().T @ ham[hopping]) for Q in Q_dict[hopping]]
+            [np.trace(basis.conj().T @ ham[hopping]) for basis in basis_dict[hopping]]
         )
 
     return coeffs
 
 
-def qparams_to_tb(coeffs: dict, Q_dict: dict) -> _tb_type:
+def projection_to_tb(coeffs: dict, basis_dict: dict) -> _tb_type:
     """Constructs a tight-binding Hamiltonian from a dictionary of coefficients and their corresponding basis matrices.
+    The coefficients should be the scalar projection of the Hamiltonian onto the basis.
 
     Parameters
     ----------
     coeffs: dict
         A dictionary with an array of coefficients for every hopping.
-    Q_dict: dict
+    basis_dict: dict
         A dictionary with the same hoppings and an array of basis matrices for every hopping.
 
     Returns
@@ -150,12 +151,12 @@ def qparams_to_tb(coeffs: dict, Q_dict: dict) -> _tb_type:
     ham = {}
 
     for hopping, coeff in coeffs.items():
-        ham[hopping] = np.tensordot(coeff, Q_dict[hopping], 1)
+        ham[hopping] = np.tensordot(coeff, basis_dict[hopping], 1)
 
     return ham
 
 
-def flatten_qparams(coeffs: dict):
+def flatten_projection(coeffs: dict):
     """Flattens a coefficient dictionary into a list for passing to the optimizer."
 
     Parameters
@@ -172,14 +173,14 @@ def flatten_qparams(coeffs: dict):
     return list(chain.from_iterable(coeffs.values()))
 
 
-def unflatten_qparams(flat_coeffs: list, Q_dict: dict):
-    """Construct a coefficient dictionary from a flattened list of coefficients.
+def unflatten_projection(flat_coeffs: list, basis_dict: dict):
+    """Construct a coefficient dictionary from a flattened list of coefficients using the dimensions of `basis_dict`.
 
     Parameters
     ----------
     flat_coeffs: list
-        A flat list with the coefficients as values. This needs to have one coefficient for every matrix in `Q_dict`.
-    Q_dict: dict
+        A flat list with the coefficients as values. This needs to have one coefficient for every matrix in `basis_dict`.
+    basis_dict: dict
         A dictionary with hoppings and an array of basis matrices for every hopping.
 
     Returns
@@ -187,13 +188,13 @@ def unflatten_qparams(flat_coeffs: list, Q_dict: dict):
     A dictionary with an array of coefficients for every hopping.
     """
     coeffs = {}
-    Q_dict = sort_dict(Q_dict)
+    basis_dict = sort_dict(basis_dict)
 
-    offset = 0
-    for hopping in Q_dict.keys():
-        n_coeffs = len(Q_dict[hopping])
-        coeffs[hopping] = flat_coeffs[offset : offset + n_coeffs]
+    index_offset = 0
+    for hopping in basis_dict.keys():
+        n_coeffs = len(basis_dict[hopping])
+        coeffs[hopping] = flat_coeffs[index_offset : index_offset + n_coeffs]
 
-        offset += n_coeffs
+        index_offset += n_coeffs
 
     return coeffs
