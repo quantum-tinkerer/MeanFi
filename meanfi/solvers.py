@@ -5,12 +5,12 @@ import scipy
 from typing import Optional, Callable
 
 from params.rparams import (
-    rparams_to_tb,
-    tb_to_rparams,
-    qparams_to_tb,
-    tb_to_qparams,
-    flatten_qparams,
-    unflatten_qparams,
+    params_to_tb,
+    tb_to_params,
+    projection_to_tb,
+    tb_to_projection,
+    flatten_projection,
+    unflatten_projection,
 )
 from tb.tb import add_tb, _tb_type
 from tb.transforms import ham_fam_to_ort_basis
@@ -41,9 +41,9 @@ def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
         parametrisations
     """
     shape = model._ndof
-    mf = rparams_to_tb(mf_param, list(model.h_int), shape)
+    mf = params_to_tb(mf_param, list(model.h_int), shape)
     mf_new = model.mfield(mf, nk=nk)
-    mf_params_new = tb_to_rparams(mf_new)
+    mf_params_new = tb_to_params(mf_new)
     return mf_params_new - mf_param
 
 
@@ -71,10 +71,10 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
         density matrix parametrisations reduced to the hoppings present in h_int.
     """
     shape = model._ndof
-    rho_reduced = rparams_to_tb(rho_params, list(model.h_int), shape)
+    rho_reduced = params_to_tb(rho_params, list(model.h_int), shape)
     rho_new = model.density_matrix(rho_reduced, nk=nk)
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
-    rho_params_new = tb_to_rparams(rho_reduced_new)
+    rho_params_new = tb_to_params(rho_reduced_new)
     return rho_params_new - rho_params
 
 
@@ -103,16 +103,16 @@ def cost_density_symmetric(
         1D real array that is the difference between the computed and inputted
         density matrix parametrisations reduced to the hoppings present in h_int.
     """
-    rho_params = unflatten_qparams(rho_params, Q_basis)
-    rho_reduced = qparams_to_tb(rho_params, Q_basis)
+    rho_params = unflatten_projection(rho_params, Q_basis)
+    rho_reduced = projection_to_tb(rho_params, Q_basis)
     rho_new = model.density_matrix(rho_reduced, nk=nk)
 
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
-    rho_params_new = tb_to_qparams(rho_reduced_new, Q_basis)
-    rho_params_new = flatten_qparams(rho_params_new)
+    rho_params_new = tb_to_projection(rho_reduced_new, Q_basis)
+    rho_params_new = flatten_projection(rho_params_new)
 
     return np.array(rho_params_new) - np.array(
-        flatten_qparams(rho_params)
+        flatten_projection(rho_params)
     )  # Add the arrayification
 
 
@@ -147,10 +147,10 @@ def solver_mf(
         Mean-field correction solution in the tight-binding dictionary format.
     """
     shape = model._ndof
-    mf_params = tb_to_rparams(mf_guess)
+    mf_params = tb_to_params(mf_guess)
 
     f = partial(cost_mf, model=model, nk=nk)
-    result = rparams_to_tb(
+    result = params_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(model.h_int), shape
     )
     fermi = fermi_energy(add_tb(model.h_0, result), model.filling, nk=nk)
@@ -193,9 +193,9 @@ def solver_density(
     )[0]
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
-    rho_params = tb_to_rparams(rho_guess_reduced)
+    rho_params = tb_to_params(rho_guess_reduced)
     f = partial(cost_density, model=model, nk=nk)
-    rho_result = rparams_to_tb(
+    rho_result = params_to_tb(
         optimizer(f, rho_params, **optimizer_kwargs), list(model.h_int), shape
     )
     mf_result = meanfield(rho_result, model.h_int)
@@ -244,9 +244,9 @@ def solver_density_symmetric(
     if guess == None:
         random_coeffs = guess_coeffs(ham_basis, scale)
 
-        mf_guess = qparams_to_tb(random_coeffs, ham_basis)
+        mf_guess = projection_to_tb(random_coeffs, ham_basis)
     else:
-        mf_guess = qparams_to_tb(guess, ham_basis)
+        mf_guess = projection_to_tb(guess, ham_basis)
 
     rho_guess = density_matrix(
         add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
@@ -254,11 +254,11 @@ def solver_density_symmetric(
 
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
-    rho_params = flatten_qparams(tb_to_qparams(rho_guess_reduced, ham_basis))
+    rho_params = flatten_projection(tb_to_projection(rho_guess_reduced, ham_basis))
 
     f = partial(cost_density_symmetric, model=model, Q_basis=ham_basis, nk=nk)
-    rho_result = qparams_to_tb(
-        unflatten_qparams(optimizer(f, rho_params, **optimizer_kwargs), ham_basis),
+    rho_result = projection_to_tb(
+        unflatten_projection(optimizer(f, rho_params, **optimizer_kwargs), ham_basis),
         ham_basis,
     )
 
