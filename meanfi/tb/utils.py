@@ -2,8 +2,7 @@ from itertools import product
 import numpy as np
 
 from tb.tb import _tb_type
-from mf import fermi_on_kgrid
-from tb.transforms import tb_to_kgrid, ham_fam_to_ort_basis
+from tb.transforms import ham_fam_to_ort_basis
 from params.rparams import projection_to_tb
 
 
@@ -161,30 +160,3 @@ def symm_guess_mf(bloch_family: list[dict], scale: float = 1) -> _tb_type:
     mf_guess = projection_to_tb(random_coeffs, ham_basis)
 
     return mf_guess
-
-
-def fermi_energy(
-    tb: _tb_type, filling: float, nk: int = 100
-):  # Check where this is called.
-    """
-    Calculate the Fermi energy of a given tight-binding dictionary.
-
-    Parameters
-    ----------
-    tb :
-        Tight-binding dictionary.
-    filling :
-        Number of particles in a unit cell.
-        Used to determine the Fermi level.
-    nk :
-        Number of k-points in a grid to sample the Brillouin zone along each dimension.
-        If the system is 0-dimensional (finite), this parameter is ignored.
-
-    Returns
-    -------
-    :
-        Fermi energy.
-    """
-    kham = tb_to_kgrid(tb, nk)
-    vals = np.linalg.eigvalsh(kham)
-    return fermi_on_kgrid(vals, filling)
