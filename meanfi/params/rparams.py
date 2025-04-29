@@ -170,7 +170,7 @@ def flatten_projection(coeffs: dict):
     """
     coeffs = sort_dict(coeffs)
 
-    return list(chain.from_iterable(coeffs.values()))
+    return np.array(list(chain.from_iterable(coeffs.values())))
 
 
 def unflatten_projection(flat_coeffs: list, basis_dict: dict):
