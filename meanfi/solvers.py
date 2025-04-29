@@ -79,7 +79,7 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
 
 
 def cost_density_symmetric(
-    rho_params: dict, model: Model, Q_basis: dict, nk: int = 20
+    rho_params: dict, model: Model, ham_basis: dict, nk: int = 20
 ) -> np.ndarray:
     """Defines the cost function for root solver.
 
@@ -91,8 +91,10 @@ def cost_density_symmetric(
     rho_params :
         1D real array that parametrises the density matrix reduced to the
         hoppings (keys) present in h_int.
-    Model :
+    model :
         Interacting tight-binding problem definition.
+    ham_basis :
+        Dictionary containing basis matrices for the Hamiltonian.
     nk :
         Number of k-points in a grid to sample the Brillouin zone along each dimension.
         If the system is 0-dimensional (finite), this parameter is ignored.
@@ -103,17 +105,15 @@ def cost_density_symmetric(
         1D real array that is the difference between the computed and inputted
         density matrix parametrisations reduced to the hoppings present in h_int.
     """
-    rho_params = unflatten_projection(rho_params, Q_basis)
-    rho_reduced = projection_to_tb(rho_params, Q_basis)
-    rho_new = model.density_matrix(rho_reduced, nk=nk)
+    rho_params = unflatten_projection(rho_params, ham_basis)
+    rho_reduced = projection_to_tb(rho_params, ham_basis)
+    rho_new = model.density_matrix_iteration(rho_reduced, nk=nk)
 
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
-    rho_params_new = tb_to_projection(rho_reduced_new, Q_basis)
+    rho_params_new = tb_to_projection(rho_reduced_new, ham_basis)
     rho_params_new = flatten_projection(rho_params_new)
 
-    return np.array(rho_params_new) - np.array(
-        flatten_projection(rho_params)
-    )  # Add the arrayification
+    return rho_params_new - flatten_projection(rho_params)
 
 
 def solver_mf(
@@ -256,7 +256,7 @@ def solver_density_symmetric(
 
     rho_params = flatten_projection(tb_to_projection(rho_guess_reduced, ham_basis))
 
-    f = partial(cost_density_symmetric, model=model, Q_basis=ham_basis, nk=nk)
+    f = partial(cost_density_symmetric, model=model, ham_basis=ham_basis, nk=nk)
     rho_result = projection_to_tb(
         unflatten_projection(optimizer(f, rho_params, **optimizer_kwargs), ham_basis),
         ham_basis,
