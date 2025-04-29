@@ -14,9 +14,9 @@ from params.rparams import (
 )
 from tb.tb import add_tb, _tb_type
 from tb.transforms import ham_fam_to_ort_basis
-from mf import density_matrix, meanfield
+from mf import density_matrix, meanfield, fermi_level
 from model import Model
-from tb.utils import fermi_energy, symm_guess_mf
+from tb.utils import symm_guess_mf
 
 
 def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
@@ -153,7 +153,14 @@ def solver_mf(
     result = params_to_tb(
         optimizer(f, mf_params, **optimizer_kwargs), list(model.h_int), shape
     )
-    fermi = fermi_energy(add_tb(model.h_0, result), model.filling, nk=nk)
+    fermi = fermi_level(
+        add_tb(model.h_0, result),
+        model.charge_op,
+        model.target_charge,
+        model.kT,
+        nk,
+        model._ndim,
+    )
     return add_tb(result, {model._local_key: -fermi * np.eye(model._ndof)})
 
 
@@ -199,7 +206,14 @@ def solver_density(
         optimizer(f, rho_params, **optimizer_kwargs), list(model.h_int), shape
     )
     mf_result = meanfield(rho_result, model.h_int)
-    fermi = fermi_energy(add_tb(model.h_0, mf_result), model.filling, nk=nk)
+    fermi = fermi_level(
+        add_tb(model.h_0, mf_result),
+        model.charge_op,
+        model.target_charge,
+        model.kT,
+        nk,
+        model._ndim,
+    )
     return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
 
 
@@ -263,7 +277,14 @@ def solver_density_symmetric(
     # Not sure after this yet
     mf_result = meanfield(rho_result, model.h_int)
     # This should be changed.
-    fermi = fermi_energy(add_tb(model.h_0, mf_result), model.target_charge, nk=nk)
+    fermi = fermi_level(
+        add_tb(model.h_0, mf_result),
+        model.charge_op,
+        model.target_charge,
+        model.kT,
+        nk,
+        model._ndim,
+    )
     return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
 
 
