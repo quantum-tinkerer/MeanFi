@@ -125,15 +125,17 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
 
 
 def tb_to_ham_fam(
-    hams: tuple, symmetries: list
+    hoppings: list, ndof: int, symmetries: list
 ) -> list:  # Give an example and change this to accept the hoppings directly.
     """Generate a Hamiltonian Family for a given tight-binding dictionary.
     This function assumes a single site per unit cell, hence the `hop_vecs.append(("a", "a", vec))`.
 
     Parameters
     ----------
-    hams: tuple
-        A tuple of `_tb_type` Hamiltonians.
+    hoppings: list
+        A list of hoppings for the Hamiltonian family you want to generate.
+    ndof: int
+        The number of degrees of freedom in the model.
     symmteries: list
         A list of symmetries from `qsymm`.
 
@@ -145,10 +147,6 @@ def tb_to_ham_fam(
     -------
 
     """
-    hoppings = list(set().union(*hams) if len(hams) > 1 else hams[0].keys())
-
-    ndof = hams[0][next(iter(hams[0]))].shape[-1]
-
     hop_vecs = []
     for vec in hoppings:
         hop_vecs.append(("a", "a", vec))

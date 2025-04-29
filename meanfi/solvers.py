@@ -353,7 +353,13 @@ PHS = qsymm.particle_hole(ndim, tau_x)
 symmetries = [PHS]
 
 model = Model(h_0, h_int, Q, target_Q, kT)
-ham_fam = tb_to_ham_fam((h_0, h_int), symmetries)
+hams = (h_0, h_int)
+
+ndof = 2  # This is different because we generated the superconducting tb with ndof 1 per particle. (but there are two particles)
+hoppings = list(
+    h_int.keys()
+)  # I believe this should still contain all hoppings, including h_0
+ham_fam = tb_to_ham_fam(hoppings, ndof, symmetries)
 
 print(h_0)
 print(h_int)
