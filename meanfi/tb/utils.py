@@ -3,10 +3,11 @@ import numpy as np
 
 from tb.tb import _tb_type
 from mf import fermi_on_kgrid
-from tb.transforms import tb_to_kgrid
+from tb.transforms import tb_to_kgrid, ham_fam_to_ort_basis
+from params.rparams import projection_to_tb
 
 
-def guess_tb(
+def generate_tb_vals(
     tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 1
 ) -> _tb_type:
     """Generate hermitian guess tight-binding dictionary.
@@ -59,6 +60,65 @@ def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
+def normal_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
+    """Generate tight-binding Hamiltonian dictionary with hoppings up to a maximum `hopdist` in `ndim` dimensions.
+
+    Parameters
+    ----------
+    `hopdist: int`
+        Maximum hopping distance along each dimension.
+    `ndim: int`
+        Dimensions of the tight-binding dictionary.
+    `ndof: int`
+        Number of internal degrees of freedom within the unit cell.
+    `scale: float`
+        This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
+
+    Returns
+    -------
+    :
+        A random Hermitian tight-binding dictionary.
+    """
+    # Generate the proper number of keys for all the possible hoppings.
+    tb_keys = generate_tb_keys(hopdist, ndim)
+
+    # Generate the dictionary for those keys.
+    h_dict = generate_tb_vals(tb_keys, ndof, scale)
+
+    return h_dict
+
+
+def superc_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
+    """Generate tight-binding superconducting Hamiltonian dictionary with hoppings up to a maximum `hopdist` in `ndim` dimensions.
+
+    Parameters
+    ----------
+    `hopdist: int`
+        Maximum distance along each dimension.
+    `ndim: int`
+        Dimensions of the tight-binding dictionary.
+    `ndof: int`
+        Number of internal degrees of freedom within the unit cell per particle. (Electrons and holes)
+    `scale: float`
+        This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
+
+    Returns
+    -------
+    :
+        A random hermitian superconducting tight-binding dictionary. (Values with shape `(2 * ndof, 2 * ndof)`)
+    """
+    # Generate h_0
+    h_0 = normal_tb(hopdist, ndim, ndof * 2, scale)
+    tau_x = np.kron(np.array([[0, 1], [1, 0]]), np.eye(ndof))
+
+    # Combine these into a superconducting Hamiltonian.
+    h_sc_dict = {}
+    for key in h_0:
+        h_sc_dict[key] = h_0[key] - (tau_x @ h_0[key].conj() @ tau_x)
+
+    return h_sc_dict
+
+
 def guess_coeffs(tb_basis: dict, scale: float = 1) -> dict:
     """Generate guess coefficient dictionary.
 
@@ -80,6 +140,27 @@ def guess_coeffs(tb_basis: dict, scale: float = 1) -> dict:
         guess[key] = scale * np.random.rand(len(tb_basis[key]))
 
     return guess
+
+
+def symm_guess_mf(bloch_family: list[dict], scale: float = 1) -> _tb_type:
+    """Generates a random meanfield guess using the provided `bloch_family`.
+
+    Parameters
+    ----------
+    bloch_family : list[dict]
+        A list of `qsymm` `BlochModels` generated with `qsymm.bloch_family(..., bloch_model=True)` or `meanfi.tb.transforms.tb_to_ham_fam`.
+    scale: float
+        Scale of the random guess.
+
+    Returns
+    -------
+        A random meanfield guess.
+    """
+    ham_basis = ham_fam_to_ort_basis(bloch_family)
+    random_coeffs = guess_coeffs(ham_basis, scale)
+    mf_guess = projection_to_tb(random_coeffs, ham_basis)
+
+    return mf_guess
 
 
 def fermi_energy(

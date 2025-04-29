@@ -16,7 +16,7 @@ from tb.tb import add_tb, _tb_type
 from tb.transforms import ham_fam_to_ort_basis
 from mf import density_matrix, meanfield
 from model import Model
-from tb.utils import fermi_energy, guess_coeffs
+from tb.utils import fermi_energy, symm_guess_mf
 
 
 def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
@@ -206,7 +206,7 @@ def solver_density(
 def solver_density_symmetric(
     model: Model,
     bloch_family: list[dict],
-    guess: dict = None,
+    guess: _tb_type = None,
     scale: float = 1,
     nk: int = 20,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
@@ -221,8 +221,8 @@ def solver_density_symmetric(
         Interacting tight-binding problem definition.
     bloch_family : list[dict]
         A list of `qsymm` `BlochModels` generated with `qsymm.bloch_family(..., bloch_model=True)` or `meanfi.tb.transforms.tb_to_ham_fam`.
-    guess : dict
-        An initial guess for the mean-field correction. Should be a dictionary of arrays of coefficients. One coefficient per basis matrix in the `bloch_family`.
+    guess : _tb_type
+        An initial guess for the mean-field correction.
     scale: float
         Scale of the random guess.
     nk : int
@@ -239,14 +239,12 @@ def solver_density_symmetric(
     :
         Mean-field correction solution in the tight-binding dictionary format.
     """
-    ham_basis = ham_fam_to_ort_basis(bloch_family)
-
     if guess == None:
-        random_coeffs = guess_coeffs(ham_basis, scale)
-
-        mf_guess = projection_to_tb(random_coeffs, ham_basis)
+        mf_guess = symm_guess_mf(bloch_family, scale)
     else:
-        mf_guess = projection_to_tb(guess, ham_basis)
+        mf_guess = guess
+
+    ham_basis = ham_fam_to_ort_basis(bloch_family)
 
     rho_guess = density_matrix(
         add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
@@ -272,76 +270,16 @@ def solver_density_symmetric(
 solver = solver_density
 
 # %%
-from tb.utils import guess_tb, generate_tb_keys
+from tb.utils import superc_tb
 import qsymm
 from tb.transforms import tb_to_ham_fam
-
-
-def gen_normal_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
-    """Generate tight-binding Hamiltonian dictionary with hoppings up to a maximum `hopdist` in `ndim` dimensions.
-
-    Parameters
-    ----------
-    `hopdist: int`
-        Maximum distance along each dimension.
-    `ndim: int`
-        Dimensions of the tight-binding dictionary.
-    `ndof: int`
-        Number of internal degrees of freedom within the unit cell.
-    `scale: float`
-        This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
-
-    Returns
-    -------
-    :
-        A random Hermitian tight-binding dictionary.
-    """
-    # Generate the proper number of keys for all the possible hoppings.
-    tb_keys = generate_tb_keys(hopdist, ndim)
-
-    # Generate the dictionary for those keys.
-    h_dict = guess_tb(tb_keys, ndof, scale)
-
-    return h_dict
-
-
-def gen_superc_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
-    """Generate tight-binding superconducting Hamiltonian dictionary with hoppings up to a maximum `hopdist` in `ndim` dimensions.
-
-    Parameters
-    ----------
-    `hopdist: int`
-        Maximum distance along each dimension.
-    `ndim: int`
-        Dimensions of the tight-binding dictionary.
-    `ndof: int`
-        Number of internal degrees of freedom within the unit cell.
-    `scale: float`
-        This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
-
-    Returns
-    -------
-    :
-        A random hermitian superconducting tight-binding dictionary.
-    """
-    # Generate h_0
-    h_0 = gen_normal_tb(hopdist, ndim, ndof * 2, scale)
-    tau_x = np.kron(np.array([[0, 1], [1, 0]]), np.eye(ndof))
-
-    # Combine these into a superconducting Hamiltonian.
-    h_sc_dict = {}
-    for key in h_0:
-        h_sc_dict[key] = h_0[key] - (tau_x @ h_0[key].conj() @ tau_x)
-
-    return h_sc_dict
-
 
 cutoff = 1
 ndim = 1
 ndof = 1
 
-h_0 = gen_superc_tb(cutoff, ndim, ndof)
-h_int = gen_superc_tb(cutoff, ndim, ndof)
+h_0 = superc_tb(cutoff, ndim, ndof)
+h_int = superc_tb(cutoff, ndim, ndof)
 tau_z = np.array([[1, 0], [0, -1]])
 Q = np.kron(tau_z, np.eye(ndof))
 target_Q = 0
