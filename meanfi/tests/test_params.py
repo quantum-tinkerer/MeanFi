@@ -2,14 +2,14 @@
 import pytest
 import numpy as np
 from meanfi.params.rparams import (
-    rparams_to_tb,
-    tb_to_rparams,
-    flatten_qparams,
-    unflatten_qparams,
+    params_to_tb,
+    tb_to_params,
+    flatten_projection,
+    unflatten_projection,
 )
 from meanfi.tb.tb import compare_dicts
 from meanfi.tb.utils import generate_tb_keys, guess_coeffs
-from meanfi import guess_tb
+from meanfi import generate_tb_vals
 
 repeat_number = 10
 
@@ -24,10 +24,10 @@ def test_parametrisation(seed):
         ndof = np.random.randint(1, 10)
 
         keys = generate_tb_keys(cutoff, ndim)
-        mf_guess = guess_tb(keys, ndof)
+        mf_guess = generate_tb_vals(keys, ndof)
 
-        mf_params = tb_to_rparams(mf_guess)
-        mf_new = rparams_to_tb(mf_params, list(mf_guess), ndof)
+        mf_params = tb_to_params(mf_guess)
+        mf_new = params_to_tb(mf_params, list(mf_guess), ndof)
         compare_dicts(mf_guess, mf_new)
 
         basis_guess = {}
@@ -36,6 +36,6 @@ def test_parametrisation(seed):
 
         coeff_guess = guess_coeffs(basis_guess)
 
-        flat_coeffs = flatten_qparams(coeff_guess)
-        new_coeffs = unflatten_qparams(flat_coeffs, basis_guess)
+        flat_coeffs = flatten_projection(coeff_guess)
+        new_coeffs = unflatten_projection(flat_coeffs, basis_guess)
         compare_dicts(coeff_guess, new_coeffs)

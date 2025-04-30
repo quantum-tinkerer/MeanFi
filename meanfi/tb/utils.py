@@ -1,9 +1,9 @@
 from itertools import product
 import numpy as np
 
-from tb.tb import _tb_type
-from tb.transforms import ham_fam_to_ort_basis
-from params.rparams import projection_to_tb
+from meanfi.tb.tb import _tb_type
+from meanfi.tb.transforms import ham_fam_to_ort_basis
+from meanfi.params.rparams import projection_to_tb
 from qsymm import BlochModel
 
 

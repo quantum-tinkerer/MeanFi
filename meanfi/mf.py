@@ -1,8 +1,8 @@
 import numpy as np
 
 from scipy.optimize import minimize
-from tb.tb import add_tb, _tb_type
-from tb.transforms import tb_to_kgrid, kgrid_to_tb
+from meanfi.tb.tb import add_tb, _tb_type
+from meanfi.tb.transforms import tb_to_kgrid, kgrid_to_tb
 
 
 def fermi_minimizer_helper(vals: np.ndarray, fermi: float) -> float:

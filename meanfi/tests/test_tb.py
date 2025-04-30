@@ -6,7 +6,7 @@ import pytest
 from scipy.fftpack import ifftn
 
 from meanfi.tb.tb import compare_dicts
-from meanfi.tb.utils import guess_tb, generate_tb_keys
+from meanfi.tb.utils import generate_tb_vals, generate_tb_keys
 from meanfi.tb.transforms import ifftn_to_tb, tb_to_kgrid, tb_to_kfunc
 
 repeat_number = 10
@@ -38,7 +38,7 @@ def test_kfunc(seed):
     ndof = np.random.randint(2, 10)
     nk = np.random.randint(3, 10)
     random_hopping_vecs = generate_tb_keys(cutoff, dim)
-    random_tb = guess_tb(random_hopping_vecs, ndof, scale=1)
+    random_tb = generate_tb_vals(random_hopping_vecs, ndof, scale=1)
 
     kfunc = tb_to_kfunc(random_tb)
     kham = tb_to_kgrid(random_tb, nk=nk)

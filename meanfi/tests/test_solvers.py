@@ -4,7 +4,7 @@ from scipy.optimize._nonlin import NoConvergence
 
 from meanfi import (
     Model,
-    guess_tb,
+    generate_tb_vals,
     add_tb,
     density_matrix,
 )
@@ -25,10 +25,10 @@ filling = ndof / 2
 def test_solver_consistency(seed):
     np.random.seed(seed)
     keys = generate_tb_keys(cutoff, ndim)
-    h0 = guess_tb(keys, ndof)
-    h_int = guess_tb(keys, ndof)
+    h0 = generate_tb_vals(keys, ndof)
+    h_int = generate_tb_vals(keys, ndof)
     h_int[keys[len(keys) // 2]] += U0
-    guess = guess_tb(frozenset(h_int), ndof)
+    guess = generate_tb_vals(frozenset(h_int), ndof)
     _model = Model(h0, h_int, filling=filling)
 
     def solve_for_rho(model, solver):
@@ -47,7 +47,7 @@ def test_solver_consistency(seed):
         rho_dens = solve_for_rho(_model, solver_density)
         rho_mf = solve_for_rho(_model, solver_mf)
     except NoConvergence:
-        guess = guess_tb(frozenset(h_int), ndof)
+        guess = generate_tb_vals(frozenset(h_int), ndof)
         rho_dens = solve_for_rho(_model, solver_density)
         rho_mf = solve_for_rho(_model, solver_mf)
 

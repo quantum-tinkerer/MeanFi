@@ -5,9 +5,9 @@ import pytest
 from meanfi.tests.test_graphene import compute_gap
 from meanfi import (
     Model,
-    fermi_energy,
+    fermi_level,
     solver,
-    guess_tb,
+    generate_tb_vals,
     add_tb,
 )
 
@@ -36,11 +36,11 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
         h_int = {
             (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
         }
-        guess = guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
+        guess = generate_tb_vals(frozenset(h_int), len(list(h_0.values())[0]))
         full_model = Model(h_0, h_int, filling=2)
         mf_sol = solver(full_model, guess, nk=nk)
         mf_full = add_tb(h_0, mf_sol)
-        EF = fermi_energy(mf_full, filling=2, nk=nk)
+        EF = fermi_level(mf_full, filling=2, nk=nk)
         _gap = compute_gap(mf_full, fermi_energy=EF, nk=nk_dense)
         gaps.append(_gap)
 

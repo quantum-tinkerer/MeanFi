@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from meanfi.mf import add_tb, density_matrix
-from meanfi.tb.utils import generate_tb_keys, guess_tb
+from meanfi.tb.utils import generate_tb_keys, generate_tb_vals
 
 repeat_number = 5
 
@@ -19,7 +19,7 @@ def minimizer_offset(
     f_random: float,
 ):
     keys = generate_tb_keys(cutoff, ndim)
-    h_0 = guess_tb(keys, ndof)
+    h_0 = generate_tb_vals(keys, ndof)
 
     f_level = density_matrix(h_0, filling, nk, kT)[1]
 
