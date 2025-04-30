@@ -52,9 +52,6 @@ skip = "*.ipynb, *.cls,*.bst,*.bib,*.lock"
 ignore-words-list = "multline, ket, bra, braket, nwo, mater"
 
 [tool.pixi.project]
-name = "scattering-hotis"
-version = "0.1.0"
-description = "Add a short description here"
 channels = ["https://prefix.dev/conda-forge"]
 platforms = ["linux-64", "osx-64",  "win-64"] #"osx-arm64",
 
