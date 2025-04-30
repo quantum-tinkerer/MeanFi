@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 from typing import Callable
 from scipy.fftpack import ifftn
-from qsymm import bloch_family
+from qsymm import bloch_family, BlochModel
 
 from collections import defaultdict
 from tb.tb import _tb_type
@@ -125,8 +125,8 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
 
 
 def tb_to_ham_fam(
-    hoppings: list, ndof: int, symmetries: list
-) -> list:  # Give an example and change this to accept the hoppings directly.
+    hoppings: list[tuple[int, ...]], ndof: int, symmetries: list
+) -> list[BlochModel]:
     """Generate a Hamiltonian Family for a given tight-binding dictionary.
     This function assumes a single site per unit cell, hence the `hop_vecs.append(("a", "a", vec))`.
 
@@ -142,10 +142,6 @@ def tb_to_ham_fam(
     Returns
     -------
     A basis of all allowed Hamiltonians for the chosen symmetries and hoppings in the form of a `qsymm` list of `BlochModel`s.
-
-    Example
-    -------
-
     """
     hop_vecs = []
     for vec in hoppings:

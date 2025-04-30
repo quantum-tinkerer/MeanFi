@@ -4,6 +4,7 @@ import numpy as np
 from tb.tb import _tb_type
 from tb.transforms import ham_fam_to_ort_basis
 from params.rparams import projection_to_tb
+from qsymm import BlochModel
 
 
 def generate_tb_vals(
@@ -64,13 +65,13 @@ def normal_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
 
     Parameters
     ----------
-    `hopdist: int`
+    hopdist: int
         Maximum hopping distance along each dimension.
-    `ndim: int`
+    ndim: int
         Dimensions of the tight-binding dictionary.
-    `ndof: int`
+    ndof: int
         Number of internal degrees of freedom within the unit cell.
-    `scale: float`
+    scale: float
         This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
 
     Returns
@@ -92,13 +93,13 @@ def superc_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
 
     Parameters
     ----------
-    `hopdist: int`
+    hopdist: int
         Maximum distance along each dimension.
-    `ndim: int`
+    ndim: int
         Dimensions of the tight-binding dictionary.
-    `ndof: int`
+    ndof: int
         Number of internal degrees of freedom within the unit cell per particle. (Electrons and holes)
-    `scale: float`
+    scale: float
         This scales the random values that will be in the Hamiltonian. (`default = 1.0`)
 
     Returns
@@ -133,21 +134,18 @@ def guess_coeffs(tb_basis: dict, scale: float = 1) -> dict:
     :
         Guess coefficient dictionary with a random guess coefficient for every basis matrix in `tb_basis`.
     """
-    guess = {}
-
-    for key in tb_basis:
-        guess[key] = scale * np.random.rand(len(tb_basis[key]))
+    guess = {key: scale * np.random.rand(len(tb_basis[key])) for key in tb_basis}
 
     return guess
 
 
-def symm_guess_mf(bloch_family: list[dict], scale: float = 1) -> _tb_type:
+def symm_guess_mf(bloch_family: list[BlochModel], scale: float = 1) -> _tb_type:
     """Generates a random meanfield guess using the provided `bloch_family`.
 
     Parameters
     ----------
-    bloch_family : list[dict]
-        A list of `qsymm` `BlochModels` generated with `qsymm.bloch_family(..., bloch_model=True)` or `meanfi.tb.transforms.tb_to_ham_fam`.
+    bloch_family : list[BlochModel]
+        A list of `qsymm` `BlochModel`s generated with `qsymm.bloch_family(..., bloch_model=True)` or `meanfi.tb.transforms.tb_to_ham_fam`.
     scale: float
         Scale of the random guess.
 

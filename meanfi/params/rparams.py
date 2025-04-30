@@ -123,12 +123,12 @@ def tb_to_projection(ham: _tb_type, basis_dict: dict) -> dict:
     A dictionary with the same hoppings as `ham` and `basis_dict` with an array of coefficients
       equal to the number of matrices in the basis per hopping.
     """
-    coeffs = {}
-
-    for hopping in ham:
-        coeffs[hopping] = np.array(
+    coeffs = {
+        hopping: np.array(
             [np.trace(basis.conj().T @ ham[hopping]) for basis in basis_dict[hopping]]
         )
+        for hopping in ham
+    }
 
     return coeffs
 
@@ -148,10 +148,10 @@ def projection_to_tb(coeffs: dict, basis_dict: dict) -> _tb_type:
     -------
     A tight-binding `_tb_type` Hamiltonian.
     """
-    ham = {}
-
-    for hopping, coeff in coeffs.items():
-        ham[hopping] = np.tensordot(coeff, basis_dict[hopping], 1)
+    ham = {
+        hopping: np.tensordot(coeff, basis_dict[hopping], 1)
+        for hopping, coeff in coeffs.items()
+    }
 
     return ham
 

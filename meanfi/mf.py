@@ -23,11 +23,11 @@ def fermi_minimizer_helper(vals: np.ndarray, fermi: float) -> float:
     """
     vals = vals.flatten()
 
-    if fermi >= np.max(vals) or fermi <= np.min(vals):
-        closest_val = vals[np.argmin(np.abs(vals - fermi))]
-        return fermi - closest_val
-    else:
+    if fermi < np.max(vals) and fermi > np.min(vals):
         return 0
+
+    closest_val = vals[np.argmin(np.abs(vals - fermi))]
+    return fermi - closest_val
 
 
 def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
@@ -50,18 +50,18 @@ def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
     if kT == 0:
         fd = E < fermi
         return fd
-    else:
-        fd = np.empty_like(E)
-        exponent = (E - fermi) / kT
-        sign_mask = E >= fermi
 
-        pos_exp = np.exp(-exponent[sign_mask])
-        neg_exp = np.exp(exponent[~sign_mask])
+    fd = np.empty_like(E)
+    exponent = (E - fermi) / kT
+    sign_mask = E >= fermi
 
-        fd[sign_mask] = pos_exp / (pos_exp + 1)
-        fd[~sign_mask] = 1 / (neg_exp + 1)
+    pos_exp = np.exp(-exponent[sign_mask])
+    neg_exp = np.exp(exponent[~sign_mask])
 
-        return fd
+    fd[sign_mask] = pos_exp / (pos_exp + 1)
+    fd[~sign_mask] = 1 / (neg_exp + 1)
+
+    return fd
 
 
 def fermi_on_kgrid(vals: np.ndarray, target_charge: float) -> float:
@@ -69,10 +69,10 @@ def fermi_on_kgrid(vals: np.ndarray, target_charge: float) -> float:
 
     Parameters
     ----------
-    `vals: np.ndarray` :
+    vals: np.ndarray
         Eigenvalues of a hamiltonian sampled on a k-point grid with shape (nk, nk, ..., ndof, ndof),
         where ndof is number of internal degrees of freedom.
-    `target_charge: float` :
+    target_charge: float
         Target charge of a unit cell.
         Used to determine the Fermi level.
 
@@ -228,7 +228,7 @@ def charge_difference_nsc(
         The absolute difference between calculated charge and target charge.
     """
     charge = np.sum(fermi_dirac(vals, kT, fermi)) / (nk**ndim)
-    +fermi_minimizer_helper(vals, fermi)
+    charge += fermi_minimizer_helper(vals, fermi)
     difference = charge - target_charge
 
     return np.abs(difference)
@@ -339,8 +339,7 @@ def construct_rho(vals: np.ndarray, vecs: np.ndarray, kT: float) -> np.ndarray:
     """
     occ_distribution = np.sqrt(fermi_dirac(vals, kT, 0))
     occ_distribution = occ_distribution[..., np.newaxis]
-    occ_vecs = vecs
-    occ_vecs *= np.moveaxis(occ_distribution, -1, -2)
+    occ_vecs = vecs * np.moveaxis(occ_distribution, -1, -2)
     _density_matrix = occ_vecs @ np.moveaxis(occ_vecs, -1, -2).conj()
 
     return _density_matrix
@@ -418,16 +417,13 @@ def density_matrix(
     """
     ndim = len(list(ham)[0])
 
+    _density_matrix_kgrid, fermi = density_matrix_kgrid(
+        ham, charge_op, target_charge, kT, nk, ndim
+    )
     if ndim > 0:
-        _density_matrix_kgrid, fermi = density_matrix_kgrid(
-            ham, charge_op, target_charge, kT, nk, ndim
-        )
         return kgrid_to_tb(_density_matrix_kgrid), fermi
     else:
-        _density_matrix, fermi = density_matrix_kgrid(
-            ham, charge_op, target_charge, kT, nk, ndim
-        )
-        return {(): _density_matrix}, fermi
+        return {(): _density_matrix_kgrid}, fermi
 
 
 def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:

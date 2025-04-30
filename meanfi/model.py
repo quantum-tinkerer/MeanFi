@@ -20,7 +20,7 @@ def _charge_op_check(Q, ndof, target_charge):
         raise ValueError(f"Operator shape does not match expected: ({ndof}, {ndof})")
 
     if not isinstance(target_charge, (float, int)):
-        raise ValueError("Target charge must be a float or an integer.")
+        raise TypeError("Target charge must be a float or an integer.")
 
     Q_vals = np.linalg.eigvalsh(Q)
     Q_pos = Q_vals[Q_vals > 0].sum()
