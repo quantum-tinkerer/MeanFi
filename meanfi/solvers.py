@@ -220,8 +220,7 @@ def solver_density(
 def solver_density_symmetric(
     model: Model,
     bloch_family: list[dict],
-    guess: _tb_type = None,
-    scale: float = 1,
+    mf_guess: _tb_type,
     nk: int = 20,
     optimizer: Optional[Callable] = scipy.optimize.anderson,
     optimizer_kwargs: Optional[dict[str, str]] = {"M": 0, "line_search": "wolfe"},
@@ -237,8 +236,6 @@ def solver_density_symmetric(
         A list of `qsymm` `BlochModels` generated with `qsymm.bloch_family(..., bloch_model=True)` or `meanfi.tb.transforms.tb_to_ham_fam`.
     guess : _tb_type
         An initial guess for the mean-field correction.
-    scale: float
-        Scale of the random guess.
     nk : int
         Number of k-points in a grid to sample the Brillouin zone along each dimension.
         If the system is 0-dimensional (finite), this parameter is ignored.
@@ -253,11 +250,6 @@ def solver_density_symmetric(
     :
         Mean-field correction solution in the tight-binding dictionary format.
     """
-    if guess == None:
-        mf_guess = symm_guess_mf(bloch_family, scale)
-    else:
-        mf_guess = guess
-
     ham_basis = ham_fam_to_ort_basis(bloch_family)
 
     rho_guess = density_matrix(
@@ -276,7 +268,6 @@ def solver_density_symmetric(
 
     # Not sure after this yet
     mf_result = meanfield(rho_result, model.h_int)
-    # This should be changed.
     fermi = fermi_level(
         add_tb(model.h_0, mf_result),
         model.charge_op,
@@ -319,10 +310,13 @@ hoppings = list(
     h_int.keys()
 )  # I believe this should still contain all hoppings, including h_0
 ham_fam = tb_to_ham_fam(hoppings, ndof, symmetries)
+mf_guess = symm_guess_mf(
+    ham_fam
+)  # This function causes it to orthogonalize twice now, but since there are other ways of creating the guess, I think it's fine.
 
 print(h_0)
 print(h_int)
 
-print(solver_density_symmetric(model, ham_fam, nk=50))
+print(solver_density_symmetric(model, ham_fam, mf_guess, nk=50))
 
 # %%
