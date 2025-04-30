@@ -111,7 +111,7 @@ def superc_tb(hopdist: int, ndim: int, ndof: int, scale: float = 1) -> _tb_type:
     h_0 = normal_tb(hopdist, ndim, ndof * 2, scale)
     tau_x = np.kron(np.array([[0, 1], [1, 0]]), np.eye(ndof))
 
-    # Combine these into a superconducting Hamiltonian.
+    # Combine into a superconducting Hamiltonian.
     h_sc_dict = {}
     for key in h_0:
         h_sc_dict[key] = h_0[key] - (tau_x @ h_0[key].conj() @ tau_x)
