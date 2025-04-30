@@ -280,17 +280,14 @@ def fermi_level(
 
     # Three different ways of finding the Fermi-level for different systems.
     if (charge_op == np.eye(charge_op.shape[0])).all():
-        vals, vecs = np.linalg.eigh(tb_to_kgrid(ham, nk))
+        vals = np.linalg.eigvalsh(tb_to_kgrid(ham, nk))
         if kT > 0:  # Non-Superconducting and finite temperature.
             result = minimize(
                 charge_difference_nsc,
                 fermi_0,
                 args=(vals, kT, target_charge, nk, ndim),
                 method="Nelder-Mead",
-                options={
-                    "fatol": kT / 2,
-                    "xatol": kT / 2,
-                },  # Look into this, we only care about xtol.
+                options={"fatol": 1e-10, "xatol": kT / 2},
             )
             opt_fermi = float(result.x)
         else:  # Non-Superconducting and zero temperature.
@@ -315,7 +312,7 @@ def fermi_level(
             fermi_0,
             args=(ham, charge_op, target_charge, kT, nk, ndim, einsum_path),
             method="Nelder-Mead",
-            options={"fatol": kT / 2, "xatol": kT / 2},  # These need to be changed
+            options={"fatol": 1e-10, "xatol": kT / 2},
         )
         opt_fermi = float(result.x)
 
