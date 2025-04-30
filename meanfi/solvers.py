@@ -4,7 +4,7 @@ import numpy as np
 import scipy
 from typing import Optional, Callable
 
-from params.rparams import (
+from meanfi.params.rparams import (
     params_to_tb,
     tb_to_params,
     projection_to_tb,
@@ -12,11 +12,11 @@ from params.rparams import (
     flatten_projection,
     unflatten_projection,
 )
-from tb.tb import add_tb, _tb_type
-from tb.transforms import ham_fam_to_ort_basis
-from mf import density_matrix, meanfield, fermi_level
-from model import Model
-from tb.utils import symm_guess_mf
+from meanfi.tb.tb import add_tb, _tb_type
+from meanfi.tb.transforms import ham_fam_to_ort_basis
+from meanfi.mf import density_matrix, meanfield, fermi_level
+from meanfi.model import Model
+from meanfi.tb.utils import symm_guess_mf
 
 
 def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:

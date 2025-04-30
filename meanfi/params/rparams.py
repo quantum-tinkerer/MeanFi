@@ -1,8 +1,8 @@
 import numpy as np
 
 from itertools import chain
-from tb.tb import _tb_type
-from tb.transforms import sort_dict
+from meanfi.tb.tb import _tb_type
+from meanfi.tb.transforms import sort_dict
 
 
 def complex_to_real(z: np.ndarray) -> np.ndarray:

@@ -5,7 +5,7 @@ import pytest
 from meanfi import (
     Model,
     solver,
-    guess_tb,
+    generate_tb_vals,
     scale_tb,
     add_tb,
     expectation_value,
@@ -45,13 +45,13 @@ def test_mexican_hat(seed):
     h_ints = []
     for ndim in np.arange(4):
         keys = generate_tb_keys(cutoff, ndim)
-        h0s.append(guess_tb(keys, ndof))
-        h_int = guess_tb(keys, ndof)
+        h0s.append(generate_tb_vals(keys, ndof))
+        h_int = generate_tb_vals(keys, ndof)
         h_int[keys[len(keys) // 2]] += U0
         h_ints.append(h_int)
 
     for h0, h_int in zip(h0s, h_ints):
-        guess = guess_tb(frozenset(h_int), ndof)
+        guess = generate_tb_vals(frozenset(h_int), ndof)
         _model = Model(h0, h_int, filling=filling)
         mf_sol_groundstate = solver(
             _model, mf_guess=guess, nk=nk, optimizer_kwargs={"M": 0}

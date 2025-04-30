@@ -5,7 +5,7 @@ from scipy.fftpack import ifftn
 from qsymm import bloch_family, BlochModel
 
 from collections import defaultdict
-from tb.tb import _tb_type
+from meanfi.tb.tb import _tb_type
 
 
 def sort_dict(d: dict) -> dict:

@@ -5,7 +5,7 @@ import kwant
 import itertools as it
 
 from meanfi.kwant_helper.utils import builder_to_tb, tb_to_builder
-from meanfi.tb.utils import generate_tb_keys, guess_tb
+from meanfi.tb.utils import generate_tb_keys, generate_tb_vals
 from meanfi.tb.tb import compare_dicts
 
 repeat_number = 3
@@ -37,7 +37,7 @@ def test_kwant_conversion(seed):
         )
 
     # generate random and generate builder from it
-    random_tb = guess_tb(keyList, sum(ndof_per_site))
+    random_tb = generate_tb_vals(keyList, sum(ndof_per_site))
     random_builder = tb_to_builder(
         random_tb, list(dummy_tb.sites()), dummy_tb.symmetry.periods
     )
