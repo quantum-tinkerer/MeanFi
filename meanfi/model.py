@@ -82,9 +82,9 @@ class Model:
         self,
         h_0: _tb_type,
         h_int: _tb_type,
-        charge_op: np.ndarray,
         target_charge: float,
-        kT: float,
+        charge_op: np.ndarray = None,
+        kT: float = 0,
     ) -> None:
         _tb_type_check(h_0)
         _check_hermiticity(h_0)
@@ -103,6 +103,8 @@ class Model:
         self._ndof = h_0[_first_key].shape[0]
         self._local_key = tuple(np.zeros((self._ndim,), dtype=int))
 
+        if charge_op is None:
+            charge_op = np.eye(self._ndof)
         _charge_op_check(charge_op, self._ndof, target_charge)
         self.target_charge = target_charge
         self.charge_op = charge_op
