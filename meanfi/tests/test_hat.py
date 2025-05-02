@@ -22,18 +22,20 @@ def total_energy(ham_tb, rho_tb):
 
 # %%
 U0 = 1
-filling = 2
+target_charge = 2
 nk = 10
 repeat_number = 3
 ndof = 4
 cutoff = 1
+charge_op = np.eye(ndof)
+kT = 0
 
 
 # %%
 @np.vectorize
 def mf_rescaled(alpha, mf0, h0):
     hamiltonian = add_tb(h0, scale_tb(mf0, alpha))
-    rho, _ = density_matrix(hamiltonian, filling=filling, nk=nk)
+    rho, _ = density_matrix(hamiltonian, charge_op, target_charge, kT, nk=nk)
     hamiltonian = add_tb(h0, scale_tb(mf0, np.sign(alpha)))
     return total_energy(hamiltonian, rho)
 
@@ -52,7 +54,7 @@ def test_mexican_hat(seed):
 
     for h0, h_int in zip(h0s, h_ints):
         guess = generate_tb_vals(frozenset(h_int), ndof)
-        _model = Model(h0, h_int, filling=filling)
+        _model = Model(h0, h_int, target_charge, charge_op, kT)
         mf_sol_groundstate = solver(
             _model, mf_guess=guess, nk=nk, optimizer_kwargs={"M": 0}
         )

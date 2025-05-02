@@ -19,17 +19,19 @@ def test_zero_hint(seed):
     cutoff = np.random.randint(1, 4)
     dim = np.random.randint(0, 3)
     ndof = np.random.randint(2, 10)
-    filling = np.random.randint(1, ndof)
+    target_charge = np.random.randint(1, ndof)
     random_hopping_vecs = utils.generate_tb_keys(cutoff, dim)
 
     zero_key = tuple([0] * dim)
     h_0_random = generate_tb_vals(random_hopping_vecs, ndof, scale=1)
     h_int_only_phases = generate_tb_vals(random_hopping_vecs, ndof, scale=0)
     guess = generate_tb_vals(random_hopping_vecs, ndof, scale=1)
-    model = Model(h_0_random, h_int_only_phases, filling=filling)
+    model = Model(h_0_random, h_int_only_phases, target_charge=target_charge)
 
     mf_sol = solver(model, guess, nk=40, optimizer_kwargs={"M": 0, "f_tol": 1e-10})
-    h_fermi = fermi_level(mf_sol, filling=filling, nk=20)
+    h_fermi = fermi_level(
+        mf_sol, model.charge_op, target_charge, model.kT, nk=20, ndim=model._ndim
+    )
     mf_sol[zero_key] -= h_fermi * np.eye(mf_sol[zero_key].shape[0])
 
     compare_dicts(add_tb(mf_sol, h_0_random), h_0_random, atol=1e-10)

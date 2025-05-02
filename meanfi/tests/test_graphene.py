@@ -71,16 +71,16 @@ def gap_prediction(U, V):
         gapped = True
 
     # the mean-field calculation
-    filling = 2
+    target_charge = 2
     nk = 40
 
     h_int = utils.builder_to_tb(int_builder, params)
     guess = generate_tb_vals(frozenset(h_int), len(list(h_0.values())[0]))
-    model = Model(h_0, h_int, filling)
+    model = Model(h_0, h_int, target_charge)
 
     mf_sol = solver(model, guess, nk=nk, optimizer_kwargs={"M": 0, "f_tol": 1e-8})
     mf_full = add_tb(h_0, mf_sol)
-    EF = fermi_level(mf_full, filling=filling, nk=nk)
+    EF = fermi_level(mf_full, model.charge_op, target_charge, model.kT, nk, model._ndim)
     gap = compute_gap(mf_full, fermi_energy=EF, nk=200)
 
     # Check if the gap is predicted correctly
