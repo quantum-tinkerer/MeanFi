@@ -37,10 +37,17 @@ def gap_relation_hubbard(Us, nk, nk_dense, tol=1e-3):
             (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
         }
         guess = generate_tb_vals(frozenset(h_int), len(list(h_0.values())[0]))
-        full_model = Model(h_0, h_int, filling=2)
+        full_model = Model(h_0, h_int, target_charge=2)
         mf_sol = solver(full_model, guess, nk=nk)
         mf_full = add_tb(h_0, mf_sol)
-        EF = fermi_level(mf_full, filling=2, nk=nk)
+        EF = fermi_level(
+            mf_full,
+            full_model.charge_op,
+            full_model.target_charge,
+            full_model.kT,
+            nk,
+            full_model._ndim,
+        )
         _gap = compute_gap(mf_full, fermi_energy=EF, nk=nk_dense)
         gaps.append(_gap)
 

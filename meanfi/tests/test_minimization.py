@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from meanfi.mf import add_tb, density_matrix
+from meanfi.mf import add_tb, fermi_level
 from meanfi.tb.utils import generate_tb_keys, generate_tb_vals
 
 repeat_number = 5
@@ -13,7 +13,8 @@ def minimizer_offset(
     cutoff: int,
     ndim: int,
     ndof: int,
-    filling: float,
+    target_charge: float,
+    charge_op: np.ndarray,
     nk: int,
     kT: float,
     f_random: float,
@@ -21,19 +22,18 @@ def minimizer_offset(
     keys = generate_tb_keys(cutoff, ndim)
     h_0 = generate_tb_vals(keys, ndof)
 
-    f_level = density_matrix(h_0, filling, nk, kT)[1]
+    f_level = fermi_level(h_0, charge_op, target_charge, kT, nk, ndim)
 
     # Shift the Hamiltonian.
-    _shift = {(0,) * ndim: -f_level * np.eye(ndof)}
+    _shift = {(0,) * ndim: -f_level * charge_op}
     h_shift = add_tb(h_0, _shift)
 
     # Generate an offset Hamiltonian.
-
-    _offset = {(0,) * ndim: f_random * np.eye(ndof)}
+    _offset = {(0,) * ndim: f_random * charge_op}
     h_offset = add_tb(h_shift, _offset)
 
     # Compute f_offset for the offset Hamiltonian.
-    f_offset = density_matrix(h_offset, filling, nk, kT)[1]
+    f_offset = fermi_level(h_offset, charge_op, target_charge, kT, nk, ndim)
 
     assert np.allclose(f_random, f_offset, kT / 2, kT / 2)
 
@@ -46,7 +46,8 @@ def test_minimizer_consistency(seed):
     ndof = np.random.randint(1, 8)
     cutoff = np.random.randint(1, 5)
     nk = np.random.randint(10, 51)
-    filling = np.random.uniform(0.01, ndof - 0.01)
+    target_charge = np.random.uniform(0, ndof)
     kT = np.random.uniform(0, 1e-2)
     f_random = np.random.uniform(-3, 3)
-    minimizer_offset(cutoff, ndim, ndof, filling, nk, kT, f_random)
+    charge_op = np.eye(ndof)
+    minimizer_offset(cutoff, ndim, ndof, target_charge, charge_op, nk, kT, f_random)
