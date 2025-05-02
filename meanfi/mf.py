@@ -431,9 +431,9 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
 
     Parameters
     ----------
-    density_matrix :
+    density_matrix: _tb_type
         Density matrix tight-binding dictionary.
-    h_int :
+    h_int: _tb_type
         Interaction hermitian Hamiltonian tight-binding dictionary.
     Returns
     -------
