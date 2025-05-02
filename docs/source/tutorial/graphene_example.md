@@ -100,7 +100,7 @@ target_charge = 2
 model = meanfi.Model(h_0, h_int, target_charge)
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
-guess = meanfi.guess_tb(int_keys, ndof)
+guess = meanfi.generate_tb_vals(int_keys, ndof)
 mf_sol = meanfi.solver(model, guess, nk=20)
 h_full = meanfi.add_tb(h_0, mf_sol)
 ```
