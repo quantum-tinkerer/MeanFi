@@ -16,7 +16,6 @@ from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import ham_fam_to_ort_basis
 from meanfi.mf import density_matrix, meanfield, fermi_level
 from meanfi.model import Model
-from meanfi.tb.utils import symm_guess_mf
 
 
 def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
@@ -72,7 +71,7 @@ def cost_density(rho_params: np.ndarray, model: Model, nk: int = 20) -> np.ndarr
     """
     shape = model._ndof
     rho_reduced = params_to_tb(rho_params, list(model.h_int), shape)
-    rho_new = model.density_matrix(rho_reduced, nk=nk)
+    rho_new = model.density_matrix_iteration(rho_reduced, nk=nk)
     rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_params(rho_reduced_new)
     return rho_params_new - rho_params
@@ -196,7 +195,11 @@ def solver_density(
     """
     shape = model._ndof
     rho_guess = density_matrix(
-        add_tb(model.h_0, mf_guess), filling=model.filling, nk=nk
+        add_tb(model.h_0, mf_guess),
+        model.charge_op,
+        model.target_charge,
+        model.kT,
+        nk=nk,
     )[0]
     rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
