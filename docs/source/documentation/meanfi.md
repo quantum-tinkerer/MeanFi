@@ -6,14 +6,14 @@ To define the interactive problem, we use the following class:
 
 ```{eval-rst}
 .. autoclass:: meanfi.model.Model
-   :members: mfield, density_matrix
+   :members: mfield, density_matrix_iteration
 ```
 
 ## Mean-field and density matrix
 
 ```{eval-rst}
 .. automodule:: meanfi.mf
-   :members: meanfield, density_matrix, density_matrix_kgrid, fermi_on_kgrid
+   :members: meanfield, density_matrix, density_matrix_kgrid, fermi_level
    :show-inheritance:
 ```
 
