@@ -7,21 +7,21 @@ from pyinstrument import Profiler
 
 from meanfi.kwant_helper import kwant_examples, utils
 from meanfi.model import Model
-from meanfi.tb.utils import guess_tb
+from meanfi.tb.utils import generate_tb_vals
 
 # %%
 graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
 
 params = {"U": 0.5, "V": 1.1}
-filling = 2
+target_charge = 2
 nk = 600
 
 h_int = utils.builder_to_tb(int_builder, params)
 h_0 = utils.builder_to_tb(graphene_builder)
 norbs = len(list(h_0.values())[0])
-guess = guess_tb(frozenset(h_int), norbs)
+guess = generate_tb_vals(frozenset(h_int), norbs)
 
-model = Model(h_0, h_int, filling)
+model = Model(h_0, h_int, target_charge)
 
 
 def scf_loop():
