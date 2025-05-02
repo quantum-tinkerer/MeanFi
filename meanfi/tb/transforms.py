@@ -141,7 +141,7 @@ def tb_to_ham_fam(
 
     Returns
     -------
-    A basis of all allowed Hamiltonians for the chosen symmetries and hoppings in the form of a `qsymm` list of `BlochModel`s.
+    A basis of all allowed Hamiltonians for the chosen symmetries and hoppings in the form of a `qsymm` list of `BlochModel`'s.
     """
     hop_vecs = []
     for vec in hoppings:
@@ -164,7 +164,7 @@ def ham_fam_to_single_dict(
     Parameters
     ----------
     ham_fam: list
-        A list of `qsymm` `BlochModels`.
+        A list of `qsymm` `BlochModel`'s.
 
     Returns
     -------
@@ -185,7 +185,7 @@ def ham_fam_to_ort_basis(ham_fam: list) -> dict:
     Parameters
     ----------
     ham_fam: list
-        A list of `qsymm` `BlochModels`
+        A list of `qsymm` `BlochModel`'s.
 
     Returns
     -------
