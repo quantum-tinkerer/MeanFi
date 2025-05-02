@@ -82,9 +82,9 @@ h0, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
 
 params_int = dict(U=0.8)
 ndof = [*h0.values()][0].shape[0]
-filling = ndof // 2
+target_charge = ndof // 2
 h_int = utils.builder_to_tb(int_builder, params_int)
-mf_model = meanfi.Model(h0, h_int, filling=filling)
+mf_model = meanfi.Model(h0, h_int, target_charge)
 ```
 
 Now getting the solution by providing a guess and the mean-field model to the solver. To accelerate the convergence, we use an antiferromagnetic guess.

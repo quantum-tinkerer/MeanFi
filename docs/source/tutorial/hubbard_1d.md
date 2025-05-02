@@ -103,11 +103,11 @@ Here `s_x` is the Pauli matrix acting on the spin degrees of freedom, which ensu
 ### Putting it all together
 
 To combine the non-interacting and interaction Hamiltonians, we use the {autolink}`~meanfi.model.Model` class.
-In addition to the Hamiltonians, we also need to specify the filling of the system --- the number of electrons per unit cell.
+In addition to the Hamiltonians, we also need to specify the charge of the system --- the number of electrons per unit cell.
 
 ```{code-cell} ipython3
-filling = 2
-full_model = meanfi.Model(h_0, h_int, filling)
+target_charge = 2
+full_model = meanfi.Model(h_0, h_int, target_charge)
 ```
 
 The object `full_model` now contains all the information needed to solve the mean-field problem.
@@ -117,15 +117,15 @@ The object `full_model` now contains all the information needed to solve the mea
 To find a mean-field solution, we first require a starting guess.
 In cases where the non-interacting Hamiltonian is highly degenerate, there exists several possible mean-field solutions, many of which are local and not global minima of the energy landscape.
 Therefore, the choice of the initial guess can significantly affect the final solution depending on the energy landscape.
-Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.guess_tb` function.
+Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.generate_tb_vals` function.
 It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
-Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.guess_tb`.
+Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.generate_tb_vals`.
 Finally, to solve the model, we use the {autolink}`~meanfi.solvers.solver` function which by default employes a root-finding [algorithm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.anderson.html) to find a self-consistent mean-field solution.
 
 ```{code-cell} ipython3
-filling = 2
-full_model = meanfi.Model(h_0, h_int, filling)
-guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
+target_charge = 2
+full_model = meanfi.Model(h_0, h_int, target_charge)
+guess = meanfi.generate_tb_vals(frozenset(h_int), ndof=4)
 mf_sol = meanfi.solver(full_model, guess, nk=nk)
 ```
 
@@ -147,16 +147,15 @@ plt.show()
 
 the band structure now shows a gap at the Fermi level, indicating that the system is in an insulating phase!
 
-
 We can go further and compute the gap for a wider range of $U$ values:
 
 ```{code-cell} ipython3
-def compute_sol(U, h_0, nk, filling=2):
+def compute_sol(U, h_0, nk, target_charge=2):
     h_int = {
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
     }
-    guess = meanfi.guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
-    full_model = meanfi.Model(h_0, h_int, filling)
+    guess = meanfi.generate_tb_vals(frozenset(h_int), len(list(h_0.values())[0]))
+    full_model = meanfi.Model(h_0, h_int, target_charge)
     mf_sol = meanfi.solver(full_model, guess, nk=nk)
     return meanfi.add_tb(h_0, mf_sol)
 
