@@ -276,12 +276,11 @@ def fermi_level(
     -------
         The Fermi level for a Hamiltonian with a `target_charge` at temperature `kT`.
     """
-    fermi_0 = 0
-
     # Three different ways of finding the Fermi-level for different systems.
     if (charge_op == np.eye(charge_op.shape[0])).all():
         vals = np.linalg.eigvalsh(tb_to_kgrid(ham, nk))
         if kT > 0:  # Non-Superconducting and finite temperature.
+            fermi_0 = 2 * np.max(vals)
             result = minimize(
                 charge_difference_nsc,
                 fermi_0,
@@ -289,11 +288,12 @@ def fermi_level(
                 method="Nelder-Mead",
                 options={"fatol": 1e-10, "xatol": kT / 2},
             )
-            opt_fermi = float(result.x)
+            opt_fermi = result.x[0]
         else:  # Non-Superconducting and zero temperature.
             opt_fermi = fermi_on_kgrid(vals, target_charge)
 
     else:  # Superconducting,
+        fermi_0 = 0.0
         Q_shape = charge_op.shape
         v_shape = np.empty((nk,) * ndim + Q_shape)
         F_shape = np.empty((nk,) * ndim + (Q_shape[0],))
@@ -314,7 +314,7 @@ def fermi_level(
             method="Nelder-Mead",
             options={"fatol": 1e-10, "xatol": kT / 2},
         )
-        opt_fermi = float(result.x)
+        opt_fermi = result.x[0]
 
     return opt_fermi
 
