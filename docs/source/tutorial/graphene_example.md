@@ -63,6 +63,7 @@ h_0 = utils.builder_to_tb(bulk_graphene)
 
 We utilize `kwant` to build the interaction tight-binding dictionary as well.
 To define the interactions, we need to specify two functions:
+
 * `onsite_int(site)`: returns the onsite interaction matrix.
 * `nn_int(site1, site2)`: returns the interaction matrix between `site1` and `site2`.
 
@@ -95,8 +96,8 @@ As before, we construct {autolink}`~meanfi.model.Model` object to represent the 
 We then generate a random guess for the mean-field solution and solve the system:
 
 ```{code-cell} ipython3
-filling = 2
-model = meanfi.Model(h_0, h_int, filling=2)
+target_charge = 2
+model = meanfi.Model(h_0, h_int, target_charge)
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
 guess = meanfi.guess_tb(int_keys, ndof)
@@ -114,8 +115,8 @@ In this case, we compute the CDW order parameter by measuring the expectation va
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-rho, _ = meanfi.density_matrix(h_full, filling=filling, nk=40)
-rho_0, _ = meanfi.density_matrix(h_0, filling=filling, nk=40)
+rho, _ = meanfi.density_matrix(h_full, model.charge_op, model.target_charge, model.kT, nk=40)
+rho_0, _ = meanfi.density_matrix(h_0, model.charge_op, model.target_charge, model.kT, nk=40)
 
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
@@ -160,8 +161,8 @@ for U in Us:
         params = dict(U=U, V=V)
         h_int = utils.builder_to_tb(builder_int, params)
 
-        model = meanfi.Model(h_0, h_int, filling=filling)
-        guess = meanfi.guess_tb(int_keys, ndof)
+        model = meanfi.Model(h_0, h_int, target_charge)
+        guess = meanfi.generate_tb_vals(int_keys, ndof)
         mf_sol = meanfi.solver(model, guess, nk=18)
         mf_sols.append(mf_sol)
 
@@ -189,7 +190,7 @@ s_list = [sx, sy, sz]
 cdw_list = []
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _ = meanfi.density_matrix(meanfi.add_tb(h_0, mf_sol), filling=filling, nk=40)
+    rho, _ = meanfi.density_matrix(meanfi.add_tb(h_0, mf_sol), model.charge_op, model.target_charge, model.kT, nk=40)
 
     # Compute CDW order parameter
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)
