@@ -160,7 +160,7 @@ def solver_mf(
         nk,
         model._ndim,
     )
-    return add_tb(result, {model._local_key: -fermi * np.eye(model._ndof)})
+    return add_tb(result, {model._local_key: -fermi * model.charge_op})
 
 
 def solver_density(
@@ -217,7 +217,7 @@ def solver_density(
         nk,
         model._ndim,
     )
-    return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
+    return add_tb(mf_result, {model._local_key: -fermi * model.charge_op})
 
 
 def solver_density_symmetric(
@@ -269,7 +269,6 @@ def solver_density_symmetric(
         ham_basis,
     )
 
-    # Not sure after this yet
     mf_result = meanfield(rho_result, model.h_int)
     fermi = fermi_level(
         add_tb(model.h_0, mf_result),
@@ -279,7 +278,7 @@ def solver_density_symmetric(
         nk,
         model._ndim,
     )
-    return add_tb(mf_result, {model._local_key: -fermi * np.eye(model._ndof)})
+    return add_tb(mf_result, {model._local_key: -fermi * model.charge_op})
 
 
 solver = solver_density
