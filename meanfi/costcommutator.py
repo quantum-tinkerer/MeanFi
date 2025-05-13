@@ -51,9 +51,9 @@ def tb_to_matrix(tb: _tb_type) -> np.ndarray:
     for k in range(1, (dim + 1)//2):      # build the first row
         matrix = np.hstack((matrix, tb[(k,)]))
     for i in range(1, (dim + 1)//2):     # build all the other rows one at the time
-       row = tb[(-i,)]
-        for k in range(-i+1, (dim + 1)//2-i):
-           row = np.hstack((row, tb[(k,)]))
-       matrix = np.vstack((matrix, row))    # attach the row to the matrix
+        row = tb[(-i,)]
+        for k in range(-i + 1, (dim + 1)//2 - i):
+            row = np.hstack((row, tb[(k,)]))
+        matrix = np.vstack((matrix, row))    # attach the row to the matrix
     return matrix
  
