@@ -200,6 +200,6 @@ def ham_fam_to_ort_basis(ham_fam: list) -> dict:
         stacked_basis = np.column_stack([ham.flatten() for ham in basis])
         Q = np.linalg.qr(stacked_basis, mode="reduced")[0]
 
-        ort_dict[hopping] = np.reshape(Q, (len(basis),) + basis[0].shape)
+        ort_dict[hopping] = np.reshape(Q.T, (len(basis),) + basis[0].shape)
 
     return sort_dict(ort_dict)
