@@ -108,7 +108,7 @@ def cost_density_symmetric(
     rho_reduced = projection_to_tb(rho_params, ham_basis)
     rho_new = model.density_matrix_iteration(rho_reduced, nk=nk)
 
-    rho_reduced_new = {key: rho_new[key] for key in ham_basis}
+    rho_reduced_new = {key: rho_new[key] for key in model.h_int}
     rho_params_new = tb_to_projection(rho_reduced_new, ham_basis)
     rho_params_new = flatten_projection(rho_params_new)
 
@@ -259,7 +259,7 @@ def solver_density_symmetric(
         add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
     )[0]
 
-    rho_guess_reduced = {key: rho_guess[key] for key in ham_basis}
+    rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
 
     rho_params = flatten_projection(tb_to_projection(rho_guess_reduced, ham_basis))
 
