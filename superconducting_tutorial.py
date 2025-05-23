@@ -48,8 +48,8 @@ mf_guess = symm_guess_mf(ham_fam)
 def compute_sol(h_0, h_int, nk, ham_fam, guess, target_charge, kT):
     model = Model(h_0, h_int, target_charge, charge_op, kT)
     h_sol = solver_density_symmetric(
-        model, ham_fam, guess, nk=nk
-    )  # , optimizer_kwargs={"verbose": True})
+        model, ham_fam, guess, nk=nk, optimizer_kwargs={"verbose": True}
+    )
 
     return h_sol
 
@@ -78,13 +78,29 @@ def compute_gap(full_sol, nk_dense, fermi_energy=0):
 
 
 # %%
-nk = 100
+nk = 10
 target_charge = 0
 kT = 0
 
 h_int_solution = compute_sol(h_sc_0, h_sc_int, nk, ham_fam, mf_guess, target_charge, kT)
 h_mf = add_tb(h_sc_0, h_int_solution)
 
+from tqdm import tqdm
+
+n = 500
+temperatures = np.linspace(0.19, 0.205, n)
+gaps = np.zeros_like(temperatures)
+nk_dense = 10001
+for i in tqdm(range(n)):
+    h_mf_kT = add_tb(
+        h_sc_0,
+        compute_sol(
+            h_sc_0, h_sc_int, nk, ham_fam, mf_guess, target_charge, temperatures[i]
+        ),
+    )
+    gaps[i] = compute_gap(h_mf_kT, nk_dense)
+
+# %% Plot everything.
 plt.title(f"U = {U}, Imaginary part")
 plt.imshow(np.imag(h_int_solution[(0,)]), cmap="coolwarm")
 plt.colorbar()
@@ -97,20 +113,6 @@ plt.show()
 
 plot_bands(h_mf, nk)
 
-from tqdm import tqdm
-
-n = 100
-temperatures = np.linspace(0, 0.225, n)
-gaps = np.zeros_like(temperatures)
-nk_dense = 10000
-for i in tqdm(range(n)):
-    h_mf = add_tb(
-        h_sc_0,
-        compute_sol(
-            h_sc_0, h_sc_int, nk, ham_fam, mf_guess, target_charge, temperatures[i]
-        ),
-    )
-    gaps[i] = compute_gap(h_mf, nk_dense)
 plt.plot(temperatures, gaps)
 plt.title("Gap over Temperature")
 plt.xlabel("kT")
