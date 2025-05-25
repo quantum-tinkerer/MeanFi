@@ -48,7 +48,7 @@ mf_guess = symm_guess_mf(ham_fam)
 def compute_sol(h_0, h_int, nk, ham_fam, guess, target_charge, kT):
     model = Model(h_0, h_int, target_charge, charge_op, kT)
     h_sol = solver_density_symmetric(
-        model, ham_fam, guess, nk=nk, optimizer_kwargs={"verbose": True}
+        model, ham_fam, guess, nk=nk, optimizer_kwargs={"verbose": False}
     )
 
     return h_sol
@@ -78,7 +78,7 @@ def compute_gap(full_sol, nk_dense, fermi_energy=0):
 
 
 # %%
-nk = 10
+nk = 1000
 target_charge = 0
 kT = 0
 
@@ -87,10 +87,10 @@ h_mf = add_tb(h_sc_0, h_int_solution)
 
 from tqdm import tqdm
 
-n = 500
-temperatures = np.linspace(0.19, 0.205, n)
+n = 100
+temperatures = np.linspace(0, 0.21, n)
 gaps = np.zeros_like(temperatures)
-nk_dense = 10001
+nk_dense = 10000
 for i in tqdm(range(n)):
     h_mf_kT = add_tb(
         h_sc_0,
@@ -113,6 +113,15 @@ plt.show()
 
 plot_bands(h_mf, nk)
 
+
+def gap_over_temp(T, Tc, gap_0):
+    gap = gap_0 * np.tanh(1.74 * np.sqrt(np.maximum(Tc / T - 1, 0)))
+    return gap
+
+
+theory_gaps = gap_over_temp(temperatures, 0.195, gaps[0])
+
+plt.plot(temperatures, theory_gaps)
 plt.plot(temperatures, gaps)
 plt.title("Gap over Temperature")
 plt.xlabel("kT")
