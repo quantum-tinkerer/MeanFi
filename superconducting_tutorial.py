@@ -78,7 +78,7 @@ def compute_gap(full_sol, nk_dense, fermi_energy=0):
 
 
 # %%
-nk = 1000
+nk = 100
 target_charge = 0
 kT = 0
 
