@@ -1,7 +1,7 @@
-
 import numpy as np
+from meanfi.tb.tb import _tb_type
 
-def cost_commutator(rho_tb: _tb_type, h_tb: _tb_type) -> _tb_type:
+def commutator(rho_tb: _tb_type, h_tb: _tb_type) -> _tb_type:
     """
     Compute the commutator of two dictionaries.
     
@@ -9,7 +9,7 @@ def cost_commutator(rho_tb: _tb_type, h_tb: _tb_type) -> _tb_type:
     ----------
     rho_tb :
         Tight-binding dictionary of the density matrix.
-    h_tb  :
+    h_tb :
         Tight-binding dictionary of the mean-field hamiltonian.
         
     Returns
@@ -23,15 +23,18 @@ def cost_commutator(rho_tb: _tb_type, h_tb: _tb_type) -> _tb_type:
     dim = len(list(h_tb.keys()))
     commut = {}
     for j in range(1, (dim + 1)//2):   # for blocks in the first row and the first column
-        for k in range((dim + 1)//2):
-            commut[(j,)] += rho_tb[(k,)] @ h_tb[(j-k,)] - h_tb[(k,)] @ rho_tb[(j-k,)]
-            commut[(-j,)] += rho_tb[(k-j,)] @ h_tb[(-k,)] - h_tb[(k-j,)] @ rho_tb[(-k,)]
-    commut[(0,)] = np.zeros(((dim + 1)//2, shape, shape))
-    for i in range((dim + 1)//2):      # for blocks on the main diagonal
-        for k in range((dim + 1)//2):
-            commut[(0,)][i, :, :] += rho_tb[(i-k,)] @ h_tb[(k-i,)] - h_tb[(i-k,)] @ rho_tb[(k-i,)]
-    return commut 
+        commut[(j,)] = 0
+        commut[(-j,)] = 0
+        for k in range(-(dim - 1)//2, (dim + 1)//2):
+            if np.abs(j-k)<=(dim - 1)//2:
+                commut[(j,)] += rho_tb[(k,)] @ h_tb[(j-k,)] - h_tb[(k,)] @ rho_tb[(j-k,)]
+                commut[(-j,)] += rho_tb[(k-j,)] @ h_tb[(-k,)] - h_tb[(k-j,)] @ rho_tb[(-k,)]
+    commut[(0,)] = 0             
+    for k in range(-(dim - 1)//2, (dim + 1)//2):   # for blocks on the main diagonal
+        commut[(0,)] += rho_tb[(k,)] @ h_tb[(-k,)] - h_tb[(k,)] @ rho_tb[(-k,)]
+    return commut
 
+    
 def tb_to_matrix(tb: _tb_type) -> np.ndarray:
     """
     Convert a tight-binding dictionary to a matrix.
