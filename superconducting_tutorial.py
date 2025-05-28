@@ -54,20 +54,7 @@ def compute_sol(h_0, h_int, nk, ham_fam, guess, target_charge, kT):
     return h_sol
 
 
-# %% We plot the observables
-def plot_bands(ham, nk):
-    ks = np.linspace(0, 2 * np.pi, nk, endpoint=False)
-    hamiltonians = tb_to_kgrid(ham, nk)
-
-    vals = np.linalg.eigvalsh(hamiltonians)
-    plt.plot(ks, vals, c="k")
-    plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\\pi$", "$2\\pi$"])
-    plt.xlim(0, 2 * np.pi)
-    plt.ylabel("$E - E_F$")
-    plt.xlabel("$k / a$")
-    plt.show()
-
-
+# %%
 def compute_gap(full_sol, nk_dense, fermi_energy=0):
     h_kgrid = tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
@@ -101,17 +88,82 @@ for i in tqdm(range(n)):
     gaps[i] = compute_gap(h_mf_kT, nk_dense)
 
 # %% Plot everything.
-plt.title(f"U = {U}, Imaginary part")
-plt.imshow(np.imag(h_int_solution[(0,)]), cmap="coolwarm")
-plt.colorbar()
+plt.rcParams.update(
+    {
+        "font.size": 10,  # Set font size to 11pt
+        "axes.labelsize": 10,  # -> axis labels
+        "legend.fontsize": 8,  # -> legends
+        "font.family": "lmodern",
+        "text.usetex": True,
+        "text.latex.preamble": (  # LaTeX preamble
+            r"\usepackage{lmodern}"
+            r"\usepackage{anyfontsize}"
+            r"\usepackage{amsmath}"
+            # ... more packages if needed
+        ),
+    }
+)
+W = 6.55994375 * 0.95  # Columnwidth used for the figure
+# plt.rcParams.update({'figure.figsize': (W, W/(4/3))})
+plt.rcParams.update({"figure.figsize": (W, W / (4 / 3) / 2)})
+fig, ax = plt.subplots(1, 2)
+ax[0].set_title("Real")
+ax[0].set_xticks([])
+ax[0].set_yticks([])
+ax[0].annotate(
+    "a)",
+    xy=(0, 1),
+    xycoords="axes fraction",
+    xytext=(-0.1, 1),
+    textcoords="axes fraction",
+    fontweight="bold",
+    va="top",
+    ha="right",
+)
+im1 = ax[0].imshow(np.real(h_int_solution[(0,)]), cmap="coolwarm", interpolation="none")
+ax[1].set_title("Imaginary")
+ax[1].set_xticks([])
+ax[1].set_yticks([])
+ax[1].annotate(
+    "b)",
+    xy=(0, 1),
+    xycoords="axes fraction",
+    xytext=(-0.1, 1),
+    textcoords="axes fraction",
+    fontweight="bold",
+    va="top",
+    ha="right",
+)
+im2 = ax[1].imshow(np.imag(h_int_solution[(0,)]), cmap="coolwarm", interpolation="none")
+cbar = fig.colorbar(im1, ax=ax[0], orientation="vertical", fraction=0.046, pad=0.04)
+cbar = fig.colorbar(im2, ax=ax[1], orientation="vertical", fraction=0.046, pad=0.04)
+plt.tight_layout()
+# plt.savefig('hams.svg', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 
-plt.title(f"U = {U}, Real part")
-plt.imshow(np.real(h_int_solution[(0,)]), cmap="coolwarm")
-plt.colorbar()
-plt.show()
 
-plot_bands(h_mf, nk)
+fig, ax = plt.subplots(1, 2)
+ks = np.linspace(0, 2 * np.pi, nk, endpoint=True)
+hamiltonians = tb_to_kgrid(h_mf, nk)
+
+vals = np.linalg.eigvalsh(hamiltonians)
+ax[0].plot(ks, vals, c="k")
+ax[0].axhline(color="k", linestyle="--", linewidth=1)
+ax[0].set_xticks([0, np.pi, 2 * np.pi], ["$0$", "$\\pi$", "$2\\pi$"])
+ax[0].set_xlim(0, 2 * np.pi)
+ax[0].set_ylabel("$E - E_F$")
+ax[0].set_xlabel("$k / a$")
+ax[0].annotate(
+    "a)",
+    xy=(0, 1),
+    xycoords="axes fraction",
+    xytext=(-0.1, 1),
+    textcoords="axes fraction",
+    fontweight="bold",
+    va="top",
+    ha="right",
+)
+# plt.savefig('bands.svg', bbox_inches = 'tight', pad_inches = 0)
 
 
 def gap_over_temp(T, Tc, gap_0):
@@ -120,10 +172,27 @@ def gap_over_temp(T, Tc, gap_0):
 
 
 theory_gaps = gap_over_temp(temperatures, 0.195, gaps[0])
+print(gaps[0])
 
-plt.plot(temperatures, theory_gaps)
-plt.plot(temperatures, gaps)
-plt.title("Gap over Temperature")
-plt.xlabel("kT")
-plt.ylabel("Gap")
+ax[1].margins(x=0)
+ax[1].plot(temperatures, theory_gaps, linestyle=":", linewidth=2, label="Theoretical")
+ax[1].axvline(0.195, 0, 1, color="k", linestyle="--", label=r"$T_c$")
+ax[1].axhline(color="k", linestyle="--", linewidth=1)
+ax[1].plot(temperatures, gaps, label="Calculated")
+ax[1].legend().set_zorder(101)
+# plt.title("Gap over Temperature")
+ax[1].set_xlabel(r"$k_B T$")
+ax[1].set_ylabel("Gap")
+ax[1].annotate(
+    "b)",
+    xy=(0, 1),
+    xycoords="axes fraction",
+    xytext=(-0.1, 1),
+    textcoords="axes fraction",
+    fontweight="bold",
+    va="top",
+    ha="right",
+)
+plt.tight_layout()
+# plt.savefig('results.svg', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
