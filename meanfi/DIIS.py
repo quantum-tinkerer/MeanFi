@@ -27,7 +27,7 @@ def product(tb1: _tb_type, tb2: _tb_type) -> _tb_type:
     for j in range(1, (dim + 1)//2):   # for blocks in the first row and the first column
         product[(j,)] = 0
         product[(-j,)] = 0
-        for k in range(-(dim -1)//2, (dim + 1)//2):
+        for k in range(-(dim - 1)//2, (dim + 1)//2):
             if np.abs(j-k)<=(dim - 1)//2:
                 product[(j,)] += tb1[(k,)] @ tb2[(j-k,)]
                 product[(-j,)] += tb1[(k-j,)] @ tb2[(-k,)]
@@ -132,9 +132,6 @@ def DIIS(model: Model, n: int, nk: int, tol: float, niter: int) -> _tb_type:
         coeff, coeff_matrix, err_list = diis_coeff(e_i, coeff_matrix, err_list)
             
         # H_new = \sum_j c_j*h_j
-        print('len coeff %i' %len(coeff))
-        print('len err_list %i' %len(err_list))
-        print('len h_list %i' %len(h_list))
         h_new = scale_tb(h_list[0], coeff[0])
         for j in range(1, len(h_list)):
             h_new = add_tb(h_new, scale_tb(h_list[j], coeff[j]))
