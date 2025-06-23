@@ -47,6 +47,38 @@ def test_kwant_conversion(seed):
 
 
 @pytest.mark.parametrize("seed", range(repeat_number))
+def test_builder_order_invariance(seed):
+    """Test conversion between Kwant and meanfi for site order"""
+
+    np.random.seed(seed)
+    norbs = np.random.randint(2, 4)
+    nlen = np.random.randint(2, 4)
+
+    lat = kwant.lattice.square(norbs=norbs)
+    builder1 = kwant.Builder(kwant.TranslationalSymmetry((nlen, 0), (0, nlen)))
+    builder2 = kwant.Builder(kwant.TranslationalSymmetry((nlen, 0), (0, nlen)))
+
+    sites = [lat(i, j) for i in range(nlen) for j in range(nlen)]
+    vals = [np.random.randn(norbs, norbs) for _ in range(len(sites))]
+
+    for idx, site in enumerate(sites):
+        builder1[site] = vals[idx]
+
+    indices = np.arange(len(sites))
+    np.random.shuffle(indices)
+    shuffled_sites = [sites[i] for i in indices]
+    shuffled_vals = [vals[i] for i in indices]
+
+    for idx, site in enumerate(shuffled_sites):
+        builder2[site] = shuffled_vals[idx]
+
+    tb1 = builder_to_tb(builder1)
+    tb2 = builder_to_tb(builder2)
+
+    compare_dicts(tb1, tb2)
+
+
+@pytest.mark.parametrize("seed", range(repeat_number))
 def test_kwant_supercell(seed):
     """Test with Kwant supercell and callable onsite and hoppings."""
     np.random.seed(seed)
