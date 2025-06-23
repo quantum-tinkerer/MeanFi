@@ -36,8 +36,11 @@ def builder_to_tb(
     """
     prim_vecs = builder.symmetry.periods
     dims = len(prim_vecs)
-    idx_by_site = {site: idx for idx, site in enumerate(builder.sites())}
-    norbs_list = [site.family.norbs for site in builder.sites()]
+
+    sorted_sites = sorted(builder.sites())
+    idx_by_site = {site: idx for idx, site in enumerate(sorted_sites)}
+    norbs_list = [site.family.norbs for site in sorted_sites]
+
     if any(norbs is None for norbs in norbs_list):
         raise ValueError("Number of orbitals must be specified for all sites.")
 
