@@ -120,6 +120,7 @@ def tb_to_builder(
         builder = kwant.Builder(kwant.TranslationalSymmetry(*periods))
     onsite_idx = tuple([0] * len(list(h_0)[0]))
 
+    sites_list = sorted(sites_list)
     norbs_list = [site.family.norbs for site in sites_list]
     norbs_list = [1 if norbs is None else norbs for norbs in norbs_list]
 
