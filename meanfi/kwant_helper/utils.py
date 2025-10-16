@@ -202,6 +202,10 @@ def build_interacting_syst(
     if func_hop is not None:
         for neighbors in range(max_neighbor + 1):
             int_builder[
-                [hop for hop in lattice.neighbors(neighbors) if hop.family_a != hop.family_b]
+                [
+                    hop
+                    for hop in lattice.neighbors(neighbors)
+                    if hop.family_a != hop.family_b
+                ]
             ] = func_hop
     return int_builder
