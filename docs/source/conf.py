@@ -112,3 +112,11 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
+
+try:
+    # disable wiki tips fetching and DOI/RTD fetching during CI
+    tippy_enable_wikitips = False
+    tippy_enable_doitips = False
+except Exception:
+    # Some sphinx versions may not expect this variable; ignore failures
+    pass
