@@ -20,7 +20,7 @@ def expectation_value(density_matrix: _tb_type, observable: _tb_type) -> complex
     """
     return np.sum(
         [
-            np.trace(observable[k] @ density_matrix[tuple(-np.array(k))])
+            np.sum(observable[k].T * density_matrix[tuple(-np.array(k))])
             for k in frozenset(density_matrix) & frozenset(observable)
         ]
     )
