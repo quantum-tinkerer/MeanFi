@@ -11,7 +11,11 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import requests
 import sys
+from importlib.metadata import version as check_version
+
+import sphinx_tippy
 
 import meanfi  # noqa: F401
 
@@ -113,10 +117,17 @@ html_theme_options = {
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 
-try:
-    # disable wiki tips fetching and DOI/RTD fetching during CI
-    tippy_enable_wikitips = False
-    tippy_enable_doitips = False
-except Exception:
-    # Some sphinx versions may not expect this variable; ignore failures
-    pass
+# Configure sphinx-tippy
+
+# TODO: rely on the default implementation once
+# https://github.com/sphinx-extensions2/sphinx-tippy/pull/30 is merged and released.
+session = requests.Session()
+
+session.headers.update(
+    {
+        "User-Agent": f"Sphinx/{check_version('sphinx')} (https://www.sphinx-doc.org/) "
+        f"sphinx-tippy/{check_version('sphinx-tippy')} "
+        "(https://sphinx-tippy.readthedocs.io/en/latest/) ",
+    }
+)
+sphinx_tippy.requests.get = session.get
