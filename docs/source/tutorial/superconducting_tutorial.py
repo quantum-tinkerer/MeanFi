@@ -72,13 +72,12 @@ kT = 0
 h_int_solution = compute_sol(h_sc_0, h_sc_int, nk, ham_fam, mf_guess, target_charge, kT)
 h_mf = add_tb(h_sc_0, h_int_solution)
 
-from tqdm import tqdm
 
 n = 100
 temperatures = np.linspace(0, 0.21, n)
 gaps = np.zeros_like(temperatures)
 nk_dense = 10000
-for i in tqdm(range(n)):
+for i in range(n):
     h_mf_kT = add_tb(
         h_sc_0,
         compute_sol(
@@ -196,3 +195,5 @@ ax[1].annotate(
 plt.tight_layout()
 # plt.savefig('results.svg', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
+
+# %%
