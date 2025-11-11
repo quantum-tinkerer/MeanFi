@@ -1,21 +1,25 @@
-# %% Example
-# We import all the required functions.
+# %%
+# Superconducting 2D square lattice mean-field calculation
+# ============================================================
+#
+from functools import partial
+
 import kwant
-import qsymm
-from meanfi.tb.transforms import tb_to_ham_fam, tb_to_kgrid
 import numpy as np
-from meanfi.model import Model
-from meanfi.tb.utils import symm_guess_mf
-from meanfi.tb.tb import add_tb
-from meanfi.solvers import solver_density_symmetric
-from meanfi.kwant_helper import utils
 import matplotlib.pyplot as plt
+from scipy.optimize import anderson
+
+from meanfi.tb.transforms import tb_to_kgrid
+from meanfi.model import Model
+from meanfi.tb.tb import add_tb
+from meanfi.kwant_helper import utils
+from meanfi.mf import density_matrix, meanfield, fermi_level
 
 tau_x = np.array([[0, 1], [1, 0]])
 tau_z = np.array([[1, 0], [0, -1]])
 tau_0 = np.eye(2)
 # %%
-# Create graphene lattice
+# Create square lattice
 ndof = 2  # spin
 norbs = 2 * ndof  # particle-hole and spin
 square_lattice = kwant.lattice.square(norbs=norbs)
@@ -31,30 +35,8 @@ syst = kwant.Builder(kwant.TranslationalSymmetry(*square_lattice.prim_vecs))
 syst[square_lattice.shape(square_shape, (0, 0))] = 0 * np.kron(tau_z, np.eye(ndof))
 syst[square_lattice.neighbors(1)] = np.kron(tau_z, np.eye(ndof))
 # %%
-kwant.plot(syst)
-# %%
-# tile a few unit cells to visualize
-finite_syst = kwant.Builder()
-
-
-def finite_shape(site):
-    x, y = site.pos
-    return (0 <= x < 8) and (0 <= y < 8)
-
-
-finite_syst.fill(syst, finite_shape, (0, 0))
-kwant.plot(finite_syst)
-# %%
-sysf = finite_syst.finalized()
-hamiltonian = sysf.hamiltonian_submatrix()
-plt.imshow(hamiltonian.real, cmap="bwr")
-# %%
-evals = np.linalg.eigvalsh(hamiltonian)
-plt.plot(evals, marker="o", linestyle="", markersize=3)
 # %%
 wrapped_syst = kwant.wraparound.wraparound(syst).finalized()
-kwant.plot(wrapped_syst)
-# %%
 ham_func = lambda k_x, k_y: wrapped_syst.hamiltonian_submatrix(
     params={"k_x": k_x, "k_y": k_y}
 )
@@ -70,8 +52,6 @@ for i, ky in enumerate(ks):
     # color each momentum slice differently in shades of gray
     plt.plot(ks, evals_h_0[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
 # %%
-plt.plot(ks, evals_h_0[0, :, :], linewidth=0.5)
-# %%
 fermi_surface = np.min(np.abs(evals_h_0), axis=2)
 
 plt.figure()
@@ -81,13 +61,11 @@ plt.title("Fermi Surface")
 plt.xlabel("$k_x$")
 plt.ylabel("$k_y$")
 plt.show()
-
-
 # %%
+# Define mean-field problem
 h_0 = utils.builder_to_tb(syst)
 
 
-# %%
 def onsite_int(site, U):
     return U * np.kron((tau_0 - tau_x), np.ones((ndof, ndof)))
 
@@ -97,39 +75,91 @@ builder_int = utils.build_interacting_syst(
 )
 params = {"U": -2}
 h_int = utils.builder_to_tb(builder_int, params)
-
-ndim = 2
 # %%
+nsites = len(wrapped_syst.sites)
+ham_terms = np.array(
+    [np.kron(np.kron(tau_x, np.eye(ndof)), np.diag(delta)) for delta in np.eye(nsites)]
+)
+
+
+def hamiltonian_basis(ham_terms):
+    ham_vectors = np.array([matrix.flatten() for matrix in ham_terms])
+    ham_vectors = np.linalg.qr(ham_vectors.T, mode="reduced")[0]
+    ham_vectors = np.column_stack([ham_vectors])
+
+    overlap = ham_vectors.conj().T @ ham_vectors
+    np.testing.assert_allclose(overlap, np.eye(overlap.shape[0]), atol=1e-8)
+
+    return ham_vectors.reshape(*ham_terms.shape)
+
+
+ham_basis = hamiltonian_basis(ham_terms)
+# %%
+# Construct mean-field guess
+scale = 1
+random_coeffs = scale * np.random.rand(len(ham_basis))
+mf_guess = {(0, 0): np.tensordot(random_coeffs, ham_basis, 1)}
 charge_op = np.kron(tau_z, np.eye(ndof))
 
-# %% We build the bloch_family.
-# Particle-hole symmetry
-PHS = qsymm.particle_hole(ndim, np.kron(tau_x, np.eye(ndof)))
-symmetries = [PHS]
-
-hams = (h_0, h_int)
-hoppings = list(h_int.keys())
-
-# We recalculate the ndof, since we now have double it for the holes and electrons.
-ndof_sc = ndof * 2
-
-ham_fam = tb_to_ham_fam(hoppings, ndof_sc, symmetries)
-
-# %% We generate an initial guess with the ham_fam.
-mf_guess = symm_guess_mf(ham_fam)
-
-
-# %% We set up the `meanfi` model and compute a solution.
-def compute_sol(h_0, h_int, nk, ham_fam, guess, target_charge, kT):
-    model = Model(h_0, h_int, target_charge, charge_op, kT)
-    h_sol = solver_density_symmetric(
-        model, ham_fam, guess, nk=nk, optimizer_kwargs={"verbose": False}
-    )
-
-    return h_sol
-
-
 # %%
+# Compute mean field solution
+# This codes assumes only onsite interactions, hence the explicit (0,0) key.
+# This code assumes a superconducting order parameter as in ham_basis,
+# hence the use of only the off-diagonal block of the density matrix.
+
+
+def cost_density_symmetric(rho_params, model, ham_basis, nk):
+    rho = {(0, 0): np.tensordot(rho_params, ham_basis, 1)}
+    rho_new = model.density_matrix_iteration(rho, nk=nk)[(0, 0)]
+    block_rho_new = rho_new[
+        : len(rho_new) // 4 :, len(rho_new) // 2 : 3 * len(rho_new) // 4
+    ]
+    rho_params_new = -2 * np.diag(block_rho_new)
+    # rho_params_new = np.einsum('ij, kij -> k', rho_new, ham_basis)
+    return rho_params_new - rho_params
+
+
+def compute_sol(
+    h_0,
+    h_int,
+    nk,
+    ham_basis,
+    mf_guess,
+    target_charge,
+    kT,
+    optimizer_kwargs,
+    add_fermi_level=True,
+):
+    model = Model(h_0, h_int, target_charge, charge_op, kT)
+
+    rho_guess = density_matrix(
+        add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
+    )[0][(0, 0)]
+
+    block_rho_guess = rho_guess[
+        : len(rho_guess) // 4 :, len(rho_guess) // 2 : 3 * len(rho_guess) // 4
+    ]
+    rho_params = -2 * np.diag(block_rho_guess)
+    # rho_params = np.einsum('ij, kij -> k', rho_guess, ham_basis)
+    f = partial(cost_density_symmetric, model=model, ham_basis=ham_basis, nk=nk)
+    rho_params = anderson(f, rho_params, **optimizer_kwargs)
+    rho_result = {(0, 0): np.tensordot(rho_params, ham_basis, 1)}
+
+    mf_result = meanfield(rho_result, model.h_int)
+
+    if add_fermi_level:
+        fermi = fermi_level(
+            add_tb(model.h_0, mf_result),
+            model.charge_op,
+            model.target_charge,
+            model.kT,
+            nk,
+            model._ndim,
+        )
+        add_tb(mf_result, {model._local_key: -fermi * model.charge_op})
+    return mf_result
+
+
 def compute_gap(full_sol, nk_dense, fermi_energy=0):
     h_kgrid = tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
@@ -144,7 +174,18 @@ nk = 20
 target_charge = 0
 kT = 0
 
-h_int_solution = compute_sol(h_0, h_int, nk, ham_fam, mf_guess, target_charge, kT)
+optimizer_kwargs = {"verbose": True}
+h_int_solution = compute_sol(
+    h_0,
+    h_int,
+    nk,
+    ham_basis,
+    mf_guess,
+    target_charge,
+    kT,
+    optimizer_kwargs,
+    add_fermi_level=False,
+)
 h_mf = add_tb(h_0, h_int_solution)
 # %%
 
@@ -156,7 +197,17 @@ nk_dense = 10
 for i in range(n):
     h_mf_kT = add_tb(
         h_0,
-        compute_sol(h_0, h_int, nk, ham_fam, mf_guess, target_charge, temperatures[i]),
+        compute_sol(
+            h_0,
+            h_int,
+            nk,
+            ham_basis,
+            h_mf_kT,
+            target_charge,
+            temperatures[i],
+            optimizer_kwargs,
+            add_fermi_level=False,
+        ),
     )
     gaps[i] = compute_gap(h_mf_kT, nk_dense)
 
@@ -242,5 +293,6 @@ for ax_i in ax:
 # %%
 plt.plot(ks, vals[:, 15, :])
 # %%
-vals.shape
+gap = np.min(np.abs(vals))
+gap
 # %%
