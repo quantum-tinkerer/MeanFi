@@ -20,9 +20,8 @@ tau_z = np.array([[1, 0], [0, -1]])
 tau_0 = np.eye(2)
 # %%
 # Create square lattice
-ndof = 2  # spin
-norbs = 2 * ndof  # particle-hole and spin
-square_lattice = kwant.lattice.square(norbs=norbs)
+nph = nspin = 2  # spin
+square_lattice = kwant.lattice.square(norbs=nph * nspin)
 
 
 def square_shape(pos):
@@ -32,8 +31,8 @@ def square_shape(pos):
 
 syst = kwant.Builder(kwant.TranslationalSymmetry(*square_lattice.prim_vecs))
 
-syst[square_lattice.shape(square_shape, (0, 0))] = 0 * np.kron(tau_z, np.eye(ndof))
-syst[square_lattice.neighbors(1)] = np.kron(tau_z, np.eye(ndof))
+syst[square_lattice.shape(square_shape, (0, 0))] = 0 * np.kron(tau_z, np.eye(nspin))
+syst[square_lattice.neighbors(1)] = np.kron(tau_z, np.eye(nspin))
 # %%
 # %%
 wrapped_syst = kwant.wraparound.wraparound(syst).finalized()
@@ -67,7 +66,7 @@ h_0 = utils.builder_to_tb(syst)
 
 
 def onsite_int(site, U):
-    return U * np.kron((tau_0 - tau_x), np.ones((ndof, ndof)))
+    return U * np.kron((tau_0 - tau_x), np.ones((nspin, nspin)))
 
 
 builder_int = utils.build_interacting_syst(
@@ -77,29 +76,38 @@ params = {"U": -2}
 h_int = utils.builder_to_tb(builder_int, params)
 # %%
 nsites = len(wrapped_syst.sites)
+
+# Construct Hamiltonian basis for mean-field decomposition in kwant's basis
 ham_terms = np.array(
-    [np.kron(np.kron(tau_x, np.eye(ndof)), np.diag(delta)) for delta in np.eye(nsites)]
+    [np.kron(np.diag(delta), np.kron(tau_x, np.eye(nspin))) for delta in np.eye(nsites)]
 )
 
 
 def hamiltonian_basis(ham_terms):
     ham_vectors = np.array([matrix.flatten() for matrix in ham_terms])
-    ham_vectors = np.linalg.qr(ham_vectors.T, mode="reduced")[0]
-    ham_vectors = np.column_stack([ham_vectors])
+    ham_vectors = np.linalg.qr(ham_vectors.T, mode="reduced")[0].T
 
-    overlap = ham_vectors.conj().T @ ham_vectors
+    overlap = ham_vectors @ ham_vectors.conj().T
     np.testing.assert_allclose(overlap, np.eye(overlap.shape[0]), atol=1e-8)
-
+    ham_terms = ham_vectors.reshape(*ham_terms.shape)
     return ham_vectors.reshape(*ham_terms.shape)
 
 
 ham_basis = hamiltonian_basis(ham_terms)
+
+
+def permutate_sites(operator):
+    reshaped = operator.reshape(nph, nspin, nsites, nph, nspin, nsites)
+    permuted = reshaped.transpose(2, 0, 1, 5, 3, 4)
+    return permuted.reshape(*operator.shape)
+
+
 # %%
 # Construct mean-field guess
 scale = 1
 random_coeffs = scale * np.random.rand(len(ham_basis))
 mf_guess = {(0, 0): np.tensordot(random_coeffs, ham_basis, 1)}
-charge_op = np.kron(tau_z, np.eye(ndof))
+charge_op = np.kron(tau_z, np.eye(nspin))
 
 # %%
 # Compute mean field solution
@@ -111,11 +119,12 @@ charge_op = np.kron(tau_z, np.eye(ndof))
 def cost_density_symmetric(rho_params, model, ham_basis, nk):
     rho = {(0, 0): np.tensordot(rho_params, ham_basis, 1)}
     rho_new = model.density_matrix_iteration(rho, nk=nk)[(0, 0)]
-    block_rho_new = rho_new[
-        : len(rho_new) // 4 :, len(rho_new) // 2 : 3 * len(rho_new) // 4
+    permuted_rho = permutate_sites(rho_new)
+    block_rho = permuted_rho[
+        : len(permuted_rho) // 4 :, len(permuted_rho) // 2 : 3 * len(permuted_rho) // 4
     ]
-    rho_params_new = -2 * np.diag(block_rho_new)
-    # rho_params_new = np.einsum('ij, kij -> k', rho_new, ham_basis)
+    rho_params_new = -2 * np.diag(block_rho)
+    # rho_params_new = np.einsum('ij, kji -> k', rho_new, ham_basis)
     return rho_params_new - rho_params
 
 
@@ -136,11 +145,13 @@ def compute_sol(
         add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
     )[0][(0, 0)]
 
-    block_rho_guess = rho_guess[
-        : len(rho_guess) // 4 :, len(rho_guess) // 2 : 3 * len(rho_guess) // 4
+    # permute rho to order (particle-hole, spin, site) to extract coefficients and avoid einsum
+    permuted_rho = permutate_sites(rho_guess)
+    block_rho = permuted_rho[
+        : len(permuted_rho) // 4 :, len(permuted_rho) // 2 : 3 * len(permuted_rho) // 4
     ]
-    rho_params = -2 * np.diag(block_rho_guess)
-    # rho_params = np.einsum('ij, kij -> k', rho_guess, ham_basis)
+    rho_params = -2 * np.diag(block_rho)
+    # rho_params = np.einsum('ij, kji -> k', rho_guess, ham_basis)
     f = partial(cost_density_symmetric, model=model, ham_basis=ham_basis, nk=nk)
     rho_params = anderson(f, rho_params, **optimizer_kwargs)
     rho_result = {(0, 0): np.tensordot(rho_params, ham_basis, 1)}
@@ -188,13 +199,14 @@ h_int_solution = compute_sol(
 )
 h_mf = add_tb(h_0, h_int_solution)
 # %%
-
 n = 20
 max_temp = 0.2
 temperatures = np.linspace(0, max_temp, n)
 gaps = np.zeros_like(temperatures)
 nk_dense = 10
 for i in range(n):
+    if i == 0:
+        h_mf_kT = h_mf
     h_mf_kT = add_tb(
         h_0,
         compute_sol(
