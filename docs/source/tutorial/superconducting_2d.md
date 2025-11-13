@@ -117,10 +117,9 @@ def hamiltonian_basis(ham_terms):
 
 ham_basis = hamiltonian_basis(ham_terms)
 
-
 def permutate_sites(operator):
-    reshaped = operator.reshape(nph, nspin, nsites, nph, nspin, nsites)
-    permuted = reshaped.transpose(2, 0, 1, 5, 3, 4)
+    reshaped = operator.reshape(nsites, nph, nspin, nsites, nph, nspin)
+    permuted = reshaped.transpose(1, 2, 0, 4, 5, 3)
     return permuted.reshape(*operator.shape)
 
 ```
