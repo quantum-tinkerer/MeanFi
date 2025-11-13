@@ -8994,8 +8994,8 @@ packages:
   timestamp: 1733255681319
 - pypi: ./
   name: meanfi
-  version: 1.1.1.dev40+gb49e34ae1.d20251017
-  sha256: 6f5c3bc719dcbcefd5788255cf72eea79664bac82cdf6a2a5408838ab8af271d
+  version: 1.1.1.dev113+g77ebf765c.d20251107
+  sha256: c512fbdd6b9779288055246b486e181df08fc9ff24f0ee8747207a457f8e0309
   requires_dist:
   - kwant>=1.4
   - numpy>=1.23
@@ -10541,7 +10541,8 @@ packages:
   - python
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
+  purls:
+  - pkg:pypi/pycparser?source=hash-mapping
   size: 110100
   timestamp: 1733195786147
 - pypi: https://files.pythonhosted.org/packages/e7/d3/c622950d87a2ffd1654208733b5bd1c5645930014abed8f4c0d74863988b/pydata_sphinx_theme-0.15.4-py3-none-any.whl

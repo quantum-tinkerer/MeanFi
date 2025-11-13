@@ -1,5 +1,20 @@
-# %% Example
-# We import all the required functions.
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.16.0
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
+---
+
+
+```{code-cell} ipython3
+:tags: [hide-input]
+
 import qsymm
 from meanfi.tb.transforms import tb_to_ham_fam, tb_to_kgrid
 import numpy as np
@@ -13,8 +28,9 @@ tau_x = np.array([[0, 1], [1, 0]])
 tau_z = np.array([[1, 0], [0, -1]])
 tau_0 = np.eye(2)
 
-# %% We build a Hamiltonian for our system.
-# We build it using blocks of h_0 and Delta, or h_int and Delta.
+```
+
+```{code-cell} ipython3
 ndof = 2
 ndim = 1
 U = -2
@@ -27,7 +43,9 @@ h_sc_int = {
 
 charge_op = np.kron(tau_z, np.eye(ndof))
 
-# %% We build the bloch_family.
+```
+
+```{code-cell} ipython3
 # Particle-hole symmetry
 PHS = qsymm.particle_hole(ndim, np.kron(tau_x, np.eye(ndof)))
 symmetries = [PHS]
@@ -39,12 +57,11 @@ hoppings = list(h_sc_int.keys())
 ndof_sc = ndof * 2
 
 ham_fam = tb_to_ham_fam(hoppings, ndof_sc, symmetries)
-
-# %% We generate an initial guess with the ham_fam.
 mf_guess = symm_guess_mf(ham_fam)
 
+```
 
-# %% We set up the `meanfi` model and compute a solution.
+```{code-cell} ipython3
 def compute_sol(h_0, h_int, nk, ham_fam, guess, target_charge, kT):
     model = Model(h_0, h_int, target_charge, charge_op, kT)
     h_sol = solver_density_symmetric(
@@ -54,7 +71,7 @@ def compute_sol(h_0, h_int, nk, ham_fam, guess, target_charge, kT):
     return h_sol
 
 
-# %%
+
 def compute_gap(full_sol, nk_dense, fermi_energy=0):
     h_kgrid = tb_to_kgrid(full_sol, nk_dense)
     vals = np.linalg.eigvalsh(h_kgrid)
@@ -64,7 +81,10 @@ def compute_gap(full_sol, nk_dense, fermi_energy=0):
     return np.abs(emin - emax)
 
 
-# %%
+
+```
+
+```{code-cell} ipython3
 nk = 100
 target_charge = 0
 kT = 0
@@ -86,25 +106,10 @@ for i in range(n):
     )
     gaps[i] = compute_gap(h_mf_kT, nk_dense)
 
-# %% Plot everything.
-plt.rcParams.update(
-    {
-        "font.size": 10,  # Set font size to 11pt
-        "axes.labelsize": 10,  # -> axis labels
-        "legend.fontsize": 8,  # -> legends
-        "font.family": "lmodern",
-        "text.usetex": True,
-        "text.latex.preamble": (  # LaTeX preamble
-            r"\usepackage{lmodern}"
-            r"\usepackage{anyfontsize}"
-            r"\usepackage{amsmath}"
-            # ... more packages if needed
-        ),
-    }
-)
-W = 6.55994375 * 0.95  # Columnwidth used for the figure
-# plt.rcParams.update({'figure.figsize': (W, W/(4/3))})
-plt.rcParams.update({"figure.figsize": (W, W / (4 / 3) / 2)})
+
+```
+
+```{code-cell} ipython3
 fig, ax = plt.subplots(1, 2)
 ax[0].set_title("Real")
 ax[0].set_xticks([])
@@ -179,7 +184,6 @@ ax[1].axvline(0.195, 0, 1, color="k", linestyle="--", label=r"$T_c$")
 ax[1].axhline(color="k", linestyle="--", linewidth=1)
 ax[1].plot(temperatures, gaps, label="Calculated")
 ax[1].legend().set_zorder(101)
-# plt.title("Gap over Temperature")
 ax[1].set_xlabel(r"$k_B T$")
 ax[1].set_ylabel("Gap")
 ax[1].annotate(
@@ -193,7 +197,7 @@ ax[1].annotate(
     ha="right",
 )
 plt.tight_layout()
-# plt.savefig('results.svg', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 
-# %%
+
+```

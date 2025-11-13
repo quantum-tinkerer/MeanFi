@@ -1,7 +1,20 @@
-# %%
-# Superconducting 2D square lattice mean-field calculation
-# ============================================================
-#
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.16.0
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
+---
+
+
+```{code-cell} ipython3
+:tags: [hide-input]
+
 from functools import partial
 
 import kwant
@@ -18,7 +31,9 @@ from meanfi.mf import density_matrix, meanfield, fermi_level
 tau_x = np.array([[0, 1], [1, 0]])
 tau_z = np.array([[1, 0], [0, -1]])
 tau_0 = np.eye(2)
-# %%
+```
+
+```{code-cell} ipython3
 # Create square lattice
 nph = nspin = 2  # spin
 square_lattice = kwant.lattice.square(norbs=nph * nspin)
@@ -33,8 +48,9 @@ syst = kwant.Builder(kwant.TranslationalSymmetry(*square_lattice.prim_vecs))
 
 syst[square_lattice.shape(square_shape, (0, 0))] = 0 * np.kron(tau_z, np.eye(nspin))
 syst[square_lattice.neighbors(1)] = np.kron(tau_z, np.eye(nspin))
-# %%
-# %%
+```
+
+```{code-cell} ipython3
 wrapped_syst = kwant.wraparound.wraparound(syst).finalized()
 ham_func = lambda k_x, k_y: wrapped_syst.hamiltonian_submatrix(
     params={"k_x": k_x, "k_y": k_y}
@@ -50,7 +66,9 @@ norms = plt.Normalize(vmin=0, vmax=2 * np.pi)
 for i, ky in enumerate(ks):
     # color each momentum slice differently in shades of gray
     plt.plot(ks, evals_h_0[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
-# %%
+```
+
+```{code-cell} ipython3
 fermi_surface = np.min(np.abs(evals_h_0), axis=2)
 
 plt.figure()
@@ -60,7 +78,9 @@ plt.title("Fermi Surface")
 plt.xlabel("$k_x$")
 plt.ylabel("$k_y$")
 plt.show()
-# %%
+```
+
+```{code-cell} ipython3
 # Define mean-field problem
 h_0 = utils.builder_to_tb(syst)
 
@@ -74,7 +94,9 @@ builder_int = utils.build_interacting_syst(
 )
 params = {"U": -2}
 h_int = utils.builder_to_tb(builder_int, params)
-# %%
+```
+
+```{code-cell} ipython3
 nsites = len(wrapped_syst.sites)
 
 # Construct Hamiltonian basis for mean-field decomposition in kwant's basis
@@ -101,15 +123,18 @@ def permutate_sites(operator):
     permuted = reshaped.transpose(2, 0, 1, 5, 3, 4)
     return permuted.reshape(*operator.shape)
 
+```
 
-# %%
+```{code-cell} ipython3
 # Construct mean-field guess
 scale = 1
 random_coeffs = scale * np.random.rand(len(ham_basis))
 mf_guess = {(0, 0): np.tensordot(random_coeffs, ham_basis, 1)}
 charge_op = np.kron(tau_z, np.eye(nspin))
+```
 
-# %%
+
+```{code-cell} ipython3
 # Compute mean field solution
 # This codes assumes only onsite interactions, hence the explicit (0,0) key.
 # This code assumes a superconducting order parameter as in ham_basis,
@@ -178,9 +203,9 @@ def compute_gap(full_sol, nk_dense, fermi_energy=0):
     emax = np.max(vals[vals <= fermi_energy])
     emin = np.min(vals[vals > fermi_energy])
     return np.abs(emin - emax)
+```
 
-
-# %%
+```{code-cell} ipython3
 nk = 20
 target_charge = 0
 kT = 0
@@ -198,7 +223,9 @@ h_int_solution = compute_sol(
     add_fermi_level=False,
 )
 h_mf = add_tb(h_0, h_int_solution)
-# %%
+```
+
+```{code-cell} ipython3
 n = 20
 max_temp = 0.2
 temperatures = np.linspace(0, max_temp, n)
@@ -223,23 +250,9 @@ for i in range(n):
     )
     gaps[i] = compute_gap(h_mf_kT, nk_dense)
 
-# %% Plot everything.
-plt.rcParams.update(
-    {
-        "font.size": 10,  # Set font size to 11pt
-        "axes.labelsize": 10,  # -> axis labels
-        "legend.fontsize": 8,  # -> legends
-        "font.family": "lmodern",
-        "text.usetex": True,
-        "text.latex.preamble": (  # LaTeX preamble
-            r"\usepackage{lmodern}"
-            r"\usepackage{anyfontsize}"
-            r"\usepackage{amsmath}"
-            # ... more packages if needed
-        ),
-    }
-)
-# %%
+```
+
+```{code-cell} ipython3
 fig, ax = plt.subplots(1, 2)
 ks = np.linspace(0, 2 * np.pi, nk, endpoint=True)
 hamiltonians = tb_to_kgrid(h_mf, nk)
@@ -301,10 +314,13 @@ ax[1].annotate(
 for ax_i in ax:
     ax_i.spines["top"].set_visible(False)
     ax_i.spines["right"].set_visible(False)
+```
 
-# %%
+```{code-cell} ipython3
 plt.plot(ks, vals[:, 15, :])
-# %%
+```
+
+```{code-cell} ipython3
 gap = np.min(np.abs(vals))
 gap
-# %%
+```
