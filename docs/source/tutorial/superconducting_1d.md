@@ -85,7 +85,7 @@ def compute_gap(full_sol, nk_dense, fermi_energy=0):
 ```
 
 ```{code-cell} ipython3
-nk = 100
+nk = 20
 target_charge = 0
 kT = 0
 
@@ -93,10 +93,10 @@ h_int_solution = compute_sol(h_sc_0, h_sc_int, nk, ham_fam, mf_guess, target_cha
 h_mf = add_tb(h_sc_0, h_int_solution)
 
 
-n = 100
+n = 10
 temperatures = np.linspace(0, 0.21, n)
 gaps = np.zeros_like(temperatures)
-nk_dense = 10000
+nk_dense = 100
 for i in range(n):
     h_mf_kT = add_tb(
         h_sc_0,
@@ -142,7 +142,6 @@ im2 = ax[1].imshow(np.imag(h_int_solution[(0,)]), cmap="coolwarm", interpolation
 cbar = fig.colorbar(im1, ax=ax[0], orientation="vertical", fraction=0.046, pad=0.04)
 cbar = fig.colorbar(im2, ax=ax[1], orientation="vertical", fraction=0.046, pad=0.04)
 plt.tight_layout()
-# plt.savefig('hams.svg', bbox_inches = 'tight', pad_inches = 0)
 plt.show()
 
 
@@ -167,7 +166,6 @@ ax[0].annotate(
     va="top",
     ha="right",
 )
-# plt.savefig('bands.svg', bbox_inches = 'tight', pad_inches = 0)
 
 
 def gap_over_temp(T, Tc, gap_0):
