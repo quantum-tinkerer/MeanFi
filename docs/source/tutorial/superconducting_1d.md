@@ -11,6 +11,7 @@ kernelspec:
   name: python3
 ---
 
+# 1D Superconducting Chain
 
 ```{code-cell} ipython3
 :tags: [hide-input]

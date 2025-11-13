@@ -11,6 +11,7 @@ kernelspec:
   name: python3
 ---
 
+# 2D Superconducting System
 
 ```{code-cell} ipython3
 :tags: [hide-input]
