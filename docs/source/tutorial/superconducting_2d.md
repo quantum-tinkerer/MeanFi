@@ -47,7 +47,7 @@ from meanfi.tb.transforms import tb_to_kgrid
 from meanfi.model import Model
 from meanfi.tb.tb import add_tb
 from meanfi.kwant_helper import utils
-from meanfi.mf import density_matrix, meanfield, fermi_level
+from meanfi.mf import density_matrix, meanfield
 ```
 
 We start by defining the non-interacting part of the Hamiltonian on a square lattice using Kwant.
@@ -200,8 +200,7 @@ def compute_sol(
     mf_guess,
     target_charge,
     kT,
-    optimizer_kwargs,
-    add_fermi_level=True,
+    optimizer_kwargs
 ):
     model = Model(h_0, h_int, target_charge, charge_op, kT)
 
@@ -221,17 +220,6 @@ def compute_sol(
     rho_result = {(0, 0): np.tensordot(rho_params, ham_basis, 1)}
 
     mf_result = meanfield(rho_result, model.h_int)
-
-    if add_fermi_level:
-        fermi = fermi_level(
-            add_tb(model.h_0, mf_result),
-            model.charge_op,
-            model.target_charge,
-            model.kT,
-            nk,
-            model._ndim,
-        )
-        add_tb(mf_result, {model._local_key: -fermi * model.charge_op})
     return mf_result
 
 
@@ -260,8 +248,7 @@ h_int_solution = compute_sol(
     mf_guess,
     target_charge,
     kT,
-    optimizer_kwargs,
-    add_fermi_level=False,
+    optimizer_kwargs
 )
 h_mf = add_tb(h_0, h_int_solution)
 ```
@@ -286,7 +273,6 @@ for i in range(n):
             target_charge,
             temperatures[i],
             optimizer_kwargs,
-            add_fermi_level=False,
         ),
     )
     gaps[i] = compute_gap(h_mf_kT, nk_dense)
