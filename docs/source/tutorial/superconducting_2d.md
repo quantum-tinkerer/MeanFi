@@ -122,7 +122,7 @@ ax.spines["right"].set_visible(False)
 At half-filling, the Fermi surface is given by:
 
 ```{code-cell} ipython3
-fermi_surface = np.min(np.abs(evals_h_0), axis=2)
+fermi_surface = np.min(np.abs(evals_h0), axis=2)
 
 plt.figure()
 plt.contourf(*np.meshgrid(ks, ks), fermi_surface, levels=1, cmap="Blues", alpha=0.5)
