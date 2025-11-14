@@ -78,7 +78,14 @@ syst[square_lattice.neighbors(1)] = np.kron(tau_z, np.eye(nspin))
 ```
 
 For simplicity, we set the chemical potential $\mu = 0$ and the hopping amplitude $t = 1$.
-We confirm the band structure of the non-interacting Hamiltonian by computing the eigenvalues over a grid in momentum space using `kwant.wraparound`.
+
+At this point, we can visualize the lattice structure:
+
+```{code-cell} ipython3
+kwant.plot(syst)
+```
+
+and confirm the band structure of the non-interacting Hamiltonian by computing the eigenvalues over a grid in momentum space using `kwant.wraparound`:
 
 ```{code-cell} ipython3
 wrapped_syst = kwant.wraparound.wraparound(syst).finalized()
@@ -169,7 +176,6 @@ def permutate_sites(operator):
 scale = 1
 random_coeffs = scale * np.random.rand(len(ham_basis))
 mf_guess = {(0, 0): np.tensordot(random_coeffs, ham_basis, 1)}
-charge_op = np.kron(tau_z, np.eye(nspin))
 ```
 
 
@@ -182,7 +188,7 @@ charge_op = np.kron(tau_z, np.eye(nspin))
 
 def cost_density_symmetric(rho_params, model, ham_basis, nk):
     rho = {(0, 0): np.tensordot(rho_params, ham_basis, 1)}
-    rho_new = model.density_matrix_iteration(rho, nk=nk)[(0, 0)]
+    rho_new = model.density_matrix(rho, nk=nk)[(0, 0)]
     permuted_rho = permutate_sites(rho_new)
     block_rho = permuted_rho[
         : len(permuted_rho) // 4 :, len(permuted_rho) // 2 : 3 * len(permuted_rho) // 4
@@ -198,15 +204,12 @@ def compute_sol(
     nk,
     ham_basis,
     mf_guess,
-    target_charge,
-    kT,
+    filling,
     optimizer_kwargs
 ):
-    model = Model(h_0, h_int, target_charge, charge_op, kT)
+    model = Model(h_0, h_int, filling)
 
-    rho_guess = density_matrix(
-        add_tb(model.h_0, mf_guess), model.charge_op, model.target_charge, model.kT, nk
-    )[0][(0, 0)]
+    rho_guess = density_matrix(add_tb(model.h_0, mf_guess), filling, nk)[0][(0, 0)]
 
     # permute rho to order (particle-hole, spin, site) to extract coefficients and avoid einsum
     permuted_rho = permutate_sites(rho_guess)
@@ -221,66 +224,26 @@ def compute_sol(
 
     mf_result = meanfield(rho_result, model.h_int)
     return mf_result
-
-
-def compute_gap(full_sol, nk_dense, fermi_energy=0):
-    h_kgrid = tb_to_kgrid(full_sol, nk_dense)
-    vals = np.linalg.eigvalsh(h_kgrid)
-
-    emax = np.max(vals[vals <= fermi_energy])
-    emin = np.min(vals[vals > fermi_energy])
-    return np.abs(emin - emax)
 ```
 
 ### Plot results
 
 ```{code-cell} ipython3
 nk = 20
-target_charge = 0
-kT = 0
-
-optimizer_kwargs = {"verbose": True}
 h_int_solution = compute_sol(
     h_0,
     h_int,
-    nk,
-    ham_basis,
-    mf_guess,
-    target_charge,
-    kT,
-    optimizer_kwargs
+    nk=nk,
+    ham_basis=ham_basis,
+    mf_guess=mf_guess,
+    filling=2,
+    optimizer_kwargs={"verbose": True}
 )
 h_mf = add_tb(h_0, h_int_solution)
 ```
 
 ```{code-cell} ipython3
-n = 20
-max_temp = 0.2
-temperatures = np.linspace(0, max_temp, n)
-gaps = np.zeros_like(temperatures)
-nk_dense = 10
-for i in range(n):
-    if i == 0:
-        h_mf_kT = h_mf
-    h_mf_kT = add_tb(
-        h_0,
-        compute_sol(
-            h_0,
-            h_int,
-            nk,
-            ham_basis,
-            h_mf_kT,
-            target_charge,
-            temperatures[i],
-            optimizer_kwargs,
-        ),
-    )
-    gaps[i] = compute_gap(h_mf_kT, nk_dense)
-
-```
-
-```{code-cell} ipython3
-fig, ax = plt.subplots(1, 2)
+fig, ax = plt.subplots()
 ks = np.linspace(0, 2 * np.pi, nk, endpoint=True)
 hamiltonians = tb_to_kgrid(h_mf, nk)
 
@@ -291,13 +254,13 @@ cmap = plt.get_cmap("twilight")
 norms = plt.Normalize(vmin=0, vmax=2 * np.pi)
 for i, ky in enumerate(ks):
     # color each momentum slice differently in shades of gray
-    ax[0].plot(ks, vals[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
-ax[0].axhline(color="k", linestyle="--", linewidth=1)
-ax[0].set_xticks([0, np.pi, 2 * np.pi], ["$0$", "$\\pi$", "$2\\pi$"])
-ax[0].set_xlim(0, 2 * np.pi)
-ax[0].set_ylabel("$E - E_F$")
-ax[0].set_xlabel("$k_x / a$")
-ax[0].annotate(
+    ax.plot(ks, vals[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
+ax.axhline(color="k", linestyle="--", linewidth=1)
+ax.set_xticks([0, np.pi, 2 * np.pi], ["$0$", "$\\pi$", "$2\\pi$"])
+ax.set_xlim(0, 2 * np.pi)
+ax.set_ylabel("$E - E_F$")
+ax.set_xlabel("$k_x / a$")
+ax.annotate(
     "a)",
     xy=(0, 1),
     xycoords="axes fraction",
@@ -312,35 +275,8 @@ cbar_ax = fig.add_axes([-0.03, 0.25, 0.015, 0.55])
 cb1 = plt.colorbar(plt.cm.ScalarMappable(norm=norms, cmap=cmap), cax=cbar_ax)
 cb1.set_label(r"$k_y / a$")
 
-
-def gap_over_temp(T, Tc, gap_0):
-    gap = gap_0 * np.tanh(1.74 * np.sqrt(np.maximum(Tc / T - 1, 0)))
-    return gap
-
-
-theory_gaps = gap_over_temp(temperatures, 0.195, gaps[0])
-
-ax[1].margins(x=0)
-ax[1].plot(temperatures, theory_gaps, linestyle=":", linewidth=2, label="Theoretical")
-
-ax[1].plot(temperatures, gaps, label="Calculated")
-ax[1].legend().set_zorder(101)
-ax[1].set_xlabel(r"$k_B T$")
-ax[1].set_ylabel("Gap")
-ax[1].annotate(
-    "b)",
-    xy=(0, 1),
-    xycoords="axes fraction",
-    xytext=(-0.1, 1),
-    textcoords="axes fraction",
-    fontweight="bold",
-    va="top",
-    ha="right",
-)
-
-for ax_i in ax:
-    ax_i.spines["top"].set_visible(False)
-    ax_i.spines["right"].set_visible(False)
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
 ```
 
 ```{code-cell} ipython3
