@@ -11,49 +11,54 @@ kernelspec:
   name: python3
 ---
 
-# 2D Superconducting System
+# 2D Superconductor
 
-This tutorial demonstrates how to set up and solve a 2D model with onsite attractive interactions using mean-field theory.
+This is an advanced tutorial that demonstrates how to set up and solve a constrained mean-field problem.
+As an example, we consider a 2D model with onsite attractive interactions: a toy model for superconductivity.
+Because superconductors are particle-hole symmetric, our goal is to constrain the mean-field solution to respect this symmetry.
 
-The Hamiltonian is defined on a square lattice with two spins per site and takes the form:
+For the model we consider the Hamiltonian of two fermions $c_{i \sigma}$ per site in a 2D square lattice:
 
 \begin{equation}
 H_0 = \sum_{\langle i, j \rangle, \sigma} c_{i \sigma}^\dagger c_{j \sigma} - \mu \sum_{i, \sigma} c_{i \sigma}^\dagger c_{i \sigma}
 \end{equation}
 
-The interaction term is given by:
+where $\sigma = \uparrow, \downarrow$ denotes the spin degree of freedom, $t$ is the hopping amplitude between nearest neighbors, and $\mu$ is the chemical potential.
+The attractive onsite interaction is given by:
 
 \begin{equation}
 H_{int} = U \sum_{i} n_{i \uparrow} n_{i \downarrow}
 \end{equation}
 
-...
+with $U < 0$.
 
-BdG formalism...
+In the Bogoliubov-de Gennes (BdG) formalism, we rewrite the Hamiltonian in Nambu space by introducing the particle-hole spinor $\Psi_i = (c_{i \uparrow}, c_{i \downarrow}, c_{i \uparrow}^\dagger, c_{i \downarrow}^\dagger)^T$.
+The non-interacting Hamiltonian in this basis reads:
+
+\begin{equation}
+H_0 = \sum_{\langle i, j \rangle} \Psi_i^\dagger \tau_z \Psi_j - \mu \sum_{i} \Psi_i^\dagger \tau_z \Psi_i
+\end{equation}
+
+where $\tau_z$ is the Pauli matrix acting in particle-hole space.
+The interaction term can be decoupled in the mean-field approximation, leading to a superconducting order parameter $\Delta_i = U \langle c_{i \downarrow} c_{i \uparrow} \rangle$.
+The mean-field Hamiltonian then becomes:
+
+\begin{equation}
+H_{MF} = H_0 + \sum_{i} \left( \Delta_i c_{i \uparrow}^\dagger c_{i \downarrow}^\dagger + \Delta_i^* c_{i \downarrow} c_{i \uparrow} \right)
+\end{equation}
+
+Our goal is to solve for the superconducting order parameter $\Delta_i$ self-consistently while ensuring that the mean-field solution respects particle-hole symmetry.
 
 ## Setup non-interacting Hamiltonian
-
-```{code-cell} ipython3
-:tags: [hide-input]
-
-from functools import partial
-
-import kwant
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.optimize import anderson
-
-from meanfi.tb.transforms import tb_to_kgrid
-from meanfi.model import Model
-from meanfi.tb.tb import add_tb
-from meanfi.kwant_helper import utils
-from meanfi.mf import density_matrix, meanfield
-```
 
 We start by defining the non-interacting part of the Hamiltonian on a square lattice using Kwant.
 This is convenient for building tight-binding models on various lattice geometries, and here we expemlify it on a square lattice with four degrees of freedom per site: two for spin and two for particle-hole space.
 
 ```{code-cell} ipython3
+import kwant
+import numpy as np
+import matplotlib.pyplot as plt
+
 # Create square lattice
 nph = nspin = 2  # particle-hole and spin degrees of freedom
 square_lattice = kwant.lattice.square(norbs=nph * nspin)
@@ -79,29 +84,39 @@ syst[square_lattice.neighbors(1)] = np.kron(tau_z, np.eye(nspin))
 
 For simplicity, we set the chemical potential $\mu = 0$ and the hopping amplitude $t = 1$.
 
-At this point, we can visualize the lattice structure:
+At this point, we may visualize the unit cell:
 
 ```{code-cell} ipython3
 kwant.plot(syst)
 ```
 
-and confirm the band structure of the non-interacting Hamiltonian by computing the eigenvalues over a grid in momentum space using `kwant.wraparound`:
+and confirm that the dispersion relation of $H_0$ is $E_0(\mathbf{k}) = 2 (\cos k_x + \cos k_y)$ by using `kwant.wraparound`:
 
 ```{code-cell} ipython3
 wrapped_syst = kwant.wraparound.wraparound(syst).finalized()
-ham_func = lambda k_x, k_y: wrapped_syst.hamiltonian_submatrix(
+hk = lambda k_x, k_y: wrapped_syst.hamiltonian_submatrix(
     params={"k_x": k_x, "k_y": k_y}
 )
 
 ks = np.linspace(0, 2 * np.pi, 20, endpoint=True)
-hams = np.array([[ham_func(kx, ky) for ky in ks] for kx in ks])
+hams = np.array([[hk(kx, ky) for ky in ks] for kx in ks])
 
-evals_h_0 = np.linalg.eigvalsh(hams)
+evals_h0 = np.linalg.eigvalsh(hams)
 
 cmap = plt.get_cmap("twilight")
 norms = plt.Normalize(vmin=0, vmax=2 * np.pi)
+fig, ax = plt.subplots()
 for i, ky in enumerate(ks):
-    plt.plot(ks, evals_h_0[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
+    ax.plot(ks, evals_h0[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
+cbar_ax = fig.add_axes([-0.03, 0.25, 0.015, 0.55])
+cb1 = plt.colorbar(plt.cm.ScalarMappable(norm=norms, cmap=cmap), cax=cbar_ax)
+cb1.set_label(r"$k_y / a$")
+ax.set_xticks([0, np.pi, 2 * np.pi], ["$0$", "$\\pi$", "$2\\pi$"])
+ax.set_xlim(0, 2 * np.pi)
+ax.set_ylabel("$E$")
+ax.set_xlabel("$k_x / a$")
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
 ```
 
 At half-filling, the Fermi surface is given by:
@@ -118,18 +133,21 @@ plt.ylabel("$k_y$")
 plt.show()
 ```
 
-## Define mean-field problem
-
-Next, we define the mean-field problem by converting the non-interacting Hamiltonian to a meanfi model and we define the onsite attractive interaction.
+To proceed with the mean-field calculation, we convert the Kwant builder into a MeanFi tight-binding model:
 
 ```{code-cell} ipython3
-# Convert kwant builder to meanfi tight-binding model
+from meanfi.kwant_helper import utils
+
 h_0 = utils.builder_to_tb(syst)
+```
 
+## Define the interacting Hamiltonian
 
+The next step is to define the interacting part of the Hamiltonian: an onsite attractive interaction between the fermionic degrees of freedom.
+In the BdG formalism, this corresponds to an attractive interaction between electrons and holes, but a repulsive interaction between electrons and electrons, holes and holes: $U (\tau_0 - \tau_x) \otimes \mathbb{1}_{spin}$.
+
+```{code-cell} ipython3
 # Define onsite interaction term
-# Attractive interaction between electrons and holes
-# Repulsive interaction between electrons and electrons, holes and holes
 def onsite_int(site, U):
     return U * np.kron((tau_0 - tau_x), np.ones((nspin, nspin)))
 
@@ -141,17 +159,23 @@ params = {"U": -2}
 h_int = utils.builder_to_tb(builder_int, params)
 ```
 
-## Mean-field solution
+## Symmetry-constrained mean-field solution
+
+Because we search for a superconducting solution, meanfi's default mean-field solver cannot be used directly, as it does not guarantee that the solution respects particle-hole symmetry.
+To enforce this symmetry, we construct a basis of Hamiltonian terms that respect particle-hole symmetry and use it to parametrize the mean-field solution.
 
 ```{code-cell} ipython3
-nsites = len(wrapped_syst.sites)
+nsites = len(wrapped_syst.sites) # number of sites in the unit cell, here 1
 
-# Construct Hamiltonian basis for mean-field decomposition in kwant's basis
+# Hamiltonian basis using kwant's ordering of degrees of freedom (site, ph, spin)
 ham_terms = np.array(
     [np.kron(np.diag(delta), np.kron(tau_x, np.eye(nspin))) for delta in np.eye(nsites)]
 )
+```
 
+To ensure that the basis is orthonormal, we perform a QR decomposition:
 
+```{code-cell} ipython3
 def hamiltonian_basis(ham_terms):
     ham_vectors = np.array([matrix.flatten() for matrix in ham_terms])
     ham_vectors = np.linalg.qr(ham_vectors.T, mode="reduced")[0].T
@@ -163,13 +187,12 @@ def hamiltonian_basis(ham_terms):
 
 
 ham_basis = hamiltonian_basis(ham_terms)
-
-def permutate_sites(operator):
-    reshaped = operator.reshape(nsites, nph, nspin, nsites, nph, nspin)
-    permuted = reshaped.transpose(1, 2, 0, 4, 5, 3)
-    return permuted.reshape(*operator.shape)
-
 ```
+
+### Mean-field guess
+
+Before starting the solver, we need to provide an initial guess for the mean-field solution.
+We construct a random guess in the Hamiltonian basis defined above:
 
 ```{code-cell} ipython3
 # Construct mean-field guess
@@ -178,13 +201,27 @@ random_coeffs = scale * np.random.rand(len(ham_basis))
 mf_guess = {(0, 0): np.tensordot(random_coeffs, ham_basis, 1)}
 ```
 
+### Define solver
+
+We define a function to compute the mean-field solution constrained to the Hamiltonian basis defined above.
 
 ```{code-cell} ipython3
+from functools import partial
+
+from scipy.optimize import anderson
+from meanfi.mf import density_matrix, meanfield
+from meanfi.model import Model
+from meanfi.tb.tb import add_tb
+
 # Compute mean field solution
 # This codes assumes only onsite interactions, hence the explicit (0,0) key.
 # This code assumes a superconducting order parameter as in ham_basis,
 # hence the use of only the off-diagonal block of the density matrix.
 
+def permutate_sites(operator):
+    reshaped = operator.reshape(nsites, nph, nspin, nsites, nph, nspin)
+    permuted = reshaped.transpose(1, 2, 0, 4, 5, 3)
+    return permuted.reshape(*operator.shape)
 
 def cost_density_symmetric(rho_params, model, ham_basis, nk):
     rho = {(0, 0): np.tensordot(rho_params, ham_basis, 1)}
@@ -226,7 +263,9 @@ def compute_sol(
     return mf_result
 ```
 
-### Plot results
+### Get results
+
+Finally, we compute the mean-field solution constrained to the particle-hole symmetric Hamiltonian basis over a $20 \times 20$ k-point grid:
 
 ```{code-cell} ipython3
 nk = 20
@@ -242,19 +281,22 @@ h_int_solution = compute_sol(
 h_mf = add_tb(h_0, h_int_solution)
 ```
 
+We can now visualize the mean-field band structure and confirm that a superconducting gap has opened at the Fermi surface:
+
 ```{code-cell} ipython3
+from meanfi.tb.transforms import tb_to_kgrid
+
 fig, ax = plt.subplots()
 ks = np.linspace(0, 2 * np.pi, nk, endpoint=True)
 hamiltonians = tb_to_kgrid(h_mf, nk)
 
-vals = np.linalg.eigvalsh(hamiltonians)
+evals_hmf = np.linalg.eigvalsh(hamiltonians)
 
 # divergent colormap
 cmap = plt.get_cmap("twilight")
 norms = plt.Normalize(vmin=0, vmax=2 * np.pi)
 for i, ky in enumerate(ks):
-    # color each momentum slice differently in shades of gray
-    ax.plot(ks, vals[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
+    ax.plot(ks, evals_hmf[:, i, :], c=cmap(norms(ky)), linewidth=0.5)
 ax.axhline(color="k", linestyle="--", linewidth=1)
 ax.set_xticks([0, np.pi, 2 * np.pi], ["$0$", "$\\pi$", "$2\\pi$"])
 ax.set_xlim(0, 2 * np.pi)
@@ -270,7 +312,6 @@ ax.annotate(
     va="top",
     ha="right",
 )
-# plot colorbar for momenta using a separate axis
 cbar_ax = fig.add_axes([-0.03, 0.25, 0.015, 0.55])
 cb1 = plt.colorbar(plt.cm.ScalarMappable(norm=norms, cmap=cmap), cax=cbar_ax)
 cb1.set_label(r"$k_y / a$")
@@ -279,9 +320,7 @@ ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ```
 
-```{code-cell} ipython3
-plt.plot(ks, vals[:, 15, :])
-```
+The superconducting gap is:
 
 ```{code-cell} ipython3
 gap = np.min(np.abs(vals))
