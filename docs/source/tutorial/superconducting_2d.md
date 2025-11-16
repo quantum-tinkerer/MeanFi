@@ -323,6 +323,6 @@ ax.spines["right"].set_visible(False)
 The superconducting gap is:
 
 ```{code-cell} ipython3
-gap = np.min(np.abs(vals))
+gap = np.min(np.abs(evals_hmf))
 gap
 ```
