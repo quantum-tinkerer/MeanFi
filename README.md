@@ -1,100 +1,73 @@
 # `MeanFi`
 
-## What is `MeanFi`?
+`MeanFi` is a finite-temperature Hartree-Fock solver for tight-binding models with density-density interactions.
+The package now uses one integration backend throughout: `stateful_quadrature`.
 
-`MeanFi` is a Python package that performs self-consistent Hartree-Fock calculations on tight-binding models.
-It aims to find the groundstate of a Hamiltonian with density-density interactions
+## Workflow
 
-$$
-\hat{H} = \hat{H_0} + \hat{V} = \sum_{ij} h_{ij} c^\dagger_{i} c_{j} + \frac{1}{2} \sum_{ij} v_{ij} \hat{n}_i \hat{n}_j,
-$$
+`MeanFi` follows a simple three-step workflow:
 
-and computes the mean-field correction $\hat{V}^{\text{MF}}$ which approximates the interaction term:
-
-$$
-\hat{V} \approx \hat{V}^{\text{MF}} =\sum_{ij} \tilde{v}_{ij} c_{i}^{\dagger} c_{j}.
-$$
-
-For more details, refer to the [theory overview](https://meanfi.readthedocs.io/en/latest/documentation/mf_notes.html) and [algorithm description](https://meanfi.readthedocs.io/en/latest/documentation/algorithm.html).
-
-## How to use `MeanFi`?
-
-The calculation of a mean-field Hamiltonian is a simple 3-step process:
-
-1. **Define**
-
-    To specify the interacting problem, use a `Model` object which collects:
-    - Non-interacting Hamiltonian as a tight-binding dictionary.
-    - Interaction Hamiltonian as a tight-binding dictionary.
-    - Particle filling number in the unit cell.
-2. **Guess**
-
-    Construct a starting guess for the mean-field correction.
-
-3. **Solve**
-
-    Solve for the mean-field correction using the `solver` function and add it to the non-interacting part to obtain the total mean-field Hamiltonian.
+1. Define the interacting problem with `Model`.
+2. Build a mean-field guess on the interaction keys.
+3. Run `solver(...)` to obtain a self-consistent mean-field Hamiltonian.
 
 ```python
 import meanfi
 
-#Define
-h_0 = {(0,) : onsite, (1,) : hopping, (-1,) : hopping.T.conj()}
-h_int = {(0,) : onsite_interaction}
-model = meanfi.Model(h_0, h_int, filling=2)
+h_0 = {(0,): onsite, (1,): hopping, (-1,): hopping.T.conj()}
+h_int = {(0,): onsite_interaction}
 
-#Guess
-guess = meanfi.guess_tb(guess_hopping_keys, ndof)
+model = meanfi.Model(
+    h_0,
+    h_int,
+    filling=2,
+    kT=0.05,
+    charge_tol=1e-6,
+    density_atol=1e-6,
+    scf_tol=1e-5,
+)
 
-#Solve
+guess = meanfi.guess_tb(frozenset(h_int), onsite.shape[0])
 mf_correction = meanfi.solver(model, guess)
 h_mf = meanfi.add_tb(h_0, mf_correction)
 ```
 
-For more details and examples on how to use the package, we refer to the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).
+## Density APIs
 
-## Why `MeanFi`?
+- `meanfi.density_matrix(...)`
+  Computes the fixed-filling density matrix. The chemical potential is solved internally with safeguarded Newton and stateful cubature reuse.
+- `meanfi.density_matrix_at_mu(...)`
+  Computes the density matrix at an explicit chemical potential.
 
-Here is why you should use `MeanFi`:
+Both APIs return quadrature error estimates and runtime statistics.
 
-* Simple
+## Numerical model
 
-    The workflow is straightforward.
-    Interface with `Kwant` allows easy creation of complicated tight-binding systems and interactions.
+The supported regime is finite temperature only. The package computes:
 
-* Extensible
-
-    `MeanFi`'s code is structured to be easy to understand, modify and extend.
-
-* Optimized numerical workflow
-
-    Introduces minimal overhead to the calculation of the mean-field Hamiltonian.
-
-
-## What `MeanFi` doesn't do (yet)
-
-Here are some features that are not yet implemented but are planned for future releases:
-
-- **Superconducting order parameters**. Mean-field Hamiltonians do not include pairing terms.
-- **General interactions**. We allow only density-density interactions (e.g. Coulomb) which can be described by a rank two tensor.
-- **Temperature effects**. Density matrix calculations are done at zero temperature.
+- charge integrals with a scalar stateful-cubature solve for `N(\mu)=\nu`,
+- density integrals with a second pass that reuses the adaptive cache,
+- outer SCF updates with Anderson mixing by default.
 
 ## Installation
 
-```
+```bash
 pip install meanfi
 ```
 
-## Citing `MeanFi`
+`meanfi` depends on `stateful-quadrature` as a normal package dependency.
 
-If you have used `MeanFi` for work that has led to a scientific publication, please cite us as:
+## Scope
 
-```bibtex
-@misc{meanfi,
-  author = {Vilkelis, Kostas and Zijderveld,  R. Johanna and Akhmerov, Anton R. and Manesco, Antonio L.R.},
-  doi = {10.5281/zenodo.11149850},
-  month = {5},
-  title = {MeanFi},
-  year = {2024}
-}
-```
+Current mainline support includes:
+
+- density-density interactions,
+- finite-temperature mean-field calculations,
+- tight-binding dictionary workflows,
+- `kwant` conversion helpers.
+
+Not supported in the main package:
+
+- zero-temperature production solvers,
+- k-grid based mean-field solvers,
+- superconducting pairing terms.

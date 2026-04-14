@@ -2,18 +2,24 @@
 
 ## Interactive problem definition
 
-To define the interactive problem, we use the following class:
-
 ```{eval-rst}
 .. autoclass:: meanfi.model.Model
-   :members: mfield, density_matrix
+   :members: density_matrix, density_matrix_at_mu
 ```
 
 ## Mean-field and density matrix
 
 ```{eval-rst}
 .. automodule:: meanfi.mf
-   :members: meanfield, density_matrix, density_matrix_kgrid, fermi_on_kgrid
+   :members: meanfield, density_matrix, density_matrix_at_mu, fermi_dirac
+   :show-inheritance:
+```
+
+## Solvers
+
+```{eval-rst}
+.. automodule:: meanfi.solvers
+   :members: solver, SolverInfo
    :show-inheritance:
 ```
 
@@ -25,17 +31,7 @@ To define the interactive problem, we use the following class:
    :show-inheritance:
 ```
 
-## Solvers
-
-```{eval-rst}
-.. automodule:: meanfi.solvers
-   :members: solver, solver_mf, cost_mf, cost_density
-   :show-inheritance:
-```
-
-## Tight-binding dictionary
-
-### Manipulation
+## Tight-binding dictionary utilities
 
 ```{eval-rst}
 .. automodule:: meanfi.tb.tb
@@ -43,23 +39,17 @@ To define the interactive problem, we use the following class:
    :show-inheritance:
 ```
 
-### Brillouin zone transformations
-
 ```{eval-rst}
 .. automodule:: meanfi.tb.transforms
    :members:
    :show-inheritance:
 ```
 
-### Parametrisation
-
 ```{eval-rst}
 .. automodule:: meanfi.params.rparams
    :members:
    :show-inheritance:
 ```
-
-### Utility functions
 
 ```{eval-rst}
 .. automodule:: meanfi.tb.utils

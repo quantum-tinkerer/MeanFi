@@ -100,7 +100,9 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
     """
 
     def kfunc(k: np.ndarray) -> np.ndarray:
+        k = np.asarray(k, dtype=float)
         if k.ndim == 1:
+            k = k[np.newaxis, :]
             npoints = 1
         else:
             npoints = k.shape[0]

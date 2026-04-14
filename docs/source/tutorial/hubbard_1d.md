@@ -107,7 +107,7 @@ In addition to the Hamiltonians, we also need to specify the filling of the syst
 
 ```{code-cell} ipython3
 filling = 2
-full_model = meanfi.Model(h_0, h_int, filling)
+full_model = meanfi.Model(h_0, h_int, filling, kT=0.05)
 ```
 
 The object `full_model` now contains all the information needed to solve the mean-field problem.
@@ -124,9 +124,9 @@ Finally, to solve the model, we use the {autolink}`~meanfi.solvers.solver` funct
 
 ```{code-cell} ipython3
 filling = 2
-full_model = meanfi.Model(h_0, h_int, filling)
+full_model = meanfi.Model(h_0, h_int, filling, kT=0.05)
 guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
-mf_sol = meanfi.solver(full_model, guess, nk=nk)
+mf_sol = meanfi.solver(full_model, guess)
 ```
 
 The {autolink}`~meanfi.solvers.solver` function returns only the mean-field correction to the non-interacting Hamiltonian in the same tight-binding dictionary format.
@@ -156,8 +156,8 @@ def compute_sol(U, h_0, nk, filling=2):
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
     }
     guess = meanfi.guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
-    full_model = meanfi.Model(h_0, h_int, filling)
-    mf_sol = meanfi.solver(full_model, guess, nk=nk)
+    full_model = meanfi.Model(h_0, h_int, filling, kT=0.05)
+    mf_sol = meanfi.solver(full_model, guess)
     return meanfi.add_tb(h_0, mf_sol)
 
 

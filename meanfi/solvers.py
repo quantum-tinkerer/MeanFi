@@ -1,216 +1,255 @@
 import sys
-from functools import partial
+from dataclasses import dataclass
+from typing import Callable
+
 import numpy as np
 import scipy
-from typing import Optional, Callable
+from scipy.optimize._nonlin import NoConvergence
 
-from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
-from meanfi.tb.tb import add_tb, _tb_type
-from meanfi.observables import expectation_value
-from meanfi.mf import density_matrix, meanfield
+from meanfi.mf import FixedFillingInfo, meanfield, density_matrix
 from meanfi.model import Model
-from meanfi.tb.utils import fermi_energy
+from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
+from meanfi.tb.tb import _tb_type
 
 
-def cost_mf(mf_param: np.ndarray, model: Model, nk: int = 20) -> np.ndarray:
-    """Defines the cost function for root solver.
+@dataclass(frozen=True)
+class SolverInfo:
+    """Summary of a self-consistent mean-field solve."""
 
-    The cost function is the difference between the computed and inputted mean-field.
-
-    Parameters
-    ----------
-    mf_param :
-        1D real array that parametrises the mean-field correction.
-    Model :
-        Interacting tight-binding problem definition.
-    nk :
-        Number of k-points in a grid to sample the Brillouin zone along each dimension.
-        If the system is 0-dimensional (finite), this parameter is ignored.
-
-    Returns
-    -------
-    :
-        1D real array that is the difference between the computed and inputted mean-field
-        parametrisations
-    """
-    shape = model._ndof
-    mf = rparams_to_tb(mf_param, list(model.h_int), shape)
-    mf_new = model.mfield(mf, nk=nk)
-    mf_params_new = tb_to_rparams(mf_new)
-    return mf_params_new - mf_param
+    mixing: str
+    iterations: int
+    residual_norm: float
+    mu: float
+    total_charge_integration_calls: int
+    total_density_integration_calls: int
+    total_kernel_evals: int
+    total_evaluator_evals: int
+    last_density_info: FixedFillingInfo
 
 
-def cost_density(
-    rho_params_and_mu: np.ndarray,
+def _scf_state() -> dict:
+    return {
+        "iterations": 0,
+        "mu": 0.0,
+        "rho": None,
+        "info": None,
+        "residual_norm": np.inf,
+        "total_charge_integration_calls": 0,
+        "total_density_integration_calls": 0,
+        "total_kernel_evals": 0,
+        "total_evaluator_evals": 0,
+    }
+
+
+def _residual(
+    rho_params: np.ndarray,
+    *,
     model: Model,
-    debug: bool = False,
-    bound_tol: float = 1e-1,
-    save_history: bool = False,
+    keys: list[tuple[int, ...]],
+    state: dict,
+    debug: bool,
+    rule: str,
+    batch_size: int | None,
+    max_mu_iterations: int,
+    max_subdivisions: int | None,
 ) -> np.ndarray:
-    """Defines the cost function for root solver.
+    rho_reduced = rparams_to_tb(rho_params, keys, model._ndof)
+    rho_new, _, mu, info = model.density_matrix(
+        rho_reduced,
+        keys=keys,
+        mu_guess=state["mu"],
+        max_mu_iterations=max_mu_iterations,
+        max_subdivisions=max_subdivisions,
+        rule=rule,
+        batch_size=batch_size,
+    )
+    rho_new_reduced = {key: rho_new[key] for key in keys}
+    residual = np.array(tb_to_rparams(rho_new_reduced) - rho_params, dtype=float).real
 
-    The cost function is the difference between the computed and inputted density matrix
-    reduced to the hoppings only present in the h_int.
-
-    Parameters
-    ----------
-    rho_params_and_mu :
-        1D real array that parametrises the density matrix reduced to the
-        hoppings (keys) present in h_int.
-    Model :
-        Interacting tight-binding problem definition.
-    debug :
-        Print debug information.
-    bound_tol :
-        Tolerance for the bounds of the filling.
-    save_history :
-        Save the history of the cost
-
-
-    Returns
-    -------
-    :
-        1D real array that is the difference between the computed and inputted
-        density matrix parametrisations reduced to the hoppings present in h_int.
-    """
-    shape = model._ndof
-    rho_params = rho_params_and_mu[:-1]
-    mu = rho_params_and_mu[-1]
-    rho_reduced = rparams_to_tb(rho_params, list(model.h_int), shape)
-    keys = list(model.h_int)
-    rho_new, E_min, E_max = model.density_matrix(rho_reduced, mu=mu, keys=keys)
-    rho_reduced_new = {key: rho_new[key] for key in model.h_int}
-    rho_params_new = tb_to_rparams(rho_reduced_new)
-    n_operator = {model._local_key: np.eye(model._ndof)}
-    charge = np.real(expectation_value(n_operator, rho_new))
-    occupation_diff = np.real(charge - model.filling)
-
-    added_cost = 0
-    if charge > shape - bound_tol:
-        added_cost = mu - E_max
-    if charge < bound_tol:
-        added_cost = mu - E_min
-
-    cost = np.array(
-        [*(rho_params_new - rho_params), occupation_diff + added_cost], dtype=float
-    ).real
-    if save_history:
-        cost_density.history.append((cost, rho_params_and_mu))
+    state["mu"] = mu
+    state["rho"] = rho_new_reduced
+    state["info"] = info
+    state["residual_norm"] = float(np.linalg.norm(residual))
+    state["total_charge_integration_calls"] += info.charge_integration_calls
+    state["total_density_integration_calls"] += info.density_integration_calls
+    state["total_kernel_evals"] += info.n_kernel_evals
+    state["total_evaluator_evals"] += info.n_evaluator_evals
 
     if debug:
-        message = f"Excess filling: {occupation_diff}, Chemical Potential: {mu}, Cost function: {np.linalg.norm(cost)}"
+        message = (
+            f"mu={mu:.6g}, dN/dmu={info.dcharge_dmu:.6g}, "
+            f"residual={state['residual_norm']:.6g}"
+        )
         sys.stdout.write("\r" + message)
         sys.stdout.flush()
-    return cost
+
+    return residual
 
 
-def solver_mf(
-    model: Model,
-    mf_guess: np.ndarray,
-    nk: int = 20,
-    optimizer: Optional[Callable] = scipy.optimize.anderson,
-    optimizer_kwargs: Optional[dict[str, str]] = {"M": 0},
-) -> _tb_type:
-    """Solve for the mean-field correction through self-consistent root finding
-    by finding the mean-field correction fixed point.
-
-    Parameters
-    ----------
-    model :
-        Interacting tight-binding problem definition.
-    mf_guess :
-        The initial guess for the mean-field correction in the tight-binding dictionary format.
-    nk :
-        Number of k-points in a grid to sample the Brillouin zone along each dimension.
-        If the system is 0-dimensional (finite), this parameter is ignored.
-    optimizer :
-        The solver used to solve the fixed point iteration.
-        Default uses `scipy.optimize.anderson`.
-    optimizer_kwargs :
-        The keyword arguments to pass to the optimizer.
-
-    Returns
-    -------
-    :
-        Mean-field correction solution in the tight-binding dictionary format.
-    """
-    shape = model._ndof
-    mf_params = tb_to_rparams(mf_guess)
-    f = partial(cost_mf, model=model, nk=nk)
-    result = rparams_to_tb(
-        optimizer(f, mf_params, **optimizer_kwargs), list(model.h_int), shape
-    )
-    fermi = fermi_energy(add_tb(model.h_0, result), model.filling, nk=nk)
-    return add_tb(result, {model._local_key: -fermi * np.eye(model._ndof)})
+def _solve_linear(
+    residual_fn: Callable[[np.ndarray], np.ndarray],
+    x0: np.ndarray,
+    *,
+    alpha: float,
+    maxiter: int,
+    scf_tol: float,
+    callback,
+    state: dict,
+) -> np.ndarray:
+    x = np.array(x0, copy=True)
+    for iteration in range(1, maxiter + 1):
+        residual = residual_fn(x)
+        state["iterations"] = iteration
+        if callback is not None:
+            callback(iteration, residual, state)
+        if np.linalg.norm(residual) <= scf_tol:
+            return x
+        x = x + alpha * residual
+    raise NoConvergence(x)
 
 
-def solver_density(
+def _solve_anderson(
+    residual_fn: Callable[[np.ndarray], np.ndarray],
+    x0: np.ndarray,
+    *,
+    maxiter: int,
+    scf_tol: float,
+    mixing_kwargs: dict,
+    callback,
+    state: dict,
+) -> np.ndarray:
+    kwargs = {"M": 5, "w0": 0.01, "maxiter": maxiter, "f_tol": scf_tol}
+    kwargs.update(mixing_kwargs)
+
+    def scipy_callback(x, f):
+        del x
+        state["iterations"] += 1
+        if callback is not None:
+            callback(state["iterations"], f, state)
+
+    with np.errstate(invalid="ignore"):
+        return scipy.optimize.anderson(residual_fn, x0, callback=scipy_callback, **kwargs)
+
+
+def solver(
     model: Model,
     mf_guess: _tb_type,
-    mu_guess: float,
-    optimizer: Optional[Callable] = scipy.optimize.root,
-    optimizer_kwargs: Optional[dict[str, str]] = {"method": "broyden1"},
-    debug: bool = False,
-    optimizer_return=False,
+    *,
+    mu_guess: float = 0.0,
+    mixing: str = "anderson",
+    mixing_kwargs: dict | None = None,
+    scf_tol: float | None = None,
+    max_scf_steps: int = 100,
     callback=None,
-    save_history=False,
-) -> _tb_type:
-    """Solve for the mean-field correction through self-consistent root finding
-    by finding the density matrix fixed point.
-
-    Parameters
-    ----------
-    model :
-        Interacting tight-binding problem definition.
-    mf_guess :
-        The initial guess for the mean-field correction in the tight-binding dictionary format.
-    mu_guess :
-        The initial guess for the chemical potential.
-    optimizer :
-        The solver used to solve the fixed point iteration.
-        Default uses `scipy.optimize.anderson`.
-    optimizer_kwargs :
-        The keyword arguments to pass to the optimizer.
-    debug :
-        Print debug information.
-    optimizer_return :
-        Return the optimizer result.
-    callback :
-        Callback function to be called after each iteration.
-    save_history :
-        Save the history of the cost function.
-    Returns
-    -------
-    :
-        Mean-field correction solution in the tight-binding dictionary format.
-    """
-    shape = model._ndof
+    debug: bool = False,
+    return_info: bool = False,
+    rule: str = "auto",
+    batch_size: int | None = None,
+    max_mu_iterations: int = 32,
+    max_subdivisions: int | None = 10_000,
+) -> _tb_type | tuple[_tb_type, SolverInfo]:
+    """Solve for the self-consistent mean-field correction."""
     keys = list(model.h_int)
-    rho_guess = density_matrix(
-        add_tb(model.h_0, mf_guess),
-        mu=mu_guess,
+    scf_tol = model.scf_tol if scf_tol is None else scf_tol
+    mixing_kwargs = {} if mixing_kwargs is None else dict(mixing_kwargs)
+
+    rho_guess, _, mu, info = density_matrix(
+        model.hamiltonian_from_meanfield(mf_guess),
+        filling=model.filling,
         kT=model.kT,
         keys=keys,
-        atol=model.atol,
-    )[0]
-    rho_guess_reduced = {key: rho_guess[key] for key in model.h_int}
-
-    rho_params = tb_to_rparams(rho_guess_reduced)
-    rho_params_and_mu = np.concatenate([rho_params, [mu_guess]], dtype=float)
-    if save_history:
-        cost_density.history = []
-    f = partial(cost_density, model=model, debug=debug, save_history=save_history)
-    result = optimizer(f, rho_params_and_mu, callback=callback, **optimizer_kwargs)
-    result_params = result.x
-    rho_result = rparams_to_tb(result_params[:-1], list(model.h_int), shape)
-    mf_result = meanfield(rho_result, model.h_int)
-
-    tb_result = add_tb(
-        mf_result, {model._local_key: -result_params[-1] * np.eye(model._ndof)}
+        charge_tol=model.charge_tol,
+        density_atol=model.density_atol,
+        density_rtol=model.density_rtol,
+        mu_guess=mu_guess,
+        mu_xtol=model.mu_xtol,
+        max_mu_iterations=max_mu_iterations,
+        max_subdivisions=max_subdivisions,
+        rule=rule,
+        batch_size=batch_size,
     )
-    if optimizer_return:
-        return tb_result, result
+    rho_guess_reduced = {key: rho_guess[key] for key in keys}
+    rho_params0 = tb_to_rparams(rho_guess_reduced)
+
+    state = _scf_state()
+    state["mu"] = mu
+    state["rho"] = rho_guess_reduced
+    state["info"] = info
+    state["total_charge_integration_calls"] += info.charge_integration_calls
+    state["total_density_integration_calls"] += info.density_integration_calls
+    state["total_kernel_evals"] += info.n_kernel_evals
+    state["total_evaluator_evals"] += info.n_evaluator_evals
+
+    residual_fn = lambda params: _residual(
+        params,
+        model=model,
+        keys=keys,
+        state=state,
+        debug=debug,
+        rule=rule,
+        batch_size=batch_size,
+        max_mu_iterations=max_mu_iterations,
+        max_subdivisions=max_subdivisions,
+    )
+
+    if mixing == "anderson":
+        result_params = _solve_anderson(
+            residual_fn,
+            rho_params0,
+            maxiter=max_scf_steps,
+            scf_tol=scf_tol,
+            mixing_kwargs=mixing_kwargs,
+            callback=callback,
+            state=state,
+        )
+    elif mixing == "linear":
+        alpha = float(mixing_kwargs.pop("alpha", 0.5))
+        result_params = _solve_linear(
+            residual_fn,
+            rho_params0,
+            alpha=alpha,
+            maxiter=max_scf_steps,
+            scf_tol=scf_tol,
+            callback=callback,
+            state=state,
+        )
+    else:
+        raise ValueError("mixing must be either 'anderson' or 'linear'")
+
+    rho_result = rparams_to_tb(result_params, keys, model._ndof)
+    rho_final, _, mu_final, info_final = model.density_matrix(
+        rho_result,
+        keys=keys,
+        mu_guess=state["mu"],
+        max_mu_iterations=max_mu_iterations,
+        max_subdivisions=max_subdivisions,
+        rule=rule,
+        batch_size=batch_size,
+    )
+    rho_reduced_final = {key: rho_final[key] for key in keys}
+    residual_norm = float(np.linalg.norm(tb_to_rparams(rho_reduced_final) - result_params))
+    mf_result = meanfield(rho_reduced_final, model.h_int)
+    tb_result = dict(mf_result)
+    tb_result[model._local_key] = tb_result.get(
+        model._local_key, np.zeros((model._ndof, model._ndof), dtype=complex)
+    ) - mu_final * np.eye(model._ndof)
+
+    solver_info = SolverInfo(
+        mixing=mixing,
+        iterations=max(1, state["iterations"]),
+        residual_norm=residual_norm,
+        mu=mu_final,
+        total_charge_integration_calls=state["total_charge_integration_calls"]
+        + info_final.charge_integration_calls,
+        total_density_integration_calls=state["total_density_integration_calls"]
+        + info_final.density_integration_calls,
+        total_kernel_evals=state["total_kernel_evals"] + info_final.n_kernel_evals,
+        total_evaluator_evals=state["total_evaluator_evals"] + info_final.n_evaluator_evals,
+        last_density_info=info_final,
+    )
+
+    if debug:
+        sys.stdout.write("\n")
+    if return_info:
+        return tb_result, solver_info
     return tb_result
-
-
-solver = solver_density

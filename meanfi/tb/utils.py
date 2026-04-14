@@ -2,7 +2,6 @@ from itertools import product
 import numpy as np
 
 from meanfi.tb.tb import _tb_type
-from meanfi.mf import fermi_on_kgrid
 from meanfi.tb.transforms import tb_to_kgrid
 
 
@@ -81,4 +80,7 @@ def fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
     """
     kham = tb_to_kgrid(tb, nk)
     vals = np.linalg.eigvalsh(kham)
-    return fermi_on_kgrid(vals, filling)
+    flat = np.sort(vals.reshape(-1))
+    n_kpoints = vals.shape[0] if vals.ndim == 2 else int(np.prod(vals.shape[:-1]))
+    idx = int(np.clip(np.ceil(filling * n_kpoints) - 1, 0, flat.size - 1))
+    return float(flat[idx])

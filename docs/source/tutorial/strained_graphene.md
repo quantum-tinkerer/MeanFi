@@ -84,7 +84,7 @@ params_int = dict(U=0.8)
 ndof = [*h0.values()][0].shape[0]
 filling = ndof // 2
 h_int = utils.builder_to_tb(int_builder, params_int)
-mf_model = meanfi.Model(h0, h_int, filling=filling)
+mf_model = meanfi.Model(h0, h_int, filling=filling, kT=0.05)
 ```
 
 Now getting the solution by providing a guess and the mean-field model to the solver. To accelerate the convergence, we use an antiferromagnetic guess.
@@ -112,19 +112,18 @@ guess_builder = utils.build_interacting_syst(
 guess = utils.builder_to_tb(guess_builder)
 ```
 
-Due to the large supercell, lwe use a coarse k-point grid. Furthermore, to speed up the calculation we provide additional `optimizer_kwargs`.
+Due to the large supercell, we use Anderson mixing with a custom set of `mixing_kwargs`.
 
 ```{code-cell} ipython3
 mf_sol = meanfi.solver(
     mf_model,
     guess,
-    nk=2,
-    optimizer_kwargs={
+    mixing_kwargs={
         "M": 10,
-        "f_tol": 1e-4,
         "maxiter": 100,
         "line_search": "armijo",
     },
+    scf_tol=1e-4,
 )
 ```
 

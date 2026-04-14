@@ -96,11 +96,11 @@ We then generate a random guess for the mean-field solution and solve the system
 
 ```{code-cell} ipython3
 filling = 2
-model = meanfi.Model(h_0, h_int, filling=2)
+model = meanfi.Model(h_0, h_int, filling=2, kT=0.05)
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
 guess = meanfi.guess_tb(int_keys, ndof)
-mf_sol = meanfi.solver(model, guess, nk=20)
+mf_sol = meanfi.solver(model, guess)
 h_full = meanfi.add_tb(h_0, mf_sol)
 ```
 
@@ -114,8 +114,8 @@ In this case, we compute the CDW order parameter by measuring the expectation va
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-rho, _ = meanfi.density_matrix(h_full, filling=filling, nk=40)
-rho_0, _ = meanfi.density_matrix(h_0, filling=filling, nk=40)
+rho, _, _, _ = meanfi.density_matrix(h_full, filling=filling, kT=0.05, keys=[(0, 0)])
+rho_0, _, _, _ = meanfi.density_matrix(h_0, filling=filling, kT=0.05, keys=[(0, 0)])
 
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
@@ -160,9 +160,9 @@ for U in Us:
         params = dict(U=U, V=V)
         h_int = utils.builder_to_tb(builder_int, params)
 
-        model = meanfi.Model(h_0, h_int, filling=filling)
+        model = meanfi.Model(h_0, h_int, filling=filling, kT=0.05)
         guess = meanfi.guess_tb(int_keys, ndof)
-        mf_sol = meanfi.solver(model, guess, nk=18)
+        mf_sol = meanfi.solver(model, guess)
         mf_sols.append(mf_sol)
 
         gap = compute_gap(meanfi.add_tb(h_0, mf_sol), fermi_energy=0, nk=100)
@@ -189,7 +189,9 @@ s_list = [sx, sy, sz]
 cdw_list = []
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _ = meanfi.density_matrix(meanfi.add_tb(h_0, mf_sol), filling=filling, nk=40)
+    rho, _, _, _ = meanfi.density_matrix(
+        meanfi.add_tb(h_0, mf_sol), filling=filling, kT=0.05, keys=[(0, 0)]
+    )
 
     # Compute CDW order parameter
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)

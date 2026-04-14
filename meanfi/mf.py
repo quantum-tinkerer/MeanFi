@@ -1,188 +1,469 @@
+from dataclasses import dataclass
+
 import numpy as np
-from typing import Tuple
+from stateful_quadrature import StatefulIntegrator
 
 from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kfunc
 
-from scipy.integrate import cubature
-
 
 def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
-    """
-    Calculate the value of the Fermi-Dirac distribution at energy `E` and temperature `T`.
+    """Evaluate the Fermi-Dirac distribution."""
+    if kT <= 0:
+        raise ValueError("meanfi supports only finite temperature (kT > 0)")
 
-    Parameters
-    ----------
-    `E: np.ndarray(float)` :
-        The energy at which to find the value of the distribution. Can also be an array of values.
-    `kT: float` :
-        The temperature in Kelvin and Boltzmann constant.
-    `fermi: float` :
-        The Fermi level.
+    fd = np.empty_like(E, dtype=float)
+    exponent = (E - fermi) / kT
+    sign_mask = E >= fermi
 
-    Returns
-    -------
-        The value of the Fermi-Dirac distribution.
-    """
-    if kT == 0:
-        fd = E < fermi
-        return fd
-    else:
-        fd = np.empty_like(E, dtype=float)
-        exponent = (E - fermi) / kT
-        sign_mask = (
-            E >= fermi
-        )  # Holds the indices for all positive values of the exponent.
+    pos_exp = np.exp(-exponent[sign_mask])
+    neg_exp = np.exp(exponent[~sign_mask])
 
-        # Precalculating the two options.
-        pos_exp = np.exp(-exponent[sign_mask])
-        neg_exp = np.exp(exponent[~sign_mask])
-
-        fd[sign_mask] = pos_exp / (pos_exp + 1)
-        fd[~sign_mask] = 1 / (neg_exp + 1)
-
-        return fd
+    fd[sign_mask] = pos_exp / (pos_exp + 1.0)
+    fd[~sign_mask] = 1.0 / (neg_exp + 1.0)
+    return fd
 
 
-def complex_cubature(integrand, a, b, args=(), cubature_kwargs={"atol": 1e-6}):
-    """
-    Integrate a complex-valued function using scipy.integrate.cubature.
+@dataclass(frozen=True)
+class DensityIntegrationInfo:
+    """Statistics for a single density integration at fixed chemical potential."""
 
-    Parameters
-    ----------
-    integrand :
-        Complex-valued function to integrate.
-    a :
-        Lower integration limit.
-    b :
-        Upper integration limit.
-    args :
-        Additional arguments to pass to the integrand.
-    cubature_kwargs :
-        Additional keyword arguments to pass to scipy.integrate.cubature.
-
-    Returns
-    -------
-    :
-        Complex-valued integral and error estimate.
-    """
-
-    def complex_integrand(k, *args):
-        value = integrand(k, *args)
-        value_real = value.real
-        value_imag = value.imag
-        return np.stack((value_real, value_imag), axis=-1, dtype=float)
-
-    result = cubature(complex_integrand, a, b, args=args, **cubature_kwargs)
-
-    if result.status == "converged":
-        integral_unpacked = result.estimate
-        error_unpacked = result.error
-
-        integral_real = integral_unpacked[..., 0]
-        integral_imag = integral_unpacked[..., 1]
-
-        error_real = error_unpacked[..., 0]
-        error_imag = error_unpacked[..., 1]
-
-        return integral_real + 1j * integral_imag, error_real + 1j * error_imag
-    else:
-        raise ValueError("Integration did not converge")
+    n_kernel_evals: int
+    n_evaluator_evals: int
+    n_cached_nodes: int
+    n_leaves: int
+    n_leaf_nodes: int
+    subdivisions: int
 
 
-def density_matrix(
-    h: _tb_type, mu: float, kT: float, keys: list, atol=1e-5
-) -> Tuple[_tb_type, float]:
-    """Compute the real-space density matrix tight-binding dictionary.
+@dataclass(frozen=True)
+class FixedFillingInfo:
+    """Statistics for a fixed-filling density calculation."""
 
-    Parameters
-    ----------
-    h :
-        Hamiltonian tight-binding dictionary from which to construct the density matrix.
-    mu :
-        Number of particles in a unit cell.
-        Used to determine the Fermi level.
-    kT :
-        Temperature.
-    keys :
-        List of keys to compute the density matrix for.
+    mu: float
+    charge: float
+    charge_error: float
+    dcharge_dmu: float
+    root_iterations: int
+    charge_integration_calls: int
+    density_integration_calls: int
+    charge_n_kernel_evals: int
+    density_n_kernel_evals: int
+    n_kernel_evals: int
+    charge_n_evaluator_evals: int
+    density_n_evaluator_evals: int
+    n_evaluator_evals: int
+    n_cached_nodes: int
+    n_leaves: int
+    n_leaf_nodes: int
+    subdivisions: int
+    charge_integral_atol: float
+    density_atol: float
+    density_rtol: float
 
-    Returns
-    -------
-    :
-        Density matrix tight-binding dictionary
-    """
-    ndim = len(keys[0])
 
-    def density_matrix_k(H_k, mu, kT=0):
-        eigenvalues, U = np.linalg.eigh(H_k)
-        occupation = fermi_dirac(eigenvalues, kT, mu)
-        density_matrix = U * occupation[:, None, :] @ U.conj().transpose(0, 2, 1)
-        return density_matrix, eigenvalues[..., 0], eigenvalues[..., -1]
+def _stateful_prefactor(ndim: int) -> float:
+    return 1.0 if ndim == 0 else 1.0 / (2.0 * np.pi) ** ndim
 
+
+def _normalize_keys(h: _tb_type, keys: list) -> list[tuple[int, ...]]:
+    keys = [tuple(key) for key in keys]
+    ndim = len(next(iter(h)))
+    if any(len(key) != ndim for key in keys):
+        raise ValueError("All keys must have the same dimension as the Hamiltonian")
+    return keys
+
+
+def _integration_stats(result) -> DensityIntegrationInfo:
+    cached_nodes = getattr(result, "n_cached_nodes", getattr(result, "n_leaf_nodes", 0))
+    return DensityIntegrationInfo(
+        n_kernel_evals=int(result.n_kernel_evals),
+        n_evaluator_evals=int(result.n_evaluator_evals),
+        n_cached_nodes=int(cached_nodes),
+        n_leaves=int(getattr(result, "n_leaves", 0)),
+        n_leaf_nodes=int(getattr(result, "n_leaf_nodes", cached_nodes)),
+        subdivisions=int(getattr(result, "subdivisions", 0)),
+    )
+
+
+def _stateful_spectral_kernel(h: _tb_type):
     hkfunc = tb_to_kfunc(h)
+    ndof = next(iter(h.values())).shape[0]
 
-    def integrand(k, mu, kT, keys):
-        dm_k, evals_min, evals_max = density_matrix_k(hkfunc(k), mu=mu, kT=kT)
-        npts = dm_k.shape[0]
-        phase = np.exp(1j * np.dot(k, keys.T))
-        integrand_dm = dm_k[..., np.newaxis] * phase[:, np.newaxis, np.newaxis, :]
-        integrand_dm = integrand_dm.reshape(npts, -1)
-        evals_min = evals_min.reshape(npts, -1)
-        evals_max = evals_max.reshape(npts, -1)
-        return (
-            np.concatenate((integrand_dm, evals_min, evals_max), axis=-1)
-            / (2 * np.pi) ** ndim
+    def kernel(points: np.ndarray) -> np.ndarray:
+        h_k = hkfunc(points)
+        eigenvalues, eigenvectors = np.linalg.eigh(h_k)
+        return np.concatenate(
+            [eigenvalues, eigenvectors.reshape(points.shape[0], ndof * ndof)], axis=-1
         )
 
-    bounds_lower = np.array([-np.pi] * ndim)
-    bounds_upper = np.array([np.pi] * ndim)
-    result, error = complex_cubature(
-        integrand,
-        bounds_lower,
-        bounds_upper,
-        args=(mu, kT, np.array(keys, dtype=float)),
-        cubature_kwargs={"atol": atol},
+    return kernel
+
+
+def _stateful_charge_evaluator(ndim: int, ndof: int, kT: float):
+    prefactor = _stateful_prefactor(ndim)
+
+    def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
+        del points
+        eigenvalues = payload[:, :ndof].real
+        occupation = fermi_dirac(eigenvalues, kT, mu)
+        dcharge_dmu = occupation * (1.0 - occupation) / kT
+        charge = np.sum(occupation, axis=-1, keepdims=True)
+        derivative = np.sum(dcharge_dmu, axis=-1, keepdims=True)
+        return prefactor * np.concatenate([charge, derivative], axis=-1)
+
+    return evaluator
+
+
+def _stateful_density_evaluator(
+    ndim: int, ndof: int, keys: list[tuple[int, ...]], kT: float
+):
+    prefactor = _stateful_prefactor(ndim)
+    keys_arr = np.array(keys, dtype=float)
+
+    def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
+        eigenvalues = payload[:, :ndof].real
+        eigenvectors = payload[:, ndof:].reshape(points.shape[0], ndof, ndof)
+        occupation = fermi_dirac(eigenvalues, kT, mu)
+        density_matrix_k = (
+            eigenvectors
+            * occupation[:, np.newaxis, :]
+            @ eigenvectors.conj().transpose(0, 2, 1)
+        )
+        phase = np.exp(1j * np.dot(points, keys_arr.T))
+        density_terms = (
+            density_matrix_k[..., np.newaxis] * phase[:, np.newaxis, np.newaxis, :]
+        ).reshape(points.shape[0], -1)
+        return prefactor * density_terms
+
+    return evaluator
+
+
+def _split_charge_result(estimate: np.ndarray, error: np.ndarray) -> tuple[float, float, float]:
+    estimate = np.asarray(estimate)
+    error = np.asarray(error)
+    return (
+        float(np.real(estimate[0])),
+        float(np.abs(error[0])),
+        float(np.real(estimate[1])),
     )
-    E_min = result[..., -2]
-    E_max = result[..., -1]
-    rho = result[..., :-2]
-    error = error[..., :-2]
 
-    square = int(np.sqrt(rho.shape[-1] / len(keys)))
-    rho = rho.reshape(square, square, len(keys))
-    error = error.reshape(square, square, len(keys))
 
+def _split_density_result(
+    estimate: np.ndarray, error: np.ndarray, ndof: int, keys: list[tuple[int, ...]]
+) -> tuple[_tb_type, _tb_type]:
+    estimate = np.asarray(estimate).reshape(ndof, ndof, len(keys))
+    error = np.asarray(error).reshape(ndof, ndof, len(keys))
     density_matrix_dict = {}
     error_dict = {}
     for idx, key in enumerate(keys):
-        density_matrix_dict[key] = rho[..., idx]
+        density_matrix_dict[key] = estimate[..., idx]
         error_dict[key] = error[..., idx]
-    return density_matrix_dict, error_dict, E_min, E_max
+    return density_matrix_dict, error_dict
+
+
+def _mu_bracket(h: _tb_type, kT: float) -> tuple[float, float]:
+    bound = sum(np.linalg.norm(matrix, ord=2) for matrix in h.values())
+    padding = max(1.0, 10.0 * kT)
+    return -float(bound + padding), float(bound + padding)
+
+
+def _derived_charge_integral_tolerance(charge_tol: float) -> tuple[float, float]:
+    return float(charge_tol) / 4.0, 0.0
+
+
+def _direct_density_matrix_at_mu(
+    h: _tb_type,
+    mu: float,
+    kT: float,
+    keys: list[tuple[int, ...]],
+) -> tuple[_tb_type, _tb_type, DensityIntegrationInfo]:
+    if set(h) != {()}:
+        raise ValueError("Zero-dimensional evaluation expects only the local key")
+
+    matrix = h[()]
+    eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+    occupation = fermi_dirac(eigenvalues, kT, mu)
+    density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
+    zero_key = tuple()
+    rho = {key: density if key == zero_key else np.zeros_like(density) for key in keys}
+    error = {key: np.zeros_like(density) for key in keys}
+    info = DensityIntegrationInfo(
+        n_kernel_evals=1,
+        n_evaluator_evals=1,
+        n_cached_nodes=1,
+        n_leaves=1,
+        n_leaf_nodes=1,
+        subdivisions=0,
+    )
+    return rho, error, info
+
+
+def density_matrix_at_mu(
+    h: _tb_type,
+    mu: float,
+    kT: float,
+    keys: list,
+    density_atol: float = 1e-8,
+    density_rtol: float = 0.0,
+    max_subdivisions: int | None = 10_000,
+    rule: str = "auto",
+    batch_size: int | None = None,
+) -> tuple[_tb_type, _tb_type, DensityIntegrationInfo]:
+    """Compute the real-space density matrix at a fixed chemical potential."""
+    if kT <= 0:
+        raise ValueError("density_matrix_at_mu requires kT > 0")
+
+    keys = _normalize_keys(h, keys)
+    ndim = len(next(iter(h)))
+    if ndim == 0:
+        return _direct_density_matrix_at_mu(h, mu=mu, kT=kT, keys=keys)
+
+    ndof = next(iter(h.values())).shape[0]
+    integrator = StatefulIntegrator(
+        a=[-np.pi] * ndim,
+        b=[np.pi] * ndim,
+        kernel=_stateful_spectral_kernel(h),
+        evaluator=_stateful_density_evaluator(ndim, ndof, keys, kT),
+        rule=rule,
+        batch_size=batch_size,
+    )
+    result = integrator.integrate(
+        mu,
+        atol=density_atol,
+        rtol=density_rtol,
+        max_subdivisions=max_subdivisions,
+    )
+    if result.status != "converged":
+        raise ValueError("Stateful adaptive quadrature did not converge")
+
+    rho, error = _split_density_result(result.estimate, result.error, ndof, keys)
+    return rho, error, _integration_stats(result)
+
+
+def _direct_density_matrix(
+    h: _tb_type,
+    filling: float,
+    kT: float,
+    keys: list[tuple[int, ...]],
+    mu_guess: float,
+    charge_tol: float,
+    mu_xtol: float,
+    max_mu_iterations: int,
+    density_atol: float,
+    density_rtol: float,
+) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
+    if set(h) != {()}:
+        raise ValueError("Zero-dimensional evaluation expects only the local key")
+
+    matrix = h[()]
+    ndof = matrix.shape[0]
+    eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+    lower, upper = _mu_bracket(h, kT)
+    mu = float(np.clip(mu_guess, lower, upper))
+    if not lower < mu < upper:
+        mu = 0.5 * (lower + upper)
+
+    last_charge = 0.0
+    last_derivative = 0.0
+    charge_error = 0.0
+    for iteration in range(1, max_mu_iterations + 1):
+        occupation = fermi_dirac(eigenvalues, kT, mu)
+        last_charge = float(np.sum(occupation))
+        last_derivative = float(np.sum(occupation * (1.0 - occupation) / kT))
+        residual = last_charge - filling
+        if abs(residual) <= charge_tol and charge_error <= charge_tol / 2.0:
+            break
+        if residual < 0:
+            lower = mu
+        else:
+            upper = mu
+        if upper - lower <= mu_xtol:
+            mu = 0.5 * (lower + upper)
+            continue
+        candidate = mu - residual / last_derivative if last_derivative > 0 else np.nan
+        if not np.isfinite(candidate) or candidate <= lower or candidate >= upper:
+            candidate = 0.5 * (lower + upper)
+        mu = float(candidate)
+    else:
+        raise ValueError("Chemical-potential solver did not converge within max_mu_iterations")
+
+    density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
+    zero_key = tuple()
+    rho = {key: density if key == zero_key else np.zeros_like(density) for key in keys}
+    error = {key: np.zeros_like(density) for key in keys}
+    info = FixedFillingInfo(
+        mu=mu,
+        charge=last_charge,
+        charge_error=charge_error,
+        dcharge_dmu=last_derivative,
+        root_iterations=iteration,
+        charge_integration_calls=iteration,
+        density_integration_calls=1,
+        charge_n_kernel_evals=1,
+        density_n_kernel_evals=0,
+        n_kernel_evals=1,
+        charge_n_evaluator_evals=iteration,
+        density_n_evaluator_evals=1,
+        n_evaluator_evals=iteration + 1,
+        n_cached_nodes=1,
+        n_leaves=1,
+        n_leaf_nodes=1,
+        subdivisions=0,
+        charge_integral_atol=_derived_charge_integral_tolerance(charge_tol)[0],
+        density_atol=density_atol,
+        density_rtol=density_rtol,
+    )
+    return rho, error, mu, info
+
+
+def density_matrix(
+    h: _tb_type,
+    filling: float,
+    kT: float,
+    keys: list,
+    charge_tol: float = 1e-8,
+    density_atol: float = 1e-8,
+    density_rtol: float = 0.0,
+    mu_guess: float = 0.0,
+    mu_xtol: float = 1e-8,
+    max_mu_iterations: int = 32,
+    max_subdivisions: int | None = 10_000,
+    rule: str = "auto",
+    batch_size: int | None = None,
+) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
+    """Compute the fixed-filling real-space density matrix with stateful cubature."""
+    if kT <= 0:
+        raise ValueError("density_matrix requires kT > 0")
+
+    keys = _normalize_keys(h, keys)
+    ndim = len(next(iter(h)))
+    if ndim == 0:
+        return _direct_density_matrix(
+            h=h,
+            filling=filling,
+            kT=kT,
+            keys=keys,
+            mu_guess=mu_guess,
+            charge_tol=charge_tol,
+            mu_xtol=mu_xtol,
+            max_mu_iterations=max_mu_iterations,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+        )
+
+    ndof = next(iter(h.values())).shape[0]
+    charge_integral_atol, charge_integral_rtol = _derived_charge_integral_tolerance(charge_tol)
+    charge_integrator = StatefulIntegrator(
+        a=[-np.pi] * ndim,
+        b=[np.pi] * ndim,
+        kernel=_stateful_spectral_kernel(h),
+        evaluator=_stateful_charge_evaluator(ndim, ndof, kT),
+        rule=rule,
+        batch_size=batch_size,
+    )
+
+    charge_integration_calls = 0
+    charge_kernel_evals = 0
+    charge_evaluator_evals = 0
+
+    def evaluate_charge(mu: float) -> tuple[float, float, float]:
+        nonlocal charge_integration_calls, charge_kernel_evals, charge_evaluator_evals
+        result = charge_integrator.integrate(
+            mu,
+            atol=charge_integral_atol,
+            rtol=charge_integral_rtol,
+            max_subdivisions=max_subdivisions,
+        )
+        if result.status != "converged":
+            raise ValueError(
+                "Stateful adaptive quadrature did not converge while solving for the chemical potential"
+            )
+        charge, charge_error, derivative = _split_charge_result(result.estimate, result.error)
+        charge_integration_calls += 1
+        charge_kernel_evals += result.n_kernel_evals
+        charge_evaluator_evals += result.n_evaluator_evals
+        return charge, charge_error, derivative
+
+    lower, upper = _mu_bracket(h, kT)
+    lower_charge, _, _ = evaluate_charge(lower)
+    upper_charge, _, _ = evaluate_charge(upper)
+    while lower_charge > filling or upper_charge < filling:
+        lower *= 2.0
+        upper *= 2.0
+        lower_charge, _, _ = evaluate_charge(lower)
+        upper_charge, _, _ = evaluate_charge(upper)
+
+    mu = float(np.clip(mu_guess, lower, upper))
+    if not lower < mu < upper:
+        mu = 0.5 * (lower + upper)
+
+    last_charge = float("nan")
+    last_charge_error = float("nan")
+    last_derivative = float("nan")
+    for iteration in range(1, max_mu_iterations + 1):
+        last_charge, last_charge_error, last_derivative = evaluate_charge(mu)
+        residual = last_charge - filling
+        if abs(residual) <= charge_tol and last_charge_error <= charge_tol / 2.0:
+            break
+
+        if residual < 0:
+            lower = mu
+        else:
+            upper = mu
+
+        if upper - lower <= mu_xtol:
+            mu = 0.5 * (lower + upper)
+            continue
+
+        candidate = mu - residual / last_derivative if last_derivative > 0 else np.nan
+        if not np.isfinite(candidate) or candidate <= lower or candidate >= upper:
+            candidate = 0.5 * (lower + upper)
+        mu = float(candidate)
+    else:
+        raise ValueError("Chemical-potential solver did not converge within max_mu_iterations")
+
+    density_integrator = charge_integrator.replace_evaluator(
+        _stateful_density_evaluator(ndim, ndof, keys, kT)
+    )
+    density_result = density_integrator.integrate(
+        mu,
+        atol=density_atol,
+        rtol=density_rtol,
+        max_subdivisions=max_subdivisions,
+    )
+    if density_result.status != "converged":
+        raise ValueError("Stateful adaptive quadrature did not converge while evaluating density")
+
+    rho, error = _split_density_result(density_result.estimate, density_result.error, ndof, keys)
+    density_stats = _integration_stats(density_result)
+    info = FixedFillingInfo(
+        mu=mu,
+        charge=last_charge,
+        charge_error=last_charge_error,
+        dcharge_dmu=last_derivative,
+        root_iterations=iteration,
+        charge_integration_calls=charge_integration_calls,
+        density_integration_calls=1,
+        charge_n_kernel_evals=charge_kernel_evals,
+        density_n_kernel_evals=density_result.n_kernel_evals,
+        n_kernel_evals=charge_kernel_evals + density_result.n_kernel_evals,
+        charge_n_evaluator_evals=charge_evaluator_evals,
+        density_n_evaluator_evals=density_result.n_evaluator_evals,
+        n_evaluator_evals=charge_evaluator_evals + density_result.n_evaluator_evals,
+        n_cached_nodes=density_stats.n_cached_nodes,
+        n_leaves=density_stats.n_leaves,
+        n_leaf_nodes=density_stats.n_leaf_nodes,
+        subdivisions=density_stats.subdivisions,
+        charge_integral_atol=charge_integral_atol,
+        density_atol=density_atol,
+        density_rtol=density_rtol,
+    )
+    return rho, error, mu, info
 
 
 def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
-    """Compute the mean-field correction from the density matrix.
-
-    Parameters
-    ----------
-    density_matrix :
-        Density matrix tight-binding dictionary.
-    h_int :
-        Interaction hermitian Hamiltonian tight-binding dictionary.
-    Returns
-    -------
-    :
-        Mean-field correction tight-binding dictionary.
-
-    Notes
-    -----
-
-    The interaction h_int must be of density-density type.
-    For example, h_int[(1,)][i, j] = V means a repulsive interaction
-    of strength V between two particles with internal degrees of freedom i and j
-    separated by 1 lattice vector.
-    """
+    """Compute the mean-field correction from the density matrix."""
     n = len(list(density_matrix)[0])
     local_key = tuple(np.zeros((n,), dtype=int))
 
@@ -204,32 +485,3 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
         vec: -1 * h_int.get(vec, 0) * density_matrix[vec] for vec in frozenset(h_int)
     }
     return add_tb(direct, exchange)
-
-
-def fermi_on_kgrid(vals: np.ndarray, filling: float) -> float:
-    """Compute the Fermi energy on a grid of k-points.
-
-    Parameters
-    ----------
-    vals :
-        Eigenvalues of a hamiltonian sampled on a k-point grid with shape (nk, nk, ..., ndof, ndof),
-        where ndof is number of internal degrees of freedom.
-    filling :
-        Number of particles in a unit cell.
-        Used to determine the Fermi level.
-    Returns
-    -------
-    :
-        Fermi energy
-    """
-    norbs = vals.shape[-1]
-    vals_flat = np.sort(vals.flatten())
-    ne = len(vals_flat)
-    ifermi = int(round(ne * filling / norbs))
-    if ifermi >= ne:
-        return vals_flat[-1]
-    elif ifermi == 0:
-        return vals_flat[0]
-    else:
-        fermi = (vals_flat[ifermi - 1] + vals_flat[ifermi]) / 2
-        return fermi
