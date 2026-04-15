@@ -3,7 +3,6 @@ import itertools as it
 
 import numpy as np
 import pytest
-from scipy.fftpack import ifftn
 
 from meanfi.tb.tb import compare_dicts
 from meanfi.tb.utils import guess_tb, generate_tb_keys
@@ -26,7 +25,7 @@ def test_fourier(seed):
     keys = it.product(*keys)
     h_0 = {key: (np.random.rand(matrix_size, matrix_size) - 0.5) * 2 for key in keys}
     kham = tb_to_kgrid(h_0, nk=nk)
-    tb_new = ifftn_to_tb(ifftn(kham, axes=np.arange(ndim)))
+    tb_new = ifftn_to_tb(np.fft.ifftn(kham, axes=np.arange(ndim)))
     compare_dicts(h_0, tb_new)
 
 

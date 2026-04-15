@@ -58,14 +58,14 @@ def test_density_matrix_at_mu_matches_dense_reference():
     kT = 0.15
     keys = [(0,), (1,), (-1,)]
 
-    rho_stateful, _, info = density_matrix_at_mu(
+    rho_adaptive, _, info = density_matrix_at_mu(
         tb, mu=mu, kT=kT, keys=keys, density_atol=1e-8
     )
     rho_dense = _density_from_dense_grid(tb, mu=mu, kT=kT, keys=keys)
 
     assert info.n_kernel_evals > 0
     for key in keys:
-        assert np.allclose(rho_stateful[key], rho_dense[key], atol=5e-5)
+        assert np.allclose(rho_adaptive[key], rho_dense[key], atol=5e-5)
 
 
 def test_density_matrix_matches_cubature_mu_and_dense_density():
@@ -74,17 +74,17 @@ def test_density_matrix_matches_cubature_mu_and_dense_density():
     kT = 0.15
     keys = [(0,), (1,), (-1,)]
 
-    rho_stateful, _, mu_stateful, info = density_matrix(
+    rho_adaptive, _, mu_adaptive, info = density_matrix(
         tb, filling=filling, kT=kT, keys=keys, charge_tol=1e-8, density_atol=1e-8
     )
     mu_reference = _solve_mu_with_cubature(tb, filling=filling, kT=kT)
     rho_dense = _density_from_dense_grid(tb, mu=mu_reference, kT=kT, keys=keys)
 
-    assert abs(mu_stateful - mu_reference) < 5e-6
+    assert abs(mu_adaptive - mu_reference) < 5e-6
     assert abs(info.charge - filling) < 1e-8
     assert info.charge_error <= info.charge_integral_atol
     for key in keys:
-        assert np.allclose(rho_stateful[key], rho_dense[key], atol=5e-5)
+        assert np.allclose(rho_adaptive[key], rho_dense[key], atol=5e-5)
 
 
 def test_density_matrix_half_filling_keeps_particle_hole_symmetry():

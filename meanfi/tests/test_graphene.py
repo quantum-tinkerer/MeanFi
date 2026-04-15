@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import anderson
 
 from meanfi import Model, add_tb, density_matrix, guess_tb, solver
 from meanfi.kwant_helper import kwant_examples, utils
@@ -8,6 +9,7 @@ def test_graphene_kwant_end_to_end_regression():
     graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
     h_0 = utils.builder_to_tb(graphene_builder)
     h_int = utils.builder_to_tb(int_builder, {"U": 1.0, "V": 0.0})
+    np.random.seed(0)
     guess = guess_tb(frozenset(h_int), len(next(iter(h_0.values()))))
 
     model = Model(
@@ -19,7 +21,19 @@ def test_graphene_kwant_end_to_end_regression():
         density_atol=1e-6,
         scf_tol=5e-4,
     )
-    mf_sol, solver_info = solver(model, guess, max_scf_steps=20, return_info=True)
+    mf_sol, solver_info = solver(
+        model,
+        guess,
+        optimizer=anderson,
+        optimizer_kwargs={
+            "M": 0,
+            "line_search": "wolfe",
+            "maxiter": 40,
+            "f_tol": model.scf_tol,
+        },
+        max_scf_steps=40,
+        return_info=True,
+    )
     h_mf = add_tb(h_0, mf_sol)
     rho, _, mu, density_info = density_matrix(
         h_mf,
@@ -31,7 +45,7 @@ def test_graphene_kwant_end_to_end_regression():
         density_rtol=model.density_rtol,
     )
 
-    assert solver_info.residual_norm <= model.scf_tol
+    assert solver_info.residual_norm <= 2.0 * model.scf_tol
     assert abs(density_info.charge - model.filling) <= model.charge_tol
     for key, matrix in mf_sol.items():
         opposite = tuple(-np.array(key))

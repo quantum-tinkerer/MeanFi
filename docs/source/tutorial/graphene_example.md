@@ -30,7 +30,24 @@ import kwant
 import matplotlib.pyplot as plt
 import meanfi
 import numpy as np
+from scipy.optimize import anderson
 from meanfi.kwant_helper import utils
+
+tutorial_model_kwargs = dict(
+    kT=0.1,
+    charge_tol=1e-3,
+    density_atol=1e-3,
+    mu_xtol=1e-3,
+    scf_tol=1e-3,
+)
+tutorial_density_kwargs = dict(
+    filling=2,
+    kT=tutorial_model_kwargs["kT"],
+    keys=[(0, 0)],
+    charge_tol=tutorial_model_kwargs["charge_tol"],
+    density_atol=tutorial_model_kwargs["density_atol"],
+    mu_xtol=tutorial_model_kwargs["mu_xtol"],
+)
 
 s0 = np.identity(2)
 sx = np.array([[0, 1], [1, 0]])
@@ -92,15 +109,22 @@ Because `nn_int` function returns the same interaction matrix for all site pairs
 ## Computing expectation values
 
 As before, we construct {autolink}`~meanfi.model.Model` object to represent the full system to be solved via the mean-field approximation.
-We then generate a random guess for the mean-field solution and solve the system:
+We then generate a random guess for the mean-field solution and solve the system. To keep the adaptive-quadrature
+branch practical while preserving the full phase-diagram sampling from `main`, we use slightly looser tolerances
+and a modestly larger `kT` through `tutorial_model_kwargs`.
 
 ```{code-cell} ipython3
 filling = 2
-model = meanfi.Model(h_0, h_int, filling=2, kT=0.05)
+model = meanfi.Model(h_0, h_int, filling=2, **tutorial_model_kwargs)
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
 guess = meanfi.guess_tb(int_keys, ndof)
-mf_sol = meanfi.solver(model, guess)
+mf_sol = meanfi.solver(
+    model,
+    guess,
+    optimizer=anderson,
+    optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+)
 h_full = meanfi.add_tb(h_0, mf_sol)
 ```
 
@@ -114,8 +138,8 @@ In this case, we compute the CDW order parameter by measuring the expectation va
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-rho, _, _, _ = meanfi.density_matrix(h_full, filling=filling, kT=0.05, keys=[(0, 0)])
-rho_0, _, _, _ = meanfi.density_matrix(h_0, filling=filling, kT=0.05, keys=[(0, 0)])
+rho, _, _, _ = meanfi.density_matrix(h_full, **tutorial_density_kwargs)
+rho_0, _, _, _ = meanfi.density_matrix(h_0, **tutorial_density_kwargs)
 
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
@@ -160,9 +184,14 @@ for U in Us:
         params = dict(U=U, V=V)
         h_int = utils.builder_to_tb(builder_int, params)
 
-        model = meanfi.Model(h_0, h_int, filling=filling, kT=0.05)
+        model = meanfi.Model(h_0, h_int, filling=filling, **tutorial_model_kwargs)
         guess = meanfi.guess_tb(int_keys, ndof)
-        mf_sol = meanfi.solver(model, guess)
+        mf_sol = meanfi.solver(
+            model,
+            guess,
+            optimizer=anderson,
+            optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+        )
         mf_sols.append(mf_sol)
 
         gap = compute_gap(meanfi.add_tb(h_0, mf_sol), fermi_energy=0, nk=100)
@@ -189,9 +218,7 @@ s_list = [sx, sy, sz]
 cdw_list = []
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _, _, _ = meanfi.density_matrix(
-        meanfi.add_tb(h_0, mf_sol), filling=filling, kT=0.05, keys=[(0, 0)]
-    )
+    rho, _, _, _ = meanfi.density_matrix(meanfi.add_tb(h_0, mf_sol), **tutorial_density_kwargs)
 
     # Compute CDW order parameter
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)

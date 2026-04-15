@@ -36,11 +36,11 @@ class Model:
         filling: float,
         *,
         kT: float,
-        charge_tol: float = 1e-8,
-        density_atol: float = 1e-8,
+        charge_tol: float = 1e-4,
+        density_atol: float = 1e-5,
         density_rtol: float = 0.0,
-        mu_xtol: float = 1e-8,
-        scf_tol: float = 1e-6,
+        mu_xtol: float = 1e-4,
+        scf_tol: float = 1e-5,
     ) -> None:
         _tb_type_check(h_0)
         _tb_type_check(h_int)
@@ -87,8 +87,8 @@ class Model:
         density_atol: float | None = None,
         density_rtol: float | None = None,
         mu_xtol: float | None = None,
-        max_mu_iterations: int = 32,
-        max_subdivisions: int | None = 10_000,
+        max_mu_iterations: int = 64,
+        max_subdivisions: int | None = 50_000,
         rule: str = "auto",
         batch_size: int | None = None,
     ):
@@ -119,7 +119,7 @@ class Model:
         keys: list | None = None,
         density_atol: float | None = None,
         density_rtol: float | None = None,
-        max_subdivisions: int | None = 10_000,
+        max_subdivisions: int | None = 50_000,
         rule: str = "auto",
         batch_size: int | None = None,
     ):

@@ -78,13 +78,21 @@ After we have created the interacting system we can use MeanFi again for getting
 ```{code-cell} ipython3
 from meanfi.kwant_helper import utils as utils
 
+tutorial_model_kwargs = dict(
+    kT=0.2,
+    charge_tol=5e-3,
+    density_atol=5e-3,
+    mu_xtol=5e-3,
+    scf_tol=5e-3,
+)
+
 h0, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
 
 params_int = dict(U=0.8)
 ndof = [*h0.values()][0].shape[0]
 filling = ndof // 2
 h_int = utils.builder_to_tb(int_builder, params_int)
-mf_model = meanfi.Model(h0, h_int, filling=filling, kT=0.05)
+mf_model = meanfi.Model(h0, h_int, filling=filling, **tutorial_model_kwargs)
 ```
 
 Now getting the solution by providing a guess and the mean-field model to the solver. To accelerate the convergence, we use an antiferromagnetic guess.
@@ -112,18 +120,23 @@ guess_builder = utils.build_interacting_syst(
 guess = utils.builder_to_tb(guess_builder)
 ```
 
-Due to the large supercell, we use Anderson mixing with a custom set of `mixing_kwargs`.
+Due to the large supercell, we keep the original $16 \times 16$ geometry from `main` and instead use
+a noticeably larger finite temperature together with looser charge, density, chemical-potential, and
+self-consistency tolerances for the tutorial build. We also pass
+`scipy.optimize.anderson` explicitly through the `optimizer=` hook.
 
 ```{code-cell} ipython3
+from scipy.optimize import anderson
+
 mf_sol = meanfi.solver(
     mf_model,
     guess,
-    mixing_kwargs={
-        "M": 10,
-        "maxiter": 100,
+    optimizer=anderson,
+    optimizer_kwargs={
+        "M": 0,
         "line_search": "armijo",
     },
-    scf_tol=1e-4,
+    max_scf_steps=100,
 )
 ```
 

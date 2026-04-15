@@ -11,7 +11,7 @@
 
 ```{eval-rst}
 .. automodule:: meanfi.mf
-   :members: meanfield, density_matrix, density_matrix_at_mu, fermi_dirac
+   :members: DensityIntegrationInfo, FixedFillingInfo, meanfield, density_matrix, density_matrix_at_mu, fermi_dirac
    :show-inheritance:
 ```
 
@@ -19,7 +19,7 @@
 
 ```{eval-rst}
 .. automodule:: meanfi.solvers
-   :members: solver, SolverInfo
+   :members: solver, SolverInfo, NoConvergence
    :show-inheritance:
 ```
 

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import anderson
 
 from meanfi import Model, add_tb, guess_tb, solver, tb_to_kfunc
 
@@ -29,7 +30,18 @@ def _gap_relation_hubbard(Us, tol=2e-1):
             density_atol=1e-6,
             scf_tol=1e-5,
         )
-        mf_sol = solver(model, guess, max_scf_steps=80)
+        mf_sol = solver(
+            model,
+            guess,
+            optimizer=anderson,
+            optimizer_kwargs={
+                "M": 0,
+                "line_search": "wolfe",
+                "maxiter": 80,
+                "f_tol": model.scf_tol,
+            },
+            max_scf_steps=80,
+        )
         gaps.append(_dense_gap(add_tb(h_0, mf_sol)))
 
     fit_gap = np.polyfit(Us, np.array(gaps), 1)[0]

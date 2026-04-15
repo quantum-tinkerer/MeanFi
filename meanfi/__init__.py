@@ -16,10 +16,10 @@ from .mf import (
 )
 from .model import Model
 from .observables import expectation_value
-from .solvers import SolverInfo, solver
+from .solvers import NoConvergence, SolverInfo, solver
 from .tb.tb import add_tb, scale_tb
-from .tb.transforms import tb_to_kfunc
-from .tb.utils import guess_tb
+from .tb.transforms import ifftn_to_tb, kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
+from .tb.utils import fermi_energy, generate_tb_keys, guess_tb
 
 
 __all__ = [
@@ -27,16 +27,22 @@ __all__ = [
     "FixedFillingInfo",
     "SolverInfo",
     "Model",
+    "NoConvergence",
     "add_tb",
     "density_matrix",
     "density_matrix_at_mu",
     "expectation_value",
+    "fermi_energy",
     "fermi_dirac",
+    "generate_tb_keys",
     "guess_tb",
+    "ifftn_to_tb",
+    "kgrid_to_tb",
     "meanfield",
     "scale_tb",
     "solver",
     "tb_to_kfunc",
+    "tb_to_kgrid",
     "__version__",
     "__version_tuple__",
 ]

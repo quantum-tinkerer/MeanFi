@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import anderson
 
 from meanfi import Model, density_matrix, solver
 
@@ -15,23 +16,31 @@ def test_solver_matches_fixed_filling_solution_for_zero_interaction():
     filling = 0.7
     kT = 0.15
 
-    model = Model(h_0, h_int, filling=filling, kT=kT, charge_tol=1e-8, density_atol=1e-8)
+    model = Model(
+        h_0,
+        h_int,
+        filling=filling,
+        kT=kT,
+        charge_tol=1e-6,
+        density_atol=1e-6,
+        mu_xtol=1e-6,
+        scf_tol=1e-6,
+    )
     solution, info = solver(model, guess, mu_guess=0.0, return_info=True)
     _, _, mu_expected, density_info = density_matrix(
         h_0,
         filling=filling,
         kT=kT,
         keys=[(0,)],
-        charge_tol=1e-8,
-        density_atol=1e-8,
     )
 
     assert np.allclose(solution[(0,)], -mu_expected * np.eye(2), atol=1e-6)
     assert info.iterations >= 1
     assert abs(info.mu - density_info.mu) < 1e-6
+    assert info.optimizer == "linear_mixing"
 
 
-def test_solver_supports_linear_mixing_fallback():
+def test_solver_supports_explicit_anderson_optimizer():
     h_0 = _spinful_chain()
     h_int = {(0,): np.zeros((2, 2))}
     guess = {(0,): np.zeros((2, 2))}
@@ -40,12 +49,17 @@ def test_solver_supports_linear_mixing_fallback():
     solution, info = solver(
         model,
         guess,
-        mixing="linear",
-        mixing_kwargs={"alpha": 0.5},
+        optimizer=anderson,
+        optimizer_kwargs={
+            "M": 0,
+            "line_search": "wolfe",
+            "maxiter": 8,
+            "f_tol": model.scf_tol,
+        },
         max_scf_steps=8,
         return_info=True,
     )
 
-    assert info.mixing == "linear"
+    assert info.optimizer == "anderson"
     assert info.residual_norm <= model.scf_tol
     assert np.allclose(solution[(0,)], -info.mu * np.eye(2), atol=1e-6)

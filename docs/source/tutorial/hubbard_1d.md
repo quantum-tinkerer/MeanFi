@@ -48,6 +48,15 @@ First, let's get the basic imports out of the way.
 import numpy as np
 import matplotlib.pyplot as plt
 import meanfi
+from scipy.optimize import anderson
+
+tutorial_model_kwargs = dict(
+    kT=0.1,
+    charge_tol=1e-4,
+    density_atol=1e-4,
+    mu_xtol=1e-4,
+    scf_tol=1e-4,
+)
 ```
 
 Now let us translate the non-interacting Hamiltonian $\hat{H_0}$ defined above into the basic input format for the package: a **tight-binding dictionary**.
@@ -107,7 +116,7 @@ In addition to the Hamiltonians, we also need to specify the filling of the syst
 
 ```{code-cell} ipython3
 filling = 2
-full_model = meanfi.Model(h_0, h_int, filling, kT=0.05)
+full_model = meanfi.Model(h_0, h_int, filling, **tutorial_model_kwargs)
 ```
 
 The object `full_model` now contains all the information needed to solve the mean-field problem.
@@ -120,11 +129,14 @@ Therefore, the choice of the initial guess can significantly affect the final so
 Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.guess_tb` function.
 It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
 Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.guess_tb`.
-Finally, to solve the model, we use the {autolink}`~meanfi.solvers.solver` function which by default employes a root-finding [algorithm](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.anderson.html) to find a self-consistent mean-field solution.
+To keep the adaptive-quadrature tutorial practical without changing the plots themselves, we use a modestly
+larger finite temperature and slightly looser tolerances through `tutorial_model_kwargs`. The default solver
+uses internal linear mixing, which is sufficient for this small example. For the wider phase-diagram sweep
+below we pass `scipy.optimize.anderson` explicitly through the `optimizer=` hook.
 
 ```{code-cell} ipython3
 filling = 2
-full_model = meanfi.Model(h_0, h_int, filling, kT=0.05)
+full_model = meanfi.Model(h_0, h_int, filling, **tutorial_model_kwargs)
 guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
 mf_sol = meanfi.solver(full_model, guess)
 ```
@@ -151,13 +163,18 @@ the band structure now shows a gap at the Fermi level, indicating that the syste
 We can go further and compute the gap for a wider range of $U$ values:
 
 ```{code-cell} ipython3
-def compute_sol(U, h_0, nk, filling=2):
+def compute_sol(U, h_0, filling=2):
     h_int = {
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
     }
     guess = meanfi.guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
-    full_model = meanfi.Model(h_0, h_int, filling, kT=0.05)
-    mf_sol = meanfi.solver(full_model, guess)
+    full_model = meanfi.Model(h_0, h_int, filling, **tutorial_model_kwargs)
+    mf_sol = meanfi.solver(
+        full_model,
+        guess,
+        optimizer=anderson,
+        optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+    )
     return meanfi.add_tb(h_0, mf_sol)
 
 
@@ -172,19 +189,18 @@ def compute_gap(full_sol, nk_dense, fermi_energy=0):
 
 def compute_phase_diagram(
     Us,
-    nk,
     nk_dense,
 ):
     gaps = []
     for U in Us:
-        full_sol = compute_sol(U, h_0, nk)
+        full_sol = compute_sol(U, h_0)
         gaps.append(compute_gap(full_sol, nk_dense))
 
     return np.asarray(gaps, dtype=float)
 
 
 Us = np.linspace(0, 4, 30, endpoint=True)
-gaps = compute_phase_diagram(Us=Us, nk=20, nk_dense=100)
+gaps = compute_phase_diagram(Us=Us, nk_dense=100)
 
 plt.plot(Us, gaps, c="k")
 plt.xlabel("$U / t$")

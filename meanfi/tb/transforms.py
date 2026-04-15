@@ -1,7 +1,6 @@
 import itertools
 import numpy as np
 from typing import Callable
-from scipy.fftpack import ifftn
 
 from meanfi.tb.tb import _tb_type
 
@@ -55,18 +54,18 @@ def kgrid_to_tb(kgrid_array: np.ndarray) -> _tb_type:
         Tight-binding dictionary.
     """
     ndim = len(kgrid_array.shape) - 2
-    return ifftn_to_tb(ifftn(kgrid_array, axes=np.arange(ndim)))
+    return ifftn_to_tb(np.fft.ifftn(kgrid_array, axes=np.arange(ndim)))
 
 
 def ifftn_to_tb(ifft_array: np.ndarray) -> _tb_type:
     """
-    Convert the result of `scipy.fft.ifftn` to a tight-binding dictionary.
+    Convert the result of `numpy.fft.ifftn` to a tight-binding dictionary.
 
     Parameters
     ----------
     ifft_array :
-        Result of `scipy.fft.ifftn` to convert to a tight-binding dictionary.
-        The input to `scipy.fft.ifftn` should be from `tb_to_khamvector`.
+        Result of `numpy.fft.ifftn` to convert to a tight-binding dictionary.
+        The input to `numpy.fft.ifftn` should be from `tb_to_khamvector`.
     Returns
     -------
     :

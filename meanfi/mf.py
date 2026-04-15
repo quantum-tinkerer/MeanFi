@@ -62,7 +62,7 @@ class FixedFillingInfo:
     density_rtol: float
 
 
-def _stateful_prefactor(ndim: int) -> float:
+def _quadrature_prefactor(ndim: int) -> float:
     return 1.0 if ndim == 0 else 1.0 / (2.0 * np.pi) ** ndim
 
 
@@ -86,7 +86,7 @@ def _integration_stats(result) -> DensityIntegrationInfo:
     )
 
 
-def _stateful_spectral_kernel(h: _tb_type):
+def _spectral_payload(h: _tb_type):
     hkfunc = tb_to_kfunc(h)
     ndof = next(iter(h.values())).shape[0]
 
@@ -100,8 +100,8 @@ def _stateful_spectral_kernel(h: _tb_type):
     return kernel
 
 
-def _stateful_charge_evaluator(ndim: int, ndof: int, kT: float):
-    prefactor = _stateful_prefactor(ndim)
+def _charge_evaluator(ndim: int, ndof: int, kT: float):
+    prefactor = _quadrature_prefactor(ndim)
 
     def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
         del points
@@ -115,24 +115,22 @@ def _stateful_charge_evaluator(ndim: int, ndof: int, kT: float):
     return evaluator
 
 
-def _stateful_density_evaluator(
-    ndim: int, ndof: int, keys: list[tuple[int, ...]], kT: float
-):
-    prefactor = _stateful_prefactor(ndim)
+def _density_evaluator(ndim: int, ndof: int, keys: list[tuple[int, ...]], kT: float):
+    prefactor = _quadrature_prefactor(ndim)
     keys_arr = np.array(keys, dtype=float)
 
     def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
         eigenvalues = payload[:, :ndof].real
         eigenvectors = payload[:, ndof:].reshape(points.shape[0], ndof, ndof)
         occupation = fermi_dirac(eigenvalues, kT, mu)
-        density_matrix_k = (
+        density_k = (
             eigenvectors
             * occupation[:, np.newaxis, :]
             @ eigenvectors.conj().transpose(0, 2, 1)
         )
         phase = np.exp(1j * np.dot(points, keys_arr.T))
         density_terms = (
-            density_matrix_k[..., np.newaxis] * phase[:, np.newaxis, np.newaxis, :]
+            density_k[..., np.newaxis] * phase[:, np.newaxis, np.newaxis, :]
         ).reshape(points.shape[0], -1)
         return prefactor * density_terms
 
@@ -154,12 +152,12 @@ def _split_density_result(
 ) -> tuple[_tb_type, _tb_type]:
     estimate = np.asarray(estimate).reshape(ndof, ndof, len(keys))
     error = np.asarray(error).reshape(ndof, ndof, len(keys))
-    density_matrix_dict = {}
-    error_dict = {}
+    density = {}
+    density_error = {}
     for idx, key in enumerate(keys):
-        density_matrix_dict[key] = estimate[..., idx]
-        error_dict[key] = error[..., idx]
-    return density_matrix_dict, error_dict
+        density[key] = estimate[..., idx]
+        density_error[key] = error[..., idx]
+    return density, density_error
 
 
 def _mu_bracket(h: _tb_type, kT: float) -> tuple[float, float]:
@@ -168,26 +166,123 @@ def _mu_bracket(h: _tb_type, kT: float) -> tuple[float, float]:
     return -float(bound + padding), float(bound + padding)
 
 
-def _derived_charge_integral_tolerance(charge_tol: float) -> tuple[float, float]:
+def _charge_integral_tolerance(charge_tol: float) -> tuple[float, float]:
     return float(charge_tol) / 4.0, 0.0
 
 
-def _direct_density_matrix_at_mu(
+def _integration_bounds(ndim: int) -> tuple[list[float], list[float]]:
+    return ([-np.pi] * ndim, [np.pi] * ndim)
+
+
+def _build_integrator(
     h: _tb_type,
+    *,
+    evaluator,
+    rule: str,
+    batch_size: int | None,
+) -> StatefulIntegrator:
+    ndim = len(next(iter(h)))
+    a, b = _integration_bounds(ndim)
+    return StatefulIntegrator(
+        a=a,
+        b=b,
+        kernel=_spectral_payload(h),
+        evaluator=evaluator,
+        rule=rule,
+        batch_size=batch_size,
+    )
+
+
+def _run_integrator(
+    integrator: StatefulIntegrator,
+    parameter: float,
+    *,
+    atol: float,
+    rtol: float,
+    max_subdivisions: int | None,
+    error_message: str,
+):
+    result = integrator.integrate(
+        parameter,
+        atol=atol,
+        rtol=rtol,
+        max_subdivisions=max_subdivisions,
+    )
+    if result.status != "converged":
+        raise ValueError(error_message)
+    return result
+
+
+def _expand_mu_bracket(evaluate_charge, *, filling: float, lower: float, upper: float) -> tuple[float, float]:
+    lower_charge, _, _ = evaluate_charge(lower)
+    upper_charge, _, _ = evaluate_charge(upper)
+    while lower_charge > filling or upper_charge < filling:
+        lower *= 2.0
+        upper *= 2.0
+        lower_charge, _, _ = evaluate_charge(lower)
+        upper_charge, _, _ = evaluate_charge(upper)
+    return lower, upper
+
+
+def _solve_mu(
+    evaluate_charge,
+    *,
+    filling: float,
+    mu_guess: float,
+    lower: float,
+    upper: float,
+    charge_tol: float,
+    mu_xtol: float,
+    max_mu_iterations: int,
+) -> tuple[float, float, float, float, int]:
+    mu = float(np.clip(mu_guess, lower, upper))
+    if not lower < mu < upper:
+        mu = 0.5 * (lower + upper)
+
+    last_charge = float("nan")
+    last_charge_error = float("nan")
+    last_derivative = float("nan")
+    for iteration in range(1, max_mu_iterations + 1):
+        last_charge, last_charge_error, last_derivative = evaluate_charge(mu)
+        residual = last_charge - filling
+        if abs(residual) <= charge_tol and last_charge_error <= charge_tol / 2.0:
+            return mu, last_charge, last_charge_error, last_derivative, iteration
+
+        if residual < 0:
+            lower = mu
+        else:
+            upper = mu
+
+        if upper - lower <= mu_xtol:
+            mu = 0.5 * (lower + upper)
+            continue
+
+        candidate = mu - residual / last_derivative if last_derivative > 0 else np.nan
+        if not np.isfinite(candidate) or candidate <= lower or candidate >= upper:
+            candidate = 0.5 * (lower + upper)
+        mu = float(candidate)
+
+    raise ValueError("Chemical-potential solver did not converge within max_mu_iterations")
+
+
+def _density_from_matrix(matrix: np.ndarray, keys: list[tuple[int, ...]]) -> tuple[_tb_type, _tb_type]:
+    zero_key = tuple(0 for _ in next(iter(keys), tuple()))
+    rho = {key: matrix if key == zero_key else np.zeros_like(matrix) for key in keys}
+    error = {key: np.zeros_like(matrix) for key in keys}
+    return rho, error
+
+
+def _density_matrix_at_mu_zero_dim(
+    matrix: np.ndarray,
+    *,
     mu: float,
     kT: float,
     keys: list[tuple[int, ...]],
 ) -> tuple[_tb_type, _tb_type, DensityIntegrationInfo]:
-    if set(h) != {()}:
-        raise ValueError("Zero-dimensional evaluation expects only the local key")
-
-    matrix = h[()]
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
     occupation = fermi_dirac(eigenvalues, kT, mu)
     density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-    zero_key = tuple()
-    rho = {key: density if key == zero_key else np.zeros_like(density) for key in keys}
-    error = {key: np.zeros_like(density) for key in keys}
+    rho, error = _density_from_matrix(density, keys)
     info = DensityIntegrationInfo(
         n_kernel_evals=1,
         n_evaluator_evals=1,
@@ -199,50 +294,9 @@ def _direct_density_matrix_at_mu(
     return rho, error, info
 
 
-def density_matrix_at_mu(
-    h: _tb_type,
-    mu: float,
-    kT: float,
-    keys: list,
-    density_atol: float = 1e-8,
-    density_rtol: float = 0.0,
-    max_subdivisions: int | None = 10_000,
-    rule: str = "auto",
-    batch_size: int | None = None,
-) -> tuple[_tb_type, _tb_type, DensityIntegrationInfo]:
-    """Compute the real-space density matrix at a fixed chemical potential."""
-    if kT <= 0:
-        raise ValueError("density_matrix_at_mu requires kT > 0")
-
-    keys = _normalize_keys(h, keys)
-    ndim = len(next(iter(h)))
-    if ndim == 0:
-        return _direct_density_matrix_at_mu(h, mu=mu, kT=kT, keys=keys)
-
-    ndof = next(iter(h.values())).shape[0]
-    integrator = StatefulIntegrator(
-        a=[-np.pi] * ndim,
-        b=[np.pi] * ndim,
-        kernel=_stateful_spectral_kernel(h),
-        evaluator=_stateful_density_evaluator(ndim, ndof, keys, kT),
-        rule=rule,
-        batch_size=batch_size,
-    )
-    result = integrator.integrate(
-        mu,
-        atol=density_atol,
-        rtol=density_rtol,
-        max_subdivisions=max_subdivisions,
-    )
-    if result.status != "converged":
-        raise ValueError("Stateful adaptive quadrature did not converge")
-
-    rho, error = _split_density_result(result.estimate, result.error, ndof, keys)
-    return rho, error, _integration_stats(result)
-
-
-def _direct_density_matrix(
-    h: _tb_type,
+def _density_matrix_zero_dim(
+    matrix: np.ndarray,
+    *,
     filling: float,
     kT: float,
     keys: list[tuple[int, ...]],
@@ -253,68 +307,103 @@ def _direct_density_matrix(
     density_atol: float,
     density_rtol: float,
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
-    if set(h) != {()}:
-        raise ValueError("Zero-dimensional evaluation expects only the local key")
-
-    matrix = h[()]
-    ndof = matrix.shape[0]
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
-    lower, upper = _mu_bracket(h, kT)
-    mu = float(np.clip(mu_guess, lower, upper))
-    if not lower < mu < upper:
-        mu = 0.5 * (lower + upper)
+    lower, upper = _mu_bracket({tuple(): matrix}, kT)
+    charge_calls = 0
 
-    last_charge = 0.0
-    last_derivative = 0.0
-    charge_error = 0.0
-    for iteration in range(1, max_mu_iterations + 1):
+    def evaluate_charge(mu: float) -> tuple[float, float, float]:
+        nonlocal charge_calls
+        charge_calls += 1
         occupation = fermi_dirac(eigenvalues, kT, mu)
-        last_charge = float(np.sum(occupation))
-        last_derivative = float(np.sum(occupation * (1.0 - occupation) / kT))
-        residual = last_charge - filling
-        if abs(residual) <= charge_tol and charge_error <= charge_tol / 2.0:
-            break
-        if residual < 0:
-            lower = mu
-        else:
-            upper = mu
-        if upper - lower <= mu_xtol:
-            mu = 0.5 * (lower + upper)
-            continue
-        candidate = mu - residual / last_derivative if last_derivative > 0 else np.nan
-        if not np.isfinite(candidate) or candidate <= lower or candidate >= upper:
-            candidate = 0.5 * (lower + upper)
-        mu = float(candidate)
-    else:
-        raise ValueError("Chemical-potential solver did not converge within max_mu_iterations")
+        charge = float(np.sum(occupation))
+        derivative = float(np.sum(occupation * (1.0 - occupation) / kT))
+        return charge, 0.0, derivative
 
+    lower, upper = _expand_mu_bracket(
+        evaluate_charge,
+        filling=filling,
+        lower=lower,
+        upper=upper,
+    )
+    mu, charge, charge_error, derivative, iteration = _solve_mu(
+        evaluate_charge,
+        filling=filling,
+        mu_guess=mu_guess,
+        lower=lower,
+        upper=upper,
+        charge_tol=charge_tol,
+        mu_xtol=mu_xtol,
+        max_mu_iterations=max_mu_iterations,
+    )
+
+    occupation = fermi_dirac(eigenvalues, kT, mu)
     density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-    zero_key = tuple()
-    rho = {key: density if key == zero_key else np.zeros_like(density) for key in keys}
-    error = {key: np.zeros_like(density) for key in keys}
+    rho, error = _density_from_matrix(density, keys)
+    charge_integral_atol, _ = _charge_integral_tolerance(charge_tol)
     info = FixedFillingInfo(
         mu=mu,
-        charge=last_charge,
+        charge=charge,
         charge_error=charge_error,
-        dcharge_dmu=last_derivative,
+        dcharge_dmu=derivative,
         root_iterations=iteration,
-        charge_integration_calls=iteration,
+        charge_integration_calls=charge_calls,
         density_integration_calls=1,
         charge_n_kernel_evals=1,
         density_n_kernel_evals=0,
         n_kernel_evals=1,
-        charge_n_evaluator_evals=iteration,
+        charge_n_evaluator_evals=charge_calls,
         density_n_evaluator_evals=1,
-        n_evaluator_evals=iteration + 1,
+        n_evaluator_evals=charge_calls + 1,
         n_cached_nodes=1,
         n_leaves=1,
         n_leaf_nodes=1,
         subdivisions=0,
-        charge_integral_atol=_derived_charge_integral_tolerance(charge_tol)[0],
+        charge_integral_atol=charge_integral_atol,
         density_atol=density_atol,
         density_rtol=density_rtol,
     )
     return rho, error, mu, info
+
+
+def density_matrix_at_mu(
+    h: _tb_type,
+    mu: float,
+    kT: float,
+    keys: list,
+    density_atol: float = 1e-6,
+    density_rtol: float = 0.0,
+    max_subdivisions: int | None = 50_000,
+    rule: str = "auto",
+    batch_size: int | None = None,
+) -> tuple[_tb_type, _tb_type, DensityIntegrationInfo]:
+    """Compute the real-space density matrix at a fixed chemical potential."""
+    if kT <= 0:
+        raise ValueError("density_matrix_at_mu requires kT > 0")
+
+    keys = _normalize_keys(h, keys)
+    ndim = len(next(iter(h)))
+    if ndim == 0:
+        if set(h) != {tuple()}:
+            raise ValueError("Zero-dimensional evaluation expects only the local key")
+        return _density_matrix_at_mu_zero_dim(h[tuple()], mu=mu, kT=kT, keys=keys)
+
+    ndof = next(iter(h.values())).shape[0]
+    integrator = _build_integrator(
+        h,
+        evaluator=_density_evaluator(ndim, ndof, keys, kT),
+        rule=rule,
+        batch_size=batch_size,
+    )
+    result = _run_integrator(
+        integrator,
+        mu,
+        atol=density_atol,
+        rtol=density_rtol,
+        max_subdivisions=max_subdivisions,
+        error_message="Adaptive quadrature did not converge",
+    )
+    rho, error = _split_density_result(result.estimate, result.error, ndof, keys)
+    return rho, error, _integration_stats(result)
 
 
 def density_matrix(
@@ -322,25 +411,27 @@ def density_matrix(
     filling: float,
     kT: float,
     keys: list,
-    charge_tol: float = 1e-8,
-    density_atol: float = 1e-8,
+    charge_tol: float = 1e-6,
+    density_atol: float = 1e-6,
     density_rtol: float = 0.0,
     mu_guess: float = 0.0,
-    mu_xtol: float = 1e-8,
-    max_mu_iterations: int = 32,
-    max_subdivisions: int | None = 10_000,
+    mu_xtol: float = 1e-6,
+    max_mu_iterations: int = 64,
+    max_subdivisions: int | None = 50_000,
     rule: str = "auto",
     batch_size: int | None = None,
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
-    """Compute the fixed-filling real-space density matrix with stateful cubature."""
+    """Compute the fixed-filling real-space density matrix with adaptive quadrature."""
     if kT <= 0:
         raise ValueError("density_matrix requires kT > 0")
 
     keys = _normalize_keys(h, keys)
     ndim = len(next(iter(h)))
     if ndim == 0:
-        return _direct_density_matrix(
-            h=h,
+        if set(h) != {tuple()}:
+            raise ValueError("Zero-dimensional evaluation expects only the local key")
+        return _density_matrix_zero_dim(
+            h[tuple()],
             filling=filling,
             kT=kT,
             keys=keys,
@@ -353,12 +444,10 @@ def density_matrix(
         )
 
     ndof = next(iter(h.values())).shape[0]
-    charge_integral_atol, charge_integral_rtol = _derived_charge_integral_tolerance(charge_tol)
-    charge_integrator = StatefulIntegrator(
-        a=[-np.pi] * ndim,
-        b=[np.pi] * ndim,
-        kernel=_stateful_spectral_kernel(h),
-        evaluator=_stateful_charge_evaluator(ndim, ndof, kT),
+    charge_integral_atol, charge_integral_rtol = _charge_integral_tolerance(charge_tol)
+    charge_integrator = _build_integrator(
+        h,
+        evaluator=_charge_evaluator(ndim, ndof, kT),
         rule=rule,
         batch_size=batch_size,
     )
@@ -369,88 +458,68 @@ def density_matrix(
 
     def evaluate_charge(mu: float) -> tuple[float, float, float]:
         nonlocal charge_integration_calls, charge_kernel_evals, charge_evaluator_evals
-        result = charge_integrator.integrate(
+        result = _run_integrator(
+            charge_integrator,
             mu,
             atol=charge_integral_atol,
             rtol=charge_integral_rtol,
             max_subdivisions=max_subdivisions,
+            error_message=(
+                "Adaptive quadrature did not converge while solving for the chemical potential"
+            ),
         )
-        if result.status != "converged":
-            raise ValueError(
-                "Stateful adaptive quadrature did not converge while solving for the chemical potential"
-            )
         charge, charge_error, derivative = _split_charge_result(result.estimate, result.error)
         charge_integration_calls += 1
-        charge_kernel_evals += result.n_kernel_evals
-        charge_evaluator_evals += result.n_evaluator_evals
+        charge_kernel_evals += int(result.n_kernel_evals)
+        charge_evaluator_evals += int(result.n_evaluator_evals)
         return charge, charge_error, derivative
 
     lower, upper = _mu_bracket(h, kT)
-    lower_charge, _, _ = evaluate_charge(lower)
-    upper_charge, _, _ = evaluate_charge(upper)
-    while lower_charge > filling or upper_charge < filling:
-        lower *= 2.0
-        upper *= 2.0
-        lower_charge, _, _ = evaluate_charge(lower)
-        upper_charge, _, _ = evaluate_charge(upper)
-
-    mu = float(np.clip(mu_guess, lower, upper))
-    if not lower < mu < upper:
-        mu = 0.5 * (lower + upper)
-
-    last_charge = float("nan")
-    last_charge_error = float("nan")
-    last_derivative = float("nan")
-    for iteration in range(1, max_mu_iterations + 1):
-        last_charge, last_charge_error, last_derivative = evaluate_charge(mu)
-        residual = last_charge - filling
-        if abs(residual) <= charge_tol and last_charge_error <= charge_tol / 2.0:
-            break
-
-        if residual < 0:
-            lower = mu
-        else:
-            upper = mu
-
-        if upper - lower <= mu_xtol:
-            mu = 0.5 * (lower + upper)
-            continue
-
-        candidate = mu - residual / last_derivative if last_derivative > 0 else np.nan
-        if not np.isfinite(candidate) or candidate <= lower or candidate >= upper:
-            candidate = 0.5 * (lower + upper)
-        mu = float(candidate)
-    else:
-        raise ValueError("Chemical-potential solver did not converge within max_mu_iterations")
+    lower, upper = _expand_mu_bracket(
+        evaluate_charge,
+        filling=filling,
+        lower=lower,
+        upper=upper,
+    )
+    mu, charge, charge_error, derivative, iteration = _solve_mu(
+        evaluate_charge,
+        filling=filling,
+        mu_guess=mu_guess,
+        lower=lower,
+        upper=upper,
+        charge_tol=charge_tol,
+        mu_xtol=mu_xtol,
+        max_mu_iterations=max_mu_iterations,
+    )
 
     density_integrator = charge_integrator.replace_evaluator(
-        _stateful_density_evaluator(ndim, ndof, keys, kT)
+        _density_evaluator(ndim, ndof, keys, kT)
     )
-    density_result = density_integrator.integrate(
+    density_result = _run_integrator(
+        density_integrator,
         mu,
         atol=density_atol,
         rtol=density_rtol,
         max_subdivisions=max_subdivisions,
+        error_message="Adaptive quadrature did not converge while evaluating density",
     )
-    if density_result.status != "converged":
-        raise ValueError("Stateful adaptive quadrature did not converge while evaluating density")
 
     rho, error = _split_density_result(density_result.estimate, density_result.error, ndof, keys)
     density_stats = _integration_stats(density_result)
     info = FixedFillingInfo(
         mu=mu,
-        charge=last_charge,
-        charge_error=last_charge_error,
-        dcharge_dmu=last_derivative,
+        charge=charge,
+        charge_error=charge_error,
+        dcharge_dmu=derivative,
         root_iterations=iteration,
         charge_integration_calls=charge_integration_calls,
         density_integration_calls=1,
         charge_n_kernel_evals=charge_kernel_evals,
-        density_n_kernel_evals=density_result.n_kernel_evals,
-        n_kernel_evals=charge_kernel_evals + density_result.n_kernel_evals,
+        density_n_kernel_evals=int(density_result.n_kernel_evals),
+        n_kernel_evals=charge_kernel_evals + int(density_result.n_kernel_evals),
         charge_n_evaluator_evals=charge_evaluator_evals,
-        density_n_evaluator_evals=density_result.n_evaluator_evals,
-        n_evaluator_evals=charge_evaluator_evals + density_result.n_evaluator_evals,
+        density_n_evaluator_evals=int(density_result.n_evaluator_evals),
+        n_evaluator_evals=charge_evaluator_evals + int(density_result.n_evaluator_evals),
         n_cached_nodes=density_stats.n_cached_nodes,
         n_leaves=density_stats.n_leaves,
         n_leaf_nodes=density_stats.n_leaf_nodes,

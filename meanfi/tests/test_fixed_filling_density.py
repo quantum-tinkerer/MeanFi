@@ -3,7 +3,7 @@ import numpy as np
 from meanfi import add_tb, density_matrix, fermi_dirac, meanfield
 
 
-def _hubbard_chain_trial_hamiltonian(U=2.0):
+def _hubbard_chain_hamiltonian(U=2.0):
     hopping = np.kron(np.array([[0, 1], [0, 0]]), np.eye(2))
     h_0 = {(0,): hopping + hopping.T.conj(), (1,): hopping, (-1,): hopping.T.conj()}
     h_int = {(0,): U * np.kron(np.eye(2), np.ones((2, 2)))}
@@ -15,8 +15,8 @@ def _local_spinful_2d(energy=1.0):
     return {(0, 0): np.diag([-energy, energy])}
 
 
-def test_density_matrix_reports_separate_charge_and_density_tolerances():
-    tb = _hubbard_chain_trial_hamiltonian()
+def test_fixed_filling_density_reports_separate_charge_and_density_tolerances():
+    tb = _hubbard_chain_hamiltonian()
     rho, error, mu, info = density_matrix(
         tb,
         filling=2.0,
@@ -38,7 +38,7 @@ def test_density_matrix_reports_separate_charge_and_density_tolerances():
     assert set(error) == {(0,), (1,), (-1,)}
 
 
-def test_density_matrix_matches_dense_reference_in_2d():
+def test_fixed_filling_density_matches_dense_reference_in_2d():
     tb = _local_spinful_2d()
     filling = 1.0
     kT = 0.2

@@ -3,9 +3,10 @@ import time
 import tracemalloc
 
 import numpy as np
-from scipy.optimize._nonlin import NoConvergence
+from scipy.optimize import anderson
 
 from meanfi import Model, guess_tb, solver
+from meanfi.solvers import NoConvergence
 
 
 def hubbard_chain_model(U=2.0):
@@ -77,11 +78,23 @@ if __name__ == "__main__":
     np.random.seed(0)
     model, guess = hubbard_chain_model()
 
-    anderson = benchmark(
-        lambda: solver(model, guess, return_info=True, mixing="anderson", max_scf_steps=40)
+    anderson_run = benchmark(
+        lambda: solver(
+            model,
+            guess,
+            return_info=True,
+            optimizer=anderson,
+            optimizer_kwargs={
+                "M": 0,
+                "line_search": "wolfe",
+                "maxiter": 40,
+                "f_tol": model.scf_tol,
+            },
+            max_scf_steps=40,
+        )
     )
 
-    print_case("1D Hubbard SCF benchmark (Anderson)", anderson)
+    print_case("1D Hubbard SCF benchmark (Anderson)", anderson_run)
 
     try:
         linear = benchmark(
@@ -89,8 +102,7 @@ if __name__ == "__main__":
                 model,
                 guess,
                 return_info=True,
-                mixing="linear",
-                mixing_kwargs={"alpha": 0.2},
+                optimizer_kwargs={"alpha": 0.2},
                 max_scf_steps=120,
             )
         )
@@ -99,4 +111,7 @@ if __name__ == "__main__":
         print("  linear mixing did not converge within 120 iterations at alpha=0.2")
     else:
         print_case("1D Hubbard SCF benchmark (Linear)", linear)
-        print(f"  Anderson speedup over linear: {linear['median_ms'] / anderson['median_ms']:.2f}x")
+        print(
+            f"  Anderson speedup over linear: "
+            f"{linear['median_ms'] / anderson_run['median_ms']:.2f}x"
+        )

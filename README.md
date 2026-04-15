@@ -1,7 +1,7 @@
 # `MeanFi`
 
 `MeanFi` is a finite-temperature Hartree-Fock solver for tight-binding models with density-density interactions.
-The package now uses one integration backend throughout: `stateful_quadrature`.
+Fixed-filling density updates are evaluated with adaptive quadrature and cached eigensystem reuse via `stateful_quadrature`.
 
 ## Workflow
 
@@ -22,9 +22,6 @@ model = meanfi.Model(
     h_int,
     filling=2,
     kT=0.05,
-    charge_tol=1e-6,
-    density_atol=1e-6,
-    scf_tol=1e-5,
 )
 
 guess = meanfi.guess_tb(frozenset(h_int), onsite.shape[0])
@@ -35,39 +32,60 @@ h_mf = meanfi.add_tb(h_0, mf_correction)
 ## Density APIs
 
 - `meanfi.density_matrix(...)`
-  Computes the fixed-filling density matrix. The chemical potential is solved internally with safeguarded Newton and stateful cubature reuse.
+  Computes the fixed-filling density matrix. The chemical potential is solved internally with safeguarded Newton steps and bisection fallback while reusing the adaptive quadrature cache.
 - `meanfi.density_matrix_at_mu(...)`
   Computes the density matrix at an explicit chemical potential.
 
-Both APIs return quadrature error estimates and runtime statistics.
+Both APIs return error estimates together with runtime statistics.
 
-## Numerical model
+## Optimizers
 
-The supported regime is finite temperature only. The package computes:
+`meanfi.solver(...)` now defaults to internal linear mixing, so the runtime package does not require SciPy.
+For harder self-consistent problems you can pass an external optimizer explicitly, for example `scipy.optimize.anderson`:
 
-- charge integrals with a scalar stateful-cubature solve for `N(\mu)=\nu`,
-- density integrals with a second pass that reuses the adaptive cache,
-- outer SCF updates with Anderson mixing by default.
+```python
+from scipy.optimize import anderson
+
+mf_correction = meanfi.solver(
+    model,
+    guess,
+    optimizer=anderson,
+    optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+)
+```
 
 ## Installation
 
+Until the next packaged release, install from a checkout so the Git-backed quadrature dependency is available:
+
 ```bash
-pip install meanfi
+python -m pip install "stateful-quadrature @ git+https://github.com/Kostusas/stateful_quadrature.git"
+python -m pip install -e .
 ```
 
-`meanfi` depends on `stateful-quadrature` as a normal package dependency.
+For local development with Pixi:
+
+```bash
+pixi install
+```
+
+If you want the `kwant` conversion helpers as well:
+
+```bash
+python -m pip install ".[kwant]"
+```
 
 ## Scope
 
-Current mainline support includes:
+Current support includes:
 
 - density-density interactions,
 - finite-temperature mean-field calculations,
 - tight-binding dictionary workflows,
-- `kwant` conversion helpers.
+- optional `kwant` conversion helpers.
 
 Not supported in the main package:
 
 - zero-temperature production solvers,
-- k-grid based mean-field solvers,
+- k-grid based self-consistent solvers,
 - superconducting pairing terms.

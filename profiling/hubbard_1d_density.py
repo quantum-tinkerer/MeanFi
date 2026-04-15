@@ -129,7 +129,7 @@ if __name__ == "__main__":
     kT = 0.1
     keys = [(0,), (1,), (-1,)]
 
-    stateful = benchmark(
+    adaptive = benchmark(
         lambda: density_matrix(
             h, filling=filling, kT=kT, keys=keys, charge_tol=1e-8, density_atol=1e-8
         )
@@ -142,24 +142,24 @@ if __name__ == "__main__":
         warmup=1,
     )
 
-    rho_stateful, _, mu_stateful, info = stateful["last"]
+    rho_adaptive, _, mu_adaptive, info = adaptive["last"]
     rho_cubature, mu_cubature, charge_cubature = cubature_ref["last"]
 
     print("1D Hubbard density benchmark")
     print(
-        f"  stateful: median {stateful['median_ms']:.3f} ms | mean {stateful['mean_ms']:.3f} ms | "
-        f"stdev {stateful['stdev_ms']:.3f} ms | peak {stateful['peak_mb']:.3f} MiB"
+        f"  adaptive: median {adaptive['median_ms']:.3f} ms | mean {adaptive['mean_ms']:.3f} ms | "
+        f"stdev {adaptive['stdev_ms']:.3f} ms | peak {adaptive['peak_mb']:.3f} MiB"
     )
     print(
         f"  cubature: median {cubature_ref['median_ms']:.3f} ms | mean {cubature_ref['mean_ms']:.3f} ms | "
         f"stdev {cubature_ref['stdev_ms']:.3f} ms | peak {cubature_ref['peak_mb']:.3f} MiB"
     )
-    print(f"  speedup: {cubature_ref['median_ms'] / stateful['median_ms']:.2f}x")
-    print(f"  mu difference: {abs(mu_stateful - mu_cubature):.3e}")
+    print(f"  speedup: {cubature_ref['median_ms'] / adaptive['median_ms']:.2f}x")
+    print(f"  mu difference: {abs(mu_adaptive - mu_cubature):.3e}")
     print(f"  charge difference: {abs(info.charge - charge_cubature):.3e}")
-    print(f"  max rho difference: {max_rho_diff(rho_stateful, rho_cubature):.3e}")
+    print(f"  max rho difference: {max_rho_diff(rho_adaptive, rho_cubature):.3e}")
     print(
-        "  stateful stats: "
+        "  adaptive stats: "
         f"{info.root_iterations} root iterations, "
         f"{info.charge_integration_calls} charge integrations, "
         f"{info.density_integration_calls} density integrations, "

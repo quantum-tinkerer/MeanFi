@@ -3,20 +3,26 @@ from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
-import scipy
-from scipy.optimize._nonlin import NoConvergence
 
-from meanfi.mf import FixedFillingInfo, meanfield, density_matrix
+from meanfi.mf import FixedFillingInfo, density_matrix, meanfield
 from meanfi.model import Model
 from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
 from meanfi.tb.tb import _tb_type
+
+
+class NoConvergence(Exception):
+    """Raised when the self-consistent field solver does not converge."""
+
+    def __init__(self, last_iterate: np.ndarray):
+        self.last_iterate = np.array(last_iterate, copy=True)
+        super().__init__(self.last_iterate)
 
 
 @dataclass(frozen=True)
 class SolverInfo:
     """Summary of a self-consistent mean-field solve."""
 
-    mixing: str
+    optimizer: str
     iterations: int
     residual_norm: float
     mu: float
@@ -39,6 +45,12 @@ def _scf_state() -> dict:
         "total_kernel_evals": 0,
         "total_evaluator_evals": 0,
     }
+
+
+def _record_iteration(iteration: int, residual: np.ndarray, *, callback, state: dict) -> None:
+    state["iterations"] = iteration
+    if callback is not None:
+        callback(iteration, residual, state)
 
 
 def _residual(
@@ -86,7 +98,7 @@ def _residual(
     return residual
 
 
-def _solve_linear(
+def _solve_linear_mixing(
     residual_fn: Callable[[np.ndarray], np.ndarray],
     x0: np.ndarray,
     *,
@@ -99,36 +111,67 @@ def _solve_linear(
     x = np.array(x0, copy=True)
     for iteration in range(1, maxiter + 1):
         residual = residual_fn(x)
-        state["iterations"] = iteration
-        if callback is not None:
-            callback(iteration, residual, state)
+        _record_iteration(iteration, residual, callback=callback, state=state)
         if np.linalg.norm(residual) <= scf_tol:
             return x
         x = x + alpha * residual
     raise NoConvergence(x)
 
 
-def _solve_anderson(
+def _translate_no_convergence(exc: Exception, fallback: np.ndarray) -> None:
+    if exc.__class__.__name__ != "NoConvergence":
+        return
+
+    if hasattr(exc, "last_iterate"):
+        last_iterate = exc.last_iterate
+    elif exc.args:
+        last_iterate = exc.args[0]
+    else:
+        last_iterate = fallback
+    raise NoConvergence(np.asarray(last_iterate, dtype=float)) from exc
+
+
+def _solve_with_optimizer(
     residual_fn: Callable[[np.ndarray], np.ndarray],
     x0: np.ndarray,
     *,
-    maxiter: int,
-    scf_tol: float,
-    mixing_kwargs: dict,
+    optimizer: Callable,
+    optimizer_kwargs: dict,
     callback,
     state: dict,
 ) -> np.ndarray:
-    kwargs = {"M": 5, "w0": 0.01, "maxiter": maxiter, "f_tol": scf_tol}
-    kwargs.update(mixing_kwargs)
-
-    def scipy_callback(x, f):
+    def optimizer_callback(x: np.ndarray, f: np.ndarray) -> None:
         del x
-        state["iterations"] += 1
-        if callback is not None:
-            callback(state["iterations"], f, state)
+        residual = np.asarray(f, dtype=float)
+        _record_iteration(state["iterations"] + 1, residual, callback=callback, state=state)
 
-    with np.errstate(invalid="ignore"):
-        return scipy.optimize.anderson(residual_fn, x0, callback=scipy_callback, **kwargs)
+    kwargs = dict(optimizer_kwargs)
+    try:
+        with np.errstate(invalid="ignore"):
+            result = optimizer(residual_fn, x0, callback=optimizer_callback, **kwargs)
+    except TypeError as exc:
+        if "callback" not in str(exc):
+            raise
+        try:
+            with np.errstate(invalid="ignore"):
+                result = optimizer(residual_fn, x0, **kwargs)
+        except Exception as inner_exc:  # pragma: no cover - exercised through scipy
+            _translate_no_convergence(inner_exc, x0)
+            raise
+        residual = residual_fn(result)
+        _record_iteration(max(1, state["iterations"]), residual, callback=callback, state=state)
+        return np.asarray(result, dtype=float)
+    except Exception as exc:  # pragma: no cover - exercised through scipy
+        _translate_no_convergence(exc, x0)
+        raise
+
+    return np.asarray(result, dtype=float)
+
+
+def _optimizer_name(optimizer: Callable | None) -> str:
+    if optimizer is None:
+        return "linear_mixing"
+    return getattr(optimizer, "__name__", optimizer.__class__.__name__)
 
 
 def solver(
@@ -136,8 +179,8 @@ def solver(
     mf_guess: _tb_type,
     *,
     mu_guess: float = 0.0,
-    mixing: str = "anderson",
-    mixing_kwargs: dict | None = None,
+    optimizer: Callable | None = None,
+    optimizer_kwargs: dict | None = None,
     scf_tol: float | None = None,
     max_scf_steps: int = 100,
     callback=None,
@@ -145,13 +188,13 @@ def solver(
     return_info: bool = False,
     rule: str = "auto",
     batch_size: int | None = None,
-    max_mu_iterations: int = 32,
-    max_subdivisions: int | None = 10_000,
+    max_mu_iterations: int = 64,
+    max_subdivisions: int | None = 50_000,
 ) -> _tb_type | tuple[_tb_type, SolverInfo]:
     """Solve for the self-consistent mean-field correction."""
     keys = list(model.h_int)
     scf_tol = model.scf_tol if scf_tol is None else scf_tol
-    mixing_kwargs = {} if mixing_kwargs is None else dict(mixing_kwargs)
+    optimizer_kwargs = {} if optimizer_kwargs is None else dict(optimizer_kwargs)
 
     rho_guess, _, mu, info = density_matrix(
         model.hamiltonian_from_meanfield(mf_guess),
@@ -180,31 +223,28 @@ def solver(
     state["total_kernel_evals"] += info.n_kernel_evals
     state["total_evaluator_evals"] += info.n_evaluator_evals
 
-    residual_fn = lambda params: _residual(
-        params,
-        model=model,
-        keys=keys,
-        state=state,
-        debug=debug,
-        rule=rule,
-        batch_size=batch_size,
-        max_mu_iterations=max_mu_iterations,
-        max_subdivisions=max_subdivisions,
-    )
-
-    if mixing == "anderson":
-        result_params = _solve_anderson(
-            residual_fn,
-            rho_params0,
-            maxiter=max_scf_steps,
-            scf_tol=scf_tol,
-            mixing_kwargs=mixing_kwargs,
-            callback=callback,
+    def residual_fn(params: np.ndarray) -> np.ndarray:
+        return _residual(
+            params,
+            model=model,
+            keys=keys,
             state=state,
+            debug=debug,
+            rule=rule,
+            batch_size=batch_size,
+            max_mu_iterations=max_mu_iterations,
+            max_subdivisions=max_subdivisions,
         )
-    elif mixing == "linear":
-        alpha = float(mixing_kwargs.pop("alpha", 0.5))
-        result_params = _solve_linear(
+
+    optimizer_name = _optimizer_name(optimizer)
+    if optimizer is None:
+        alpha = float(optimizer_kwargs.pop("alpha", 0.5))
+        if optimizer_kwargs:
+            invalid_keys = ", ".join(sorted(optimizer_kwargs))
+            raise ValueError(
+                f"Unsupported optimizer_kwargs for internal linear mixing: {invalid_keys}"
+            )
+        result_params = _solve_linear_mixing(
             residual_fn,
             rho_params0,
             alpha=alpha,
@@ -214,7 +254,19 @@ def solver(
             state=state,
         )
     else:
-        raise ValueError("mixing must be either 'anderson' or 'linear'")
+        if optimizer_name == "anderson":
+            optimizer_kwargs.setdefault("M", 0)
+            optimizer_kwargs.setdefault("line_search", "wolfe")
+            optimizer_kwargs.setdefault("maxiter", max_scf_steps)
+            optimizer_kwargs.setdefault("f_tol", scf_tol)
+        result_params = _solve_with_optimizer(
+            residual_fn,
+            rho_params0,
+            optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs,
+            callback=callback,
+            state=state,
+        )
 
     rho_result = rparams_to_tb(result_params, keys, model._ndof)
     rho_final, _, mu_final, info_final = model.density_matrix(
@@ -235,7 +287,7 @@ def solver(
     ) - mu_final * np.eye(model._ndof)
 
     solver_info = SolverInfo(
-        mixing=mixing,
+        optimizer=optimizer_name,
         iterations=max(1, state["iterations"]),
         residual_norm=residual_norm,
         mu=mu_final,
