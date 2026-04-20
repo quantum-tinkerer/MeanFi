@@ -42,7 +42,6 @@ def test_graphene_kwant_end_to_end_regression():
         keys=list(h_int),
         charge_tol=model.charge_tol,
         density_atol=model.density_atol,
-        density_rtol=model.density_rtol,
     )
 
     assert solver_info.residual_norm <= 2.0 * model.scf_tol

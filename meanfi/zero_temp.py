@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
+from meanfi._info import DensityIntegrationInfo, FixedFillingInfo
+from meanfi.tb._native import tb_to_native_spectral_cache
 from meanfi.tb.tb import _tb_type
-from meanfi.tb.transforms import tb_to_native_spectral_cache
 
 try:
     from meanfi._zero_temp_native import (
@@ -16,7 +17,9 @@ try:
     )
 
     _NATIVE_ZERO_TEMP_AVAILABLE = True
-except ImportError:  # pragma: no cover - exercised only when native extension is unavailable
+except (
+    ImportError
+):  # pragma: no cover - exercised only when native extension is unavailable
     ChargeSolveOptions = None
     DensityIntegrateOptions = None
     NativeChargeEvaluator = None
@@ -42,16 +45,20 @@ def _require_native_backend() -> None:
         )
 
 
-def _build_native_runtime(h: _tb_type):
+def _native_subdivision_limit(max_subdivisions: int | None) -> int:
+    return -1 if max_subdivisions is None else int(max_subdivisions)
+
+
+def _build_native_runtime(hamiltonian: _tb_type):
     _require_native_backend()
-    ndim = len(next(iter(h)))
+    ndim = len(next(iter(hamiltonian)))
     geometry = NativeGeometry.root(
         ndim,
         root_subcells_per_axis=_root_subcells_per_axis(ndim),
         tol=float(_GEOM_TOL),
     )
     frontier = NativeFrontier.from_geometry(geometry)
-    spectral_cache = tb_to_native_spectral_cache(h, tol=float(_GEOM_TOL))
+    spectral_cache = tb_to_native_spectral_cache(hamiltonian, tol=float(_GEOM_TOL))
     return geometry, frontier, spectral_cache
 
 
@@ -60,9 +67,10 @@ def _vector_to_density(
     error: np.ndarray,
     ndof: int,
     keys: list[tuple[int, ...]],
-):
+) -> tuple[_tb_type, _tb_type]:
     estimate = np.asarray(estimate).reshape(ndof, ndof, len(keys))
     error = np.asarray(error).reshape(ndof, ndof, len(keys))
+
     rho = {}
     rho_error = {}
     for index, key in enumerate(keys):
@@ -71,9 +79,7 @@ def _vector_to_density(
     return rho, rho_error
 
 
-def _density_integration_info(*, result, spectral_cache):
-    from meanfi.mf import DensityIntegrationInfo
-
+def _density_integration_info(*, result, spectral_cache) -> DensityIntegrationInfo:
     return DensityIntegrationInfo(
         n_kernel_evals=int(spectral_cache.n_kernel_evals),
         n_evaluator_evals=int(result.evaluator_evals),
@@ -94,9 +100,7 @@ def _fixed_filling_info(
     charge_tol: float,
     density_atol: float,
     density_rtol: float,
-):
-    from meanfi.mf import FixedFillingInfo
-
+) -> FixedFillingInfo:
     return FixedFillingInfo(
         mu=float(charge_result.mu),
         charge=float(charge_result.charge),
@@ -110,7 +114,9 @@ def _fixed_filling_info(
         n_kernel_evals=int(spectral_cache.n_kernel_evals),
         charge_n_evaluator_evals=int(charge_result.evaluator_evals),
         density_n_evaluator_evals=int(density_result.evaluator_evals),
-        n_evaluator_evals=int(charge_result.evaluator_evals + density_result.evaluator_evals),
+        n_evaluator_evals=int(
+            charge_result.evaluator_evals + density_result.evaluator_evals
+        ),
         n_cached_nodes=int(spectral_cache.size),
         n_leaves=int(density_result.n_leaves),
         n_leaf_nodes=int(density_result.n_leaf_nodes),
@@ -119,6 +125,50 @@ def _fixed_filling_info(
         density_atol=float(density_atol),
         density_rtol=float(density_rtol),
     )
+
+
+def _build_charge_options(
+    *,
+    mu_guess: float,
+    charge_tol: float,
+    mu_xtol: float,
+    max_mu_iterations: int,
+    max_subdivisions: int | None,
+):
+    options = ChargeSolveOptions()
+    options.mu_guess = float(mu_guess)
+    options.charge_tol = float(charge_tol)
+    options.mu_xtol = float(mu_xtol)
+    options.max_mu_iterations = int(max_mu_iterations)
+    options.max_subdivisions = _native_subdivision_limit(max_subdivisions)
+    options.bulk_theta = float(_BULK_THETA)
+    return options
+
+
+def _build_density_options(
+    *,
+    density_atol: float,
+    density_rtol: float,
+    max_subdivisions: int | None,
+    consumed_subdivisions: int = 0,
+):
+    options = DensityIntegrateOptions()
+    options.density_atol = float(density_atol)
+    options.density_rtol = float(density_rtol)
+    if max_subdivisions is None:
+        options.max_subdivisions = -1
+    else:
+        options.max_subdivisions = max(
+            int(max_subdivisions) - int(consumed_subdivisions), 0
+        )
+    options.bulk_theta = float(_BULK_THETA)
+    return options
+
+
+def _raise_normalized_runtime_error(exc: RuntimeError) -> None:
+    if "Adaptive zero-temperature" in str(exc):
+        raise ValueError(str(exc)) from exc
+    raise exc
 
 
 def density_matrix_zero_temp(
@@ -132,61 +182,50 @@ def density_matrix_zero_temp(
     mu_guess: float,
     mu_xtol: float,
     max_mu_iterations: int,
-    max_subdivisions: int | None,
+    max_subdivisions: int | None = None,
 ):
+    """Evaluate the zero-temperature fixed-filling density matrix with the native backend."""
+
     geometry, frontier, spectral_cache = _build_native_runtime(h)
+    charge_evaluator = NativeChargeEvaluator(
+        geometry, spectral_cache, tol=float(_GEOM_TOL)
+    )
 
-    charge_options = ChargeSolveOptions()
-    charge_options.mu_guess = float(mu_guess)
-    charge_options.charge_tol = float(charge_tol)
-    charge_options.mu_xtol = float(mu_xtol)
-    charge_options.max_mu_iterations = int(max_mu_iterations)
-    charge_options.max_subdivisions = -1 if max_subdivisions is None else int(max_subdivisions)
-    charge_options.bulk_theta = float(_BULK_THETA)
-
-    charge_evaluator = NativeChargeEvaluator(geometry, spectral_cache, tol=float(_GEOM_TOL))
     try:
         charge_result = charge_evaluator.solve_mu_and_refine(
             frontier,
             float(filling),
-            charge_options,
+            _build_charge_options(
+                mu_guess=mu_guess,
+                charge_tol=charge_tol,
+                mu_xtol=mu_xtol,
+                max_mu_iterations=max_mu_iterations,
+                max_subdivisions=max_subdivisions,
+            ),
         )
     except RuntimeError as exc:
-        if "Adaptive zero-temperature" in str(exc):
-            raise ValueError(str(exc)) from exc
-        raise
+        _raise_normalized_runtime_error(exc)
 
     charge_kernel_evals = int(spectral_cache.n_kernel_evals)
-
-    density_options = DensityIntegrateOptions()
-    density_options.density_atol = float(density_atol)
-    density_options.density_rtol = float(density_rtol)
-    if max_subdivisions is None:
-        density_options.max_subdivisions = -1
-    else:
-        density_options.max_subdivisions = max(
-            int(max_subdivisions) - int(charge_result.subdivisions),
-            0,
-        )
-    density_options.bulk_theta = float(_BULK_THETA)
-
-    keys_arr = np.ascontiguousarray(np.asarray(keys, dtype=np.float64))
     density_evaluator = NativeDensityEvaluator(
         geometry,
         spectral_cache,
-        keys_arr,
+        np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
         tol=float(_GEOM_TOL),
     )
     try:
         density_result = density_evaluator.integrate_adaptive(
             frontier,
             float(charge_result.mu),
-            density_options,
+            _build_density_options(
+                density_atol=density_atol,
+                density_rtol=density_rtol,
+                max_subdivisions=max_subdivisions,
+                consumed_subdivisions=int(charge_result.subdivisions),
+            ),
         )
     except RuntimeError as exc:
-        if "Adaptive zero-temperature" in str(exc):
-            raise ValueError(str(exc)) from exc
-        raise
+        _raise_normalized_runtime_error(exc)
 
     density_kernel_evals = int(spectral_cache.n_kernel_evals) - charge_kernel_evals
     rho, error = _vector_to_density(
@@ -215,33 +254,29 @@ def density_matrix_at_mu_zero_temp(
     keys: list[tuple[int, ...]],
     density_atol: float,
     density_rtol: float,
-    max_subdivisions: int | None,
+    max_subdivisions: int | None = None,
 ):
+    """Evaluate the zero-temperature density matrix at an explicit chemical potential."""
+
     geometry, frontier, spectral_cache = _build_native_runtime(h)
-
-    density_options = DensityIntegrateOptions()
-    density_options.density_atol = float(density_atol)
-    density_options.density_rtol = float(density_rtol)
-    density_options.max_subdivisions = -1 if max_subdivisions is None else int(max_subdivisions)
-    density_options.bulk_theta = float(_BULK_THETA)
-
-    keys_arr = np.ascontiguousarray(np.asarray(keys, dtype=np.float64))
     density_evaluator = NativeDensityEvaluator(
         geometry,
         spectral_cache,
-        keys_arr,
+        np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
         tol=float(_GEOM_TOL),
     )
     try:
         density_result = density_evaluator.integrate_adaptive(
             frontier,
             float(mu),
-            density_options,
+            _build_density_options(
+                density_atol=density_atol,
+                density_rtol=density_rtol,
+                max_subdivisions=max_subdivisions,
+            ),
         )
     except RuntimeError as exc:
-        if "Adaptive zero-temperature" in str(exc):
-            raise ValueError(str(exc)) from exc
-        raise
+        _raise_normalized_runtime_error(exc)
 
     rho, error = _vector_to_density(
         np.asarray(density_result.estimate_array(), dtype=complex),
@@ -249,5 +284,7 @@ def density_matrix_at_mu_zero_temp(
         int(spectral_cache.ndof),
         keys,
     )
-    info = _density_integration_info(result=density_result, spectral_cache=spectral_cache)
+    info = _density_integration_info(
+        result=density_result, spectral_cache=spectral_cache
+    )
     return rho, error, info

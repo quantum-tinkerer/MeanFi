@@ -12,16 +12,16 @@
 					[
 						"/opt/homebrew/Cellar/llvm/21.1.8_1/include/c++/v1",
 						"/opt/homebrew/Cellar/llvm/21.1.8_1/lib/clang/21/include",
-						"/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include"
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/usr/include"
 					],
 					"linkDirectories" : 
 					[
-						"/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/lib",
-						"/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/lib/swift"
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/usr/lib",
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/usr/lib/swift"
 					],
 					"linkFrameworkDirectories" : 
 					[
-						"/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/System/Library/Frameworks"
+						"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks"
 					],
 					"linkLibraries" : 
 					[

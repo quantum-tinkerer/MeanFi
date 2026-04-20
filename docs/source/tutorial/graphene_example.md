@@ -37,7 +37,6 @@ tutorial_model_kwargs = dict(
     kT=0.1,
     charge_tol=1e-3,
     density_atol=1e-3,
-    mu_xtol=1e-3,
     scf_tol=1e-3,
 )
 tutorial_density_kwargs = dict(
@@ -46,7 +45,6 @@ tutorial_density_kwargs = dict(
     keys=[(0, 0)],
     charge_tol=tutorial_model_kwargs["charge_tol"],
     density_atol=tutorial_model_kwargs["density_atol"],
-    mu_xtol=tutorial_model_kwargs["mu_xtol"],
 )
 
 s0 = np.identity(2)

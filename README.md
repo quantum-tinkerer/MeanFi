@@ -23,6 +23,9 @@ model = meanfi.Model(
     h_int,
     filling=2,
     kT=0.05,
+    charge_tol=1e-4,
+    density_atol=1e-4,
+    scf_tol=1e-4,
 )
 
 guess = meanfi.guess_tb(frozenset(h_int), onsite.shape[0])
@@ -38,6 +41,8 @@ h_mf = meanfi.add_tb(h_0, mf_correction)
   Computes the density matrix at an explicit chemical potential with the same temperature-dependent backend dispatch.
 
 Both APIs return error estimates together with runtime statistics.
+High-level workflows keep only `kT`, `charge_tol`, `density_atol`, and `scf_tol` on `Model`.
+Advanced controls such as `mu_xtol`, `max_subdivisions`, `rule`, and `batch_size` stay on the low-level density APIs when you need to tune the backend explicitly.
 
 ## Optimizers
 

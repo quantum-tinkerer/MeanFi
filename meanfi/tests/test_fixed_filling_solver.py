@@ -23,7 +23,6 @@ def test_solver_matches_fixed_filling_solution_for_zero_interaction():
         kT=kT,
         charge_tol=1e-6,
         density_atol=1e-6,
-        mu_xtol=1e-6,
         scf_tol=1e-6,
     )
     solution, info = solver(model, guess, mu_guess=0.0, return_info=True)

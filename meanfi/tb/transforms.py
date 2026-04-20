@@ -1,14 +1,10 @@
 import itertools
-import numpy as np
 from typing import Callable
 
-from meanfi.tb.tb import _tb_type
+import numpy as np
 
-try:
-    from meanfi._zero_temp_native import NativeSpectralCache, NativeTightBindingModel
-except ImportError:  # pragma: no cover - exercised when native extension is unavailable
-    NativeSpectralCache = None
-    NativeTightBindingModel = None
+from meanfi.tb._native import tb_to_native_model, tb_to_native_spectral_cache
+from meanfi.tb.tb import _tb_type
 
 
 def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
@@ -28,14 +24,15 @@ def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
         Tight-binding dictionary evaluated on a k-space grid.
         Has shape (nk, nk, ..., ndof, ndof), where ndof is number of internal degrees of freedom.
     """
+
     ndim = len(list(tb)[0])
     ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
     ks = np.concatenate((ks[nk // 2 :], ks[: nk // 2]), axis=0)  # shift for ifft
     kgrid = np.meshgrid(*([ks] * ndim), indexing="ij")
 
     num_keys = len(list(tb.keys()))
-    tb_array = np.array(list(tb.values()))
-    keys = np.array(list(tb.keys()))
+    tb_array = np.asarray(list(tb.values()))
+    keys = np.asarray(list(tb.keys()))
 
     k_dependency = np.exp(-1j * np.tensordot(keys, kgrid, 1))[
         (...,) + (np.newaxis,) * 2
@@ -45,64 +42,22 @@ def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
 
 
 def kgrid_to_tb(kgrid_array: np.ndarray) -> _tb_type:
-    """
-    Convert a k-space grid array to a tight-binding dictionary.
+    """Convert a k-space grid array to a tight-binding dictionary."""
 
-    Parameters
-    ----------
-    kgrid_array :
-        K-space grid array to convert to a tight-binding dictionary.
-        The array should be of shape (nk, nk, ..., ndof, ndof),
-        where ndof is number of internal degrees of freedom.
-    Returns
-    -------
-    :
-        Tight-binding dictionary.
-    """
     ndim = len(kgrid_array.shape) - 2
     return ifftn_to_tb(np.fft.ifftn(kgrid_array, axes=np.arange(ndim)))
 
 
 def ifftn_to_tb(ifft_array: np.ndarray) -> _tb_type:
-    """
-    Convert the result of `numpy.fft.ifftn` to a tight-binding dictionary.
+    """Convert the result of ``numpy.fft.ifftn`` to a tight-binding dictionary."""
 
-    Parameters
-    ----------
-    ifft_array :
-        Result of `numpy.fft.ifftn` to convert to a tight-binding dictionary.
-        The input to `numpy.fft.ifftn` should be from `tb_to_khamvector`.
-    Returns
-    -------
-    :
-        Tight-binding dictionary.
-    """
     size = ifft_array.shape[:-2]
-
-    keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for i in range(len(size))]
-    keys = itertools.product(*keys)
-    return {tuple(k): ifft_array[tuple(k)] for k in keys}
+    keys = [np.arange(-size[0] // 2 + 1, size[0] // 2) for _ in range(len(size))]
+    return {tuple(key): ifft_array[tuple(key)] for key in itertools.product(*keys)}
 
 
 def tb_to_kfunc(tb: _tb_type) -> Callable:
-    """
-    Fourier transforms a real-space tight-binding model to a k-space function.
-
-    Parameters
-    ----------
-    tb :
-        Tight-binding dictionary.
-
-    Returns
-    -------
-    :
-        A function that takes a k-space vector and returns a complex np.array.
-        For multiple k-points, the input k is expected to have shape (npoints, ndim).
-
-    Notes
-    -----
-    Function doesn't work for zero dimensions.
-    """
+    """Fourier transform a tight-binding dictionary to a k-space callable."""
 
     keys = np.asarray(list(tb.keys()), dtype=float)
     matrices = np.asarray(list(tb.values()), dtype=complex)
@@ -114,30 +69,10 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
             k = k[np.newaxis, :]
 
         phase = np.exp(-1j * np.dot(k, keys.T))
-        ham = np.tensordot(phase, matrices, axes=(1, 0))
+        hamiltonian = np.tensordot(phase, matrices, axes=(1, 0))
 
         if single_point:
-            return ham[0]
-        return ham
+            return hamiltonian[0]
+        return hamiltonian
 
     return kfunc
-
-
-def tb_to_native_model(tb: _tb_type):
-    """Convert a tight-binding dictionary to the native model representation."""
-
-    if NativeTightBindingModel is None:  # pragma: no cover - native extension is required in supported builds
-        raise ImportError("meanfi._zero_temp_native is not available")
-
-    keys = np.asarray(list(tb.keys()), dtype=np.int64, order="C")
-    matrices = np.asarray(list(tb.values()), dtype=np.complex128, order="C")
-    return NativeTightBindingModel(keys, matrices)
-
-
-def tb_to_native_spectral_cache(tb: _tb_type, tol: float = 1e-14):
-    """Create a native spectral cache for a tight-binding dictionary."""
-
-    if NativeSpectralCache is None:  # pragma: no cover - native extension is required in supported builds
-        raise ImportError("meanfi._zero_temp_native is not available")
-
-    return NativeSpectralCache(tb_to_native_model(tb), float(tol))

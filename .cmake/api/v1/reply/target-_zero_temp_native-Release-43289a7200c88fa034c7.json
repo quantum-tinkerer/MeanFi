@@ -23,7 +23,7 @@
 		],
 		"files" : 
 		[
-			"/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/cmake/nanobind-config.cmake",
+			"/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages/nanobind/cmake/nanobind-config.cmake",
 			"CMakeLists.txt"
 		],
 		"nodes" : 
@@ -117,7 +117,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "-O3 -DNDEBUG -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk -fPIC -fvisibility=hidden"
+					"fragment" : "-O3 -DNDEBUG -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk -fPIC -fvisibility=hidden"
 				},
 				{
 					"backtrace" : 11,
@@ -137,23 +137,23 @@
 			"frameworks" : 
 			[
 				{
-					"path" : "/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework"
+					"path" : "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework"
 				}
 			],
 			"includes" : 
 			[
 				{
 					"backtrace" : 8,
-					"path" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12"
+					"path" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/include/python3.12"
 				},
 				{
 					"backtrace" : 8,
-					"path" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/include"
+					"path" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages/nanobind/include"
 				},
 				{
 					"backtrace" : 9,
 					"isSystem" : true,
-					"path" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/eigen3"
+					"path" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/include/eigen3"
 				}
 			],
 			"language" : "CXX",
@@ -189,7 +189,7 @@
 		],
 		"prefix" : 
 		{
-			"path" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/platlib"
+			"path" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/platlib"
 		}
 	},
 	"link" : 
@@ -202,7 +202,7 @@
 			},
 			{
 				"backtrace" : 5,
-				"fragment" : "-Wl,@/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/cmake/darwin-ld-cpython.sym",
+				"fragment" : "-Wl,@/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages/nanobind/cmake/darwin-ld-cpython.sym",
 				"role" : "flags"
 			},
 			{

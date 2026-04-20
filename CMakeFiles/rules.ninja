@@ -44,7 +44,7 @@ rule CXX_COMPILER__nanobind-static_unscanned_Release
 # Rule for linking CXX static library.
 
 rule CXX_STATIC_LIBRARY_LINKER__nanobind-static_Release
-  command = $PRE_LINK && /Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/cmake -E rm -f $TARGET_FILE && /usr/bin/ar qc $TARGET_FILE $LINK_FLAGS $in && /opt/homebrew/opt/llvm/bin/llvm-ranlib $TARGET_FILE && /Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/cmake -E touch $TARGET_FILE && $POST_BUILD
+  command = $PRE_LINK && /Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/cmake -E rm -f $TARGET_FILE && /usr/bin/ar qc $TARGET_FILE $LINK_FLAGS $in && /opt/homebrew/opt/llvm/bin/llvm-ranlib $TARGET_FILE && /Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/cmake -E touch $TARGET_FILE && $POST_BUILD
   description = Linking CXX static library $TARGET_FILE
   restat = $RESTAT
 
@@ -61,7 +61,7 @@ rule CUSTOM_COMMAND
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = /Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/cmake --regenerate-during-build -S/Users/kostas/.codex/worktrees/1b29/meanfi -B/Users/kostas/.codex/worktrees/1b29/meanfi
+  command = /Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/cmake --regenerate-during-build -S/Users/kostas/.codex/worktrees/083f/meanfi -B/Users/kostas/.codex/worktrees/083f/meanfi
   description = Re-running CMake...
   generator = 1
 
@@ -70,7 +70,7 @@ rule RERUN_CMAKE
 # Rule for cleaning all built files.
 
 rule CLEAN
-  command = /Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/ninja $FILE_ARG -t clean $TARGETS
+  command = /Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/ninja $FILE_ARG -t clean $TARGETS
   description = Cleaning all built files...
 
 
@@ -78,6 +78,6 @@ rule CLEAN
 # Rule for printing all primary targets available.
 
 rule HELP
-  command = /Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/ninja -t targets
+  command = /Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/ninja -t targets
   description = All primary targets available:
 

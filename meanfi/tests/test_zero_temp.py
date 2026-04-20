@@ -106,7 +106,9 @@ def _dense_density(data, mu: float, keys: list[tuple[int, ...]]):
     points, eigenvalues, eigenvectors = data
     occupation = fermi_dirac(eigenvalues, 0.0, mu)
     density_matrix_k = (
-        eigenvectors * occupation[:, np.newaxis, :] @ eigenvectors.conj().transpose(0, 2, 1)
+        eigenvectors
+        * occupation[:, np.newaxis, :]
+        @ eigenvectors.conj().transpose(0, 2, 1)
     )
     rho = {}
     for key in keys:
@@ -369,7 +371,7 @@ def test_zero_temperature_solver_supports_zero_interaction():
         scf_tol=1e-3,
     )
 
-    solution, info = solver(model, guess, return_info=True, max_subdivisions=300)
+    solution, info = solver(model, guess, return_info=True)
 
     assert abs(info.mu) < 1e-3
     assert np.allclose(solution[(0,)], -info.mu * np.eye(2), atol=1e-3)
@@ -401,8 +403,8 @@ def test_zero_temperature_driver_builds_fresh_runtime_each_call(monkeypatch):
         scf_tol=1e-3,
     )
 
-    model.density_matrix(guess, max_subdivisions=200)
-    model.density_matrix(guess, max_subdivisions=200)
+    model.density_matrix(guess)
+    model.density_matrix(guess)
 
     assert len(calls) == 2
     assert calls[0] is not calls[1]
@@ -414,7 +416,9 @@ def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch)
     monkeypatch.setattr(zero_temp, "_NATIVE_ZERO_TEMP_AVAILABLE", False)
     monkeypatch.setattr(zero_temp, "NativeGeometry", None)
 
-    with pytest.raises(RuntimeError, match="requires the native meanfi._zero_temp_native extension"):
+    with pytest.raises(
+        RuntimeError, match="requires the native meanfi._zero_temp_native extension"
+    ):
         density_matrix_zero_temp(
             _spinful_chain(),
             filling=1.0,
@@ -429,7 +433,10 @@ def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch)
         )
 
 
-@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
 def test_native_geometry_root_mesh_is_seam_safe():
     for ndim in (1, 2, 3):
         geometry = NativeGeometry.root(ndim)
@@ -445,7 +452,10 @@ def test_native_geometry_root_mesh_is_seam_safe():
                     assert np.all(delta <= 0.5 + 1e-14)
 
 
-@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
 def test_native_geometry_refine_returns_expected_descriptors():
     geometry = NativeGeometry.root(2)
     parent_id = int(geometry.active_simplex_ids()[0])
@@ -477,7 +487,10 @@ def test_native_geometry_refine_returns_expected_descriptors():
     assert set(children.tolist()).issubset(set(active_ids.tolist()))
 
 
-@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
 def test_native_frontier_apply_refinement_matches_geometry_frontier():
     geometry = NativeGeometry.root(1)
     frontier = NativeFrontier.from_geometry(geometry)
@@ -505,7 +518,10 @@ def test_native_frontier_apply_refinement_matches_geometry_frontier():
     assert parent_id not in set(frontier.active_simplex_ids().tolist())
 
 
-@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
 def test_native_charge_preview_depth_is_one_and_children_replace_only_after_refine():
     geometry = NativeGeometry.root(1)
     frontier = NativeFrontier.from_geometry(geometry)
@@ -536,7 +552,10 @@ def test_native_charge_preview_depth_is_one_and_children_replace_only_after_refi
     assert set(children.tolist()).issubset(active_ids)
 
 
-@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
 def test_native_tight_binding_model_matches_python_kfunc():
     tb = _qiwuzhang()
     native_model = tb_to_native_model(tb)
@@ -553,13 +572,20 @@ def test_native_tight_binding_model_matches_python_kfunc():
     assert native_model.ndim == 2
     assert native_model.ndof == 2
     assert native_model.nterms == len(tb)
-    assert np.array_equal(native_model.keys_array(), np.asarray(list(tb.keys()), dtype=np.int64))
-    assert np.allclose(native_model.matrices_array(), np.asarray(list(tb.values()), dtype=complex))
+    assert np.array_equal(
+        native_model.keys_array(), np.asarray(list(tb.keys()), dtype=np.int64)
+    )
+    assert np.allclose(
+        native_model.matrices_array(), np.asarray(list(tb.values()), dtype=complex)
+    )
     assert np.allclose(native_model.evaluate_point(points[0]), hkfunc(points[0]))
     assert np.allclose(native_model.evaluate_many(points), hkfunc(points))
 
 
-@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
 def test_native_spectral_cache_matches_numpy_eigh_and_invalidates():
     tb = _spinful_chain()
     spectral_cache = tb_to_native_spectral_cache(tb)
@@ -577,7 +603,9 @@ def test_native_spectral_cache_matches_numpy_eigh_and_invalidates():
     values, vectors = spectral_cache.get_many(points)
     reference_h = hkfunc(points)
     reference_values, _reference_vectors = np.linalg.eigh(reference_h)
-    reconstructed_h = np.einsum("...ib,...b,...jb->...ij", vectors, values, vectors.conj())
+    reconstructed_h = np.einsum(
+        "...ib,...b,...jb->...ij", vectors, values, vectors.conj()
+    )
 
     assert np.allclose(values, reference_values)
     assert np.allclose(reconstructed_h, reference_h)
@@ -599,7 +627,9 @@ def test_positive_temperature_path_does_not_use_zero_temperature_backend(monkeyp
     import meanfi.zero_temp as zero_temp
 
     def fail(*args, **kwargs):  # pragma: no cover - executed only on regression
-        raise AssertionError("finite-temperature solve should not call zero-temperature backend")
+        raise AssertionError(
+            "finite-temperature solve should not call zero-temperature backend"
+        )
 
     monkeypatch.setattr(zero_temp, "density_matrix_zero_temp", fail)
     tb = _spinful_chain()
@@ -615,3 +645,10 @@ def test_positive_temperature_path_does_not_use_zero_temperature_backend(monkeyp
     assert np.isfinite(mu)
     assert abs(info.charge - 1.0) < 1e-4
     assert np.allclose(rho[(0,)], rho[(0,)].conj().T, atol=1e-8)
+
+
+def test_native_subdivision_limit_uses_minus_one_for_unbounded_mode():
+    import meanfi.zero_temp as zero_temp
+
+    assert zero_temp._native_subdivision_limit(None) == -1
+    assert zero_temp._native_subdivision_limit(12) == 12

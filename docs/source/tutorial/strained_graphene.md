@@ -82,7 +82,6 @@ tutorial_model_kwargs = dict(
     kT=0.2,
     charge_tol=5e-3,
     density_atol=5e-3,
-    mu_xtol=5e-3,
     scf_tol=5e-3,
 )
 
@@ -121,7 +120,7 @@ guess = utils.builder_to_tb(guess_builder)
 ```
 
 Due to the large supercell, we keep the original $16 \times 16$ geometry from `main` and instead use
-a noticeably larger finite temperature together with looser charge, density, chemical-potential, and
+a noticeably larger finite temperature together with looser charge, density, and
 self-consistency tolerances for the tutorial build. We also pass
 `scipy.optimize.anderson` explicitly through the `optimizer=` hook.
 

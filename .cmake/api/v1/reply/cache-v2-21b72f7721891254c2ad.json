@@ -15,7 +15,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework"
+			"value" : "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework"
 		},
 		{
 			"name" : "BLAS_Accelerate_WORKS",
@@ -103,7 +103,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/lib/libblas.tbd"
+			"value" : "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/usr/lib/libblas.tbd"
 		},
 		{
 			"name" : "BLAS_blis_LIBRARY",
@@ -447,7 +447,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi"
 		},
 		{
 			"name" : "CMAKE_CACHE_MAJOR_VERSION",
@@ -495,7 +495,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/cmake"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/cmake"
 		},
 		{
 			"name" : "CMAKE_CPACK_COMMAND",
@@ -507,7 +507,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/cpack"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/cpack"
 		},
 		{
 			"name" : "CMAKE_CTEST_COMMAND",
@@ -519,7 +519,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/ctest"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/ctest"
 		},
 		{
 			"name" : "CMAKE_CXX_COMPILER",
@@ -691,7 +691,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/ccmake"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/ccmake"
 		},
 		{
 			"name" : "CMAKE_EXECUTABLE_FORMAT",
@@ -839,7 +839,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/pkgRedirects"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/CMakeFiles/pkgRedirects"
 		},
 		{
 			"name" : "CMAKE_FIND_ROOT_PATH_MODE_PACKAGE",
@@ -923,7 +923,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi"
 		},
 		{
 			"name" : "CMAKE_INSTALL_NAME_TOOL",
@@ -951,7 +951,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/platlib"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/platlib"
 		},
 		{
 			"name" : "CMAKE_LINKER",
@@ -979,7 +979,7 @@
 				}
 			],
 			"type" : "UNINITIALIZED",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/bin/ninja"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/ninja"
 		},
 		{
 			"name" : "CMAKE_MODULE_LINKER_FLAGS",
@@ -1155,7 +1155,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk"
+			"value" : "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk"
 		},
 		{
 			"name" : "CMAKE_PLATFORM_INFO_INITIALIZED",
@@ -1179,7 +1179,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages"
 		},
 		{
 			"name" : "CMAKE_PROJECT_DESCRIPTION",
@@ -1259,7 +1259,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/share/cmake-3.31"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/share/cmake-3.31"
 		},
 		{
 			"name" : "CMAKE_SHARED_LINKER_FLAGS",
@@ -1483,7 +1483,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/Library/Developer/CommandLineTools/usr/bin/tapi"
+			"value" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/tapi"
 		},
 		{
 			"name" : "CMAKE_UNAME",
@@ -1523,7 +1523,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/share/eigen3/cmake"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/share/eigen3/cmake"
 		},
 		{
 			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_BLAS",
@@ -1535,7 +1535,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "[/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework][v()]"
+			"value" : "[/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework][v()]"
 		},
 		{
 			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_LAPACK",
@@ -1547,7 +1547,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "[/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework;-lm;-ldl][v()]"
+			"value" : "[/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework;-lm;-ldl][v()]"
 		},
 		{
 			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_Python",
@@ -1559,7 +1559,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "[/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python][/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12][cfound components: Interpreter Development.Module ][v3.12.13(3.11)]"
+			"value" : "[/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/bin/python][/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/include/python3.12][cfound components: Interpreter Development.Module ][v3.12.13(3.11)]"
 		},
 		{
 			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_Threads",
@@ -1619,7 +1619,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages/nanobind"
 		},
 		{
 			"name" : "NB_FREE_THREADED",
@@ -1691,7 +1691,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/bin/python"
 		},
 		{
 			"name" : "PYTHON_INCLUDE_DIR",
@@ -1703,7 +1703,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/include/python3.12"
 		},
 		{
 			"name" : "Python3_EXECUTABLE",
@@ -1715,7 +1715,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/bin/python"
 		},
 		{
 			"name" : "Python3_FIND_REGISTRY",
@@ -1739,7 +1739,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/include/python3.12"
 		},
 		{
 			"name" : "Python3_ROOT_DIR",
@@ -1751,7 +1751,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal"
 		},
 		{
 			"name" : "Python_EXECUTABLE",
@@ -1763,7 +1763,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/bin/python"
 		},
 		{
 			"name" : "Python_FIND_REGISTRY",
@@ -1787,7 +1787,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/include/python3.12"
 		},
 		{
 			"name" : "Python_ROOT_DIR",
@@ -1799,7 +1799,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal"
 		},
 		{
 			"name" : "SKBUILD",
@@ -1835,7 +1835,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/data"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/data"
 		},
 		{
 			"name" : "SKBUILD_HEADERS_DIR",
@@ -1847,7 +1847,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/headers"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/headers"
 		},
 		{
 			"name" : "SKBUILD_METADATA_DIR",
@@ -1859,7 +1859,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/metadata"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/metadata"
 		},
 		{
 			"name" : "SKBUILD_NULL_DIR",
@@ -1871,7 +1871,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/null"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/null"
 		},
 		{
 			"name" : "SKBUILD_PLATLIB_DIR",
@@ -1883,7 +1883,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/platlib"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/platlib"
 		},
 		{
 			"name" : "SKBUILD_PROJECT_NAME",
@@ -1907,7 +1907,7 @@
 				}
 			],
 			"type" : "STRING",
-			"value" : "1.1.1"
+			"value" : "0.0"
 		},
 		{
 			"name" : "SKBUILD_PROJECT_VERSION_FULL",
@@ -1919,7 +1919,7 @@
 				}
 			],
 			"type" : "STRING",
-			"value" : "1.1.1.dev77+g991195136.d20260420"
+			"value" : "0.0.dev0"
 		},
 		{
 			"name" : "SKBUILD_SABI_COMPONENT",
@@ -1955,7 +1955,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/scripts"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprc1i5b8f/wheel/scripts"
 		},
 		{
 			"name" : "SKBUILD_SOABI",
@@ -2003,7 +2003,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "8a191a9a805e574cefd814be7a812cb4"
+			"value" : "eec259b94076e7bedb0a4b3ad5cb8470"
 		},
 		{
 			"name" : "_Python_Development_REASON_FAILURE",
@@ -2027,7 +2027,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/bin/python"
 		},
 		{
 			"name" : "_Python_INCLUDE_DIR",
@@ -2039,7 +2039,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/include/python3.12"
 		},
 		{
 			"name" : "_Python_INTERPRETER_PROPERTIES",
@@ -2051,7 +2051,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "Python;3;12;13;64;<none>;cpython-312-darwin;abi3;/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages"
+			"value" : "Python;3;12;13;64;<none>;cpython-312-darwin;abi3;/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages"
 		},
 		{
 			"name" : "_Python_INTERPRETER_SIGNATURE",
@@ -2063,7 +2063,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "d0dc3a34af4393039f43a0c083c327ca"
+			"value" : "acbd08a14f6e28780ed93dabb9501431"
 		},
 		{
 			"name" : "_Python_NumPy_REASON_FAILURE",
@@ -2087,7 +2087,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi"
 		},
 		{
 			"name" : "meanfi_IS_TOP_LEVEL",
@@ -2111,7 +2111,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/Users/kostas/.codex/worktrees/1b29/meanfi"
+			"value" : "/Users/kostas/.codex/worktrees/083f/meanfi"
 		},
 		{
 			"name" : "nanobind_DIR",
@@ -2123,7 +2123,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/cmake"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages/nanobind/cmake"
 		}
 	],
 	"kind" : "cache",

@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import sys
 from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
 
-from meanfi.mf import FixedFillingInfo, meanfield
+from meanfi._info import FixedFillingInfo
+from meanfi.mf import density_matrix as solve_density_matrix
+from meanfi.mf import meanfield
 from meanfi.model import Model
 from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
 from meanfi.tb.tb import _tb_type
@@ -33,24 +37,62 @@ class SolverInfo:
     last_density_info: FixedFillingInfo
 
 
-def _scf_state() -> dict:
-    return {
-        "iterations": 0,
-        "mu": 0.0,
-        "rho": None,
-        "info": None,
-        "residual_norm": np.inf,
-        "total_charge_integration_calls": 0,
-        "total_density_integration_calls": 0,
-        "total_kernel_evals": 0,
-        "total_evaluator_evals": 0,
-    }
+@dataclass
+class _ScfState:
+    iterations: int = 0
+    mu: float = 0.0
+    rho: _tb_type | None = None
+    info: FixedFillingInfo | None = None
+    residual_norm: float = float("inf")
+    total_charge_integration_calls: int = 0
+    total_density_integration_calls: int = 0
+    total_kernel_evals: int = 0
+    total_evaluator_evals: int = 0
+
+    def as_dict(self) -> dict:
+        """Expose callback state in the legacy dictionary shape."""
+
+        return {
+            "iterations": self.iterations,
+            "mu": self.mu,
+            "rho": self.rho,
+            "info": self.info,
+            "residual_norm": self.residual_norm,
+            "total_charge_integration_calls": self.total_charge_integration_calls,
+            "total_density_integration_calls": self.total_density_integration_calls,
+            "total_kernel_evals": self.total_kernel_evals,
+            "total_evaluator_evals": self.total_evaluator_evals,
+        }
 
 
-def _record_iteration(iteration: int, residual: np.ndarray, *, callback, state: dict) -> None:
-    state["iterations"] = iteration
+def _record_iteration(
+    iteration: int, residual: np.ndarray, *, callback, state: _ScfState
+) -> None:
+    state.iterations = iteration
     if callback is not None:
-        callback(iteration, residual, state)
+        callback(iteration, residual, state.as_dict())
+
+
+def _density_for_hamiltonian(
+    model: Model,
+    hamiltonian: _tb_type,
+    *,
+    keys: list[tuple[int, ...]],
+    mu_guess: float,
+):
+    """Run a fixed-filling density solve using the model-level accuracy policy."""
+
+    return solve_density_matrix(
+        hamiltonian,
+        filling=model.filling,
+        kT=model.kT,
+        keys=keys,
+        charge_tol=model.charge_tol,
+        density_atol=model.density_atol,
+        density_rtol=model.density_rtol,
+        mu_guess=mu_guess,
+        mu_xtol=model.mu_xtol,
+    )
 
 
 def _residual(
@@ -58,39 +100,31 @@ def _residual(
     *,
     model: Model,
     keys: list[tuple[int, ...]],
-    state: dict,
+    state: _ScfState,
     debug: bool,
-    rule: str,
-    batch_size: int | None,
-    max_mu_iterations: int,
-    max_subdivisions: int | None,
 ) -> np.ndarray:
     rho_reduced = rparams_to_tb(rho_params, keys, model._ndof)
     rho_new, _, mu, info = model.density_matrix(
         rho_reduced,
         keys=keys,
-        mu_guess=state["mu"],
-        max_mu_iterations=max_mu_iterations,
-        max_subdivisions=max_subdivisions,
-        rule=rule,
-        batch_size=batch_size,
+        mu_guess=state.mu,
     )
     rho_new_reduced = {key: rho_new[key] for key in keys}
-    residual = np.array(tb_to_rparams(rho_new_reduced) - rho_params, dtype=float).real
+    residual = np.asarray(tb_to_rparams(rho_new_reduced) - rho_params, dtype=float).real
 
-    state["mu"] = mu
-    state["rho"] = rho_new_reduced
-    state["info"] = info
-    state["residual_norm"] = float(np.linalg.norm(residual))
-    state["total_charge_integration_calls"] += info.charge_integration_calls
-    state["total_density_integration_calls"] += info.density_integration_calls
-    state["total_kernel_evals"] += info.n_kernel_evals
-    state["total_evaluator_evals"] += info.n_evaluator_evals
+    state.mu = mu
+    state.rho = rho_new_reduced
+    state.info = info
+    state.residual_norm = float(np.linalg.norm(residual))
+    state.total_charge_integration_calls += info.charge_integration_calls
+    state.total_density_integration_calls += info.density_integration_calls
+    state.total_kernel_evals += info.n_kernel_evals
+    state.total_evaluator_evals += info.n_evaluator_evals
 
     if debug:
         message = (
             f"mu={mu:.6g}, dN/dmu={info.dcharge_dmu:.6g}, "
-            f"residual={state['residual_norm']:.6g}"
+            f"residual={state.residual_norm:.6g}"
         )
         sys.stdout.write("\r" + message)
         sys.stdout.flush()
@@ -106,7 +140,7 @@ def _solve_linear_mixing(
     maxiter: int,
     scf_tol: float,
     callback,
-    state: dict,
+    state: _ScfState,
 ) -> np.ndarray:
     x = np.array(x0, copy=True)
     for iteration in range(1, maxiter + 1):
@@ -138,28 +172,33 @@ def _solve_with_optimizer(
     optimizer: Callable,
     optimizer_kwargs: dict,
     callback,
-    state: dict,
+    state: _ScfState,
 ) -> np.ndarray:
     def optimizer_callback(x: np.ndarray, f: np.ndarray) -> None:
         del x
         residual = np.asarray(f, dtype=float)
-        _record_iteration(state["iterations"] + 1, residual, callback=callback, state=state)
+        _record_iteration(
+            state.iterations + 1, residual, callback=callback, state=state
+        )
 
-    kwargs = dict(optimizer_kwargs)
     try:
         with np.errstate(invalid="ignore"):
-            result = optimizer(residual_fn, x0, callback=optimizer_callback, **kwargs)
+            result = optimizer(
+                residual_fn, x0, callback=optimizer_callback, **optimizer_kwargs
+            )
     except TypeError as exc:
         if "callback" not in str(exc):
             raise
         try:
             with np.errstate(invalid="ignore"):
-                result = optimizer(residual_fn, x0, **kwargs)
+                result = optimizer(residual_fn, x0, **optimizer_kwargs)
         except Exception as inner_exc:  # pragma: no cover - exercised through scipy
             _translate_no_convergence(inner_exc, x0)
             raise
         residual = residual_fn(result)
-        _record_iteration(max(1, state["iterations"]), residual, callback=callback, state=state)
+        _record_iteration(
+            max(1, state.iterations), residual, callback=callback, state=state
+        )
         return np.asarray(result, dtype=float)
     except Exception as exc:  # pragma: no cover - exercised through scipy
         _translate_no_convergence(exc, x0)
@@ -174,6 +213,24 @@ def _optimizer_name(optimizer: Callable | None) -> str:
     return getattr(optimizer, "__name__", optimizer.__class__.__name__)
 
 
+def _apply_optimizer_defaults(
+    optimizer_name: str,
+    optimizer_kwargs: dict,
+    *,
+    scf_tol: float,
+    max_scf_steps: int,
+) -> dict:
+    """Fill default convergence knobs for known external optimizers."""
+
+    kwargs = dict(optimizer_kwargs)
+    if optimizer_name == "anderson":
+        kwargs.setdefault("M", 0)
+        kwargs.setdefault("line_search", "wolfe")
+        kwargs.setdefault("maxiter", max_scf_steps)
+        kwargs.setdefault("f_tol", scf_tol)
+    return kwargs
+
+
 def solver(
     model: Model,
     mf_guess: _tb_type,
@@ -181,45 +238,30 @@ def solver(
     mu_guess: float = 0.0,
     optimizer: Callable | None = None,
     optimizer_kwargs: dict | None = None,
-    scf_tol: float | None = None,
     max_scf_steps: int = 100,
     callback=None,
     debug: bool = False,
     return_info: bool = False,
-    rule: str = "auto",
-    batch_size: int | None = None,
-    max_mu_iterations: int = 64,
-    max_subdivisions: int | None = 50_000,
 ) -> _tb_type | tuple[_tb_type, SolverInfo]:
     """Solve for the self-consistent mean-field correction."""
+
     keys = list(model.h_int)
-    scf_tol = model.scf_tol if scf_tol is None else scf_tol
     optimizer_kwargs = {} if optimizer_kwargs is None else dict(optimizer_kwargs)
 
-    rho_guess, _, mu, info = model._density_matrix_for_hamiltonian(
+    rho_guess, _, mu, info = _density_for_hamiltonian(
+        model,
         model.hamiltonian_from_meanfield(mf_guess),
         keys=keys,
-        charge_tol=model.charge_tol,
-        density_atol=model.density_atol,
-        density_rtol=model.density_rtol,
         mu_guess=mu_guess,
-        mu_xtol=model.mu_xtol,
-        max_mu_iterations=max_mu_iterations,
-        max_subdivisions=max_subdivisions,
-        rule=rule,
-        batch_size=batch_size,
     )
     rho_guess_reduced = {key: rho_guess[key] for key in keys}
     rho_params0 = tb_to_rparams(rho_guess_reduced)
 
-    state = _scf_state()
-    state["mu"] = mu
-    state["rho"] = rho_guess_reduced
-    state["info"] = info
-    state["total_charge_integration_calls"] += info.charge_integration_calls
-    state["total_density_integration_calls"] += info.density_integration_calls
-    state["total_kernel_evals"] += info.n_kernel_evals
-    state["total_evaluator_evals"] += info.n_evaluator_evals
+    state = _ScfState(mu=mu, rho=rho_guess_reduced, info=info)
+    state.total_charge_integration_calls += info.charge_integration_calls
+    state.total_density_integration_calls += info.density_integration_calls
+    state.total_kernel_evals += info.n_kernel_evals
+    state.total_evaluator_evals += info.n_evaluator_evals
 
     def residual_fn(params: np.ndarray) -> np.ndarray:
         return _residual(
@@ -228,10 +270,6 @@ def solver(
             keys=keys,
             state=state,
             debug=debug,
-            rule=rule,
-            batch_size=batch_size,
-            max_mu_iterations=max_mu_iterations,
-            max_subdivisions=max_subdivisions,
         )
 
     optimizer_name = _optimizer_name(optimizer)
@@ -247,21 +285,21 @@ def solver(
             rho_params0,
             alpha=alpha,
             maxiter=max_scf_steps,
-            scf_tol=scf_tol,
+            scf_tol=model.scf_tol,
             callback=callback,
             state=state,
         )
     else:
-        if optimizer_name == "anderson":
-            optimizer_kwargs.setdefault("M", 0)
-            optimizer_kwargs.setdefault("line_search", "wolfe")
-            optimizer_kwargs.setdefault("maxiter", max_scf_steps)
-            optimizer_kwargs.setdefault("f_tol", scf_tol)
         result_params = _solve_with_optimizer(
             residual_fn,
             rho_params0,
             optimizer=optimizer,
-            optimizer_kwargs=optimizer_kwargs,
+            optimizer_kwargs=_apply_optimizer_defaults(
+                optimizer_name,
+                optimizer_kwargs,
+                scf_tol=model.scf_tol,
+                max_scf_steps=max_scf_steps,
+            ),
             callback=callback,
             state=state,
         )
@@ -270,14 +308,12 @@ def solver(
     rho_final, _, mu_final, info_final = model.density_matrix(
         rho_result,
         keys=keys,
-        mu_guess=state["mu"],
-        max_mu_iterations=max_mu_iterations,
-        max_subdivisions=max_subdivisions,
-        rule=rule,
-        batch_size=batch_size,
+        mu_guess=state.mu,
     )
     rho_reduced_final = {key: rho_final[key] for key in keys}
-    residual_norm = float(np.linalg.norm(tb_to_rparams(rho_reduced_final) - result_params))
+    residual_norm = float(
+        np.linalg.norm(tb_to_rparams(rho_reduced_final) - result_params)
+    )
     mf_result = meanfield(rho_reduced_final, model.h_int)
     tb_result = dict(mf_result)
     tb_result[model._local_key] = tb_result.get(
@@ -286,15 +322,16 @@ def solver(
 
     solver_info = SolverInfo(
         optimizer=optimizer_name,
-        iterations=max(1, state["iterations"]),
+        iterations=max(1, state.iterations),
         residual_norm=residual_norm,
         mu=mu_final,
-        total_charge_integration_calls=state["total_charge_integration_calls"]
+        total_charge_integration_calls=state.total_charge_integration_calls
         + info_final.charge_integration_calls,
-        total_density_integration_calls=state["total_density_integration_calls"]
+        total_density_integration_calls=state.total_density_integration_calls
         + info_final.density_integration_calls,
-        total_kernel_evals=state["total_kernel_evals"] + info_final.n_kernel_evals,
-        total_evaluator_evals=state["total_evaluator_evals"] + info_final.n_evaluator_evals,
+        total_kernel_evals=state.total_kernel_evals + info_final.n_kernel_evals,
+        total_evaluator_evals=state.total_evaluator_evals
+        + info_final.n_evaluator_evals,
         last_density_info=info_final,
     )
 

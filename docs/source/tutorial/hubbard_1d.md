@@ -54,7 +54,6 @@ tutorial_model_kwargs = dict(
     kT=0.1,
     charge_tol=1e-4,
     density_atol=1e-4,
-    mu_xtol=1e-4,
     scf_tol=1e-4,
 )
 ```
