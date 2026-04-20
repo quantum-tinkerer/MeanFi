@@ -40,6 +40,13 @@ MANIFEST
 *.a
 *.exe
 *.out
+.ninja*
+.cmake/
+CMakeFiles/
+.skbuild-info.json
+CMakeCache.txt
+CMakeInit.txt
+CMakeLists.txt
 
 ### Testing and coverage reports
 htmlcov/
