@@ -192,7 +192,6 @@ def solver(
     max_subdivisions: int | None = 50_000,
 ) -> _tb_type | tuple[_tb_type, SolverInfo]:
     """Solve for the self-consistent mean-field correction."""
-    model.reset_zero_temp_geometry_cache()
     keys = list(model.h_int)
     scf_tol = model.scf_tol if scf_tol is None else scf_tol
     optimizer_kwargs = {} if optimizer_kwargs is None else dict(optimizer_kwargs)

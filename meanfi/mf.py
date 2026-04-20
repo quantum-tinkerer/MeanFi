@@ -439,7 +439,7 @@ def density_matrix_at_mu(
             raise ValueError("rule and batch_size are supported only for kT > 0")
         from meanfi.zero_temp import density_matrix_at_mu_zero_temp
 
-        rho, error, info, _ = density_matrix_at_mu_zero_temp(
+        rho, error, info = density_matrix_at_mu_zero_temp(
             h,
             mu=mu,
             keys=keys,
@@ -509,7 +509,7 @@ def density_matrix(
             raise ValueError("rule and batch_size are supported only for kT > 0")
         from meanfi.zero_temp import density_matrix_zero_temp
 
-        rho, error, mu, info, _ = density_matrix_zero_temp(
+        rho, error, mu, info = density_matrix_zero_temp(
             h,
             filling=filling,
             keys=keys,

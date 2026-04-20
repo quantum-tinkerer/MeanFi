@@ -152,7 +152,7 @@ CMAKE_FIND_ROOT_PATH_MODE_PACKAGE:PATH=BOTH
 CMAKE_INSTALL_NAME_TOOL:FILEPATH=/usr/bin/install_name_tool
 
 //Install path prefix, prepended onto install directories.
-CMAKE_INSTALL_PREFIX:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/platlib
+CMAKE_INSTALL_PREFIX:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/platlib
 
 //Path to a program.
 CMAKE_LINKER:FILEPATH=/usr/bin/ld
@@ -200,7 +200,7 @@ CMAKE_OSX_DEPLOYMENT_TARGET:STRING=
 // inside the indicated SDK.
 CMAKE_OSX_SYSROOT:PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk
 
-CMAKE_PREFIX_PATH:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages
+CMAKE_PREFIX_PATH:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages
 
 //Value Computed by CMake
 CMAKE_PROJECT_DESCRIPTION:STATIC=
@@ -279,11 +279,15 @@ CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 //The directory containing a CMake configuration file for Eigen3.
 Eigen3_DIR:PATH=/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/share/eigen3/cmake
 
-PYTHON_EXECUTABLE:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python
+//Build the native zero-temp extension with profiling-friendly
+// symbols and frame pointers.
+MEANFI_NATIVE_PROFILE:BOOL=OFF
+
+PYTHON_EXECUTABLE:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python
 
 PYTHON_INCLUDE_DIR:PATH=/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12
 
-Python3_EXECUTABLE:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python
+Python3_EXECUTABLE:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python
 
 Python3_FIND_REGISTRY:STRING=NEVER
 
@@ -291,7 +295,7 @@ Python3_INCLUDE_DIR:PATH=/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/m
 
 Python3_ROOT_DIR:PATH=/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal
 
-Python_EXECUTABLE:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python
+Python_EXECUTABLE:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python
 
 Python_FIND_REGISTRY:STRING=NEVER
 
@@ -303,15 +307,15 @@ SKBUILD:STRING=2
 
 SKBUILD_CORE_VERSION:STRING=0.12.2
 
-SKBUILD_DATA_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/data
+SKBUILD_DATA_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/data
 
-SKBUILD_HEADERS_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/headers
+SKBUILD_HEADERS_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/headers
 
-SKBUILD_METADATA_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/metadata
+SKBUILD_METADATA_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/metadata
 
-SKBUILD_NULL_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/null
+SKBUILD_NULL_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/null
 
-SKBUILD_PLATLIB_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/platlib
+SKBUILD_PLATLIB_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/platlib
 
 SKBUILD_PROJECT_NAME:STRING=meanfi
 
@@ -323,7 +327,7 @@ SKBUILD_SABI_COMPONENT:STRING=
 
 SKBUILD_SABI_VERSION:STRING=
 
-SKBUILD_SCRIPTS_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/scripts
+SKBUILD_SCRIPTS_DIR:PATH=/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/scripts
 
 SKBUILD_SOABI:STRING=cpython-312-darwin
 
@@ -339,7 +343,7 @@ meanfi_IS_TOP_LEVEL:STATIC=ON
 meanfi_SOURCE_DIR:STATIC=/Users/kostas/.codex/worktrees/1b29/meanfi
 
 //The directory containing a CMake configuration file for nanobind.
-nanobind_DIR:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/cmake
+nanobind_DIR:PATH=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/cmake
 
 
 ########################
@@ -534,13 +538,13 @@ FIND_PACKAGE_MESSAGE_DETAILS_BLAS:INTERNAL=[/Library/Developer/CommandLineTools/
 //Details about finding LAPACK
 FIND_PACKAGE_MESSAGE_DETAILS_LAPACK:INTERNAL=[/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework;-lm;-ldl][v()]
 //Details about finding Python
-FIND_PACKAGE_MESSAGE_DETAILS_Python:INTERNAL=[/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python][/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12][cfound components: Interpreter Development.Module ][v3.12.13(3.11)]
+FIND_PACKAGE_MESSAGE_DETAILS_Python:INTERNAL=[/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python][/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12][cfound components: Interpreter Development.Module ][v3.12.13(3.11)]
 //Details about finding Threads
 FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
 //Have function cheev_
 LAPACK_WORKS:INTERNAL=1
 NB_ABI:INTERNAL=312
-NB_DIR:INTERNAL=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind
+NB_DIR:INTERNAL=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind
 NB_FREE_THREADED:INTERNAL=0
 NB_OPT:INTERNAL=$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>
 NB_OPT_SIZE:INTERNAL=$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>,$<CONFIG:RelWithDebInfo>>
@@ -551,11 +555,11 @@ _Python_Compiler_REASON_FAILURE:INTERNAL=
 _Python_DEVELOPMENT_MODULE_SIGNATURE:INTERNAL=8a191a9a805e574cefd814be7a812cb4
 //Development reason failure
 _Python_Development_REASON_FAILURE:INTERNAL=
-_Python_EXECUTABLE:INTERNAL=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python
+_Python_EXECUTABLE:INTERNAL=/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python
 _Python_INCLUDE_DIR:INTERNAL=/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12
 //Python Properties
-_Python_INTERPRETER_PROPERTIES:INTERNAL=Python;3;12;13;64;<none>;cpython-312-darwin;abi3;/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages
-_Python_INTERPRETER_SIGNATURE:INTERNAL=c4eefd602eec172d04c6dff82d4c0410
+_Python_INTERPRETER_PROPERTIES:INTERNAL=Python;3;12;13;64;<none>;cpython-312-darwin;abi3;/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages
+_Python_INTERPRETER_SIGNATURE:INTERNAL=d0dc3a34af4393039f43a0c083c327ca
 //NumPy reason failure
 _Python_NumPy_REASON_FAILURE:INTERNAL=
 

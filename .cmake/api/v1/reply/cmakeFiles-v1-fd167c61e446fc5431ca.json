@@ -395,11 +395,11 @@
 		},
 		{
 			"isExternal" : true,
-			"path" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/cmake/nanobind-config-version.cmake"
+			"path" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/cmake/nanobind-config-version.cmake"
 		},
 		{
 			"isExternal" : true,
-			"path" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/cmake/nanobind-config.cmake"
+			"path" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/cmake/nanobind-config.cmake"
 		},
 		{
 			"path" : ".pixi/envs/minimal/share/eigen3/cmake/Eigen3ConfigVersion.cmake"

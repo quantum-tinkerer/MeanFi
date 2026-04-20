@@ -70,11 +70,6 @@ class Model:
         self._ndim = len(first_key)
         self._ndof = h_0[first_key].shape[0]
         self._local_key = tuple(np.zeros((self._ndim,), dtype=int))
-        self._zero_temp_geometry_cache = None
-
-    def reset_zero_temp_geometry_cache(self) -> None:
-        """Drop any reusable zero-temperature mesh state."""
-        self._zero_temp_geometry_cache = None
 
     def hamiltonian_from_rho(self, rho: _tb_type) -> _tb_type:
         return add_tb(self.h_0, meanfield(rho, self.h_int))
@@ -158,7 +153,7 @@ class Model:
         if self.kT == 0:
             from meanfi.zero_temp import density_matrix_zero_temp
 
-            rho, error, mu, info, geometry_cache = density_matrix_zero_temp(
+            rho, error, mu, info = density_matrix_zero_temp(
                 h,
                 filling=self.filling,
                 keys=[tuple(key) for key in keys],
@@ -169,9 +164,7 @@ class Model:
                 mu_xtol=mu_xtol,
                 max_mu_iterations=max_mu_iterations,
                 max_subdivisions=max_subdivisions,
-                geometry_cache=self._zero_temp_geometry_cache,
             )
-            self._zero_temp_geometry_cache = geometry_cache
             return rho, error, mu, info
         return density_matrix(
             h,
@@ -204,16 +197,14 @@ class Model:
         if self.kT == 0:
             from meanfi.zero_temp import density_matrix_at_mu_zero_temp
 
-            rho, error, info, geometry_cache = density_matrix_at_mu_zero_temp(
+            rho, error, info = density_matrix_at_mu_zero_temp(
                 h,
                 mu=mu,
                 keys=[tuple(key) for key in keys],
                 density_atol=density_atol,
                 density_rtol=density_rtol,
                 max_subdivisions=max_subdivisions,
-                geometry_cache=self._zero_temp_geometry_cache,
             )
-            self._zero_temp_geometry_cache = geometry_cache
             return rho, error, info
         return density_matrix_at_mu(
             h,

@@ -1,4 +1,5 @@
 import math
+
 import numpy as np
 import pytest
 from scipy.optimize import brentq
@@ -14,10 +15,20 @@ from meanfi import (
     tb_to_native_spectral_cache,
 )
 from meanfi.zero_temp import (
-    _ZeroTempGeometryCache,
-    density_matrix_at_mu_zero_temp,
+    _NATIVE_ZERO_TEMP_AVAILABLE,
     density_matrix_zero_temp,
 )
+
+if _NATIVE_ZERO_TEMP_AVAILABLE:
+    from meanfi._zero_temp_native import (
+        NativeChargeEvaluator,
+        NativeFrontier,
+        NativeGeometry,
+    )
+else:  # pragma: no cover - only exercised when native extension is unavailable
+    NativeChargeEvaluator = None
+    NativeFrontier = None
+    NativeGeometry = None
 
 
 def _spinful_chain():
@@ -119,19 +130,6 @@ def _exact_spinful_chain_charge(mu: float) -> float:
     if mu >= 2.0:
         return 2.0
     return float(2.0 * np.arccos(-0.5 * mu) / np.pi)
-
-
-def test_zero_temperature_root_mesh_is_seam_safe():
-    for ndim in (1, 2, 3):
-        mesh = _ZeroTempGeometryCache.root(ndim)
-
-        assert len(mesh.simplices) == 2**ndim * math.factorial(ndim)
-        for simplex in mesh.simplices:
-            points = mesh.simplex_points(simplex)
-            for i in range(points.shape[0]):
-                for j in range(i + 1, points.shape[0]):
-                    delta = np.abs(points[i] - points[j])
-                    assert np.all(delta <= 0.5 + 1e-14)
 
 
 def test_zero_temperature_density_matrix_matches_dense_reference_in_1d():
@@ -377,17 +375,18 @@ def test_zero_temperature_solver_supports_zero_interaction():
     assert np.allclose(solution[(0,)], -info.mu * np.eye(2), atol=1e-3)
 
 
-def test_zero_temperature_solver_restarts_from_root_mesh_on_new_run(monkeypatch):
+def test_zero_temperature_driver_builds_fresh_runtime_each_call(monkeypatch):
     import meanfi.zero_temp as zero_temp
 
-    calls: list[bool] = []
-    original = zero_temp.density_matrix_zero_temp
+    calls = []
+    original = zero_temp._build_native_runtime
 
-    def wrapped(*args, **kwargs):
-        calls.append(kwargs.get("geometry_cache") is None)
-        return original(*args, **kwargs)
+    def wrapped(h):
+        runtime = original(h)
+        calls.append(runtime[0])
+        return runtime
 
-    monkeypatch.setattr(zero_temp, "density_matrix_zero_temp", wrapped)
+    monkeypatch.setattr(zero_temp, "_build_native_runtime", wrapped)
 
     h_0 = _spinful_chain()
     h_int = {(0,): np.zeros((2, 2))}
@@ -402,110 +401,36 @@ def test_zero_temperature_solver_restarts_from_root_mesh_on_new_run(monkeypatch)
         scf_tol=1e-3,
     )
 
-    solver(model, guess, max_subdivisions=300)
-    first_run_calls = len(calls)
-    solver(model, guess, max_subdivisions=300)
+    model.density_matrix(guess, max_subdivisions=200)
+    model.density_matrix(guess, max_subdivisions=200)
 
-    assert calls[0] is True
-    assert calls[first_run_calls] is True
-
-
-def test_zero_temperature_charge_preview_children_persist_in_tree():
-    tb = _spinful_chain()
-    _, _, _, _, mesh = density_matrix_zero_temp(
-        tb,
-        filling=1.1,
-        keys=[(0,), (1,)],
-        charge_tol=1e-4,
-        density_atol=1e-2,
-        density_rtol=0.0,
-        mu_guess=0.0,
-        mu_xtol=1e-4,
-        max_mu_iterations=64,
-        max_subdivisions=120,
-    )
-
-    assert len(mesh._simplex_records) > len(mesh.simplices)
-    assert any(record.children for record in mesh._simplex_records)
-    assert any(
-        record.active and record.children
-        for record in mesh._simplex_records
-    )
+    assert len(calls) == 2
+    assert calls[0] is not calls[1]
 
 
-def test_zero_temperature_refinement_activates_children_not_parent():
-    mesh = _ZeroTempGeometryCache.root(1)
-    parent = mesh.simplices[0]
-    children = mesh.ensure_children(parent)
-
-    assert mesh._simplex_records[parent].active is True
-    assert all(mesh._simplex_records[child].active is False for child in children)
-
-    refinements, descriptors = mesh.refine_with_children([parent])
-
-    assert refinements == 1
-    assert descriptors[parent].child_ids == children
-    assert descriptors[parent].parent_id == parent
-    assert descriptors[parent].new_midpoint_vertex_id is not None
-    assert len(descriptors[parent].child_vertex_ids) == 2
-    assert mesh._simplex_records[parent].active is False
-    assert all(mesh._simplex_records[child].active is True for child in children)
-    assert parent not in mesh.simplices
-    assert set(children).issubset(set(mesh.simplices))
-
-
-def test_zero_temperature_density_round_points_remain_transient():
-    tb = _qiwuzhang()
-    _, _, info, mesh = density_matrix_at_mu_zero_temp(
-        tb,
-        mu=0.2,
-        keys=[(0, 0), (1, 0), (0, 1)],
-        density_atol=2e-2,
-        density_rtol=0.0,
-        max_subdivisions=4000,
-    )
-
-    assert info.n_cached_nodes <= len(mesh.vertices)
-
-
-def test_zero_temperature_geometry_cache_uses_native_runtime_when_available():
+def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch):
     import meanfi.zero_temp as zero_temp
 
-    if not zero_temp._NATIVE_ZERO_TEMP_AVAILABLE:
-        pytest.skip("native zero-temperature backend is unavailable")
+    monkeypatch.setattr(zero_temp, "_NATIVE_ZERO_TEMP_AVAILABLE", False)
+    monkeypatch.setattr(zero_temp, "NativeGeometry", None)
 
-    mesh = _ZeroTempGeometryCache.root(2)
-
-    assert mesh._native_geometry is not None
-    assert mesh._native_frontier is not None
-    assert np.array_equal(np.asarray(mesh.simplices, dtype=int), mesh._native_frontier.active_simplex_ids())
-
-
-def test_zero_temperature_live_backend_keeps_native_frontier_in_sync():
-    import meanfi.zero_temp as zero_temp
-
-    if not zero_temp._NATIVE_ZERO_TEMP_AVAILABLE:
-        pytest.skip("native zero-temperature backend is unavailable")
-
-    _, _, info, mesh = density_matrix_at_mu_zero_temp(
-        _spinful_chain(),
-        mu=0.0,
-        keys=[(0,), (1,)],
-        density_atol=1e-3,
-        density_rtol=0.0,
-        max_subdivisions=100,
-    )
-
-    assert info.subdivisions > 0
-    assert mesh._native_geometry is not None
-    assert mesh._native_frontier is not None
-    assert np.array_equal(np.asarray(mesh.simplices, dtype=int), mesh._native_frontier.active_simplex_ids())
-    assert mesh._native_frontier.n_active == len(mesh.simplices)
+    with pytest.raises(RuntimeError, match="requires the native meanfi._zero_temp_native extension"):
+        density_matrix_zero_temp(
+            _spinful_chain(),
+            filling=1.0,
+            keys=[(0,), (1,)],
+            charge_tol=1e-4,
+            density_atol=1e-4,
+            density_rtol=0.0,
+            mu_guess=0.0,
+            mu_xtol=1e-4,
+            max_mu_iterations=64,
+            max_subdivisions=100,
+        )
 
 
+@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
 def test_native_geometry_root_mesh_is_seam_safe():
-    from meanfi._zero_temp_native import NativeGeometry
-
     for ndim in (1, 2, 3):
         geometry = NativeGeometry.root(ndim)
         active_ids = geometry.active_simplex_ids()
@@ -520,9 +445,8 @@ def test_native_geometry_root_mesh_is_seam_safe():
                     assert np.all(delta <= 0.5 + 1e-14)
 
 
+@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
 def test_native_geometry_refine_returns_expected_descriptors():
-    from meanfi._zero_temp_native import NativeGeometry
-
     geometry = NativeGeometry.root(2)
     parent_id = int(geometry.active_simplex_ids()[0])
     parent_vertex_ids = geometry.simplex_vertex_ids(parent_id)
@@ -553,9 +477,8 @@ def test_native_geometry_refine_returns_expected_descriptors():
     assert set(children.tolist()).issubset(set(active_ids.tolist()))
 
 
+@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
 def test_native_frontier_apply_refinement_matches_geometry_frontier():
-    from meanfi._zero_temp_native import NativeFrontier, NativeGeometry
-
     geometry = NativeGeometry.root(1)
     frontier = NativeFrontier.from_geometry(geometry)
     original_active = frontier.active_simplex_ids().copy()
@@ -579,9 +502,41 @@ def test_native_frontier_apply_refinement_matches_geometry_frontier():
     assert np.array_equal(frontier.active_simplex_ids(), expected_active)
     assert frontier.n_active == geometry.n_active
     assert frontier.generation == 1
-    assert np.array_equal(frontier.active_simplex_ids()[2:], original_active[1:])
+    assert parent_id not in set(frontier.active_simplex_ids().tolist())
 
 
+@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
+def test_native_charge_preview_depth_is_one_and_children_replace_only_after_refine():
+    geometry = NativeGeometry.root(1)
+    frontier = NativeFrontier.from_geometry(geometry)
+    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
+    evaluator = NativeChargeEvaluator(geometry, spectral_cache)
+
+    assert evaluator.preview_depth == 1
+
+    parent_id = int(frontier.active_simplex_ids()[0])
+    children = geometry.ensure_children(parent_id)
+    assert parent_id in set(frontier.active_simplex_ids().tolist())
+
+    (
+        refinements,
+        parent_ids,
+        child_offsets,
+        child_ids,
+        _parent_vertex_ids,
+        _child_vertex_ids,
+        _midpoint_ids,
+        _bisected_edges,
+    ) = geometry.refine(np.array([parent_id], dtype=np.int64))
+    assert refinements == 1
+    frontier.apply_refinement(parent_ids, child_offsets, child_ids)
+
+    active_ids = set(frontier.active_simplex_ids().tolist())
+    assert parent_id not in active_ids
+    assert set(children.tolist()).issubset(active_ids)
+
+
+@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
 def test_native_tight_binding_model_matches_python_kfunc():
     tb = _qiwuzhang()
     native_model = tb_to_native_model(tb)
@@ -604,6 +559,7 @@ def test_native_tight_binding_model_matches_python_kfunc():
     assert np.allclose(native_model.evaluate_many(points), hkfunc(points))
 
 
+@pytest.mark.skipif(not _NATIVE_ZERO_TEMP_AVAILABLE, reason="native zero-temperature backend is unavailable")
 def test_native_spectral_cache_matches_numpy_eigh_and_invalidates():
     tb = _spinful_chain()
     spectral_cache = tb_to_native_spectral_cache(tb)
@@ -637,112 +593,6 @@ def test_native_spectral_cache_matches_numpy_eigh_and_invalidates():
     spectral_cache.invalidate()
     assert spectral_cache.generation == 1
     assert spectral_cache.size == 0
-
-
-def test_zero_temp_internal_spectral_cache_uses_native_backend():
-    import meanfi.zero_temp as zero_temp
-
-    if not zero_temp._NATIVE_ZERO_TEMP_AVAILABLE:
-        pytest.skip("native zero-temperature backend is unavailable")
-
-    spectral_cache = zero_temp._SpectralCache(_spinful_chain())
-    assert spectral_cache._native_cache is not None
-
-    points = np.array([[0.5], [0.5]], dtype=float)
-    values = spectral_cache.get_many_values(points)
-
-    assert values.shape == (2, 2)
-    assert spectral_cache.n_kernel_evals == 1
-    assert spectral_cache.n_cached_points == 1
-
-
-def test_zero_temp_native_charge_evaluator_matches_python_path(monkeypatch):
-    import meanfi.zero_temp as zero_temp
-
-    if not zero_temp._NATIVE_ZERO_TEMP_AVAILABLE or zero_temp._NativeChargeEvaluator is None:
-        pytest.skip("native zero-temperature charge backend is unavailable")
-
-    tb = _spinful_chain()
-    mesh = zero_temp._ZeroTempGeometryCache.root(1)
-    spectral_cache = zero_temp._SpectralCache(tb)
-    mu = 0.3
-
-    native_counters = zero_temp._StageCounters()
-    native_preparation = zero_temp._ChargePreparationStore(mesh, spectral_cache)
-    native_evaluator = zero_temp._ChargeEvaluator(native_preparation, 1e-8, native_counters, refine_levels=2)
-    assert native_evaluator._native_evaluator is not None
-
-    native_summary = native_evaluator.evaluate(mu)
-    native_owner_ids, native_owner_charges = native_evaluator.owner_charges(mu)
-
-    monkeypatch.setattr(zero_temp, "_NativeChargeEvaluator", None)
-    python_counters = zero_temp._StageCounters()
-    python_preparation = zero_temp._ChargePreparationStore(mesh, spectral_cache)
-    python_evaluator = zero_temp._ChargeEvaluator(python_preparation, 1e-8, python_counters, refine_levels=2)
-    assert python_evaluator._native_evaluator is None
-
-    python_summary = python_evaluator.evaluate(mu)
-    python_owner_ids, python_owner_charges = python_evaluator.owner_charges(mu)
-
-    assert np.allclose(native_summary.charge, python_summary.charge, atol=1e-12)
-    assert np.array_equal(native_owner_ids, python_owner_ids)
-    assert np.allclose(native_owner_charges, python_owner_charges, atol=1e-12)
-
-
-def test_zero_temp_native_density_evaluator_matches_python_path(monkeypatch):
-    import meanfi.zero_temp as zero_temp
-
-    if not zero_temp._NATIVE_ZERO_TEMP_AVAILABLE or zero_temp._NativeDensityEvaluator is None:
-        pytest.skip("native zero-temperature density backend is unavailable")
-
-    tb = _spinful_chain()
-    kwargs = dict(
-        mu=0.3,
-        kT=0.0,
-        keys=[(0,), (1,)],
-        density_atol=1e-4,
-        max_subdivisions=200,
-    )
-
-    rho_native, err_native, info_native = density_matrix_at_mu(tb, **kwargs)
-
-    monkeypatch.setattr(zero_temp, "_NativeDensityEvaluator", None)
-    rho_python, err_python, info_python = density_matrix_at_mu(tb, **kwargs)
-
-    for key in kwargs["keys"]:
-        assert np.allclose(rho_native[key], rho_python[key], atol=1e-10)
-        assert np.allclose(err_native[key], err_python[key], atol=1e-10)
-    assert info_native.n_leaves == info_python.n_leaves
-
-
-def test_zero_temperature_native_and_python_fallback_match(monkeypatch):
-    import meanfi.zero_temp as zero_temp
-
-    tb = _spinful_chain()
-    kwargs = dict(
-        mu=0.3,
-        kT=0.0,
-        keys=[(0,), (1,)],
-        density_atol=1e-4,
-        max_subdivisions=200,
-    )
-
-    rho_native, err_native, info_native = density_matrix_at_mu(tb, **kwargs)
-
-    monkeypatch.setattr(zero_temp, "_native_point_key_bytes", None)
-    monkeypatch.setattr(zero_temp, "_native_accumulate_density_terms", None)
-    monkeypatch.setattr(zero_temp, "_native_density_tables_from_eigenvectors", None)
-    monkeypatch.setattr(zero_temp, "_native_prepare_charge_batch_metadata", None)
-    monkeypatch.setattr(zero_temp, "_native_prepare_density_cells_metadata", None)
-    monkeypatch.setattr(zero_temp, "_native_unique_first_indices_int64", None)
-    monkeypatch.setattr(zero_temp, "_NATIVE_ZERO_TEMP_AVAILABLE", False)
-
-    rho_python, err_python, info_python = density_matrix_at_mu(tb, **kwargs)
-
-    for key in kwargs["keys"]:
-        assert np.allclose(rho_native[key], rho_python[key], atol=1e-10)
-        assert np.allclose(err_native[key], err_python[key], atol=1e-10)
-    assert info_native.n_leaves == info_python.n_leaves
 
 
 def test_positive_temperature_path_does_not_use_zero_temperature_backend(monkeypatch):

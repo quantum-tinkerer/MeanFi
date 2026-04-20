@@ -951,7 +951,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/platlib"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/platlib"
 		},
 		{
 			"name" : "CMAKE_LINKER",
@@ -1179,7 +1179,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages"
 		},
 		{
 			"name" : "CMAKE_PROJECT_DESCRIPTION",
@@ -1559,7 +1559,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "[/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python][/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12][cfound components: Interpreter Development.Module ][v3.12.13(3.11)]"
+			"value" : "[/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python][/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12][cfound components: Interpreter Development.Module ][v3.12.13(3.11)]"
 		},
 		{
 			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_Threads",
@@ -1586,6 +1586,18 @@
 			"value" : "1"
 		},
 		{
+			"name" : "MEANFI_NATIVE_PROFILE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Build the native zero-temp extension with profiling-friendly symbols and frame pointers."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
 			"name" : "NB_ABI",
 			"properties" : 
 			[
@@ -1607,7 +1619,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind"
 		},
 		{
 			"name" : "NB_FREE_THREADED",
@@ -1679,7 +1691,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
 		},
 		{
 			"name" : "PYTHON_INCLUDE_DIR",
@@ -1703,7 +1715,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
 		},
 		{
 			"name" : "Python3_FIND_REGISTRY",
@@ -1751,7 +1763,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
 		},
 		{
 			"name" : "Python_FIND_REGISTRY",
@@ -1823,7 +1835,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/data"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/data"
 		},
 		{
 			"name" : "SKBUILD_HEADERS_DIR",
@@ -1835,7 +1847,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/headers"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/headers"
 		},
 		{
 			"name" : "SKBUILD_METADATA_DIR",
@@ -1847,7 +1859,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/metadata"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/metadata"
 		},
 		{
 			"name" : "SKBUILD_NULL_DIR",
@@ -1859,7 +1871,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/null"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/null"
 		},
 		{
 			"name" : "SKBUILD_PLATLIB_DIR",
@@ -1871,7 +1883,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/platlib"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/platlib"
 		},
 		{
 			"name" : "SKBUILD_PROJECT_NAME",
@@ -1943,7 +1955,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/scripts"
+			"value" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmprj6ejzuu/wheel/scripts"
 		},
 		{
 			"name" : "SKBUILD_SOABI",
@@ -2015,7 +2027,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/bin/python"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/bin/python"
 		},
 		{
 			"name" : "_Python_INCLUDE_DIR",
@@ -2039,7 +2051,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "Python;3;12;13;64;<none>;cpython-312-darwin;abi3;/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages"
+			"value" : "Python;3;12;13;64;<none>;cpython-312-darwin;abi3;/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages;/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages"
 		},
 		{
 			"name" : "_Python_INTERPRETER_SIGNATURE",
@@ -2051,7 +2063,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "c4eefd602eec172d04c6dff82d4c0410"
+			"value" : "d0dc3a34af4393039f43a0c083c327ca"
 		},
 		{
 			"name" : "_Python_NumPy_REASON_FAILURE",
@@ -2111,7 +2123,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/cmake"
+			"value" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpuvUnMV/lib/python3.12/site-packages/nanobind/cmake"
 		}
 	],
 	"kind" : "cache",

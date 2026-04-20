@@ -7,7 +7,7 @@
 				{
 					"build" : ".",
 					"hasInstallRule" : true,
-					"jsonFile" : "directory-.-Release-0eaf45361fca85ade304.json",
+					"jsonFile" : "directory-.-Release-078854fc6e2ebe0db822.json",
 					"minimumCMakeVersion" : 
 					{
 						"string" : "3.18"
@@ -42,14 +42,14 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "_zero_temp_native::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-_zero_temp_native-Release-0edffa84e933fbd01be2.json",
+					"jsonFile" : "target-_zero_temp_native-Release-b50acc12b0498bc8aa54.json",
 					"name" : "_zero_temp_native",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "nanobind-static::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-nanobind-static-Release-1fc34484bbf179fb7721.json",
+					"jsonFile" : "target-nanobind-static-Release-569ed21c429b7883cbee.json",
 					"name" : "nanobind-static",
 					"projectIndex" : 0
 				}
