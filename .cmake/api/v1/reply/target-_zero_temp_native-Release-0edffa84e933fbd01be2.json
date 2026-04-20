@@ -1,0 +1,265 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "meanfi/_zero_temp_native.cpython-312-darwin.so"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"nanobind_add_module",
+			"install",
+			"target_link_options",
+			"nanobind_link_options",
+			"nanobind_strip",
+			"target_link_libraries",
+			"target_compile_options",
+			"nanobind_disable_stack_protector",
+			"nanobind_opt_size"
+		],
+		"files" : 
+		[
+			"/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/cmake/nanobind-config.cmake",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 16,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 356,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 21,
+				"parent" : 0
+			},
+			{
+				"command" : 4,
+				"file" : 0,
+				"line" : 359,
+				"parent" : 1
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 117,
+				"parent" : 4
+			},
+			{
+				"command" : 5,
+				"file" : 0,
+				"line" : 434,
+				"parent" : 1
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 335,
+				"parent" : 6
+			},
+			{
+				"command" : 6,
+				"file" : 0,
+				"line" : 423,
+				"parent" : 1
+			},
+			{
+				"command" : 6,
+				"file" : 1,
+				"line" : 18,
+				"parent" : 0
+			},
+			{
+				"command" : 8,
+				"file" : 0,
+				"line" : 426,
+				"parent" : 1
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 309,
+				"parent" : 10
+			},
+			{
+				"command" : 9,
+				"file" : 0,
+				"line" : 430,
+				"parent" : 1
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 300,
+				"parent" : 12
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-O3 -DNDEBUG -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk -fPIC -fvisibility=hidden"
+				},
+				{
+					"backtrace" : 11,
+					"fragment" : "-fno-stack-protector"
+				},
+				{
+					"backtrace" : 13,
+					"fragment" : "-Os"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"define" : "_zero_temp_native_EXPORTS"
+				}
+			],
+			"frameworks" : 
+			[
+				{
+					"path" : "/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/System/Library/Frameworks/Accelerate.framework"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 8,
+					"path" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/python3.12"
+				},
+				{
+					"backtrace" : 8,
+					"path" : "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/include"
+				},
+				{
+					"backtrace" : 9,
+					"isSystem" : true,
+					"path" : "/Users/kostas/.codex/worktrees/1b29/meanfi/.pixi/envs/minimal/include/eigen3"
+				}
+			],
+			"language" : "CXX",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 8,
+			"id" : "nanobind-static::@6890427a1f51a3e7e1df"
+		}
+	],
+	"id" : "_zero_temp_native::@6890427a1f51a3e7e1df",
+	"install" : 
+	{
+		"destinations" : 
+		[
+			{
+				"backtrace" : 3,
+				"path" : "meanfi"
+			}
+		],
+		"prefix" : 
+		{
+			"path" : "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmp9wo1eoxn/wheel/platlib"
+		}
+	},
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 5,
+				"fragment" : "-Wl,@/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/cmake/darwin-ld-cpython.sym",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 7,
+				"fragment" : "-Wl,-dead_strip",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 7,
+				"fragment" : "-Wl,-x",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 7,
+				"fragment" : "-Wl,-S",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 8,
+				"fragment" : "libnanobind-static.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-framework Accelerate",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 9,
+				"fragment" : "-lm",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 9,
+				"fragment" : "-ldl",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX"
+	},
+	"name" : "_zero_temp_native",
+	"nameOnDisk" : "_zero_temp_native.cpython-312-darwin.so",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/_zero_temp_native.cpp",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "MODULE_LIBRARY"
+}

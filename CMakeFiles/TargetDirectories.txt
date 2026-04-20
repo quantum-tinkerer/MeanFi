@@ -1,0 +1,8 @@
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/_zero_temp_native.dir
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/nanobind-static.dir
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/edit_cache.dir
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/rebuild_cache.dir
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/list_install_components.dir
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/install.dir
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/install/local.dir
+/Users/kostas/.codex/worktrees/1b29/meanfi/CMakeFiles/install/strip.dir

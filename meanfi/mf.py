@@ -1,16 +1,28 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from stateful_quadrature import StatefulIntegrator
 
 from meanfi.tb.tb import add_tb, _tb_type
 from meanfi.tb.transforms import tb_to_kfunc
 
+if TYPE_CHECKING:
+    from stateful_quadrature import StatefulIntegrator
+else:
+    StatefulIntegrator = Any
+
 
 def fermi_dirac(E: np.ndarray, kT: float, fermi: float) -> np.ndarray:
     """Evaluate the Fermi-Dirac distribution."""
-    if kT <= 0:
-        raise ValueError("meanfi supports only finite temperature (kT > 0)")
+    if kT < 0:
+        raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
+    if kT == 0:
+        energies = np.asarray(E, dtype=float)
+        occupation = np.where(energies < fermi, 1.0, 0.0)
+        occupation = np.where(energies == fermi, 0.5, occupation)
+        return occupation.astype(float, copy=False)
 
     fd = np.empty_like(E, dtype=float)
     exponent = (E - fermi) / kT
@@ -180,7 +192,14 @@ def _build_integrator(
     evaluator,
     rule: str,
     batch_size: int | None,
-) -> StatefulIntegrator:
+):
+    try:
+        from stateful_quadrature import StatefulIntegrator
+    except ImportError as exc:  # pragma: no cover - depends on runtime environment
+        raise ImportError(
+            "Finite-temperature integration requires the optional stateful_quadrature dependency"
+        ) from exc
+
     ndim = len(next(iter(h)))
     a, b = _integration_bounds(ndim)
     return StatefulIntegrator(
@@ -308,6 +327,35 @@ def _density_matrix_zero_dim(
     density_rtol: float,
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+    if kT == 0:
+        mu, charge = _zero_dim_zero_temp_mu(eigenvalues, filling=filling, mu_guess=mu_guess)
+        occupation = fermi_dirac(eigenvalues, kT, mu)
+        density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
+        rho, error = _density_from_matrix(density, keys)
+        info = FixedFillingInfo(
+            mu=mu,
+            charge=charge,
+            charge_error=abs(charge - filling),
+            dcharge_dmu=0.0,
+            root_iterations=1,
+            charge_integration_calls=1,
+            density_integration_calls=1,
+            charge_n_kernel_evals=1,
+            density_n_kernel_evals=0,
+            n_kernel_evals=1,
+            charge_n_evaluator_evals=1,
+            density_n_evaluator_evals=1,
+            n_evaluator_evals=2,
+            n_cached_nodes=1,
+            n_leaves=1,
+            n_leaf_nodes=1,
+            subdivisions=0,
+            charge_integral_atol=charge_tol,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+        )
+        return rho, error, mu, info
+
     lower, upper = _mu_bracket({tuple(): matrix}, kT)
     charge_calls = 0
 
@@ -377,8 +425,8 @@ def density_matrix_at_mu(
     batch_size: int | None = None,
 ) -> tuple[_tb_type, _tb_type, DensityIntegrationInfo]:
     """Compute the real-space density matrix at a fixed chemical potential."""
-    if kT <= 0:
-        raise ValueError("density_matrix_at_mu requires kT > 0")
+    if kT < 0:
+        raise ValueError("density_matrix_at_mu requires kT >= 0")
 
     keys = _normalize_keys(h, keys)
     ndim = len(next(iter(h)))
@@ -386,6 +434,20 @@ def density_matrix_at_mu(
         if set(h) != {tuple()}:
             raise ValueError("Zero-dimensional evaluation expects only the local key")
         return _density_matrix_at_mu_zero_dim(h[tuple()], mu=mu, kT=kT, keys=keys)
+    if kT == 0:
+        if rule != "auto" or batch_size is not None:
+            raise ValueError("rule and batch_size are supported only for kT > 0")
+        from meanfi.zero_temp import density_matrix_at_mu_zero_temp
+
+        rho, error, info, _ = density_matrix_at_mu_zero_temp(
+            h,
+            mu=mu,
+            keys=keys,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+            max_subdivisions=max_subdivisions,
+        )
+        return rho, error, info
 
     ndof = next(iter(h.values())).shape[0]
     integrator = _build_integrator(
@@ -422,8 +484,8 @@ def density_matrix(
     batch_size: int | None = None,
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
     """Compute the fixed-filling real-space density matrix with adaptive quadrature."""
-    if kT <= 0:
-        raise ValueError("density_matrix requires kT > 0")
+    if kT < 0:
+        raise ValueError("density_matrix requires kT >= 0")
 
     keys = _normalize_keys(h, keys)
     ndim = len(next(iter(h)))
@@ -442,6 +504,24 @@ def density_matrix(
             density_atol=density_atol,
             density_rtol=density_rtol,
         )
+    if kT == 0:
+        if rule != "auto" or batch_size is not None:
+            raise ValueError("rule and batch_size are supported only for kT > 0")
+        from meanfi.zero_temp import density_matrix_zero_temp
+
+        rho, error, mu, info, _ = density_matrix_zero_temp(
+            h,
+            filling=filling,
+            keys=keys,
+            charge_tol=charge_tol,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+            mu_guess=mu_guess,
+            mu_xtol=mu_xtol,
+            max_mu_iterations=max_mu_iterations,
+            max_subdivisions=max_subdivisions,
+        )
+        return rho, error, mu, info
 
     ndof = next(iter(h.values())).shape[0]
     charge_integral_atol, charge_integral_rtol = _charge_integral_tolerance(charge_tol)
@@ -554,3 +634,38 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
         vec: -1 * h_int.get(vec, 0) * density_matrix[vec] for vec in frozenset(h_int)
     }
     return add_tb(direct, exchange)
+
+
+def _zero_dim_zero_temp_mu(
+    eigenvalues: np.ndarray,
+    *,
+    filling: float,
+    mu_guess: float,
+) -> tuple[float, float]:
+    unique = np.unique(np.asarray(eigenvalues, dtype=float))
+    candidates: list[tuple[float, bool]] = []
+    if unique.size == 0:
+        return 0.0, 0.0
+
+    candidates.append((unique[0] - 1.0, False))
+    for energy in unique:
+        candidates.append((float(energy), False))
+    for left, right in zip(unique[:-1], unique[1:], strict=False):
+        candidates.append((0.5 * float(left + right), True))
+    candidates.append((unique[-1] + 1.0, False))
+
+    best_mu = float(mu_guess)
+    best_charge = float(np.sum(fermi_dirac(eigenvalues, 0.0, best_mu)))
+    best_key = (abs(best_charge - filling), 1, abs(best_mu - mu_guess))
+    for candidate_mu, is_midgap in candidates:
+        charge = float(np.sum(fermi_dirac(eigenvalues, 0.0, candidate_mu)))
+        candidate_key = (
+            abs(charge - filling),
+            0 if is_midgap else 1,
+            abs(candidate_mu - mu_guess),
+        )
+        if candidate_key < best_key:
+            best_key = candidate_key
+            best_mu = float(candidate_mu)
+            best_charge = charge
+    return best_mu, best_charge

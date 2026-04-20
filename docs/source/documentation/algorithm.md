@@ -14,7 +14,7 @@ kernelspec:
 
 ## Self-Consistent Mean-Field Loop
 
-To calculate the mean-field interaction in {eq}`mf_infinite`, we require the finite-temperature density
+To calculate the mean-field interaction in {eq}`mf_infinite`, we require the density
 matrix $\rho_{mn}(R)$ at the target filling $\nu$. However, {eq}`density` depends on both the chemical
 potential $\mu$ and the mean-field interaction $\hat{V}_{\text{MF}}$ itself. Hence, these quantities must
 still be determined self-consistently.
@@ -34,15 +34,15 @@ This iteration is defined in the {autolink}`~meanfi.model.Model.density_matrix` 
 2. **Density matrix update** ({autolink}`~meanfi.mf.density_matrix`):
    1. **Momentum-space Hamiltonian** ({autolink}`~meanfi.tb.transforms.tb_to_kfunc`): Transform the real-space
       tight-binding Hamiltonian into a function of $k$ that returns $\hat{H}(k)$.
-   2. **Cached spectral data** (`stateful_quadrature`): Diagonalize $\hat{H}(k)$ on adaptive cubature nodes and
-      cache the eigensystems. This is the expensive part of the calculation.
-   3. **Chemical-potential solve**: Reuse the cached eigensystems to evaluate the total charge $N(\mu)$ and
-      its derivative, then solve $N(\mu) = \nu$ with safeguarded Newton steps and bisection fallback.
-   4. **Density integral**: Reuse the same adaptive quadrature tree to evaluate the final real-space density
-      matrix $\rho_{mn}(R)_{\text{new}}$ at the converged $\mu$.
+   2. **Temperature-dependent backend**:
+      - For `kT > 0`, `stateful_quadrature` diagonalizes $\hat{H}(k)$ on adaptive cubature nodes, caches the
+        eigensystems, solves $N(\mu)=\nu$, and then reuses the same quadrature tree for the final density integral.
+      - For `kT = 0`, a separate adaptive simplicial backend first solves $N(\mu)=\nu$ on a hierarchically refined
+        simplex mesh and then starts an adaptive density quadrature pass from that charge-converged mesh at frozen $\mu$.
 
 The related {autolink}`~meanfi.mf.density_matrix_at_mu` function performs the same spectral caching and density
-integration steps when the chemical potential is supplied explicitly.
+integration steps when the chemical potential is supplied explicitly. In the zero-temperature backend, this means
+starting directly from the simplicial density stage at fixed $\mu$.
 
 ## Self-Consistency Criteria
 
@@ -127,6 +127,8 @@ density update brackets $\mu$ from a bandwidth estimate, expands the bracket unt
 and then uses safeguarded Newton steps with bisection fallback to find the root.
 
 This keeps the outer optimizer away from chemical-potential instabilities while still reusing the adaptive
-quadrature cache across the repeated charge evaluations. The main package supports finite-temperature calculations
-only; dense $k$-grid integrations and repeated SciPy cubature are kept only as testing and benchmarking references,
-not as the production solver path.
+quadrature or simplicial cache across the repeated charge evaluations. For `kT = 0`, the Brillouin zone is treated
+as a torus mathematically, but the implementation keeps duplicated seam vertices rather than identifying opposite
+faces in the cache. To avoid seam-crossing simplices, the root mesh partitions the fundamental cell into $2^d$
+half-sized subcells before triangulating each one. Dense $k$-grid integrations and repeated SciPy cubature are
+kept only as testing and benchmarking references, not as the production solver path.

@@ -1,0 +1,18 @@
+# ninja log v7
+1117	1184	1776716340931217705	libnanobind-static.a	e6873aecb1f26678
+7	3785	1776716339821432510	CMakeFiles/_zero_temp_native.dir/src/_zero_temp_native.cpp.o	8cf15933afd3ee1a
+3269	3364	1776714475207881032	_zero_temp_native.cpython-312-darwin.so	a8077a45b1ef1d03
+3785	3881	1776716343599782642	meanfi/_zero_temp_native.cpython-312-darwin.so	e55a5ec507a6da7f
+8	793	1776716346773042262	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/implicit.cpp.o	9f7cee07ef0a8dd1
+7	798	1776716346772356929	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/nb_static_property.cpp.o	574e949b5d6c6941
+8	812	1776716346772888845	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/trampoline.cpp.o	968d22f4d9d3d04
+7	844	1776716346772739054	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/error.cpp.o	c0287aa9d52d4b23
+7	917	1776716346772173346	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/nb_ndarray.cpp.o	7476e99ea233ad5c
+6	943	1776716346771153097	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/nb_internals.cpp.o	4adf5907e309b2dc
+7	976	1776716346772566137	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/common.cpp.o	1160f11813476691
+6	986	1776716346771646597	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/nb_func.cpp.o	a04fa795fbb7a95b
+7	1016	1776716346772019221	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/nb_enum.cpp.o	851a2efaab28243f
+6	1040	1776716346771855222	CMakeFiles/nanobind-static.dir/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmppY5M3f/lib/python3.12/site-packages/nanobind/src/nb_type.cpp.o	ee076bfa816432a7
+1040	1104	1776716347805374098	libnanobind-static.a	ff9924042d64b98c
+8	3900	1776716346773222262	CMakeFiles/_zero_temp_native.dir/src/_zero_temp_native.cpp.o	1595cef653a27f18
+3900	3994	1776716350665357747	meanfi/_zero_temp_native.cpython-312-darwin.so	49ecf0a41c8b76f

@@ -4,6 +4,12 @@ from typing import Callable
 
 from meanfi.tb.tb import _tb_type
 
+try:
+    from meanfi._zero_temp_native import NativeSpectralCache, NativeTightBindingModel
+except ImportError:  # pragma: no cover - exercised when native extension is unavailable
+    NativeSpectralCache = None
+    NativeTightBindingModel = None
+
 
 def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:
     """Evaluate a tight-binding dictionary on a k-space grid.
@@ -98,25 +104,40 @@ def tb_to_kfunc(tb: _tb_type) -> Callable:
     Function doesn't work for zero dimensions.
     """
 
+    keys = np.asarray(list(tb.keys()), dtype=float)
+    matrices = np.asarray(list(tb.values()), dtype=complex)
+
     def kfunc(k: np.ndarray) -> np.ndarray:
         k = np.asarray(k, dtype=float)
-        if k.ndim == 1:
+        single_point = k.ndim == 1
+        if single_point:
             k = k[np.newaxis, :]
-            npoints = 1
-        else:
-            npoints = k.shape[0]
 
-        # Use the shape of one of the matrices to preallocate ham.
-        sample_matrix = next(iter(tb.values()))
-        ham = np.zeros((npoints, *sample_matrix.shape), dtype=complex)
+        phase = np.exp(-1j * np.dot(k, keys.T))
+        ham = np.tensordot(phase, matrices, axes=(1, 0))
 
-        for vector, matrix in tb.items():
-            vec = np.array(vector, dtype=float)
-            phase = np.exp(-1j * np.dot(k, vec))
-            ham += phase[:, np.newaxis, np.newaxis] * matrix
-
-        if npoints == 1:
+        if single_point:
             return ham[0]
         return ham
 
     return kfunc
+
+
+def tb_to_native_model(tb: _tb_type):
+    """Convert a tight-binding dictionary to the native model representation."""
+
+    if NativeTightBindingModel is None:  # pragma: no cover - native extension is required in supported builds
+        raise ImportError("meanfi._zero_temp_native is not available")
+
+    keys = np.asarray(list(tb.keys()), dtype=np.int64, order="C")
+    matrices = np.asarray(list(tb.values()), dtype=np.complex128, order="C")
+    return NativeTightBindingModel(keys, matrices)
+
+
+def tb_to_native_spectral_cache(tb: _tb_type, tol: float = 1e-14):
+    """Create a native spectral cache for a tight-binding dictionary."""
+
+    if NativeSpectralCache is None:  # pragma: no cover - native extension is required in supported builds
+        raise ImportError("meanfi._zero_temp_native is not available")
+
+    return NativeSpectralCache(tb_to_native_model(tb), float(tol))

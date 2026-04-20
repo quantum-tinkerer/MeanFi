@@ -27,7 +27,7 @@ def _tb_type_check(tb: _tb_type) -> None:
 
 
 class Model:
-    """Interacting tight-binding problem at finite temperature."""
+    """Interacting tight-binding problem at non-negative temperature."""
 
     def __init__(
         self,
@@ -49,8 +49,8 @@ class Model:
 
         if not isinstance(filling, (float, int)) or filling <= 0:
             raise ValueError("filling must be a positive scalar")
-        if kT <= 0:
-            raise ValueError("meanfi supports only finite temperature (kT > 0)")
+        if kT < 0:
+            raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
         if charge_tol <= 0 or density_atol <= 0 or mu_xtol <= 0 or scf_tol <= 0:
             raise ValueError("tolerances must be positive")
         if density_rtol < 0:
@@ -70,6 +70,11 @@ class Model:
         self._ndim = len(first_key)
         self._ndof = h_0[first_key].shape[0]
         self._local_key = tuple(np.zeros((self._ndim,), dtype=int))
+        self._zero_temp_geometry_cache = None
+
+    def reset_zero_temp_geometry_cache(self) -> None:
+        """Drop any reusable zero-temperature mesh state."""
+        self._zero_temp_geometry_cache = None
 
     def hamiltonian_from_rho(self, rho: _tb_type) -> _tb_type:
         return add_tb(self.h_0, meanfield(rho, self.h_int))
@@ -95,15 +100,13 @@ class Model:
         """Compute the fixed-filling density matrix for a trial density."""
         keys = list(self.h_int) if keys is None else keys
         h = self.hamiltonian_from_rho(rho)
-        return density_matrix(
+        return self._density_matrix_for_hamiltonian(
             h,
-            filling=self.filling,
-            kT=self.kT,
             keys=keys,
+            mu_guess=mu_guess,
             charge_tol=self.charge_tol if charge_tol is None else charge_tol,
             density_atol=self.density_atol if density_atol is None else density_atol,
             density_rtol=self.density_rtol if density_rtol is None else density_rtol,
-            mu_guess=mu_guess,
             mu_xtol=self.mu_xtol if mu_xtol is None else mu_xtol,
             max_mu_iterations=max_mu_iterations,
             max_subdivisions=max_subdivisions,
@@ -126,13 +129,99 @@ class Model:
         """Compute the density matrix at an explicit chemical potential."""
         keys = list(self.h_int) if keys is None else keys
         h = self.hamiltonian_from_rho(rho)
+        return self._density_matrix_at_mu_for_hamiltonian(
+            h,
+            mu=mu,
+            keys=keys,
+            density_atol=self.density_atol if density_atol is None else density_atol,
+            density_rtol=self.density_rtol if density_rtol is None else density_rtol,
+            max_subdivisions=max_subdivisions,
+            rule=rule,
+            batch_size=batch_size,
+        )
+
+    def _density_matrix_for_hamiltonian(
+        self,
+        h: _tb_type,
+        *,
+        keys: list,
+        mu_guess: float,
+        charge_tol: float,
+        density_atol: float,
+        density_rtol: float,
+        mu_xtol: float,
+        max_mu_iterations: int,
+        max_subdivisions: int | None,
+        rule: str,
+        batch_size: int | None,
+    ):
+        if self.kT == 0:
+            from meanfi.zero_temp import density_matrix_zero_temp
+
+            rho, error, mu, info, geometry_cache = density_matrix_zero_temp(
+                h,
+                filling=self.filling,
+                keys=[tuple(key) for key in keys],
+                charge_tol=charge_tol,
+                density_atol=density_atol,
+                density_rtol=density_rtol,
+                mu_guess=mu_guess,
+                mu_xtol=mu_xtol,
+                max_mu_iterations=max_mu_iterations,
+                max_subdivisions=max_subdivisions,
+                geometry_cache=self._zero_temp_geometry_cache,
+            )
+            self._zero_temp_geometry_cache = geometry_cache
+            return rho, error, mu, info
+        return density_matrix(
+            h,
+            filling=self.filling,
+            kT=self.kT,
+            keys=keys,
+            charge_tol=charge_tol,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+            mu_guess=mu_guess,
+            mu_xtol=mu_xtol,
+            max_mu_iterations=max_mu_iterations,
+            max_subdivisions=max_subdivisions,
+            rule=rule,
+            batch_size=batch_size,
+        )
+
+    def _density_matrix_at_mu_for_hamiltonian(
+        self,
+        h: _tb_type,
+        *,
+        mu: float,
+        keys: list,
+        density_atol: float,
+        density_rtol: float,
+        max_subdivisions: int | None,
+        rule: str,
+        batch_size: int | None,
+    ):
+        if self.kT == 0:
+            from meanfi.zero_temp import density_matrix_at_mu_zero_temp
+
+            rho, error, info, geometry_cache = density_matrix_at_mu_zero_temp(
+                h,
+                mu=mu,
+                keys=[tuple(key) for key in keys],
+                density_atol=density_atol,
+                density_rtol=density_rtol,
+                max_subdivisions=max_subdivisions,
+                geometry_cache=self._zero_temp_geometry_cache,
+            )
+            self._zero_temp_geometry_cache = geometry_cache
+            return rho, error, info
         return density_matrix_at_mu(
             h,
             mu=mu,
             kT=self.kT,
             keys=keys,
-            density_atol=self.density_atol if density_atol is None else density_atol,
-            density_rtol=self.density_rtol if density_rtol is None else density_rtol,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
             max_subdivisions=max_subdivisions,
             rule=rule,
             batch_size=batch_size,

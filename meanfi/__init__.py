@@ -18,7 +18,14 @@ from .model import Model
 from .observables import expectation_value
 from .solvers import NoConvergence, SolverInfo, solver
 from .tb.tb import add_tb, scale_tb
-from .tb.transforms import ifftn_to_tb, kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
+from .tb.transforms import (
+    ifftn_to_tb,
+    kgrid_to_tb,
+    tb_to_kfunc,
+    tb_to_kgrid,
+    tb_to_native_model,
+    tb_to_native_spectral_cache,
+)
 from .tb.utils import fermi_energy, generate_tb_keys, guess_tb
 
 
@@ -43,6 +50,8 @@ __all__ = [
     "solver",
     "tb_to_kfunc",
     "tb_to_kgrid",
+    "tb_to_native_model",
+    "tb_to_native_spectral_cache",
     "__version__",
     "__version_tuple__",
 ]

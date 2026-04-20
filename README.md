@@ -1,7 +1,8 @@
 # `MeanFi`
 
-`MeanFi` is a finite-temperature Hartree-Fock solver for tight-binding models with density-density interactions.
-Fixed-filling density updates are evaluated with adaptive quadrature and cached eigensystem reuse via `stateful_quadrature`.
+`MeanFi` is a Hartree-Fock solver for tight-binding models with density-density interactions.
+For `kT > 0`, fixed-filling density updates are evaluated with adaptive quadrature and cached eigensystem reuse via `stateful_quadrature`.
+For `kT = 0`, they are evaluated with a separate adaptive simplicial backend that combines a charge solve with a follow-up density quadrature pass.
 
 ## Workflow
 
@@ -32,9 +33,9 @@ h_mf = meanfi.add_tb(h_0, mf_correction)
 ## Density APIs
 
 - `meanfi.density_matrix(...)`
-  Computes the fixed-filling density matrix. The chemical potential is solved internally with safeguarded Newton steps and bisection fallback while reusing the adaptive quadrature cache.
+  Computes the fixed-filling density matrix. The chemical potential is solved internally with safeguarded Newton steps and bisection fallback; the implementation dispatches to the finite-temperature quadrature backend or the zero-temperature simplicial backend depending on `kT`.
 - `meanfi.density_matrix_at_mu(...)`
-  Computes the density matrix at an explicit chemical potential.
+  Computes the density matrix at an explicit chemical potential with the same temperature-dependent backend dispatch.
 
 Both APIs return error estimates together with runtime statistics.
 
@@ -80,12 +81,13 @@ python -m pip install ".[kwant]"
 Current support includes:
 
 - density-density interactions,
-- finite-temperature mean-field calculations,
+- finite- and zero-temperature mean-field calculations,
 - tight-binding dictionary workflows,
 - optional `kwant` conversion helpers.
 
 Not supported in the main package:
 
-- zero-temperature production solvers,
 - k-grid based self-consistent solvers,
 - superconducting pairing terms.
+
+For `kT = 0`, the Brillouin zone is treated as a torus mathematically. The simplicial backend keeps duplicated seam vertices rather than identifying opposite faces in the cache, but it starts from a seam-safe `2^d` partition of the fundamental cell so no root simplex spans opposite faces.

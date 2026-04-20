@@ -4,7 +4,7 @@ from typing import Callable
 
 import numpy as np
 
-from meanfi.mf import FixedFillingInfo, density_matrix, meanfield
+from meanfi.mf import FixedFillingInfo, meanfield
 from meanfi.model import Model
 from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
 from meanfi.tb.tb import _tb_type
@@ -192,14 +192,13 @@ def solver(
     max_subdivisions: int | None = 50_000,
 ) -> _tb_type | tuple[_tb_type, SolverInfo]:
     """Solve for the self-consistent mean-field correction."""
+    model.reset_zero_temp_geometry_cache()
     keys = list(model.h_int)
     scf_tol = model.scf_tol if scf_tol is None else scf_tol
     optimizer_kwargs = {} if optimizer_kwargs is None else dict(optimizer_kwargs)
 
-    rho_guess, _, mu, info = density_matrix(
+    rho_guess, _, mu, info = model._density_matrix_for_hamiltonian(
         model.hamiltonian_from_meanfield(mf_guess),
-        filling=model.filling,
-        kT=model.kT,
         keys=keys,
         charge_tol=model.charge_tol,
         density_atol=model.density_atol,
