@@ -54,16 +54,14 @@ def _run_current_adaptive(args: argparse.Namespace) -> dict:
         kT=0.0,
         charge_tol=args.charge_tol,
         density_atol=args.density_atol,
-        density_rtol=args.density_rtol,
-        mu_xtol=args.mu_xtol,
         scf_tol=args.scf_tol,
+        max_subdivisions=args.max_subdivisions,
     )
     solver_kwargs = dict(
         optimizer=None,
         optimizer_kwargs={"alpha": args.alpha},
         max_scf_steps=args.max_scf_steps,
         return_info=True,
-        max_subdivisions=args.max_subdivisions,
     )
 
     for _ in range(args.warmups):
@@ -275,8 +273,6 @@ def main() -> None:
     parser.add_argument("--scf-tol", type=float, default=1e-3)
     parser.add_argument("--charge-tol", type=float, default=1e-3)
     parser.add_argument("--density-atol", type=float, default=1e-3)
-    parser.add_argument("--density-rtol", type=float, default=0.0)
-    parser.add_argument("--mu-xtol", type=float, default=1e-3)
     parser.add_argument("--max-scf-steps", type=int, default=100)
     parser.add_argument("--max-subdivisions", type=int, default=50_000)
     parser.add_argument("--dense-nk", type=int, default=201)

@@ -32,20 +32,18 @@ import meanfi
 import numpy as np
 from scipy.optimize import anderson
 from meanfi.kwant_helper import utils
+from scripts.zero_temp_validation import GRAPHENE_TUTORIAL_MODEL_KWARGS
 
-tutorial_model_kwargs = dict(
-    kT=0.1,
-    charge_tol=1e-3,
-    density_atol=1e-3,
-    scf_tol=1e-3,
-)
+tutorial_model_kwargs = dict(GRAPHENE_TUTORIAL_MODEL_KWARGS)
 tutorial_density_kwargs = dict(
     filling=2,
     kT=tutorial_model_kwargs["kT"],
     keys=[(0, 0)],
     charge_tol=tutorial_model_kwargs["charge_tol"],
     density_atol=tutorial_model_kwargs["density_atol"],
+    max_subdivisions=tutorial_model_kwargs["max_subdivisions"],
 )
+np.random.seed(0)
 
 s0 = np.identity(2)
 sx = np.array([[0, 1], [1, 0]])
@@ -107,9 +105,9 @@ Because `nn_int` function returns the same interaction matrix for all site pairs
 ## Computing expectation values
 
 As before, we construct {autolink}`~meanfi.model.Model` object to represent the full system to be solved via the mean-field approximation.
-We then generate a random guess for the mean-field solution and solve the system. To keep the adaptive-quadrature
-branch practical while preserving the full phase-diagram sampling from `main`, we use slightly looser tolerances
-and a modestly larger `kT` through `tutorial_model_kwargs`.
+We then generate a random guess for the mean-field solution and solve the system.
+To keep the full `main` phase-diagram sampling while switching to `kT=0`, we only relax solver-side settings through `tutorial_model_kwargs`.
+During tuning, `max_subdivisions=16384` was the smallest finite zero-temperature cap that stayed stable on the metal, CDW, and SDW reference points from fresh random guesses.
 
 ```{code-cell} ipython3
 filling = 2
@@ -188,7 +186,11 @@ for U in Us:
             model,
             guess,
             optimizer=anderson,
-            optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+            optimizer_kwargs={
+                "M": 0,
+                "line_search": "wolfe",
+                "f_tol": tutorial_model_kwargs["scf_tol"],
+            },
         )
         mf_sols.append(mf_sol)
 

@@ -36,7 +36,11 @@ NB_MODULE(_zero_temp_native, m) {
         .def_prop_ro("subdivisions", [](const ChargeSolveResult &self) { return self.subdivisions; })
         .def_prop_ro("n_leaves", [](const ChargeSolveResult &self) { return self.n_leaves; })
         .def_prop_ro("n_leaf_nodes", [](const ChargeSolveResult &self) { return self.n_leaf_nodes; })
-        .def_prop_ro("converged", [](const ChargeSolveResult &self) { return self.converged; });
+        .def_prop_ro("converged", [](const ChargeSolveResult &self) { return self.converged; })
+        .def_prop_ro(
+            "error_estimate_available",
+            [](const ChargeSolveResult &self) { return self.error_estimate_available; }
+        );
 
     nb::class_<DensityIntegrateOptions>(m, "DensityIntegrateOptions")
         .def(nb::init<>())
@@ -66,7 +70,13 @@ NB_MODULE(_zero_temp_native, m) {
         .def_prop_ro("subdivisions", [](const DensityIntegrateResult &self) { return self.subdivisions; })
         .def_prop_ro("n_leaves", [](const DensityIntegrateResult &self) { return self.n_leaves; })
         .def_prop_ro("n_leaf_nodes", [](const DensityIntegrateResult &self) { return self.n_leaf_nodes; })
-        .def_prop_ro("converged", [](const DensityIntegrateResult &self) { return self.converged; });
+        .def_prop_ro("converged", [](const DensityIntegrateResult &self) { return self.converged; })
+        .def_prop_ro(
+            "error_estimate_available",
+            [](const DensityIntegrateResult &self) {
+                return self.error_estimate_available;
+            }
+        );
 
     nb::class_<NativeRefinementDescriptor>(m, "NativeRefinementDescriptor")
         .def_prop_ro("parent_id", [](const NativeRefinementDescriptor &self) { return self.parent_id; })
@@ -126,6 +136,9 @@ NB_MODULE(_zero_temp_native, m) {
         .def_prop_ro("ndof", &NativeSpectralCache::ndof)
         .def_prop_ro("size", &NativeSpectralCache::size)
         .def_prop_ro("n_kernel_evals", &NativeSpectralCache::n_kernel_evals)
+        .def_prop_ro("n_reduced_point_lookups", &NativeSpectralCache::n_reduced_point_lookups)
+        .def_prop_ro("n_geometry_vertex_lookups", &NativeSpectralCache::n_geometry_vertex_lookups)
+        .def_prop_ro("geometry_vertex_cache_size", &NativeSpectralCache::geometry_vertex_cache_size)
         .def("evaluate_many", &NativeSpectralCache::evaluate_many, "points"_a)
         .def("get_many", &NativeSpectralCache::get_many, "points"_a)
         .def("get_many_values", &NativeSpectralCache::get_many_values, "points"_a);
@@ -140,6 +153,10 @@ NB_MODULE(_zero_temp_native, m) {
     nb::class_<NativeDensityEvaluator>(m, "NativeDensityEvaluator")
         .def(nb::init<NativeGeometry &, NativeSpectralCache &, Float2D, double>(), "geometry"_a, "spectral_cache"_a, "keys"_a, "tol"_a = 1e-14)
         .def("clear", &NativeDensityEvaluator::clear)
+        .def_prop_ro("phase_cache_size", &NativeDensityEvaluator::phase_cache_size)
+        .def_prop_ro("cached_simplex_value_count", &NativeDensityEvaluator::cached_simplex_value_count)
+        .def_prop_ro("leaf_build_count", &NativeDensityEvaluator::leaf_build_count)
+        .def("evaluate", &NativeDensityEvaluator::evaluate, "frontier"_a, "mu"_a, "levels"_a = 0)
         .def("evaluate_many", &NativeDensityEvaluator::evaluate_many, "simplex_ids"_a, "mu"_a)
         .def("integrate_adaptive", &NativeDensityEvaluator::integrate_adaptive, "frontier"_a, "mu"_a, "options"_a);
 }

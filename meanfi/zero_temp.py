@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 
+from meanfi._finite_temp import expand_mu_bracket, mu_bracket, solve_mu
 from meanfi._info import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.tb._native import tb_to_native_spectral_cache
 from meanfi.tb.tb import _tb_type
@@ -87,6 +90,9 @@ def _density_integration_info(*, result, spectral_cache) -> DensityIntegrationIn
         n_leaves=int(result.n_leaves),
         n_leaf_nodes=int(result.n_leaf_nodes),
         subdivisions=int(result.subdivisions),
+        error_estimate_available=bool(
+            getattr(result, "error_estimate_available", True)
+        ),
     )
 
 
@@ -124,7 +130,166 @@ def _fixed_filling_info(
         charge_integral_atol=float(charge_tol),
         density_atol=float(density_atol),
         density_rtol=float(density_rtol),
+        error_estimate_available=bool(
+            getattr(charge_result, "error_estimate_available", True)
+            and getattr(density_result, "error_estimate_available", True)
+        ),
     )
+
+
+def _nan_density_error_like(rho: _tb_type) -> _tb_type:
+    return {
+        key: np.full(matrix.shape, np.nan, dtype=float) for key, matrix in rho.items()
+    }
+
+
+def _coarse_density_summary(
+    *,
+    geometry,
+    frontier,
+    spectral_cache,
+    keys: list[tuple[int, ...]],
+    mu: float,
+):
+    density_evaluator = NativeDensityEvaluator(
+        geometry,
+        spectral_cache,
+        np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
+        tol=float(_GEOM_TOL),
+    )
+    estimate, _owner_ids, _owner_estimates, evaluator_evals = density_evaluator.evaluate(
+        frontier,
+        float(mu),
+        0,
+    )
+    estimate = np.asarray(estimate, dtype=complex)
+    zero_error = np.zeros(estimate.shape, dtype=float)
+    rho, _ = _vector_to_density(estimate, zero_error, int(spectral_cache.ndof), keys)
+    return rho, _nan_density_error_like(rho), int(evaluator_evals)
+
+
+def _root_mesh_density_at_mu_zero_temp(
+    h: _tb_type,
+    *,
+    mu: float,
+    keys: list[tuple[int, ...]],
+):
+    geometry, frontier, spectral_cache = _build_native_runtime(h)
+    rho, error, evaluator_evals = _coarse_density_summary(
+        geometry=geometry,
+        frontier=frontier,
+        spectral_cache=spectral_cache,
+        keys=keys,
+        mu=mu,
+    )
+    result = SimpleNamespace(
+        evaluator_evals=evaluator_evals,
+        subdivisions=0,
+        n_leaves=int(frontier.n_active),
+        n_leaf_nodes=int(frontier.n_leaf_vertices),
+        error_estimate_available=False,
+    )
+    info = _density_integration_info(result=result, spectral_cache=spectral_cache)
+    return rho, error, info
+
+
+def _root_mesh_fixed_filling_zero_temp(
+    h: _tb_type,
+    *,
+    filling: float,
+    keys: list[tuple[int, ...]],
+    charge_tol: float,
+    density_atol: float,
+    density_rtol: float,
+    mu_guess: float,
+    mu_xtol: float,
+    max_mu_iterations: int,
+):
+    geometry, frontier, spectral_cache = _build_native_runtime(h)
+    charge_evaluator = NativeChargeEvaluator(
+        geometry,
+        spectral_cache,
+        tol=float(_GEOM_TOL),
+    )
+    charge_integration_calls = 0
+    charge_evaluator_evals = 0
+
+    def evaluate_charge(mu: float) -> tuple[float, float, float]:
+        nonlocal charge_integration_calls, charge_evaluator_evals
+        (
+            charge,
+            derivative,
+            derivative_exact,
+            _owner_ids,
+            _owner_charges,
+            evaluator_evals,
+        ) = charge_evaluator.evaluate(frontier, float(mu), 0)
+        charge_integration_calls += 1
+        charge_evaluator_evals += int(evaluator_evals)
+        resolved_derivative = (
+            float(derivative)
+            if bool(derivative_exact) and np.isfinite(derivative)
+            else float("nan")
+        )
+        return float(charge), 0.0, resolved_derivative
+
+    lower, upper = mu_bracket(h, 0.0)
+    lower, upper = expand_mu_bracket(
+        evaluate_charge,
+        filling=filling,
+        lower=lower,
+        upper=upper,
+    )
+    mu, charge, _charge_error_unused, derivative, iteration = solve_mu(
+        evaluate_charge,
+        filling=filling,
+        mu_guess=mu_guess,
+        lower=lower,
+        upper=upper,
+        charge_tol=charge_tol,
+        mu_xtol=mu_xtol,
+        max_mu_iterations=max_mu_iterations,
+    )
+
+    charge_kernel_evals = int(spectral_cache.n_kernel_evals)
+    rho, error, density_evaluator_evals = _coarse_density_summary(
+        geometry=geometry,
+        frontier=frontier,
+        spectral_cache=spectral_cache,
+        keys=keys,
+        mu=mu,
+    )
+    density_kernel_evals = int(spectral_cache.n_kernel_evals) - charge_kernel_evals
+
+    charge_result = SimpleNamespace(
+        mu=float(mu),
+        charge=float(charge),
+        charge_error=float("nan"),
+        dcharge_dmu=float(derivative),
+        root_iterations=int(iteration),
+        charge_integration_calls=int(charge_integration_calls),
+        evaluator_evals=int(charge_evaluator_evals),
+        subdivisions=0,
+        error_estimate_available=False,
+    )
+    density_result = SimpleNamespace(
+        evaluator_evals=int(density_evaluator_evals),
+        subdivisions=0,
+        n_leaves=int(frontier.n_active),
+        n_leaf_nodes=int(frontier.n_leaf_vertices),
+        error_estimate_available=False,
+    )
+    info = _fixed_filling_info(
+        charge_result=charge_result,
+        density_result=density_result,
+        spectral_cache=spectral_cache,
+        charge_kernel_evals=charge_kernel_evals,
+        density_kernel_evals=density_kernel_evals,
+        charge_tol=charge_tol,
+        density_atol=density_atol,
+        density_rtol=density_rtol,
+    )
+    return rho, error, float(mu), info
 
 
 def _build_charge_options(
@@ -185,6 +350,19 @@ def density_matrix_zero_temp(
     max_subdivisions: int | None = None,
 ):
     """Evaluate the zero-temperature fixed-filling density matrix with the native backend."""
+
+    if max_subdivisions == 0:
+        return _root_mesh_fixed_filling_zero_temp(
+            h,
+            filling=filling,
+            keys=keys,
+            charge_tol=charge_tol,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+            mu_guess=mu_guess,
+            mu_xtol=mu_xtol,
+            max_mu_iterations=max_mu_iterations,
+        )
 
     geometry, frontier, spectral_cache = _build_native_runtime(h)
     charge_evaluator = NativeChargeEvaluator(
@@ -257,6 +435,9 @@ def density_matrix_at_mu_zero_temp(
     max_subdivisions: int | None = None,
 ):
     """Evaluate the zero-temperature density matrix at an explicit chemical potential."""
+
+    if max_subdivisions == 0:
+        return _root_mesh_density_at_mu_zero_temp(h, mu=mu, keys=keys)
 
     geometry, frontier, spectral_cache = _build_native_runtime(h)
     density_evaluator = NativeDensityEvaluator(

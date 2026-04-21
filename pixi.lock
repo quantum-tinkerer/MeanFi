@@ -9291,8 +9291,8 @@ packages:
   timestamp: 1733255681319
 - pypi: ./
   name: meanfi
-  version: 1.1.1.dev77+g991195136.d20260420
-  sha256: 9d6a9df8b3661c0bcd2b64e8ded47a9cbae4acc159b07e6599b177eec37c0c5a
+  version: 0.0.dev0
+  sha256: d24e3a41c30ea334c5b533aa3e94d6640c069c1c6118ee5318dcfbff22d40218
   requires_dist:
   - numpy>=2.0
   - packaging>=22.0

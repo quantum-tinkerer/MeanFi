@@ -29,6 +29,7 @@
 *.py[cod]
 *.egg
 _version.py
+!meanfi/_version.py
 MANIFEST
 
 ### Jupyter temporaries
@@ -47,6 +48,7 @@ CMakeFiles/
 CMakeCache.txt
 CMakeInit.txt
 CMakeLists.txt
+!CMakeLists.txt
 
 ### Testing and coverage reports
 htmlcov/

@@ -290,6 +290,7 @@ def density_matrix(
         charge_integral_atol=charge_integral_atol,
         density_atol=density_atol,
         density_rtol=density_rtol,
+        error_estimate_available=True,
     )
     return rho, error, mu, info
 

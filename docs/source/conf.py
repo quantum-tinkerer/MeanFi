@@ -60,9 +60,10 @@ myst_enable_extensions = [
     "substitution",
     "colon_fence",
 ]
-nb_execution_timeout = 500
+nb_execution_timeout = 1800
 nb_execution_raise_on_error = True
-autodoc_typehints = "description"
+nb_execution_excludepatterns = []
+autodoc_typehints = "none"
 autodoc_typehints_format = "short"
 
 intersphinx_mapping = {

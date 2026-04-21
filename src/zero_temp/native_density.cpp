@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numeric>
 #include <stdexcept>
 
 namespace meanfi::zero_temp_native {
@@ -16,6 +15,7 @@ NativeDensityEvaluator::NativeDensityEvaluator(
 )
     : geometry_(&geometry),
       spectral_cache_(&spectral_cache),
+      simplex_cache_(geometry),
       tol_(tol),
       n_keys_(keys.shape(0)),
       ndim_(keys.shape(1)),
@@ -26,26 +26,44 @@ NativeDensityEvaluator::NativeDensityEvaluator(
 
 void NativeDensityEvaluator::clear() {
     value_cache_.clear();
+    leaf_cache_.clear();
+    leaf_heap_ = std::priority_queue<HeapEntry>();
+    leaf_build_count_ = 0;
     current_mu_ = std::numeric_limits<double>::quiet_NaN();
+}
+
+nb::tuple NativeDensityEvaluator::evaluate(
+    NativeFrontier &frontier,
+    double mu,
+    std::int64_t levels
+) {
+    ensure_mu(mu);
+    const auto result = evaluate_impl(frontier, levels);
+    return nb::make_tuple(
+        make_array(std::move(std::vector<std::complex<double>>(result.total_estimate)), {ncomp_}),
+        make_array(std::move(std::vector<std::int64_t>(result.owner_ids)), {result.owner_ids.size()}),
+        make_array(
+            std::move(std::vector<std::complex<double>>(result.owner_estimates)),
+            {result.owner_ids.size(), ncomp_}
+        ),
+        result.evaluator_evals
+    );
 }
 
 nb::tuple NativeDensityEvaluator::evaluate_many(Int1D simplex_ids, double mu) {
     ensure_mu(mu);
     std::vector<std::int64_t> ids(simplex_ids.data(), simplex_ids.data() + simplex_ids.shape(0));
-    auto [values, evaluator_evals] = evaluate_many_impl(ids);
 
-    const size_t count = values.size();
+    const size_t count = ids.size();
     std::vector<std::complex<double>> estimates(count * ncomp_);
-    std::vector<double> error_vectors(count * ncomp_);
-    std::vector<double> error_scalars(count);
+    std::vector<double> error_vectors(count * ncomp_, std::numeric_limits<double>::quiet_NaN());
+    std::vector<double> error_scalars(count, std::numeric_limits<double>::quiet_NaN());
+    std::int64_t evaluator_evals = 0;
+
     for (size_t index = 0; index < count; ++index) {
-        std::copy_n(values[index].estimate.data(), ncomp_, estimates.data() + index * ncomp_);
-        std::copy_n(
-            values[index].error_vector.data(),
-            ncomp_,
-            error_vectors.data() + index * ncomp_
-        );
-        error_scalars[index] = values[index].error_scalar;
+        const auto &value = cached_simplex_value(ids[index]);
+        std::copy_n(value.estimate.data(), ncomp_, estimates.data() + index * ncomp_);
+        evaluator_evals += value.evaluator_evals;
     }
 
     return nb::make_tuple(
@@ -62,54 +80,34 @@ DensityIntegrateResult NativeDensityEvaluator::integrate_adaptive(
     const DensityIntegrateOptions &options
 ) {
     ensure_mu(mu);
+    leaf_cache_.clear();
+    leaf_heap_ = std::priority_queue<HeapEntry>();
+    leaf_build_count_ = 0;
+
     DensityIntegrateResult result;
+    result.error_estimate_available = true;
+    result.converged = false;
     result.estimate.assign(ncomp_, std::complex<double>(0.0, 0.0));
-    result.error_vector.assign(ncomp_, 0.0);
-
-    std::unordered_map<std::int64_t, CachedDensityValue> cell_values;
-    std::unordered_map<std::int64_t, std::int64_t> error_versions;
-    std::priority_queue<HeapEntry> error_heap;
-
-    auto accumulate = [&](const CachedDensityValue &value, double sign) {
-        for (size_t comp = 0; comp < ncomp_; ++comp) {
-            result.estimate[comp] += sign * value.estimate[comp];
-            result.error_vector[comp] += sign * value.error_vector[comp];
-        }
-        result.error_scalar += sign * value.error_scalar;
-    };
-
-    auto store_value = [&](std::int64_t simplex_id, const CachedDensityValue &value) {
-        cell_values[simplex_id] = value;
-        const auto version = error_versions[simplex_id] + 1;
-        error_versions[simplex_id] = version;
-        if (value.error_scalar > 0.0) {
-            error_heap.push(HeapEntry{value.error_scalar, simplex_id, version});
-        }
-    };
-
-    auto [initial_values, initial_evals] = evaluate_many_impl(frontier.active_simplex_ids_);
-    result.evaluator_evals += initial_evals;
-    for (size_t index = 0; index < frontier.active_simplex_ids_.size(); ++index) {
-        const auto simplex_id = frontier.active_simplex_ids_[index];
-        store_value(simplex_id, initial_values[index]);
-        accumulate(initial_values[index], 1.0);
-    }
 
     std::int64_t remaining = options.max_subdivisions;
+    for (const auto simplex_id : frontier.active_simplex_ids_) {
+        const auto &leaf = leaf_contribution(simplex_id);
+        for (size_t comp = 0; comp < ncomp_; ++comp) {
+            result.estimate[comp] += leaf.preview_value[comp];
+        }
+        result.evaluator_evals += leaf.evaluator_evals;
+    }
+
     while (true) {
-        const double tolerance =
-            options.density_atol +
-            options.density_rtol * std::sqrt(std::real(std::inner_product(
-                result.estimate.begin(),
-                result.estimate.end(),
-                result.estimate.begin(),
-                0.0,
-                std::plus<>(),
-                [](const std::complex<double> &left, const std::complex<double> &right) {
-                    return std::real(std::conj(left) * right);
-                }
-            )));
-        if (result.error_scalar <= tolerance) {
+        double estimate_max = 0.0;
+        for (const auto &value : result.estimate) {
+            estimate_max = std::max(estimate_max, std::abs(value));
+        }
+
+        const auto *max_leaf = active_leaf_with_max_error();
+        const double max_indicator = max_leaf != nullptr ? max_leaf->indicator : 0.0;
+        const double tolerance = options.density_atol + options.density_rtol * estimate_max;
+        if (max_indicator <= tolerance) {
             result.converged = true;
             break;
         }
@@ -117,22 +115,19 @@ DensityIntegrateResult NativeDensityEvaluator::integrate_adaptive(
             throw std::runtime_error("Adaptive zero-temperature density integration did not converge");
         }
 
-        const double target = options.bulk_theta * result.error_scalar;
-        std::vector<std::int64_t> marked;
-        double accumulated = 0.0;
-        while (!error_heap.empty() && accumulated < target) {
-            const auto entry = error_heap.top();
-            error_heap.pop();
-            auto cell_it = cell_values.find(entry.simplex_id);
-            if (cell_it == cell_values.end()) {
-                continue;
+        std::vector<double> indicators(frontier.active_simplex_ids_.size(), 0.0);
+        for (size_t index = 0; index < frontier.active_simplex_ids_.size(); ++index) {
+            const auto it = leaf_cache_.find(frontier.active_simplex_ids_[index]);
+            if (it != leaf_cache_.end()) {
+                indicators[index] = it->second.indicator;
             }
-            if (error_versions[entry.simplex_id] != entry.version) {
-                continue;
-            }
-            marked.push_back(entry.simplex_id);
-            accumulated += entry.error;
         }
+        const auto marked = bulk_mark(
+            frontier.active_simplex_ids_,
+            indicators,
+            max_indicator,
+            options.bulk_theta
+        );
         if (marked.empty()) {
             break;
         }
@@ -147,20 +142,38 @@ DensityIntegrateResult NativeDensityEvaluator::integrate_adaptive(
             }
         }
 
-        std::vector<std::int64_t> new_simplex_ids;
-        for (const auto simplex_id : marked) {
-            const auto value = cell_values.at(simplex_id);
-            accumulate(value, -1.0);
-            cell_values.erase(simplex_id);
-            error_versions[simplex_id] += 1;
+        for (const auto parent_id : batch.parent_ids) {
+            auto it = leaf_cache_.find(parent_id);
+            if (it == leaf_cache_.end()) {
+                continue;
+            }
+            for (size_t comp = 0; comp < ncomp_; ++comp) {
+                result.estimate[comp] -= it->second.preview_value[comp];
+            }
+            leaf_cache_.erase(it);
         }
-        new_simplex_ids = batch.child_ids;
+        for (const auto child_id : batch.child_ids) {
+            const auto &leaf = leaf_contribution(child_id);
+            for (size_t comp = 0; comp < ncomp_; ++comp) {
+                result.estimate[comp] += leaf.preview_value[comp];
+            }
+            result.evaluator_evals += leaf.evaluator_evals;
+        }
+    }
 
-        auto [child_values, child_evals] = evaluate_many_impl(new_simplex_ids);
-        result.evaluator_evals += child_evals;
-        for (size_t index = 0; index < new_simplex_ids.size(); ++index) {
-            store_value(new_simplex_ids[index], child_values[index]);
-            accumulate(child_values[index], 1.0);
+    result.error_vector.assign(ncomp_, 0.0);
+    result.error_scalar = 0.0;
+    for (const auto simplex_id : frontier.active_simplex_ids_) {
+        const auto it = leaf_cache_.find(simplex_id);
+        if (it == leaf_cache_.end()) {
+            continue;
+        }
+        result.error_scalar = std::max(result.error_scalar, it->second.indicator);
+        for (size_t comp = 0; comp < ncomp_; ++comp) {
+            result.error_vector[comp] = std::max(
+                result.error_vector[comp],
+                it->second.error_vector[comp]
+            );
         }
     }
 
@@ -173,10 +186,39 @@ void NativeDensityEvaluator::ensure_mu(double mu) {
     if (std::isnan(current_mu_) || std::abs(mu - current_mu_) > tol_) {
         current_mu_ = mu;
         value_cache_.clear();
+        leaf_cache_.clear();
+        leaf_heap_ = std::priority_queue<HeapEntry>();
+        leaf_build_count_ = 0;
     }
 }
 
-const NativeDensityEvaluator::CachedDensityValue &NativeDensityEvaluator::cached_value(
+NativeDensityEvaluator::DensityEvalResult NativeDensityEvaluator::evaluate_impl(
+    NativeFrontier &frontier,
+    std::int64_t levels
+) {
+    DensityEvalResult result;
+    result.total_estimate.assign(ncomp_, std::complex<double>(0.0, 0.0));
+    result.owner_ids = frontier.active_simplex_ids_;
+    result.owner_estimates.assign(
+        result.owner_ids.size() * ncomp_, std::complex<double>(0.0, 0.0)
+    );
+
+    for (size_t owner_index = 0; owner_index < result.owner_ids.size(); ++owner_index) {
+        const auto &leaf_ids = simplex_cache_.leaf_ids(result.owner_ids[owner_index], levels);
+        const size_t base = owner_index * ncomp_;
+        for (const auto leaf_id : leaf_ids) {
+            const auto &value = cached_simplex_value(leaf_id);
+            for (size_t comp = 0; comp < ncomp_; ++comp) {
+                result.owner_estimates[base + comp] += value.estimate[comp];
+                result.total_estimate[comp] += value.estimate[comp];
+            }
+            result.evaluator_evals += value.evaluator_evals;
+        }
+    }
+    return result;
+}
+
+const NativeDensityEvaluator::SimplexDensityEstimate &NativeDensityEvaluator::cached_simplex_value(
     std::int64_t simplex_id
 ) {
     auto it = value_cache_.find(simplex_id);
@@ -187,92 +229,108 @@ const NativeDensityEvaluator::CachedDensityValue &NativeDensityEvaluator::cached
     return inserted->second;
 }
 
-std::pair<std::vector<NativeDensityEvaluator::CachedDensityValue>, std::int64_t>
-NativeDensityEvaluator::evaluate_many_impl(const std::vector<std::int64_t> &simplex_ids) {
-    std::vector<CachedDensityValue> out;
-    out.reserve(simplex_ids.size());
-    std::int64_t evaluator_evals = 0;
-    for (const auto simplex_id : simplex_ids) {
-        const auto &cached = cached_value(simplex_id);
-        out.push_back(cached);
-        evaluator_evals += cached.evaluator_evals;
-    }
-    return {out, evaluator_evals};
-}
-
-const std::vector<double> &NativeDensityEvaluator::vertex_eigenvalues(std::int64_t vertex_id) {
-    ensure_vertex_value_capacity(vertex_id);
-    if (vertex_value_ready_[static_cast<size_t>(vertex_id)]) {
-        return vertex_values_[static_cast<size_t>(vertex_id)];
-    }
-    const auto &entry = vertex_entry(vertex_id);
-    vertex_values_[static_cast<size_t>(vertex_id)] = entry.eigenvalues;
-    vertex_value_ready_[static_cast<size_t>(vertex_id)] = 1;
-    return vertex_values_[static_cast<size_t>(vertex_id)];
-}
-
-const std::vector<std::complex<double>> &NativeDensityEvaluator::vertex_tables(
-    std::int64_t vertex_id
+const NativeDensityEvaluator::LeafDensityContribution &NativeDensityEvaluator::leaf_contribution(
+    std::int64_t simplex_id
 ) {
-    ensure_vertex_table_capacity(vertex_id);
-    if (vertex_table_ready_[static_cast<size_t>(vertex_id)]) {
-        return vertex_tables_[static_cast<size_t>(vertex_id)];
+    auto it = leaf_cache_.find(simplex_id);
+    if (it != leaf_cache_.end()) {
+        return it->second;
     }
-    std::vector<double> reduced_point(ndim_);
-    const size_t offset = static_cast<size_t>(vertex_id) * ndim_;
-    std::copy_n(geometry_->vertices_.data() + offset, ndim_, reduced_point.data());
-    const auto &entry = vertex_entry(vertex_id);
-    vertex_tables_[static_cast<size_t>(vertex_id)] = density_tables_for_point(
-        reduced_point.data(),
-        entry.eigenvectors.data(),
-        ndof_,
-        nullptr,
-        ndof_
-    );
-    vertex_table_ready_[static_cast<size_t>(vertex_id)] = 1;
-    return vertex_tables_[static_cast<size_t>(vertex_id)];
+
+    LeafDensityContribution leaf;
+    const auto &coarse = cached_simplex_value(simplex_id);
+    leaf.coarse_value = coarse.estimate;
+    leaf.preview_value.assign(ncomp_, std::complex<double>(0.0, 0.0));
+    leaf.error_vector.assign(ncomp_, 0.0);
+    leaf.evaluator_evals = coarse.evaluator_evals;
+
+    const auto &preview_ids = simplex_cache_.leaf_ids(simplex_id, 1);
+    for (const auto preview_id : preview_ids) {
+        const auto &preview_value = cached_simplex_value(preview_id);
+        for (size_t comp = 0; comp < ncomp_; ++comp) {
+            leaf.preview_value[comp] += preview_value.estimate[comp];
+        }
+        leaf.evaluator_evals += preview_value.evaluator_evals;
+    }
+
+    for (size_t comp = 0; comp < ncomp_; ++comp) {
+        leaf.error_vector[comp] = std::abs(leaf.preview_value[comp] - leaf.coarse_value[comp]);
+        leaf.indicator = std::max(leaf.indicator, leaf.error_vector[comp]);
+    }
+
+    ++leaf_build_count_;
+    auto [inserted, _ok] = leaf_cache_.emplace(simplex_id, std::move(leaf));
+    leaf_heap_.push(HeapEntry{inserted->second.indicator, simplex_id});
+    return inserted->second;
 }
 
-void NativeDensityEvaluator::ensure_vertex_value_capacity(std::int64_t vertex_id) {
-    const size_t needed = static_cast<size_t>(vertex_id) + 1;
-    if (vertex_values_.size() >= needed) {
-        return;
+const NativeDensityEvaluator::LeafDensityContribution *NativeDensityEvaluator::active_leaf_with_max_error() {
+    while (!leaf_heap_.empty()) {
+        const auto top = leaf_heap_.top();
+        auto it = leaf_cache_.find(top.simplex_id);
+        if (it == leaf_cache_.end()) {
+            leaf_heap_.pop();
+            continue;
+        }
+        return &it->second;
     }
-    vertex_values_.resize(needed);
-    vertex_value_ready_.resize(needed, 0);
+    return nullptr;
 }
 
-void NativeDensityEvaluator::ensure_vertex_table_capacity(std::int64_t vertex_id) {
-    const size_t needed = static_cast<size_t>(vertex_id) + 1;
-    if (vertex_tables_.size() >= needed) {
-        return;
+std::vector<std::int64_t> NativeDensityEvaluator::bulk_mark(
+    const std::vector<std::int64_t> &owner_ids,
+    const std::vector<double> &indicators,
+    double max_indicator,
+    double bulk_theta
+) {
+    if (owner_ids.empty() || max_indicator <= 0.0) {
+        return {};
     }
-    vertex_tables_.resize(needed);
-    vertex_table_ready_.resize(needed, 0);
+
+    std::vector<std::int64_t> marked;
+    const double threshold = bulk_theta * max_indicator;
+    size_t best_index = 0;
+    for (size_t index = 0; index < owner_ids.size(); ++index) {
+        if (indicators[index] > indicators[best_index]) {
+            best_index = index;
+        }
+        if (indicators[index] >= threshold && indicators[index] > 0.0) {
+            marked.push_back(owner_ids[index]);
+        }
+    }
+    if (marked.empty() && indicators[best_index] > 0.0) {
+        marked.push_back(owner_ids[best_index]);
+    }
+    return marked;
 }
 
 const NativeSpectralCache::CacheEntry &NativeDensityEvaluator::vertex_entry(std::int64_t vertex_id) {
-    std::vector<double> reduced_point(ndim_);
-    const size_t base = static_cast<size_t>(vertex_id) * ndim_;
-    std::copy_n(geometry_->vertices_.data() + base, ndim_, reduced_point.data());
-    return spectral_cache_->entry_for_reduced_point(reduced_point.data());
+    return spectral_cache_->entry_for_geometry_vertex(*geometry_, vertex_id);
 }
 
-NativeDensityEvaluator::PointSpectrum NativeDensityEvaluator::uncached_point_spectrum(
-    const double *reduced_point
-) {
-    const auto entry = spectral_cache_->evaluate_reduced_point_uncached(reduced_point);
-    return PointSpectrum{entry.eigenvalues, entry.eigenvectors};
+const std::vector<std::complex<double>> &NativeDensityEvaluator::vertex_phases(std::int64_t vertex_id) {
+    ensure_vertex_phase_capacity(vertex_id);
+    if (vertex_phase_ready_[static_cast<size_t>(vertex_id)]) {
+        return vertex_phases_[static_cast<size_t>(vertex_id)];
+    }
+    const double *reduced_point =
+        geometry_->vertices_.data() + static_cast<size_t>(vertex_id) * ndim_;
+    vertex_phases_[static_cast<size_t>(vertex_id)] = point_phases(reduced_point);
+    vertex_phase_ready_[static_cast<size_t>(vertex_id)] = 1;
+    ++phase_cache_size_;
+    return vertex_phases_[static_cast<size_t>(vertex_id)];
 }
 
-std::vector<std::complex<double>> NativeDensityEvaluator::density_tables_for_point(
-    const double *reduced_point,
-    const std::complex<double> *eigenvectors,
-    size_t n_all_bands,
-    const std::int64_t *selected_bands,
-    size_t n_selected_bands
-) const {
-    std::vector<std::complex<double>> out(n_selected_bands * ncomp_);
+void NativeDensityEvaluator::ensure_vertex_phase_capacity(std::int64_t vertex_id) {
+    const size_t needed = static_cast<size_t>(vertex_id) + 1;
+    if (vertex_phases_.size() >= needed) {
+        return;
+    }
+    vertex_phases_.resize(needed);
+    vertex_phase_ready_.resize(needed, 0);
+}
+
+std::vector<std::complex<double>> NativeDensityEvaluator::point_phases(const double *reduced_point) const {
     std::vector<std::complex<double>> phases(n_keys_);
     for (size_t key_index = 0; key_index < n_keys_; ++key_index) {
         double phase_arg = 0.0;
@@ -283,61 +341,51 @@ std::vector<std::complex<double>> NativeDensityEvaluator::density_tables_for_poi
         }
         phases[key_index] = std::exp(std::complex<double>(0.0, phase_arg));
     }
+    return phases;
+}
 
-    for (size_t band_index = 0; band_index < n_selected_bands; ++band_index) {
-        const size_t band = selected_bands ? static_cast<size_t>(selected_bands[band_index]) : band_index;
-        for (size_t i = 0; i < ndof_; ++i) {
-            const std::complex<double> ui = eigenvectors[i * n_all_bands + band];
-            for (size_t j = 0; j < ndof_; ++j) {
-                const std::complex<double> projector =
-                    ui * std::conj(eigenvectors[j * n_all_bands + band]);
-                const size_t base =
-                    ((band_index * ndof_ + i) * ndof_ + j) * n_keys_;
-                for (size_t key_index = 0; key_index < n_keys_; ++key_index) {
-                    out[base + key_index] = projector * phases[key_index];
-                }
+NativeDensityEvaluator::PointSpectrum NativeDensityEvaluator::uncached_point_spectrum(
+    const double *reduced_point
+) {
+    const auto entry = spectral_cache_->evaluate_reduced_point_uncached(reduced_point);
+    return PointSpectrum{entry.eigenvalues, entry.eigenvectors};
+}
+
+void NativeDensityEvaluator::accumulate_density_table_for_band(
+    std::vector<std::complex<double>> &out,
+    const std::complex<double> *phases,
+    const std::complex<double> *eigenvectors,
+    size_t n_all_bands,
+    size_t band,
+    double scale
+) const {
+    for (size_t i = 0; i < ndof_; ++i) {
+        const std::complex<double> ui = eigenvectors[i * n_all_bands + band];
+        for (size_t j = 0; j < ndof_; ++j) {
+            const std::complex<double> projector =
+                scale * ui * std::conj(eigenvectors[j * n_all_bands + band]);
+            const size_t base = (i * ndof_ + j) * n_keys_;
+            for (size_t key_index = 0; key_index < n_keys_; ++key_index) {
+                out[base + key_index] += projector * phases[key_index];
             }
         }
     }
-    return out;
 }
 
-NativeDensityEvaluator::CachedDensityValue NativeDensityEvaluator::evaluate_simplex(
+NativeDensityEvaluator::SimplexDensityEstimate NativeDensityEvaluator::evaluate_simplex(
     std::int64_t simplex_id
 ) {
-    CachedDensityValue result;
+    SimplexDensityEstimate result;
     result.estimate.assign(ncomp_, std::complex<double>(0.0, 0.0));
-    result.error_vector.assign(ncomp_, 0.0);
 
-    const auto &record = geometry_->simplex_records_[static_cast<size_t>(simplex_id)];
-    const size_t n_vertices = record.vertex_ids.size();
-    const double volume = geometry_->simplex_volume(simplex_id);
-    const std::vector<double> points_flat = geometry_->simplex_points_flat(simplex_id);
-    std::vector<double> centroid(ndim_, 0.0);
+    const auto &simplex = simplex_cache_.simplex(simplex_id);
+    const size_t n_vertices = simplex.vertex_ids.size();
+    const double volume = simplex.volume;
+
+    std::vector<const NativeSpectralCache::CacheEntry *> vertex_entries(n_vertices, nullptr);
     for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-        for (size_t axis = 0; axis < ndim_; ++axis) {
-            centroid[axis] += points_flat[vertex * ndim_ + axis];
-        }
+        vertex_entries[vertex] = &vertex_entry(simplex.vertex_ids[vertex]);
     }
-    for (size_t axis = 0; axis < ndim_; ++axis) {
-        centroid[axis] /= static_cast<double>(n_vertices);
-    }
-
-    std::vector<double> vertex_energies(n_vertices * ndof_);
-    for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-        const auto vertex_id = record.vertex_ids[vertex];
-        const auto &values = vertex_eigenvalues(vertex_id);
-        std::copy_n(values.data(), ndof_, vertex_energies.data() + vertex * ndof_);
-    }
-
-    const auto centroid_spectrum = uncached_point_spectrum(centroid.data());
-    const auto centroid_tables_all = density_tables_for_point(
-        centroid.data(),
-        centroid_spectrum.eigenvectors.data(),
-        ndof_,
-        nullptr,
-        ndof_
-    );
 
     auto occupation = [&](double energy) noexcept -> double {
         if (std::abs(energy - current_mu_) <= tol_) {
@@ -346,8 +394,6 @@ NativeDensityEvaluator::CachedDensityValue NativeDensityEvaluator::evaluate_simp
         return energy < current_mu_ ? 1.0 : 0.0;
     };
 
-    std::vector<std::complex<double>> estimate_low(ncomp_, std::complex<double>(0.0, 0.0));
-    std::vector<std::complex<double>> estimate_high(ncomp_, std::complex<double>(0.0, 0.0));
     std::int64_t evaluator_evals = 0;
     std::vector<double> band_energies(n_vertices);
 
@@ -355,45 +401,46 @@ NativeDensityEvaluator::CachedDensityValue NativeDensityEvaluator::evaluate_simp
         double band_min = std::numeric_limits<double>::infinity();
         double band_max = -std::numeric_limits<double>::infinity();
         bool half_mask = true;
-        bool vertex_matches_centroid = true;
-        const double centroid_energy = centroid_spectrum.eigenvalues[band];
-        const double centroid_occ = occupation(centroid_energy);
 
         for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-            const double energy = vertex_energies[vertex * ndof_ + band];
+            const double energy = vertex_entries[vertex]->eigenvalues[band];
             band_energies[vertex] = energy;
             band_min = std::min(band_min, energy);
             band_max = std::max(band_max, energy);
             if (std::abs(energy - current_mu_) > tol_) {
                 half_mask = false;
             }
-            if (occupation(energy) != centroid_occ) {
-                vertex_matches_centroid = false;
-            }
         }
 
-        const bool full_mask = (band_max <= current_mu_) && vertex_matches_centroid && !half_mask;
-        const bool empty_mask = (band_min > current_mu_) && vertex_matches_centroid && !half_mask;
-        if (half_mask || full_mask) {
-            const double weight = half_mask ? 0.5 : 1.0;
-            for (size_t comp = 0; comp < ncomp_; ++comp) {
-                estimate_low[comp] += volume * weight * centroid_tables_all[band * ncomp_ + comp];
-                std::complex<double> avg(0.0, 0.0);
-                for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-                    const auto &tables = vertex_tables(record.vertex_ids[vertex]);
-                    avg += tables[band * ncomp_ + comp];
+        if (band_min > current_mu_ + tol_) {
+            continue;
+        }
+
+        if (half_mask || band_max <= current_mu_ + tol_) {
+            const double band_scale = half_mask ? 0.5 : 1.0;
+            for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
+                const double scale = half_mask
+                    ? volume * band_scale / static_cast<double>(n_vertices)
+                    : volume * occupation(band_energies[vertex]) / static_cast<double>(n_vertices);
+                if (scale == 0.0) {
+                    continue;
                 }
-                estimate_high[comp] += volume * weight * avg / static_cast<double>(n_vertices);
+                const auto &phases = vertex_phases(simplex.vertex_ids[vertex]);
+                accumulate_density_table_for_band(
+                    result.estimate,
+                    phases.data(),
+                    vertex_entries[vertex]->eigenvectors.data(),
+                    ndof_,
+                    band,
+                    scale
+                );
             }
             evaluator_evals += static_cast<std::int64_t>(n_vertices);
             continue;
         }
-        if (empty_mask) {
-            continue;
-        }
 
         const auto pieces = occupied_subsimplices_from_flat(
-            points_flat.data(),
+            simplex.points_flat.data(),
             band_energies.data(),
             n_vertices,
             ndim_,
@@ -401,79 +448,44 @@ NativeDensityEvaluator::CachedDensityValue NativeDensityEvaluator::evaluate_simp
             tol_
         );
         if (pieces.empty()) {
-            for (size_t comp = 0; comp < ncomp_; ++comp) {
-                estimate_low[comp] +=
-                    volume * centroid_occ * centroid_tables_all[band * ncomp_ + comp];
-                std::complex<double> avg(0.0, 0.0);
-                for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-                    const auto &tables = vertex_tables(record.vertex_ids[vertex]);
-                    avg += occupation(vertex_energies[vertex * ndof_ + band]) *
-                           tables[band * ncomp_ + comp];
+            for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
+                const double weight = occupation(band_energies[vertex]);
+                if (weight == 0.0) {
+                    continue;
                 }
-                estimate_high[comp] += volume * avg / static_cast<double>(n_vertices);
+                const auto &phases = vertex_phases(simplex.vertex_ids[vertex]);
+                accumulate_density_table_for_band(
+                    result.estimate,
+                    phases.data(),
+                    vertex_entries[vertex]->eigenvectors.data(),
+                    ndof_,
+                    band,
+                    volume * weight / static_cast<double>(n_vertices)
+                );
             }
             evaluator_evals += static_cast<std::int64_t>(n_vertices);
             continue;
         }
 
-        evaluator_evals += static_cast<std::int64_t>(pieces.size());
         for (const auto &piece : pieces) {
             const double piece_volume = simplex_volume_from_flat(piece, n_vertices, ndim_);
-            std::vector<double> piece_centroid(ndim_, 0.0);
-            for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-                for (size_t axis = 0; axis < ndim_; ++axis) {
-                    piece_centroid[axis] += piece[vertex * ndim_ + axis];
-                }
-            }
-            for (size_t axis = 0; axis < ndim_; ++axis) {
-                piece_centroid[axis] /= static_cast<double>(n_vertices);
-            }
-            const auto piece_centroid_spectrum = uncached_point_spectrum(piece_centroid.data());
-            const std::int64_t band_id = static_cast<std::int64_t>(band);
-            const auto piece_centroid_table = density_tables_for_point(
-                piece_centroid.data(),
-                piece_centroid_spectrum.eigenvectors.data(),
-                ndof_,
-                &band_id,
-                1
-            );
-            std::vector<std::complex<double>> piece_vertex_tables_flat(n_vertices * ncomp_);
             for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
                 const double *piece_vertex = piece.data() + vertex * ndim_;
                 const auto piece_vertex_spectrum = uncached_point_spectrum(piece_vertex);
-                const auto piece_vertex_table = density_tables_for_point(
-                    piece_vertex,
+                const auto phases = point_phases(piece_vertex);
+                accumulate_density_table_for_band(
+                    result.estimate,
+                    phases.data(),
                     piece_vertex_spectrum.eigenvectors.data(),
                     ndof_,
-                    &band_id,
-                    1
+                    band,
+                    piece_volume / static_cast<double>(n_vertices)
                 );
-                std::copy_n(
-                    piece_vertex_table.data(),
-                    ncomp_,
-                    piece_vertex_tables_flat.data() + vertex * ncomp_
-                );
-            }
-            for (size_t comp = 0; comp < ncomp_; ++comp) {
-                estimate_low[comp] += piece_volume * piece_centroid_table[comp];
-                std::complex<double> avg(0.0, 0.0);
-                for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-                    avg += piece_vertex_tables_flat[vertex * ncomp_ + comp];
-                }
-                estimate_high[comp] += piece_volume * avg / static_cast<double>(n_vertices);
             }
             evaluator_evals += static_cast<std::int64_t>(n_vertices);
         }
     }
 
-    double error_norm_sq = 0.0;
-    for (size_t comp = 0; comp < ncomp_; ++comp) {
-        const std::complex<double> diff = estimate_high[comp] - estimate_low[comp];
-        result.estimate[comp] = estimate_high[comp];
-        result.error_vector[comp] = std::abs(diff);
-        error_norm_sq += result.error_vector[comp] * result.error_vector[comp];
-    }
-    result.error_scalar = std::sqrt(error_norm_sq);
     result.evaluator_evals = evaluator_evals;
     return result;
 }

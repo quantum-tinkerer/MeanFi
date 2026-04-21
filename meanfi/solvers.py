@@ -17,7 +17,7 @@ from meanfi.tb.tb import _tb_type
 class NoConvergence(Exception):
     """Raised when the self-consistent field solver does not converge."""
 
-    def __init__(self, last_iterate: np.ndarray):
+    def __init__(self, last_iterate: "numpy.ndarray"):
         self.last_iterate = np.array(last_iterate, copy=True)
         super().__init__(self.last_iterate)
 
@@ -65,6 +65,15 @@ class _ScfState:
         }
 
 
+def _max_norm(values: np.ndarray) -> float:
+    """Return the componentwise maximum absolute value."""
+
+    array = np.asarray(values)
+    if array.size == 0:
+        return 0.0
+    return float(np.max(np.abs(array)))
+
+
 def _record_iteration(
     iteration: int, residual: np.ndarray, *, callback, state: _ScfState
 ) -> None:
@@ -92,6 +101,7 @@ def _density_for_hamiltonian(
         density_rtol=model.density_rtol,
         mu_guess=mu_guess,
         mu_xtol=model.mu_xtol,
+        max_subdivisions=model.max_subdivisions,
     )
 
 
@@ -115,7 +125,7 @@ def _residual(
     state.mu = mu
     state.rho = rho_new_reduced
     state.info = info
-    state.residual_norm = float(np.linalg.norm(residual))
+    state.residual_norm = _max_norm(residual)
     state.total_charge_integration_calls += info.charge_integration_calls
     state.total_density_integration_calls += info.density_integration_calls
     state.total_kernel_evals += info.n_kernel_evals
@@ -146,7 +156,7 @@ def _solve_linear_mixing(
     for iteration in range(1, maxiter + 1):
         residual = residual_fn(x)
         _record_iteration(iteration, residual, callback=callback, state=state)
-        if np.linalg.norm(residual) <= scf_tol:
+        if _max_norm(residual) <= scf_tol:
             return x
         x = x + alpha * residual
     raise NoConvergence(x)
@@ -228,6 +238,7 @@ def _apply_optimizer_defaults(
         kwargs.setdefault("line_search", "wolfe")
         kwargs.setdefault("maxiter", max_scf_steps)
         kwargs.setdefault("f_tol", scf_tol)
+        kwargs.setdefault("tol_norm", _max_norm)
     return kwargs
 
 
@@ -311,9 +322,7 @@ def solver(
         mu_guess=state.mu,
     )
     rho_reduced_final = {key: rho_final[key] for key in keys}
-    residual_norm = float(
-        np.linalg.norm(tb_to_rparams(rho_reduced_final) - result_params)
-    )
+    residual_norm = _max_norm(tb_to_rparams(rho_reduced_final) - result_params)
     mf_result = meanfield(rho_reduced_final, model.h_int)
     tb_result = dict(mf_result)
     tb_result[model._local_key] = tb_result.get(

@@ -1,8 +1,26 @@
 #include "native_spectral_cache.h"
 
+#include "native_geometry.h"
+
+#include <cmath>
 #include <stdexcept>
 
 namespace meanfi::zero_temp_native {
+
+namespace {
+
+double wrap_reduced_coordinate(double value, double tol) {
+    double wrapped = std::fmod(value, 1.0);
+    if (wrapped < 0.0) {
+        wrapped += 1.0;
+    }
+    if (std::abs(wrapped) <= tol || std::abs(wrapped - 1.0) <= tol) {
+        return 0.0;
+    }
+    return wrapped;
+}
+
+}  // namespace
 
 NativeSpectralCache::NativeSpectralCache(
     std::shared_ptr<NativeTightBindingModel> model,
@@ -16,6 +34,9 @@ NativeSpectralCache::NativeSpectralCache(
 
 void NativeSpectralCache::clear() {
     cache_.clear();
+    geometry_vertex_entries_.clear();
+    geometry_vertex_ready_.clear();
+    geometry_vertex_cache_size_ = 0;
 }
 
 void NativeSpectralCache::invalidate() {
@@ -49,11 +70,36 @@ const NativeSpectralCache::CacheEntry &NativeSpectralCache::entry_for_k_point(co
 const NativeSpectralCache::CacheEntry &NativeSpectralCache::entry_for_reduced_point(
     const double *reduced_point
 ) {
+    ++n_reduced_point_lookups_;
     std::vector<double> k_point(model_->ndim());
     for (size_t axis = 0; axis < model_->ndim(); ++axis) {
-        k_point[axis] = 2.0 * kPi * reduced_point[axis] - kPi;
+        const double wrapped = wrap_reduced_coordinate(reduced_point[axis], tol_);
+        k_point[axis] = 2.0 * kPi * wrapped - kPi;
     }
     return entry_for_k_point(k_point.data());
+}
+
+const NativeSpectralCache::CacheEntry &NativeSpectralCache::entry_for_geometry_vertex(
+    const NativeGeometry &geometry,
+    std::int64_t vertex_id
+) {
+    ++n_geometry_vertex_lookups_;
+    const size_t needed = static_cast<size_t>(vertex_id) + 1;
+    if (geometry_vertex_entries_.size() < needed) {
+        geometry_vertex_entries_.resize(needed, nullptr);
+        geometry_vertex_ready_.resize(needed, 0);
+    }
+    if (geometry_vertex_ready_[static_cast<size_t>(vertex_id)]) {
+        return *geometry_vertex_entries_[static_cast<size_t>(vertex_id)];
+    }
+
+    const double *reduced_point =
+        geometry.vertices_.data() + static_cast<size_t>(vertex_id) * geometry.ndim_;
+    const auto &entry = entry_for_reduced_point(reduced_point);
+    geometry_vertex_entries_[static_cast<size_t>(vertex_id)] = &entry;
+    geometry_vertex_ready_[static_cast<size_t>(vertex_id)] = 1;
+    ++geometry_vertex_cache_size_;
+    return entry;
 }
 
 NativeSpectralCache::CacheEntry NativeSpectralCache::evaluate_reduced_point_uncached(
@@ -61,7 +107,8 @@ NativeSpectralCache::CacheEntry NativeSpectralCache::evaluate_reduced_point_unca
 ) {
     std::vector<double> k_point(model_->ndim());
     for (size_t axis = 0; axis < model_->ndim(); ++axis) {
-        k_point[axis] = 2.0 * kPi * reduced_point[axis] - kPi;
+        const double wrapped = wrap_reduced_coordinate(reduced_point[axis], tol_);
+        k_point[axis] = 2.0 * kPi * wrapped - kPi;
     }
     return diagonalize_k_point(k_point.data());
 }

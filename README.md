@@ -26,6 +26,7 @@ model = meanfi.Model(
     charge_tol=1e-4,
     density_atol=1e-4,
     scf_tol=1e-4,
+    max_subdivisions=None,
 )
 
 guess = meanfi.guess_tb(frozenset(h_int), onsite.shape[0])
@@ -41,8 +42,8 @@ h_mf = meanfi.add_tb(h_0, mf_correction)
   Computes the density matrix at an explicit chemical potential with the same temperature-dependent backend dispatch.
 
 Both APIs return error estimates together with runtime statistics.
-High-level workflows keep only `kT`, `charge_tol`, `density_atol`, and `scf_tol` on `Model`.
-Advanced controls such as `mu_xtol`, `max_subdivisions`, `rule`, and `batch_size` stay on the low-level density APIs when you need to tune the backend explicitly.
+High-level workflows keep `kT`, `charge_tol`, `density_atol`, `scf_tol`, and `max_subdivisions` on `Model`.
+Advanced controls such as `mu_xtol`, `rule`, and `batch_size` stay on the low-level density APIs when you need to tune the backend explicitly.
 
 ## Optimizers
 
@@ -95,4 +96,4 @@ Not supported in the main package:
 - k-grid based self-consistent solvers,
 - superconducting pairing terms.
 
-For `kT = 0`, the Brillouin zone is treated as a torus mathematically. The simplicial backend keeps duplicated seam vertices rather than identifying opposite faces in the cache, but it starts from a seam-safe `2^d` partition of the fundamental cell so no root simplex spans opposite faces.
+For `kT = 0`, the Brillouin zone is treated as a torus mathematically. The simplicial backend keeps duplicated seam vertices rather than identifying opposite faces in the cache, but it starts from a seam-safe `2^d` partition of the fundamental cell so no root simplex spans opposite faces. Setting `max_subdivisions=0` on `Model` keeps that root mesh only, which is the closest analogue to a very coarse fixed `k` grid.

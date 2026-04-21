@@ -9,6 +9,8 @@ kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
+mystnb:
+  execution_mode: "auto"
 ---
 
 # Strained graphene superlattice
@@ -16,6 +18,13 @@ kernelspec:
 We showcase the interface between `meanfi` and `Kwant` with a strained graphene supercell. In this tutorial, we qualitatively reproduce the results from [[1]](https://doi.org/10.1088/2053-1583/ac0b48).
 
 We first create the atomistic model in `Kwant`. The complete source code of this example can be found in [`strained_graphene_kwant.py`](./scripts/strained_graphene_kwant.py). To reduce the computational cost, we perform the calculations with a $16 \times 16$ supercell whereas in [1](https://doi.org/10.1088/2053-1583/ac0b48) the calculations were performed with a $25 \times 25$ supercell. Thus, the agreement throughout the tutorial is only qualitative.
+
+```{note}
+This page now uses `max_subdivisions=0`, so the native backend stays on the root mesh, does no preview evaluation, and does not refine to additional k-points.
+For the two-dimensional Brillouin zone used here, the root-mesh-only path now collapses periodic boundary vertices in the spectral cache, so it evaluates the same four physical k-points as the old `nk=2` tutorial on `main`.
+The earlier Python-kernel crash on this example came from a native memory-scaling bug in the zero-temperature density evaluator; that crash path has been fixed.
+Root-mesh-only mode deliberately abandons adaptive error indicators, so the returned SCF solution has no built-in reason to be quantitatively correct even when the coarse SCF residual is small.
+```
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -77,13 +86,9 @@ After we have created the interacting system we can use MeanFi again for getting
 
 ```{code-cell} ipython3
 from meanfi.kwant_helper import utils as utils
+from scripts.zero_temp_validation import STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS
 
-tutorial_model_kwargs = dict(
-    kT=0.2,
-    charge_tol=5e-3,
-    density_atol=5e-3,
-    scf_tol=5e-3,
-)
+tutorial_model_kwargs = dict(STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS)
 
 h0, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
 
@@ -119,10 +124,12 @@ guess_builder = utils.build_interacting_syst(
 guess = utils.builder_to_tb(guess_builder)
 ```
 
-Due to the large supercell, we keep the original $16 \times 16$ geometry from `main` and instead use
-a noticeably larger finite temperature together with looser charge, density, and
-self-consistency tolerances for the tutorial build. We also pass
-`scipy.optimize.anderson` explicitly through the `optimizer=` hook.
+This remains the most expensive tutorial because the original $16 \times 16$ supercell from `main`
+produces a $1024 \times 1024$ Bloch Hamiltonian.
+We therefore keep the original geometry and only loosen solver-side controls for the zero-temperature build.
+At the moment we explicitly pin `max_subdivisions=0` so that only the root mesh is used, no preview mesh is generated, and no additional k-points are created by adaptive refinement.
+In this mode the density and charge error indicators are unavailable by construction, so `density_atol` is informational only.
+We also pass `scipy.optimize.anderson` explicitly through the `optimizer=` hook and keep a nonzero Anderson history, matching the aggressive coarse-grid strategy used in the original tutorial.
 
 ```{code-cell} ipython3
 from scipy.optimize import anderson
@@ -132,8 +139,10 @@ mf_sol = meanfi.solver(
     guess,
     optimizer=anderson,
     optimizer_kwargs={
-        "M": 0,
+        "M": 10,
         "line_search": "armijo",
+        "f_tol": tutorial_model_kwargs["scf_tol"],
+        "maxiter": 100,
     },
     max_scf_steps=100,
 )

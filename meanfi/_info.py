@@ -11,6 +11,7 @@ class DensityIntegrationInfo:
     n_leaves: int
     n_leaf_nodes: int
     subdivisions: int
+    error_estimate_available: bool
 
 
 @dataclass(frozen=True)
@@ -37,3 +38,4 @@ class FixedFillingInfo:
     charge_integral_atol: float
     density_atol: float
     density_rtol: float
+    error_estimate_available: bool

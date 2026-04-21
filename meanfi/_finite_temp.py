@@ -55,6 +55,7 @@ def integration_stats(result) -> DensityIntegrationInfo:
         n_leaves=int(getattr(result, "n_leaves", 0)),
         n_leaf_nodes=int(getattr(result, "n_leaf_nodes", cached_nodes)),
         subdivisions=int(getattr(result, "subdivisions", 0)),
+        error_estimate_available=True,
     )
 
 

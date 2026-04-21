@@ -44,6 +44,7 @@ def density_matrix_at_mu_zero_dim(
         n_leaves=1,
         n_leaf_nodes=1,
         subdivisions=0,
+        error_estimate_available=True,
     )
     return rho, error, info
 
@@ -94,6 +95,7 @@ def density_matrix_zero_dim(
             charge_integral_atol=charge_tol,
             density_atol=density_atol,
             density_rtol=density_rtol,
+            error_estimate_available=True,
         )
         return rho, error, mu, info
 
@@ -150,6 +152,7 @@ def density_matrix_zero_dim(
         charge_integral_atol=charge_integral_atol,
         density_atol=density_atol,
         density_rtol=density_rtol,
+        error_estimate_available=True,
     )
     return rho, error, mu, info
 

@@ -160,7 +160,7 @@ tests-latest = "pixi run -e latest tests"
 tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.docs.tasks]
-docs-build = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+docs-build = { cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\"", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 
 [tool.pixi.feature.profiler.tasks]
 profiler = "python profiling/graphene.py && memray stats memoryProfile.bin && memray summary memoryProfile.bin"

@@ -13,7 +13,10 @@ NativeChargeEvaluator::NativeChargeEvaluator(
     NativeSpectralCache &spectral_cache,
     double tol
 )
-    : geometry_(&geometry), spectral_cache_(&spectral_cache), tol_(tol) {}
+    : geometry_(&geometry),
+      spectral_cache_(&spectral_cache),
+      simplex_cache_(geometry),
+      tol_(tol) {}
 
 nb::tuple NativeChargeEvaluator::evaluate(NativeFrontier &frontier, double mu, std::int64_t levels) {
     const auto result = evaluate_impl(frontier, mu, levels);
@@ -22,23 +25,17 @@ nb::tuple NativeChargeEvaluator::evaluate(NativeFrontier &frontier, double mu, s
         result.derivative_exact ? result.total_derivative : std::numeric_limits<double>::quiet_NaN(),
         result.derivative_exact,
         make_array(std::vector<std::int64_t>(result.owner_ids), {result.owner_ids.size()}),
-        make_array(std::vector<double>(result.owner_charges), {result.owner_charges.size()})
+        make_array(std::vector<double>(result.owner_charges), {result.owner_charges.size()}),
+        result.evaluator_evals
     );
 }
 
 double NativeChargeEvaluator::simplex_charge(std::int64_t simplex_id, double mu, std::int64_t levels) {
-    const auto &group = prepared_group(simplex_id, levels);
     double total_charge = 0.0;
     double total_derivative = 0.0;
     bool derivative_exact = true;
-    for (const auto &cell : group.cells) {
-        double charge = 0.0;
-        double derivative = 0.0;
-        bool exact = true;
-        evaluate_cell(cell, mu, charge, derivative, exact);
-        total_charge += charge;
-        total_derivative += derivative;
-        derivative_exact = derivative_exact && exact;
+    for (const auto leaf_id : simplex_cache_.leaf_ids(simplex_id, levels)) {
+        evaluate_simplex(leaf_id, mu, total_charge, total_derivative, derivative_exact);
     }
     (void) total_derivative;
     (void) derivative_exact;
@@ -94,17 +91,18 @@ ChargeSolveResult NativeChargeEvaluator::solve_mu_and_refine(
         }
 
         std::vector<double> indicators(preview.owner_ids.size(), 0.0);
-        double indicator_sum = 0.0;
+        double indicator_max = 0.0;
         for (size_t index = 0; index < preview.owner_ids.size(); ++index) {
             indicators[index] = std::abs(preview.owner_charges[index] - coarse.owner_charges[index]);
-            indicator_sum += indicators[index];
+            indicator_max = std::max(indicator_max, indicators[index]);
         }
 
         result.charge = preview.total_charge;
-        result.charge_error = indicator_sum;
+        result.charge_error = indicator_max;
+        result.error_estimate_available = true;
 
         if (std::abs(preview.total_charge - filling) <= options.charge_tol &&
-            indicator_sum <= options.charge_tol) {
+            indicator_max <= options.charge_tol) {
             result.converged = true;
             break;
         }
@@ -113,7 +111,12 @@ ChargeSolveResult NativeChargeEvaluator::solve_mu_and_refine(
             throw std::runtime_error("Adaptive zero-temperature charge integration did not converge");
         }
 
-        const auto marked = bulk_mark(preview.owner_ids, indicators, indicator_sum, options.bulk_theta);
+        const auto marked = bulk_mark(
+            preview.owner_ids,
+            indicators,
+            indicator_max,
+            options.bulk_theta
+        );
         if (marked.empty()) {
             break;
         }
@@ -147,20 +150,12 @@ NativeChargeEvaluator::ChargeEvalResult NativeChargeEvaluator::evaluate_impl(
     result.owner_charges.resize(result.owner_ids.size(), 0.0);
 
     for (size_t owner_index = 0; owner_index < result.owner_ids.size(); ++owner_index) {
-        const auto simplex_id = result.owner_ids[owner_index];
-        const auto &group = prepared_group(simplex_id, levels);
         double owner_charge = 0.0;
         double owner_derivative = 0.0;
         bool owner_exact = true;
-        for (const auto &cell : group.cells) {
-            double charge = 0.0;
-            double derivative = 0.0;
-            bool exact = true;
-            evaluate_cell(cell, mu, charge, derivative, exact);
-            owner_charge += charge;
-            owner_derivative += derivative;
-            owner_exact = owner_exact && exact;
-            result.evaluator_evals += static_cast<std::int64_t>(cell.band_min.size());
+        for (const auto leaf_id : simplex_cache_.leaf_ids(result.owner_ids[owner_index], levels)) {
+            evaluate_simplex(leaf_id, mu, owner_charge, owner_derivative, owner_exact);
+            result.evaluator_evals += static_cast<std::int64_t>(spectral_cache_->ndof());
         }
         result.owner_charges[owner_index] = owner_charge;
         result.total_charge += owner_charge;
@@ -183,115 +178,14 @@ NativeChargeEvaluator::ChargeEvalResult NativeChargeEvaluator::evaluate_counted(
     return result;
 }
 
-const NativeChargeEvaluator::PreparedChargeGroup &NativeChargeEvaluator::prepared_group(
+void NativeChargeEvaluator::evaluate_simplex(
     std::int64_t simplex_id,
-    std::int64_t levels
-) {
-    const GroupKey key{simplex_id, levels};
-    auto it = prepared_group_cache_.find(key);
-    if (it != prepared_group_cache_.end()) {
-        return it->second;
-    }
-
-    PreparedChargeGroup group;
-    group.owner_id = simplex_id;
-    if (levels <= 0) {
-        group.leaf_ids.push_back(simplex_id);
-    } else {
-        geometry_->descendant_leaves_impl(simplex_id, levels, group.leaf_ids);
-        if (levels == 1) {
-            group.child_ids = group.leaf_ids;
-        }
-    }
-    group.cells.reserve(group.leaf_ids.size());
-    for (const auto leaf_id : group.leaf_ids) {
-        group.cells.push_back(prepared_cell(leaf_id));
-    }
-    auto [inserted, _ok] = prepared_group_cache_.emplace(key, std::move(group));
-    return inserted->second;
-}
-
-const NativeChargeEvaluator::PreparedChargeCell &NativeChargeEvaluator::prepared_cell(
-    std::int64_t simplex_id
-) {
-    auto it = prepared_cell_cache_.find(simplex_id);
-    if (it != prepared_cell_cache_.end()) {
-        return it->second;
-    }
-
-    PreparedChargeCell cell;
-    const auto &record = geometry_->simplex_records_[static_cast<size_t>(simplex_id)];
-    const size_t n_vertices = record.vertex_ids.size();
-    const size_t ndof = spectral_cache_->ndof();
-    const size_t dimension = geometry_->ndim_;
-
-    cell.points_flat = geometry_->simplex_points_flat(simplex_id);
-    cell.vertex_energies.resize(n_vertices * ndof);
-    cell.sorted_energies.resize(ndof * n_vertices);
-    cell.simplex_weights.assign(ndof * n_vertices, 0.0);
-    cell.band_min.resize(ndof);
-    cell.band_max.resize(ndof);
-    cell.flat_energy.resize(ndof);
-    cell.distinct_mask.resize(ndof, 1);
-    cell.flat_mask.resize(ndof, 0);
-    cell.volume = geometry_->simplex_volume(simplex_id);
-
-    for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-        const auto vertex_id = record.vertex_ids[vertex];
-        const auto &values = vertex_eigenvalues(vertex_id);
-        std::copy_n(values.data(), ndof, cell.vertex_energies.data() + vertex * ndof);
-    }
-
-    std::vector<double> scratch(n_vertices);
-    for (size_t band = 0; band < ndof; ++band) {
-        for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-            scratch[vertex] = cell.vertex_energies[vertex * ndof + band];
-        }
-        std::sort(scratch.begin(), scratch.end());
-        cell.band_min[band] = scratch.front();
-        cell.band_max[band] = scratch.back();
-        cell.flat_energy[band] = cell.vertex_energies[band];
-        cell.flat_mask[band] = (scratch.back() - scratch.front()) <= tol_ ? 1 : 0;
-        bool distinct = true;
-        for (size_t vertex = 1; vertex < n_vertices; ++vertex) {
-            if (scratch[vertex] - scratch[vertex - 1] <= tol_) {
-                distinct = false;
-            }
-            cell.sorted_energies[band * n_vertices + vertex - 1] = scratch[vertex - 1];
-        }
-        cell.sorted_energies[band * n_vertices + n_vertices - 1] = scratch[n_vertices - 1];
-        cell.distinct_mask[band] = distinct ? 1 : 0;
-        if (dimension > 3 && distinct) {
-            for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-                double denom = 1.0;
-                for (size_t other = 0; other < n_vertices; ++other) {
-                    if (other == vertex) {
-                        continue;
-                    }
-                    denom *= scratch[vertex] - scratch[other];
-                }
-                cell.simplex_weights[band * n_vertices + vertex] = 1.0 / denom;
-            }
-        }
-    }
-
-    auto [inserted, _ok] = prepared_cell_cache_.emplace(simplex_id, std::move(cell));
-    return inserted->second;
-}
-
-const std::vector<double> &NativeChargeEvaluator::vertex_eigenvalues(std::int64_t vertex_id) {
-    auto it = vertex_values_cache_.find(vertex_id);
-    if (it != vertex_values_cache_.end()) {
-        return it->second;
-    }
-
-    const size_t ndim = geometry_->ndim_;
-    std::vector<double> reduced_point(ndim);
-    const size_t base = static_cast<size_t>(vertex_id) * ndim;
-    std::copy_n(geometry_->vertices_.data() + base, ndim, reduced_point.data());
-    const auto &entry = spectral_cache_->entry_for_reduced_point(reduced_point.data());
-    auto [inserted, _ok] = vertex_values_cache_.emplace(vertex_id, entry.eigenvalues);
-    return inserted->second;
+    double mu,
+    double &charge,
+    double &derivative,
+    bool &derivative_exact
+) const {
+    evaluate_cell(simplex_cache_.simplex(simplex_id), mu, charge, derivative, derivative_exact);
 }
 
 NativeChargeEvaluator::RootSolveResult NativeChargeEvaluator::solve_mu_on_preview(
@@ -402,31 +296,25 @@ void NativeChargeEvaluator::expand_mu_bracket(
 std::vector<std::int64_t> NativeChargeEvaluator::bulk_mark(
     const std::vector<std::int64_t> &owner_ids,
     const std::vector<double> &indicators,
-    double total_indicator,
+    double max_indicator,
     double bulk_theta
 ) {
-    if (owner_ids.empty() || total_indicator <= 0.0) {
+    if (owner_ids.empty() || max_indicator <= 0.0) {
         return {};
     }
-    std::vector<size_t> order(owner_ids.size());
-    std::iota(order.begin(), order.end(), 0);
-    std::sort(
-        order.begin(),
-        order.end(),
-        [&](size_t left, size_t right) { return indicators[left] > indicators[right]; }
-    );
-    const double target = bulk_theta * total_indicator;
     std::vector<std::int64_t> marked;
-    double accumulated = 0.0;
-    for (const auto index : order) {
-        if (indicators[index] <= 0.0) {
-            continue;
+    const double threshold = bulk_theta * max_indicator;
+    size_t best_index = 0;
+    for (size_t index = 0; index < owner_ids.size(); ++index) {
+        if (indicators[index] > indicators[best_index]) {
+            best_index = index;
         }
-        marked.push_back(owner_ids[index]);
-        accumulated += indicators[index];
-        if (accumulated >= target) {
-            break;
+        if (indicators[index] >= threshold && indicators[index] > 0.0) {
+            marked.push_back(owner_ids[index]);
         }
+    }
+    if (marked.empty() && indicators[best_index] > 0.0) {
+        marked.push_back(owner_ids[best_index]);
     }
     return marked;
 }
@@ -505,70 +393,102 @@ std::pair<double, double> NativeChargeEvaluator::simplex_fraction_and_derivative
 }
 
 void NativeChargeEvaluator::evaluate_cell(
-    const PreparedChargeCell &cell,
+    const NativeSimplexCache::SimplexData &simplex,
     double mu,
     double &charge,
     double &derivative,
     bool &derivative_exact
 ) const {
-    const size_t n_vertices = geometry_->ndim_ + 1;
+    const size_t n_vertices = simplex.vertex_ids.size();
     const size_t ndof = spectral_cache_->ndof();
-    double cell_min = std::numeric_limits<double>::infinity();
-    double cell_max = -std::numeric_limits<double>::infinity();
-    for (size_t band = 0; band < ndof; ++band) {
-        cell_min = std::min(cell_min, cell.band_min[band]);
-        cell_max = std::max(cell_max, cell.band_max[band]);
-    }
-    if (cell_max <= mu) {
-        charge += cell.volume * static_cast<double>(ndof);
-        return;
-    }
-    if (cell_min > mu) {
-        return;
+    std::vector<const std::vector<double> *> vertex_values(n_vertices, nullptr);
+    for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
+        const auto vertex_id = simplex.vertex_ids[vertex];
+        const auto &entry = spectral_cache_->entry_for_geometry_vertex(*geometry_, vertex_id);
+        vertex_values[vertex] = &entry.eigenvalues;
     }
 
+    std::vector<double> band_energies(n_vertices);
+    std::vector<double> sorted_energies(n_vertices);
+    std::vector<double> simplex_weights(n_vertices, 0.0);
+
     for (size_t band = 0; band < ndof; ++band) {
-        const bool full = cell.band_max[band] <= mu;
-        const bool empty = cell.band_min[band] > mu;
+        double band_min = std::numeric_limits<double>::infinity();
+        double band_max = -std::numeric_limits<double>::infinity();
+        double flat_energy = 0.0;
+        bool flat_mask = true;
+        for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
+            const double energy = (*vertex_values[vertex])[band];
+            band_energies[vertex] = energy;
+            sorted_energies[vertex] = energy;
+            band_min = std::min(band_min, energy);
+            band_max = std::max(band_max, energy);
+            if (vertex == 0) {
+                flat_energy = energy;
+            } else if (std::abs(energy - flat_energy) > tol_) {
+                flat_mask = false;
+            }
+        }
+
+        const bool full = band_max <= mu;
+        const bool empty = band_min > mu;
         const bool flat_half =
-            cell.flat_mask[band] &&
+            flat_mask &&
             !full &&
             !empty &&
-            std::abs(cell.flat_energy[band] - mu) <= tol_;
+            std::abs(flat_energy - mu) <= tol_;
         if (full) {
-            charge += cell.volume;
+            charge += simplex.volume;
             continue;
         }
         if (empty) {
             continue;
         }
         if (flat_half) {
-            charge += 0.5 * cell.volume;
+            charge += 0.5 * simplex.volume;
             continue;
         }
-        if (cell.distinct_mask[band]) {
-            const double *energies = cell.sorted_energies.data() + band * n_vertices;
-            const double *weights =
-                geometry_->ndim_ > 3 ? cell.simplex_weights.data() + band * n_vertices : nullptr;
+
+        std::sort(sorted_energies.begin(), sorted_energies.end());
+        bool distinct = true;
+        for (size_t vertex = 1; vertex < n_vertices; ++vertex) {
+            if (sorted_energies[vertex] - sorted_energies[vertex - 1] <= tol_) {
+                distinct = false;
+                break;
+            }
+        }
+
+        if (distinct) {
+            const double *weights = nullptr;
+            if (geometry_->ndim_ > 3) {
+                std::fill(simplex_weights.begin(), simplex_weights.end(), 0.0);
+                for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
+                    double denom = 1.0;
+                    for (size_t other = 0; other < n_vertices; ++other) {
+                        if (other == vertex) {
+                            continue;
+                        }
+                        denom *= sorted_energies[vertex] - sorted_energies[other];
+                    }
+                    simplex_weights[vertex] = 1.0 / denom;
+                }
+                weights = simplex_weights.data();
+            }
             const auto [fraction, dfraction] = simplex_fraction_and_derivative(
-                energies,
+                sorted_energies.data(),
                 mu,
                 geometry_->ndim_,
                 weights,
                 tol_
             );
-            charge += cell.volume * fraction;
-            derivative += cell.volume * dfraction;
+            charge += simplex.volume * fraction;
+            derivative += simplex.volume * dfraction;
             continue;
         }
 
         derivative_exact = false;
-        std::vector<double> band_energies(n_vertices);
-        for (size_t vertex = 0; vertex < n_vertices; ++vertex) {
-            band_energies[vertex] = cell.vertex_energies[vertex * ndof + band];
-        }
         const auto pieces = occupied_subsimplices_from_flat(
-            cell.points_flat.data(),
+            simplex.points_flat.data(),
             band_energies.data(),
             n_vertices,
             geometry_->ndim_,

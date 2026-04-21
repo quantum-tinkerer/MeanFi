@@ -42,6 +42,7 @@ def test_fixed_filling_density_reports_separate_charge_and_density_tolerances():
     assert info.charge_integral_atol == 2.5e-7
     assert info.density_atol == 1e-8
     assert info.density_rtol == 0.0
+    assert info.error_estimate_available is True
     assert info.density_integration_calls == 1
     assert (
         info.n_kernel_evals == info.charge_n_kernel_evals + info.density_n_kernel_evals
@@ -84,11 +85,12 @@ def test_public_signatures_match_the_lean_api():
         "charge_tol",
         "density_atol",
         "scf_tol",
+        "max_subdivisions",
     ]
     assert all(
         parameter.kind is inspect.Parameter.KEYWORD_ONLY
         for name, parameter in model_params.items()
-        if name in {"kT", "charge_tol", "density_atol", "scf_tol"}
+        if name in {"kT", "charge_tol", "density_atol", "scf_tol", "max_subdivisions"}
     )
 
     solver_params = inspect.signature(solver).parameters
@@ -178,3 +180,26 @@ def test_low_level_density_matrix_at_mu_leaves_subdivisions_unbounded_by_default
     assert np.allclose(rho[(0,)], np.array([[0.5]]))
     assert np.allclose(error[(0,)], np.array([[0.0]]))
     assert info.n_kernel_evals == 1
+
+
+def test_model_forwards_max_subdivisions_to_low_level_density(monkeypatch):
+    import meanfi.model as model_module
+
+    captured = {}
+
+    def fake_density_matrix(*args, **kwargs):
+        captured["max_subdivisions"] = kwargs["max_subdivisions"]
+        return ({(0,): np.eye(1)}, {(0,): np.zeros((1, 1))}, 0.0, object())
+
+    monkeypatch.setattr(model_module, "density_matrix", fake_density_matrix)
+
+    model = Model(
+        {(0,): np.zeros((1, 1))},
+        {(0,): np.zeros((1, 1))},
+        filling=1.0,
+        kT=0.0,
+        max_subdivisions=7,
+    )
+    model.density_matrix({(0,): np.zeros((1, 1))})
+
+    assert captured["max_subdivisions"] == 7

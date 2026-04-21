@@ -49,13 +49,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import meanfi
 from scipy.optimize import anderson
-
-tutorial_model_kwargs = dict(
-    kT=0.1,
-    charge_tol=1e-4,
-    density_atol=1e-4,
-    scf_tol=1e-4,
+from scripts.zero_temp_validation import (
+    HUBBARD_TUTORIAL_MODEL_KWARGS,
+    resolved_hubbard_gap,
 )
+
+tutorial_model_kwargs = dict(HUBBARD_TUTORIAL_MODEL_KWARGS)
+np.random.seed(0)
 ```
 
 Now let us translate the non-interacting Hamiltonian $\hat{H_0}$ defined above into the basic input format for the package: a **tight-binding dictionary**.
@@ -128,10 +128,9 @@ Therefore, the choice of the initial guess can significantly affect the final so
 Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.guess_tb` function.
 It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
 Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.guess_tb`.
-To keep the adaptive-quadrature tutorial practical without changing the plots themselves, we use a modestly
-larger finite temperature and slightly looser tolerances through `tutorial_model_kwargs`. The default solver
-uses internal linear mixing, which is sufficient for this small example. For the wider phase-diagram sweep
-below we pass `scipy.optimize.anderson` explicitly through the `optimizer=` hook.
+For the zero-temperature tutorial we keep the original physics inputs from `main` and only relax solver-side controls through `tutorial_model_kwargs`.
+In one dimension, `max_subdivisions=128` is already enough to match the unbounded adaptive result at this accuracy.
+The default solver uses internal linear mixing, which is sufficient for this small example. For the wider phase-diagram sweep below we still pass `scipy.optimize.anderson` explicitly through the `optimizer=` hook.
 
 ```{code-cell} ipython3
 filling = 2
@@ -172,34 +171,39 @@ def compute_sol(U, h_0, filling=2):
         full_model,
         guess,
         optimizer=anderson,
-        optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+        optimizer_kwargs={
+            "M": 0,
+            "line_search": "wolfe",
+            "f_tol": tutorial_model_kwargs["scf_tol"],
+        },
     )
-    return meanfi.add_tb(h_0, mf_sol)
-
-
-def compute_gap(full_sol, nk_dense, fermi_energy=0):
-    h_kgrid = meanfi.tb_to_kgrid(full_sol, nk_dense)
-    vals = np.linalg.eigvalsh(h_kgrid)
-
-    emax = np.max(vals[vals <= fermi_energy])
-    emin = np.min(vals[vals > fermi_energy])
-    return np.abs(emin - emax)
+    full_sol = meanfi.add_tb(h_0, mf_sol)
+    rho, _, _, _ = meanfi.density_matrix(
+        full_sol,
+        filling=filling,
+        kT=tutorial_model_kwargs["kT"],
+        keys=[(0,)],
+        charge_tol=tutorial_model_kwargs["charge_tol"],
+        density_atol=tutorial_model_kwargs["density_atol"],
+        max_subdivisions=tutorial_model_kwargs["max_subdivisions"],
+    )
+    return full_sol, rho[(0,)]
 
 
 def compute_phase_diagram(
     Us,
-    nk_dense,
 ):
     gaps = []
     for U in Us:
-        full_sol = compute_sol(U, h_0)
-        gaps.append(compute_gap(full_sol, nk_dense))
+        full_sol, local_density = compute_sol(U, h_0)
+        gap, _ = resolved_hubbard_gap(full_sol, U=U, local_density=local_density)
+        gaps.append(gap)
 
     return np.asarray(gaps, dtype=float)
 
 
 Us = np.linspace(0, 4, 30, endpoint=True)
-gaps = compute_phase_diagram(Us=Us, nk_dense=100)
+gaps = compute_phase_diagram(Us=Us)
 
 plt.plot(Us, gaps, c="k")
 plt.xlabel("$U / t$")
@@ -207,4 +211,6 @@ plt.ylabel("$\Delta{E}/t$")
 plt.show()
 ```
 
-We see that at around $U=1$ the gap opens up and the system transitions from a metal to an insulator.  In order to more accurately determine the size of the gap, we chose to use a denser k-grid for the diagonalization of the mean-field solution.
+We see that at around $U=1$ the gap opens up and the system transitions from a metal to an insulator.
+At zero temperature, the low-$U$ gap can fall below the resolution of a fixed post-processing k-grid and show up as a fake floor or kink.
+The helper imported above refines the post-processing grid until the direct gap stabilizes and falls back to the local staggered order parameter whenever the direct band gap is still unresolved.

@@ -128,7 +128,15 @@ and then uses safeguarded Newton steps with bisection fallback to find the root.
 
 This keeps the outer optimizer away from chemical-potential instabilities while still reusing the adaptive
 quadrature or simplicial cache across the repeated charge evaluations. For `kT = 0`, the Brillouin zone is treated
-as a torus mathematically, but the implementation keeps duplicated seam vertices rather than identifying opposite
-faces in the cache. To avoid seam-crossing simplices, the root mesh partitions the fundamental cell into $2^d$
-half-sized subcells before triangulating each one. Dense $k$-grid integrations and repeated SciPy cubature are
-kept only as testing and benchmarking references, not as the production solver path.
+as a torus mathematically. The geometry layer still keeps duplicated seam vertices so that the simplicial mesh never
+crosses a periodic boundary, but the spectral layer wraps reduced coordinates before diagonalization so seam-related
+geometry vertices collapse onto the same physical $k$ point in the eigensystem cache. To avoid seam-crossing
+simplices, the root mesh partitions the fundamental cell into $2^d$ half-sized subcells before triangulating each
+one. Dense $k$-grid integrations and repeated SciPy cubature are kept only as testing and benchmarking references,
+not as the production solver path. The high-level `Model` exposes `max_subdivisions` so tutorials and benchmarks can
+bound that adaptive process. For `kT = 0`, adaptive density estimation compares a coarse owner-simplex vertex
+cubature against a one-level preview vertex cubature and uses the preview value as the accepted contribution, but
+the native controller updates those active-leaf preview sums incrementally rather than recomputing the whole active
+frontier each round. All density and SCF stopping criteria are reported in componentwise max norms rather than L2
+norms. Finally, `max_subdivisions = 0` is a distinct root-mesh-only mode: it performs no preview, no refinement,
+and therefore provides no density-error indicator.

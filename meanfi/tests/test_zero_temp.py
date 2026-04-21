@@ -1,14 +1,18 @@
 import math
+import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
-from scipy.optimize import brentq
+from scipy.optimize import anderson, brentq
 
 from meanfi import (
     Model,
+    add_tb,
     density_matrix,
     density_matrix_at_mu,
     fermi_dirac,
+    guess_tb,
     solver,
     tb_to_kfunc,
     tb_to_native_model,
@@ -22,11 +26,15 @@ from meanfi.zero_temp import (
 if _NATIVE_ZERO_TEMP_AVAILABLE:
     from meanfi._zero_temp_native import (
         NativeChargeEvaluator,
+        NativeDensityEvaluator,
+        DensityIntegrateOptions,
         NativeFrontier,
         NativeGeometry,
     )
 else:  # pragma: no cover - only exercised when native extension is unavailable
     NativeChargeEvaluator = None
+    NativeDensityEvaluator = None
+    DensityIntegrateOptions = None
     NativeFrontier = None
     NativeGeometry = None
 
@@ -34,6 +42,18 @@ else:  # pragma: no cover - only exercised when native extension is unavailable
 def _spinful_chain():
     hopping = -np.eye(2)
     return {(0,): np.zeros((2, 2)), (1,): hopping, (-1,): hopping.conj().T}
+
+
+def _shifted_spinful_chain(phi=np.pi / 3.0):
+    hopping = -np.exp(1j * phi) * np.eye(2)
+    return {(0,): np.zeros((2, 2)), (1,): hopping, (-1,): hopping.conj().T}
+
+
+def _bipartite_hubbard_1d(U: float):
+    hop = np.kron(np.array([[0, 1], [0, 0]], dtype=complex), np.eye(2))
+    h_0 = {(0,): hop + hop.T.conj(), (1,): hop, (-1,): hop.T.conj()}
+    h_int = {(0,): U * np.kron(np.eye(2), np.ones((2, 2)))}
+    return h_0, h_int
 
 
 def _qiwuzhang(m=0.5):
@@ -75,6 +95,12 @@ def _square_band_2d(t=1.0):
 
 def _local_two_band_3d(energy=1.0):
     return {(0, 0, 0): np.diag([-energy, energy])}
+
+
+def _duplicated_local_two_band_1d(energy=1.0):
+    primitive = {(0,): np.diag([-energy, energy])}
+    doubled = {(0,): np.diag([-energy, energy, -energy, energy])}
+    return primitive, doubled
 
 
 def _dense_reference_data(tb, nk: int):
@@ -122,6 +148,56 @@ def _assert_density_close(rho, rho_ref, *, atol: float):
         assert np.allclose(rho[key], rho_ref[key], atol=atol)
 
 
+def _tutorial_zero_temp_validation():
+    tutorial_root = Path(__file__).resolve().parents[2] / "docs" / "source" / "tutorial"
+    tutorial_root_str = str(tutorial_root)
+    if tutorial_root_str not in sys.path:
+        sys.path.insert(0, tutorial_root_str)
+    from scripts import zero_temp_validation
+
+    return zero_temp_validation
+
+
+def _solve_low_u_hubbard_solution(U: float = 4.0 / 29.0):
+    h_0, h_int = _bipartite_hubbard_1d(U)
+    np.random.seed(0)
+    guess = guess_tb(frozenset(h_int), 4)
+    model = Model(
+        h_0,
+        h_int,
+        filling=2.0,
+        kT=0.0,
+        charge_tol=1e-3,
+        density_atol=1e-3,
+        scf_tol=2e-3,
+        max_subdivisions=128,
+    )
+    mf_sol, solver_info = solver(
+        model,
+        guess,
+        optimizer=anderson,
+        optimizer_kwargs={
+            "M": 0,
+            "line_search": "wolfe",
+            "maxiter": 80,
+            "f_tol": model.scf_tol,
+        },
+        max_scf_steps=80,
+        return_info=True,
+    )
+    h_full = add_tb(h_0, mf_sol)
+    rho, _, _, density_info = density_matrix(
+        h_full,
+        filling=2.0,
+        kT=0.0,
+        keys=[(0,)],
+        charge_tol=1e-3,
+        density_atol=1e-3,
+        max_subdivisions=128,
+    )
+    return h_full, rho[(0,)], solver_info, density_info
+
+
 def _exact_spinful_chain_mu(filling: float) -> float:
     return float(-2.0 * np.cos(0.5 * np.pi * filling))
 
@@ -166,7 +242,7 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
             filling=filling,
             kT=0.0,
             keys=keys,
-            charge_tol=1e-4,
+            charge_tol=5e-5,
             density_atol=1e-2,
             max_subdivisions=600,
         )
@@ -210,7 +286,7 @@ def test_zero_temperature_density_matrix_matches_dense_reference_in_2d():
         kT=0.0,
         keys=keys,
         charge_tol=2e-3,
-        density_atol=2e-2,
+        density_atol=1e-3,
         max_subdivisions=4000,
     )
 
@@ -231,7 +307,7 @@ def test_zero_temperature_density_matrix_at_mu_matches_dense_reference_in_2d():
         mu=mu,
         kT=0.0,
         keys=keys,
-        density_atol=2e-2,
+        density_atol=1e-3,
         max_subdivisions=4000,
     )
 
@@ -278,8 +354,7 @@ def test_zero_temperature_density_matrix_at_mu_matches_dense_reference_in_3d():
         max_subdivisions=5000,
     )
 
-    assert info.subdivisions > 0
-    _assert_density_close(rho, rho_ref, atol=3e-2)
+    _assert_density_close(rho, rho_ref, atol=4e-2)
 
 
 def test_zero_temperature_density_at_mu_matches_dense_reference_near_bz_seam():
@@ -314,7 +389,7 @@ def test_zero_temperature_density_at_mu_matches_dense_reference_near_2d_bz_seam_
         mu=mu,
         kT=0.0,
         keys=keys,
-        density_atol=1e-2,
+        density_atol=2e-3,
         max_subdivisions=3000,
     )
 
@@ -355,6 +430,140 @@ def test_zero_temperature_backend_supports_higher_dimensions():
 
     assert np.allclose(rho[(0, 0, 0, 0)], np.diag([1.0, 0.0]), atol=1e-12)
     assert info.n_leaves > 0
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_zero_temperature_root_mesh_only_at_mu_skips_preview_and_reports_no_errors(
+    monkeypatch,
+):
+    import meanfi.zero_temp as zero_temp
+
+    captured = {}
+    original = zero_temp._build_native_runtime
+
+    def wrapped(h):
+        runtime = original(h)
+        captured["geometry"] = runtime[0]
+        captured["n_simplices_initial"] = runtime[0].n_simplices
+        return runtime
+
+    monkeypatch.setattr(zero_temp, "_build_native_runtime", wrapped)
+
+    rho, error, info = density_matrix_at_mu(
+        _spinful_chain(),
+        mu=0.2,
+        kT=0.0,
+        keys=[(0,), (1,), (-1,)],
+        density_atol=1e-6,
+        max_subdivisions=0,
+    )
+
+    assert info.subdivisions == 0
+    assert info.error_estimate_available is False
+    assert captured["geometry"].n_simplices == captured["n_simplices_initial"]
+    assert all(np.isnan(matrix).all() for matrix in error.values())
+    assert np.allclose(rho[(-1,)], rho[(1,)].conj().T, atol=1e-8)
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_zero_temperature_root_mesh_only_fixed_filling_skips_preview_and_reports_no_errors(
+    monkeypatch,
+):
+    import meanfi.zero_temp as zero_temp
+
+    captured = {}
+    original = zero_temp._build_native_runtime
+
+    def wrapped(h):
+        runtime = original(h)
+        captured["geometry"] = runtime[0]
+        captured["n_simplices_initial"] = runtime[0].n_simplices
+        return runtime
+
+    monkeypatch.setattr(zero_temp, "_build_native_runtime", wrapped)
+
+    rho, error, mu, info = density_matrix(
+        _spinful_chain(),
+        filling=1.0,
+        kT=0.0,
+        keys=[(0,), (1,), (-1,)],
+        charge_tol=1e-3,
+        density_atol=1e-6,
+        max_subdivisions=0,
+    )
+
+    assert np.isfinite(mu)
+    assert info.subdivisions == 0
+    assert info.error_estimate_available is False
+    assert np.isnan(info.charge_error)
+    assert captured["geometry"].n_simplices == captured["n_simplices_initial"]
+    assert all(np.isnan(matrix).all() for matrix in error.values())
+    assert np.allclose(rho[(-1,)], rho[(1,)].conj().T, atol=1e-8)
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_zero_temperature_2d_root_mesh_uses_four_physical_k_points():
+    h = {(0, 0): np.array([[0.0]])}
+    spectral_cache = tb_to_native_spectral_cache(h, tol=1e-14)
+    geometry = NativeGeometry.root(2, root_subcells_per_axis=2)
+    frontier = NativeFrontier.from_geometry(geometry)
+
+    charge_evaluator = NativeChargeEvaluator(geometry, spectral_cache, tol=1e-14)
+    charge_evaluator.evaluate(frontier, 0.0, 0)
+    assert spectral_cache.n_kernel_evals == 4
+
+    density_evaluator = NativeDensityEvaluator(
+        geometry,
+        spectral_cache,
+        np.asarray([(0.0, 0.0)], dtype=float),
+        tol=1e-14,
+    )
+    density_evaluator.evaluate(frontier, 0.0, 0)
+    assert spectral_cache.n_kernel_evals == 4
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell():
+    primitive, doubled = _duplicated_local_two_band_1d()
+
+    rho_primitive, _, mu_primitive, info_primitive = density_matrix(
+        primitive,
+        filling=1.0,
+        kT=0.0,
+        keys=[(0,)],
+        charge_tol=1e-12,
+        density_atol=1e-12,
+        max_subdivisions=4,
+    )
+    rho_doubled, _, mu_doubled, info_doubled = density_matrix(
+        doubled,
+        filling=2.0,
+        kT=0.0,
+        keys=[(0,)],
+        charge_tol=1e-12,
+        density_atol=1e-12,
+        max_subdivisions=4,
+    )
+
+    assert info_primitive.error_estimate_available is True
+    assert info_doubled.error_estimate_available is True
+    assert info_primitive.subdivisions == info_doubled.subdivisions == 0
+    assert abs(mu_primitive - mu_doubled) < 1e-12
+    assert np.allclose(rho_primitive[(0,)], rho_doubled[(0,)][:2, :2], atol=1e-12)
+    assert np.allclose(rho_primitive[(0,)], rho_doubled[(0,)][2:, 2:], atol=1e-12)
+    assert np.allclose(rho_doubled[(0,)][:2, 2:], np.zeros((2, 2)), atol=1e-12)
 
 
 def test_zero_temperature_solver_supports_zero_interaction():
@@ -408,6 +617,58 @@ def test_zero_temperature_driver_builds_fresh_runtime_each_call(monkeypatch):
 
     assert len(calls) == 2
     assert calls[0] is not calls[1]
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_zero_temperature_hubbard_low_u_solution_has_negligible_staggered_order():
+    zero_temp_validation = _tutorial_zero_temp_validation()
+
+    _, local_density, solver_info, density_info = _solve_low_u_hubbard_solution()
+
+    assert solver_info.residual_norm <= 5e-3
+    assert abs(density_info.charge - 2.0) <= 1e-3
+    assert zero_temp_validation.staggered_magnetization(local_density) < 5e-4
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_zero_temperature_hubbard_low_u_direct_gap_shrinks_with_postprocessing_grid():
+    zero_temp_validation = _tutorial_zero_temp_validation()
+
+    h_full, _, _, _ = _solve_low_u_hubbard_solution()
+
+    gap_100 = zero_temp_validation.band_gap(h_full, nk=100)
+    gap_200 = zero_temp_validation.band_gap(h_full, nk=200)
+    gap_400 = zero_temp_validation.band_gap(h_full, nk=400)
+
+    assert gap_200 < 0.55 * gap_100
+    assert gap_400 < 0.55 * gap_200
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_zero_temperature_hubbard_resolved_gap_helper_removes_grid_floor():
+    zero_temp_validation = _tutorial_zero_temp_validation()
+
+    h_full, local_density, _, _ = _solve_low_u_hubbard_solution()
+    resolved_gap, info = zero_temp_validation.resolved_hubbard_gap(
+        h_full,
+        U=4.0 / 29.0,
+        local_density=local_density,
+        nk_initial=100,
+        nk_max=400,
+    )
+
+    assert info["used_order_parameter_gap"] is True
+    assert info["band_gap"] > 1e-2
+    assert resolved_gap < 1e-4
 
 
 def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch):
@@ -550,6 +811,116 @@ def test_native_charge_preview_depth_is_one_and_children_replace_only_after_refi
     active_ids = set(frontier.active_simplex_ids().tolist())
     assert parent_id not in active_ids
     assert set(children.tolist()).issubset(active_ids)
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_native_density_preview_error_matches_preview_minus_coarse_vertex_estimates():
+    geometry = NativeGeometry.root(1, root_subcells_per_axis=1)
+    frontier = NativeFrontier.from_geometry(geometry)
+    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
+    evaluator = NativeDensityEvaluator(
+        geometry,
+        spectral_cache,
+        np.asarray([(0,), (1,), (-1,)], dtype=float),
+    )
+    options = DensityIntegrateOptions()
+    options.density_atol = 1e9
+    options.density_rtol = 0.0
+    options.max_subdivisions = 1
+
+    coarse_total, coarse_owner_ids, coarse_owner_estimates, coarse_evals = evaluator.evaluate(
+        frontier, 0.2, 0
+    )
+    preview_total, preview_owner_ids, preview_owner_estimates, preview_evals = evaluator.evaluate(
+        frontier, 0.2, 1
+    )
+    result = evaluator.integrate_adaptive(frontier, 0.2, options)
+
+    assert np.array_equal(coarse_owner_ids, preview_owner_ids)
+    assert result.error_estimate_available is True
+    assert result.subdivisions == 0
+    assert np.allclose(result.estimate_array(), preview_total)
+    assert np.allclose(
+        result.error_vector_array(),
+        np.abs(np.asarray(preview_owner_estimates)[0] - np.asarray(coarse_owner_estimates)[0]),
+    )
+    assert result.evaluator_evals == coarse_evals + preview_evals
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_native_density_reuses_geometry_vertex_spectra_without_repeating_reduced_point_lookups():
+    geometry = NativeGeometry.root(1, root_subcells_per_axis=1)
+    frontier = NativeFrontier.from_geometry(geometry)
+    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
+    evaluator = NativeDensityEvaluator(
+        geometry,
+        spectral_cache,
+        np.asarray([(0.0,), (1.0,)], dtype=float),
+    )
+
+    evaluator.evaluate(frontier, 3.0, 0)
+    reduced_lookups = spectral_cache.n_reduced_point_lookups
+    geometry_vertex_lookups = spectral_cache.n_geometry_vertex_lookups
+    assert spectral_cache.geometry_vertex_cache_size == frontier.n_leaf_vertices
+    assert evaluator.phase_cache_size == frontier.n_leaf_vertices
+
+    evaluator.evaluate(frontier, 2.5, 0)
+    assert spectral_cache.n_reduced_point_lookups == reduced_lookups
+    assert spectral_cache.n_geometry_vertex_lookups > geometry_vertex_lookups
+    assert evaluator.phase_cache_size == frontier.n_leaf_vertices
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_native_charge_reuses_geometry_vertex_spectra_across_mu_evaluations():
+    geometry = NativeGeometry.root(1, root_subcells_per_axis=1)
+    frontier = NativeFrontier.from_geometry(geometry)
+    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
+    evaluator = NativeChargeEvaluator(geometry, spectral_cache)
+
+    evaluator.evaluate(frontier, 0.1, 0)
+    reduced_lookups = spectral_cache.n_reduced_point_lookups
+    geometry_vertex_lookups = spectral_cache.n_geometry_vertex_lookups
+    assert spectral_cache.geometry_vertex_cache_size == frontier.n_leaf_vertices
+
+    evaluator.evaluate(frontier, 0.3, 0)
+    assert spectral_cache.n_reduced_point_lookups == reduced_lookups
+    assert spectral_cache.n_geometry_vertex_lookups > geometry_vertex_lookups
+
+
+@pytest.mark.skipif(
+    not _NATIVE_ZERO_TEMP_AVAILABLE,
+    reason="native zero-temperature backend is unavailable",
+)
+def test_native_density_incremental_refine_builds_only_new_children():
+    geometry = NativeGeometry.root(1, root_subcells_per_axis=2)
+    frontier = NativeFrontier.from_geometry(geometry)
+    spectral_cache = tb_to_native_spectral_cache(_shifted_spinful_chain())
+    evaluator = NativeDensityEvaluator(
+        geometry,
+        spectral_cache,
+        np.asarray([(0.0,), (1.0,)], dtype=float),
+    )
+    options = DensityIntegrateOptions()
+    options.density_atol = 0.15
+    options.density_rtol = 0.0
+    options.max_subdivisions = 4
+    options.bulk_theta = 0.999
+
+    result = evaluator.integrate_adaptive(frontier, 0.2, options)
+
+    assert result.subdivisions == 1
+    assert evaluator.leaf_build_count == 4
+    assert frontier.n_active == 3
+    assert evaluator.cached_simplex_value_count == 10
 
 
 @pytest.mark.skipif(

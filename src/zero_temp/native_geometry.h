@@ -45,6 +45,8 @@ private:
     friend class NativeChargeEvaluator;
     friend class NativeDensityEvaluator;
     friend class NativeFrontier;
+    friend class NativeSpectralCache;
+    friend class NativeSimplexCache;
 
     void build_root();
     std::int64_t get_or_add_vertex(const std::vector<double> &point);

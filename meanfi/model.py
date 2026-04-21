@@ -22,6 +22,7 @@ class _ModelPolicy:
     density_atol: float
     scf_tol: float
     density_rtol: float = 0.0
+    max_subdivisions: int | None = None
 
     @property
     def mu_xtol(self) -> float:
@@ -44,6 +45,10 @@ class Model:
     charge_tol, density_atol, scf_tol :
         High-level accuracy controls for fixed-filling density updates and the
         self-consistent field solver.
+    max_subdivisions :
+        Optional cap on adaptive refinement work. For `kT = 0`,
+        ``max_subdivisions=0`` keeps only the root simplicial mesh and disables
+        adaptive error estimation.
     """
 
     def __init__(
@@ -56,6 +61,7 @@ class Model:
         charge_tol: float = 1e-4,
         density_atol: float = 1e-5,
         scf_tol: float = 1e-5,
+        max_subdivisions: int | None = None,
     ) -> None:
         validate_tb_dict(h_0)
         validate_tb_dict(h_int)
@@ -68,6 +74,8 @@ class Model:
             raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
         if charge_tol <= 0 or density_atol <= 0 or scf_tol <= 0:
             raise ValueError("tolerances must be positive")
+        if max_subdivisions is not None and max_subdivisions < 0:
+            raise ValueError("max_subdivisions must be non-negative or None")
 
         self.h_0 = h_0
         self.h_int = h_int
@@ -77,6 +85,9 @@ class Model:
             charge_tol=float(charge_tol),
             density_atol=float(density_atol),
             scf_tol=float(scf_tol),
+            max_subdivisions=(
+                None if max_subdivisions is None else int(max_subdivisions)
+            ),
         )
 
         self._ndim = tb_dimension(h_0)
@@ -107,6 +118,10 @@ class Model:
     def scf_tol(self) -> float:
         return self._policy.scf_tol
 
+    @property
+    def max_subdivisions(self) -> int | None:
+        return self._policy.max_subdivisions
+
     def hamiltonian_from_rho(self, rho: _tb_type) -> _tb_type:
         """Return the interacting Hamiltonian implied by a trial density matrix."""
 
@@ -127,7 +142,7 @@ class Model:
         """Compute the fixed-filling density matrix for a trial density.
 
         The model-level accuracy policy is used for the entire solve. Advanced
-        backend knobs remain available only through :func:`meanfi.density_matrix`.
+        backend knobs remain available only through :func:`meanfi.mf.density_matrix`.
         """
 
         resolved_keys = list(self.h_int) if keys is None else keys
@@ -142,6 +157,7 @@ class Model:
             density_rtol=self.density_rtol,
             mu_guess=mu_guess,
             mu_xtol=self.mu_xtol,
+            max_subdivisions=self.max_subdivisions,
         )
 
     def density_matrix_at_mu(
@@ -162,4 +178,5 @@ class Model:
             keys=resolved_keys,
             density_atol=self.density_atol,
             density_rtol=self.density_rtol,
+            max_subdivisions=self.max_subdivisions,
         )

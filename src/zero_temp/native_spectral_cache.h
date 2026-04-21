@@ -7,6 +7,8 @@
 
 namespace meanfi::zero_temp_native {
 
+class NativeGeometry;
+
 class NativeSpectralCache {
 public:
     struct CacheEntry {
@@ -32,7 +34,11 @@ public:
 
     const CacheEntry &entry_for_k_point(const double *point);
     const CacheEntry &entry_for_reduced_point(const double *reduced_point);
+    const CacheEntry &entry_for_geometry_vertex(const NativeGeometry &geometry, std::int64_t vertex_id);
     CacheEntry evaluate_reduced_point_uncached(const double *reduced_point);
+    std::uint64_t n_reduced_point_lookups() const noexcept { return n_reduced_point_lookups_; }
+    std::uint64_t n_geometry_vertex_lookups() const noexcept { return n_geometry_vertex_lookups_; }
+    size_t geometry_vertex_cache_size() const noexcept { return geometry_vertex_cache_size_; }
 
 private:
     nb::tuple evaluate_many_impl(Float2D points, bool use_cache);
@@ -42,7 +48,12 @@ private:
     double tol_ = 1e-14;
     std::uint64_t generation_ = 0;
     std::uint64_t n_kernel_evals_ = 0;
+    std::uint64_t n_reduced_point_lookups_ = 0;
+    std::uint64_t n_geometry_vertex_lookups_ = 0;
+    size_t geometry_vertex_cache_size_ = 0;
     std::unordered_map<std::string, CacheEntry> cache_;
+    std::vector<const CacheEntry *> geometry_vertex_entries_;
+    std::vector<std::uint8_t> geometry_vertex_ready_;
     CacheEntry temp_entry_;
 };
 

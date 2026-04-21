@@ -59,6 +59,7 @@ struct ChargeSolveResult {
     std::int64_t n_leaves = 0;
     std::int64_t n_leaf_nodes = 0;
     bool converged = false;
+    bool error_estimate_available = true;
 };
 
 struct DensityIntegrateOptions {
@@ -77,6 +78,7 @@ struct DensityIntegrateResult {
     std::int64_t n_leaves = 0;
     std::int64_t n_leaf_nodes = 0;
     bool converged = false;
+    bool error_estimate_available = true;
 };
 
 struct NativeRefinementDescriptor {
