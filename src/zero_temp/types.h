@@ -7,7 +7,6 @@
 #include <complex>
 #include <cstdint>
 #include <initializer_list>
-#include <string>
 #include <vector>
 
 namespace nb = nanobind;
@@ -81,22 +80,7 @@ struct DensityIntegrateResult {
     bool error_estimate_available = true;
 };
 
-struct NativeRefinementDescriptor {
-    std::int64_t parent_id = -1;
-    std::vector<std::int64_t> child_ids;
-    std::vector<std::int64_t> parent_vertex_ids;
-    std::vector<std::int64_t> child_vertex_ids;
-    std::int64_t new_midpoint_vertex_id = -1;
-    std::array<std::int64_t, 2> bisected_edge{-1, -1};
-    size_t n_vertices = 0;
-
-    nb::ndarray<nb::numpy, std::int64_t> child_ids_array() const;
-    nb::ndarray<nb::numpy, std::int64_t> parent_vertex_ids_array() const;
-    nb::ndarray<nb::numpy, std::int64_t> child_vertex_ids_array() const;
-    nb::ndarray<nb::numpy, std::int64_t> bisected_edge_array() const;
-};
-
-struct NativeRefinementBatch {
+struct RefinementBatch {
     int refinements = 0;
     std::vector<std::int64_t> parent_ids;
     std::vector<std::int64_t> child_offsets{0};
@@ -109,7 +93,7 @@ struct NativeRefinementBatch {
     nb::tuple as_tuple(size_t ndim) const;
 };
 
-struct NativeSimplexRecord {
+struct SimplexRecord {
     std::int64_t simplex_id = -1;
     std::vector<std::int64_t> vertex_ids;
     std::int64_t parent_id = -1;
@@ -119,22 +103,5 @@ struct NativeSimplexRecord {
     std::array<std::int64_t, 2> split_edge{-1, -1};
     std::int64_t midpoint_vertex_id = -1;
 };
-
-std::string point_key_from_ptr(const double *point, size_t ndim, double tol);
-
-double simplex_volume_from_flat(
-    const std::vector<double> &points,
-    size_t n_vertices,
-    size_t ndim
-);
-
-std::vector<std::vector<double>> occupied_subsimplices_from_flat(
-    const double *simplex_points,
-    const double *energies,
-    size_t n_vertices,
-    size_t ndim,
-    double mu,
-    double tol
-);
 
 }  // namespace meanfi::zero_temp_native

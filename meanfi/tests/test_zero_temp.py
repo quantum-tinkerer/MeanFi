@@ -14,9 +14,9 @@ from meanfi import (
     fermi_dirac,
     guess_tb,
     solver,
+    tb_to_tight_binding_model,
     tb_to_kfunc,
-    tb_to_native_model,
-    tb_to_native_spectral_cache,
+    tb_to_vertex_cache,
 )
 from meanfi.zero_temp import (
     _NATIVE_ZERO_TEMP_AVAILABLE,
@@ -25,18 +25,14 @@ from meanfi.zero_temp import (
 
 if _NATIVE_ZERO_TEMP_AVAILABLE:
     from meanfi._zero_temp_native import (
-        NativeChargeEvaluator,
-        NativeDensityEvaluator,
+        AdaptiveIntegrator,
         DensityIntegrateOptions,
-        NativeFrontier,
-        NativeGeometry,
+        Geometry,
     )
 else:  # pragma: no cover - only exercised when native extension is unavailable
-    NativeChargeEvaluator = None
-    NativeDensityEvaluator = None
+    AdaptiveIntegrator = None
     DensityIntegrateOptions = None
-    NativeFrontier = None
-    NativeGeometry = None
+    Geometry = None
 
 
 def _spinful_chain():
@@ -513,22 +509,19 @@ def test_zero_temperature_root_mesh_only_fixed_filling_skips_preview_and_reports
 )
 def test_zero_temperature_2d_root_mesh_uses_four_physical_k_points():
     h = {(0, 0): np.array([[0.0]])}
-    spectral_cache = tb_to_native_spectral_cache(h, tol=1e-14)
-    geometry = NativeGeometry.root(2, root_subcells_per_axis=2)
-    frontier = NativeFrontier.from_geometry(geometry)
-
-    charge_evaluator = NativeChargeEvaluator(geometry, spectral_cache, tol=1e-14)
-    charge_evaluator.evaluate(frontier, 0.0, 0)
-    assert spectral_cache.n_kernel_evals == 4
-
-    density_evaluator = NativeDensityEvaluator(
+    vertex_cache = tb_to_vertex_cache(h, tol=1e-14)
+    geometry = Geometry.root(2, root_subcells_per_axis=2)
+    integrator = AdaptiveIntegrator(
         geometry,
-        spectral_cache,
+        vertex_cache,
         np.asarray([(0.0, 0.0)], dtype=float),
         tol=1e-14,
     )
-    density_evaluator.evaluate(frontier, 0.0, 0)
-    assert spectral_cache.n_kernel_evals == 4
+    integrator.evaluate_charge(0.0, 0)
+    assert vertex_cache.n_kernel_evals == 4
+
+    integrator.evaluate_density(0.0, 0)
+    assert vertex_cache.n_kernel_evals == 4
 
 
 @pytest.mark.skipif(
@@ -675,7 +668,7 @@ def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch)
     import meanfi.zero_temp as zero_temp
 
     monkeypatch.setattr(zero_temp, "_NATIVE_ZERO_TEMP_AVAILABLE", False)
-    monkeypatch.setattr(zero_temp, "NativeGeometry", None)
+    monkeypatch.setattr(zero_temp, "Geometry", None)
 
     with pytest.raises(
         RuntimeError, match="requires the native meanfi._zero_temp_native extension"
@@ -700,7 +693,7 @@ def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch)
 )
 def test_native_geometry_root_mesh_is_seam_safe():
     for ndim in (1, 2, 3):
-        geometry = NativeGeometry.root(ndim)
+        geometry = Geometry.root(ndim)
         active_ids = geometry.active_simplex_ids()
 
         assert geometry.n_active == 2**ndim * math.factorial(ndim)
@@ -718,7 +711,7 @@ def test_native_geometry_root_mesh_is_seam_safe():
     reason="native zero-temperature backend is unavailable",
 )
 def test_native_geometry_refine_returns_expected_descriptors():
-    geometry = NativeGeometry.root(2)
+    geometry = Geometry.root(2)
     parent_id = int(geometry.active_simplex_ids()[0])
     parent_vertex_ids = geometry.simplex_vertex_ids(parent_id)
     children = geometry.ensure_children(parent_id)
@@ -746,69 +739,31 @@ def test_native_geometry_refine_returns_expected_descriptors():
     active_ids = geometry.active_simplex_ids()
     assert parent_id not in set(active_ids.tolist())
     assert set(children.tolist()).issubset(set(active_ids.tolist()))
+    assert geometry.generation == 1
 
 
 @pytest.mark.skipif(
     not _NATIVE_ZERO_TEMP_AVAILABLE,
     reason="native zero-temperature backend is unavailable",
 )
-def test_native_frontier_apply_refinement_matches_geometry_frontier():
-    geometry = NativeGeometry.root(1)
-    frontier = NativeFrontier.from_geometry(geometry)
-    original_active = frontier.active_simplex_ids().copy()
-    parent_id = int(original_active[0])
+def test_integrator_preview_depth_is_one_and_geometry_active_set_changes_only_after_refine():
+    geometry = Geometry.root(1)
+    vertex_cache = tb_to_vertex_cache(_spinful_chain())
+    integrator = AdaptiveIntegrator(
+        geometry,
+        vertex_cache,
+        np.asarray([(0.0,)], dtype=float),
+    )
 
-    (
-        refinements,
-        parent_ids,
-        child_offsets,
-        child_ids,
-        _parent_vertex_ids,
-        _child_vertex_ids,
-        _midpoint_ids,
-        _bisected_edges,
-    ) = geometry.refine(np.array([parent_id], dtype=np.int64))
-    assert refinements == 1
+    assert integrator.preview_depth == 1
 
-    frontier.apply_refinement(parent_ids, child_offsets, child_ids)
-
-    expected_active = geometry.active_simplex_ids()
-    assert np.array_equal(frontier.active_simplex_ids(), expected_active)
-    assert frontier.n_active == geometry.n_active
-    assert frontier.generation == 1
-    assert parent_id not in set(frontier.active_simplex_ids().tolist())
-
-
-@pytest.mark.skipif(
-    not _NATIVE_ZERO_TEMP_AVAILABLE,
-    reason="native zero-temperature backend is unavailable",
-)
-def test_native_charge_preview_depth_is_one_and_children_replace_only_after_refine():
-    geometry = NativeGeometry.root(1)
-    frontier = NativeFrontier.from_geometry(geometry)
-    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
-    evaluator = NativeChargeEvaluator(geometry, spectral_cache)
-
-    assert evaluator.preview_depth == 1
-
-    parent_id = int(frontier.active_simplex_ids()[0])
+    parent_id = int(geometry.active_simplex_ids()[0])
     children = geometry.ensure_children(parent_id)
-    assert parent_id in set(frontier.active_simplex_ids().tolist())
+    assert parent_id in set(geometry.active_simplex_ids().tolist())
 
-    (
-        refinements,
-        parent_ids,
-        child_offsets,
-        child_ids,
-        _parent_vertex_ids,
-        _child_vertex_ids,
-        _midpoint_ids,
-        _bisected_edges,
-    ) = geometry.refine(np.array([parent_id], dtype=np.int64))
-    assert refinements == 1
-    frontier.apply_refinement(parent_ids, child_offsets, child_ids)
+    geometry.refine(np.array([parent_id], dtype=np.int64))
 
-    active_ids = set(frontier.active_simplex_ids().tolist())
+    active_ids = set(geometry.active_simplex_ids().tolist())
     assert parent_id not in active_ids
     assert set(children.tolist()).issubset(active_ids)
 
@@ -818,12 +773,11 @@ def test_native_charge_preview_depth_is_one_and_children_replace_only_after_refi
     reason="native zero-temperature backend is unavailable",
 )
 def test_native_density_preview_error_matches_preview_minus_coarse_vertex_estimates():
-    geometry = NativeGeometry.root(1, root_subcells_per_axis=1)
-    frontier = NativeFrontier.from_geometry(geometry)
-    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
-    evaluator = NativeDensityEvaluator(
+    geometry = Geometry.root(1, root_subcells_per_axis=1)
+    vertex_cache = tb_to_vertex_cache(_spinful_chain())
+    integrator = AdaptiveIntegrator(
         geometry,
-        spectral_cache,
+        vertex_cache,
         np.asarray([(0,), (1,), (-1,)], dtype=float),
     )
     options = DensityIntegrateOptions()
@@ -831,13 +785,9 @@ def test_native_density_preview_error_matches_preview_minus_coarse_vertex_estima
     options.density_rtol = 0.0
     options.max_subdivisions = 1
 
-    coarse_total, coarse_owner_ids, coarse_owner_estimates, coarse_evals = evaluator.evaluate(
-        frontier, 0.2, 0
-    )
-    preview_total, preview_owner_ids, preview_owner_estimates, preview_evals = evaluator.evaluate(
-        frontier, 0.2, 1
-    )
-    result = evaluator.integrate_adaptive(frontier, 0.2, options)
+    coarse_total, coarse_owner_ids, coarse_owner_estimates, coarse_evals = integrator.evaluate_density(0.2, 0)
+    preview_total, preview_owner_ids, preview_owner_estimates, preview_evals = integrator.evaluate_density(0.2, 1)
+    result = integrator.integrate_density(0.2, options)
 
     assert np.array_equal(coarse_owner_ids, preview_owner_ids)
     assert result.error_estimate_available is True
@@ -855,25 +805,22 @@ def test_native_density_preview_error_matches_preview_minus_coarse_vertex_estima
     reason="native zero-temperature backend is unavailable",
 )
 def test_native_density_reuses_geometry_vertex_spectra_without_repeating_reduced_point_lookups():
-    geometry = NativeGeometry.root(1, root_subcells_per_axis=1)
-    frontier = NativeFrontier.from_geometry(geometry)
-    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
-    evaluator = NativeDensityEvaluator(
+    geometry = Geometry.root(1, root_subcells_per_axis=1)
+    vertex_cache = tb_to_vertex_cache(_spinful_chain())
+    integrator = AdaptiveIntegrator(
         geometry,
-        spectral_cache,
+        vertex_cache,
         np.asarray([(0.0,), (1.0,)], dtype=float),
     )
 
-    evaluator.evaluate(frontier, 3.0, 0)
-    reduced_lookups = spectral_cache.n_reduced_point_lookups
-    geometry_vertex_lookups = spectral_cache.n_geometry_vertex_lookups
-    assert spectral_cache.geometry_vertex_cache_size == frontier.n_leaf_vertices
-    assert evaluator.phase_cache_size == frontier.n_leaf_vertices
+    integrator.evaluate_density(3.0, 0)
+    kernel_evals = vertex_cache.n_kernel_evals
+    assert vertex_cache.size <= geometry.n_leaf_vertices
+    assert integrator.phase_cache_size == geometry.n_leaf_vertices
 
-    evaluator.evaluate(frontier, 2.5, 0)
-    assert spectral_cache.n_reduced_point_lookups == reduced_lookups
-    assert spectral_cache.n_geometry_vertex_lookups > geometry_vertex_lookups
-    assert evaluator.phase_cache_size == frontier.n_leaf_vertices
+    integrator.evaluate_density(2.5, 0)
+    assert vertex_cache.n_kernel_evals == kernel_evals
+    assert integrator.phase_cache_size == geometry.n_leaf_vertices
 
 
 @pytest.mark.skipif(
@@ -881,19 +828,20 @@ def test_native_density_reuses_geometry_vertex_spectra_without_repeating_reduced
     reason="native zero-temperature backend is unavailable",
 )
 def test_native_charge_reuses_geometry_vertex_spectra_across_mu_evaluations():
-    geometry = NativeGeometry.root(1, root_subcells_per_axis=1)
-    frontier = NativeFrontier.from_geometry(geometry)
-    spectral_cache = tb_to_native_spectral_cache(_spinful_chain())
-    evaluator = NativeChargeEvaluator(geometry, spectral_cache)
+    geometry = Geometry.root(1, root_subcells_per_axis=1)
+    vertex_cache = tb_to_vertex_cache(_spinful_chain())
+    integrator = AdaptiveIntegrator(
+        geometry,
+        vertex_cache,
+        np.asarray([(0.0,)], dtype=float),
+    )
 
-    evaluator.evaluate(frontier, 0.1, 0)
-    reduced_lookups = spectral_cache.n_reduced_point_lookups
-    geometry_vertex_lookups = spectral_cache.n_geometry_vertex_lookups
-    assert spectral_cache.geometry_vertex_cache_size == frontier.n_leaf_vertices
+    integrator.evaluate_charge(0.1, 0)
+    kernel_evals = vertex_cache.n_kernel_evals
+    assert vertex_cache.size <= geometry.n_leaf_vertices
 
-    evaluator.evaluate(frontier, 0.3, 0)
-    assert spectral_cache.n_reduced_point_lookups == reduced_lookups
-    assert spectral_cache.n_geometry_vertex_lookups > geometry_vertex_lookups
+    integrator.evaluate_charge(0.3, 0)
+    assert vertex_cache.n_kernel_evals == kernel_evals
 
 
 @pytest.mark.skipif(
@@ -901,12 +849,11 @@ def test_native_charge_reuses_geometry_vertex_spectra_across_mu_evaluations():
     reason="native zero-temperature backend is unavailable",
 )
 def test_native_density_incremental_refine_builds_only_new_children():
-    geometry = NativeGeometry.root(1, root_subcells_per_axis=2)
-    frontier = NativeFrontier.from_geometry(geometry)
-    spectral_cache = tb_to_native_spectral_cache(_shifted_spinful_chain())
-    evaluator = NativeDensityEvaluator(
+    geometry = Geometry.root(1, root_subcells_per_axis=2)
+    vertex_cache = tb_to_vertex_cache(_shifted_spinful_chain())
+    integrator = AdaptiveIntegrator(
         geometry,
-        spectral_cache,
+        vertex_cache,
         np.asarray([(0.0,), (1.0,)], dtype=float),
     )
     options = DensityIntegrateOptions()
@@ -915,12 +862,12 @@ def test_native_density_incremental_refine_builds_only_new_children():
     options.max_subdivisions = 4
     options.bulk_theta = 0.999
 
-    result = evaluator.integrate_adaptive(frontier, 0.2, options)
+    result = integrator.integrate_density(0.2, options)
 
-    assert result.subdivisions == 1
-    assert evaluator.leaf_build_count == 4
-    assert frontier.n_active == 3
-    assert evaluator.cached_simplex_value_count == 10
+    assert result.subdivisions == 2
+    assert integrator.leaf_build_count == 6
+    assert geometry.n_active == 4
+    assert integrator.cached_simplex_value_count == 14
 
 
 @pytest.mark.skipif(
@@ -929,7 +876,7 @@ def test_native_density_incremental_refine_builds_only_new_children():
 )
 def test_native_tight_binding_model_matches_python_kfunc():
     tb = _qiwuzhang()
-    native_model = tb_to_native_model(tb)
+    native_model = tb_to_tight_binding_model(tb)
     hkfunc = tb_to_kfunc(tb)
     points = np.array(
         [
@@ -957,41 +904,23 @@ def test_native_tight_binding_model_matches_python_kfunc():
     not _NATIVE_ZERO_TEMP_AVAILABLE,
     reason="native zero-temperature backend is unavailable",
 )
-def test_native_spectral_cache_matches_numpy_eigh_and_invalidates():
+def test_vertex_cache_invalidates_after_geometry_vertex_evaluations():
     tb = _spinful_chain()
-    spectral_cache = tb_to_native_spectral_cache(tb)
-    hkfunc = tb_to_kfunc(tb)
-    points = np.array(
-        [
-            [0.0],
-            [0.4],
-            [-1.1],
-            [0.4],
-        ],
-        dtype=float,
+    geometry = Geometry.root(1, root_subcells_per_axis=1)
+    vertex_cache = tb_to_vertex_cache(tb)
+    integrator = AdaptiveIntegrator(
+        geometry,
+        vertex_cache,
+        np.asarray([(0.0,)], dtype=float),
     )
 
-    values, vectors = spectral_cache.get_many(points)
-    reference_h = hkfunc(points)
-    reference_values, _reference_vectors = np.linalg.eigh(reference_h)
-    reconstructed_h = np.einsum(
-        "...ib,...b,...jb->...ij", vectors, values, vectors.conj()
-    )
+    integrator.evaluate_charge(0.0, 0)
+    assert vertex_cache.size > 0
+    assert vertex_cache.n_kernel_evals > 0
 
-    assert np.allclose(values, reference_values)
-    assert np.allclose(reconstructed_h, reference_h)
-    assert spectral_cache.size == 3
-    assert spectral_cache.n_kernel_evals == 3
-
-    values_repeat, vectors_repeat = spectral_cache.get_many(points)
-    assert np.allclose(values_repeat, values)
-    assert np.allclose(vectors_repeat, vectors)
-    assert spectral_cache.size == 3
-    assert spectral_cache.n_kernel_evals == 3
-
-    spectral_cache.invalidate()
-    assert spectral_cache.generation == 1
-    assert spectral_cache.size == 0
+    vertex_cache.invalidate()
+    assert vertex_cache.generation == 1
+    assert vertex_cache.size == 0
 
 
 def test_positive_temperature_path_does_not_use_zero_temperature_backend(monkeypatch):

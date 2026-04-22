@@ -3,7 +3,6 @@ from typing import Callable
 
 import numpy as np
 
-from meanfi.tb._native import tb_to_native_model, tb_to_native_spectral_cache
 from meanfi.tb.tb import _tb_type
 
 

@@ -6,29 +6,25 @@ import numpy as np
 
 from meanfi._finite_temp import expand_mu_bracket, mu_bracket, solve_mu
 from meanfi._info import DensityIntegrationInfo, FixedFillingInfo
-from meanfi.tb._native import tb_to_native_spectral_cache
+from meanfi.tb._native import tb_to_vertex_cache
 from meanfi.tb.tb import _tb_type
 
 try:
     from meanfi._zero_temp_native import (
+        AdaptiveIntegrator,
         ChargeSolveOptions,
         DensityIntegrateOptions,
-        NativeChargeEvaluator,
-        NativeDensityEvaluator,
-        NativeFrontier,
-        NativeGeometry,
+        Geometry,
     )
 
     _NATIVE_ZERO_TEMP_AVAILABLE = True
 except (
     ImportError
 ):  # pragma: no cover - exercised only when native extension is unavailable
+    AdaptiveIntegrator = None
     ChargeSolveOptions = None
     DensityIntegrateOptions = None
-    NativeChargeEvaluator = None
-    NativeDensityEvaluator = None
-    NativeFrontier = None
-    NativeGeometry = None
+    Geometry = None
     _NATIVE_ZERO_TEMP_AVAILABLE = False
 
 
@@ -42,7 +38,7 @@ def _root_subcells_per_axis(ndim: int) -> int:
 
 
 def _require_native_backend() -> None:
-    if not _NATIVE_ZERO_TEMP_AVAILABLE or NativeGeometry is None:
+    if not _NATIVE_ZERO_TEMP_AVAILABLE or Geometry is None:
         raise RuntimeError(
             "Zero-temperature integration requires the native meanfi._zero_temp_native extension"
         )
@@ -55,14 +51,13 @@ def _native_subdivision_limit(max_subdivisions: int | None) -> int:
 def _build_native_runtime(hamiltonian: _tb_type):
     _require_native_backend()
     ndim = len(next(iter(hamiltonian)))
-    geometry = NativeGeometry.root(
+    geometry = Geometry.root(
         ndim,
         root_subcells_per_axis=_root_subcells_per_axis(ndim),
         tol=float(_GEOM_TOL),
     )
-    frontier = NativeFrontier.from_geometry(geometry)
-    spectral_cache = tb_to_native_spectral_cache(hamiltonian, tol=float(_GEOM_TOL))
-    return geometry, frontier, spectral_cache
+    vertex_cache = tb_to_vertex_cache(hamiltonian, tol=float(_GEOM_TOL))
+    return geometry, vertex_cache
 
 
 def _vector_to_density(
@@ -146,25 +141,23 @@ def _nan_density_error_like(rho: _tb_type) -> _tb_type:
 def _coarse_density_summary(
     *,
     geometry,
-    frontier,
-    spectral_cache,
+    vertex_cache,
     keys: list[tuple[int, ...]],
     mu: float,
 ):
-    density_evaluator = NativeDensityEvaluator(
+    integrator = AdaptiveIntegrator(
         geometry,
-        spectral_cache,
+        vertex_cache,
         np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
         tol=float(_GEOM_TOL),
     )
-    estimate, _owner_ids, _owner_estimates, evaluator_evals = density_evaluator.evaluate(
-        frontier,
+    estimate, _owner_ids, _owner_estimates, evaluator_evals = integrator.evaluate_density(
         float(mu),
         0,
     )
     estimate = np.asarray(estimate, dtype=complex)
     zero_error = np.zeros(estimate.shape, dtype=float)
-    rho, _ = _vector_to_density(estimate, zero_error, int(spectral_cache.ndof), keys)
+    rho, _ = _vector_to_density(estimate, zero_error, int(vertex_cache.ndof), keys)
     return rho, _nan_density_error_like(rho), int(evaluator_evals)
 
 
@@ -174,22 +167,21 @@ def _root_mesh_density_at_mu_zero_temp(
     mu: float,
     keys: list[tuple[int, ...]],
 ):
-    geometry, frontier, spectral_cache = _build_native_runtime(h)
+    geometry, vertex_cache = _build_native_runtime(h)
     rho, error, evaluator_evals = _coarse_density_summary(
         geometry=geometry,
-        frontier=frontier,
-        spectral_cache=spectral_cache,
+        vertex_cache=vertex_cache,
         keys=keys,
         mu=mu,
     )
     result = SimpleNamespace(
         evaluator_evals=evaluator_evals,
         subdivisions=0,
-        n_leaves=int(frontier.n_active),
-        n_leaf_nodes=int(frontier.n_leaf_vertices),
+        n_leaves=int(geometry.n_active),
+        n_leaf_nodes=int(geometry.n_leaf_vertices),
         error_estimate_available=False,
     )
-    info = _density_integration_info(result=result, spectral_cache=spectral_cache)
+    info = _density_integration_info(result=result, spectral_cache=vertex_cache)
     return rho, error, info
 
 
@@ -205,10 +197,11 @@ def _root_mesh_fixed_filling_zero_temp(
     mu_xtol: float,
     max_mu_iterations: int,
 ):
-    geometry, frontier, spectral_cache = _build_native_runtime(h)
-    charge_evaluator = NativeChargeEvaluator(
+    geometry, vertex_cache = _build_native_runtime(h)
+    integrator = AdaptiveIntegrator(
         geometry,
-        spectral_cache,
+        vertex_cache,
+        np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
         tol=float(_GEOM_TOL),
     )
     charge_integration_calls = 0
@@ -223,7 +216,7 @@ def _root_mesh_fixed_filling_zero_temp(
             _owner_ids,
             _owner_charges,
             evaluator_evals,
-        ) = charge_evaluator.evaluate(frontier, float(mu), 0)
+        ) = integrator.evaluate_charge(float(mu), 0)
         charge_integration_calls += 1
         charge_evaluator_evals += int(evaluator_evals)
         resolved_derivative = (
@@ -251,15 +244,14 @@ def _root_mesh_fixed_filling_zero_temp(
         max_mu_iterations=max_mu_iterations,
     )
 
-    charge_kernel_evals = int(spectral_cache.n_kernel_evals)
+    charge_kernel_evals = int(vertex_cache.n_kernel_evals)
     rho, error, density_evaluator_evals = _coarse_density_summary(
         geometry=geometry,
-        frontier=frontier,
-        spectral_cache=spectral_cache,
+        vertex_cache=vertex_cache,
         keys=keys,
         mu=mu,
     )
-    density_kernel_evals = int(spectral_cache.n_kernel_evals) - charge_kernel_evals
+    density_kernel_evals = int(vertex_cache.n_kernel_evals) - charge_kernel_evals
 
     charge_result = SimpleNamespace(
         mu=float(mu),
@@ -275,14 +267,14 @@ def _root_mesh_fixed_filling_zero_temp(
     density_result = SimpleNamespace(
         evaluator_evals=int(density_evaluator_evals),
         subdivisions=0,
-        n_leaves=int(frontier.n_active),
-        n_leaf_nodes=int(frontier.n_leaf_vertices),
+        n_leaves=int(geometry.n_active),
+        n_leaf_nodes=int(geometry.n_leaf_vertices),
         error_estimate_available=False,
     )
     info = _fixed_filling_info(
         charge_result=charge_result,
         density_result=density_result,
-        spectral_cache=spectral_cache,
+        spectral_cache=vertex_cache,
         charge_kernel_evals=charge_kernel_evals,
         density_kernel_evals=density_kernel_evals,
         charge_tol=charge_tol,
@@ -364,14 +356,16 @@ def density_matrix_zero_temp(
             max_mu_iterations=max_mu_iterations,
         )
 
-    geometry, frontier, spectral_cache = _build_native_runtime(h)
-    charge_evaluator = NativeChargeEvaluator(
-        geometry, spectral_cache, tol=float(_GEOM_TOL)
+    geometry, vertex_cache = _build_native_runtime(h)
+    integrator = AdaptiveIntegrator(
+        geometry,
+        vertex_cache,
+        np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
+        tol=float(_GEOM_TOL),
     )
 
     try:
-        charge_result = charge_evaluator.solve_mu_and_refine(
-            frontier,
+        charge_result = integrator.solve_mu_and_refine(
             float(filling),
             _build_charge_options(
                 mu_guess=mu_guess,
@@ -384,16 +378,9 @@ def density_matrix_zero_temp(
     except RuntimeError as exc:
         _raise_normalized_runtime_error(exc)
 
-    charge_kernel_evals = int(spectral_cache.n_kernel_evals)
-    density_evaluator = NativeDensityEvaluator(
-        geometry,
-        spectral_cache,
-        np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
-        tol=float(_GEOM_TOL),
-    )
+    charge_kernel_evals = int(vertex_cache.n_kernel_evals)
     try:
-        density_result = density_evaluator.integrate_adaptive(
-            frontier,
+        density_result = integrator.integrate_density(
             float(charge_result.mu),
             _build_density_options(
                 density_atol=density_atol,
@@ -405,17 +392,17 @@ def density_matrix_zero_temp(
     except RuntimeError as exc:
         _raise_normalized_runtime_error(exc)
 
-    density_kernel_evals = int(spectral_cache.n_kernel_evals) - charge_kernel_evals
+    density_kernel_evals = int(vertex_cache.n_kernel_evals) - charge_kernel_evals
     rho, error = _vector_to_density(
         np.asarray(density_result.estimate_array(), dtype=complex),
         np.asarray(density_result.error_vector_array(), dtype=float),
-        int(spectral_cache.ndof),
+        int(vertex_cache.ndof),
         keys,
     )
     info = _fixed_filling_info(
         charge_result=charge_result,
         density_result=density_result,
-        spectral_cache=spectral_cache,
+        spectral_cache=vertex_cache,
         charge_kernel_evals=charge_kernel_evals,
         density_kernel_evals=density_kernel_evals,
         charge_tol=charge_tol,
@@ -439,16 +426,15 @@ def density_matrix_at_mu_zero_temp(
     if max_subdivisions == 0:
         return _root_mesh_density_at_mu_zero_temp(h, mu=mu, keys=keys)
 
-    geometry, frontier, spectral_cache = _build_native_runtime(h)
-    density_evaluator = NativeDensityEvaluator(
+    geometry, vertex_cache = _build_native_runtime(h)
+    integrator = AdaptiveIntegrator(
         geometry,
-        spectral_cache,
+        vertex_cache,
         np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
         tol=float(_GEOM_TOL),
     )
     try:
-        density_result = density_evaluator.integrate_adaptive(
-            frontier,
+        density_result = integrator.integrate_density(
             float(mu),
             _build_density_options(
                 density_atol=density_atol,
@@ -462,10 +448,10 @@ def density_matrix_at_mu_zero_temp(
     rho, error = _vector_to_density(
         np.asarray(density_result.estimate_array(), dtype=complex),
         np.asarray(density_result.error_vector_array(), dtype=float),
-        int(spectral_cache.ndof),
+        int(vertex_cache.ndof),
         keys,
     )
     info = _density_integration_info(
-        result=density_result, spectral_cache=spectral_cache
+        result=density_result, spectral_cache=vertex_cache
     )
     return rho, error, info

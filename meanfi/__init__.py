@@ -23,9 +23,8 @@ from .tb.transforms import (
     kgrid_to_tb,
     tb_to_kfunc,
     tb_to_kgrid,
-    tb_to_native_model,
-    tb_to_native_spectral_cache,
 )
+from .tb._native import tb_to_tight_binding_model, tb_to_vertex_cache
 from .tb.utils import fermi_energy, generate_tb_keys, guess_tb
 
 
@@ -50,8 +49,8 @@ __all__ = [
     "solver",
     "tb_to_kfunc",
     "tb_to_kgrid",
-    "tb_to_native_model",
-    "tb_to_native_spectral_cache",
+    "tb_to_tight_binding_model",
+    "tb_to_vertex_cache",
     "__version__",
     "__version_tuple__",
 ]

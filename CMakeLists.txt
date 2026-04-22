@@ -23,14 +23,12 @@ find_package(LAPACK REQUIRED)
 
 set(
   _meanfi_zero_temp_sources
-  src/zero_temp/native_types.cpp
-  src/zero_temp/native_tight_binding.cpp
-  src/zero_temp/native_spectral_cache.cpp
-  src/zero_temp/native_geometry.cpp
-  src/zero_temp/native_frontier.cpp
-  src/zero_temp/native_simplex_cache.cpp
-  src/zero_temp/native_charge.cpp
-  src/zero_temp/native_density.cpp
+  src/zero_temp/types.cpp
+  src/zero_temp/tight_binding.cpp
+  src/zero_temp/vertex_cache.cpp
+  src/zero_temp/geometry.cpp
+  src/zero_temp/simplex_rules.cpp
+  src/zero_temp/adaptive_integrator.cpp
   src/zero_temp/bindings.cpp
 )
 

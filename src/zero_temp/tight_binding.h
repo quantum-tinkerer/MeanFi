@@ -1,14 +1,14 @@
 #pragma once
 
-#include "native_types.h"
+#include "types.h"
 
 #include <Eigen/Dense>
 
 namespace meanfi::zero_temp_native {
 
-class NativeTightBindingModel {
+class TightBindingModel {
 public:
-    NativeTightBindingModel(Int2D keys, Complex3D matrices);
+    TightBindingModel(Int2D keys, Complex3D matrices);
 
     size_t ndim() const noexcept { return ndim_; }
     size_t ndof() const noexcept { return ndof_; }
