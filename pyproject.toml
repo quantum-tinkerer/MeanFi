@@ -150,7 +150,7 @@ empty = { features = ["empty"], no-default-feature = true }
 zip = { features = ["zip"], no-default-feature = true }
 
 [tool.pixi.feature.test.tasks]
-tests = { cmd = "pytest -m \"not perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
+tests = { cmd = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 tests-perf-slow = { cmd = "pytest -m \"perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 
 
