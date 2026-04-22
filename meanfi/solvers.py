@@ -31,6 +31,7 @@ class _ScfState:
     total_charge_integration_calls: int = 0
     total_density_integration_calls: int = 0
     total_kernel_evals: int = 0
+    total_unique_evals: int = 0
     total_evaluator_evals: int = 0
 
 
@@ -41,18 +42,26 @@ def _max_norm(values: np.ndarray) -> float:
     return float(np.max(np.abs(array)))
 
 
-def _integration_counters(result: DensityMatrixResult) -> tuple[int, int, int, int]:
+def _integration_counters(result: DensityMatrixResult) -> tuple[int, int, int, int, int]:
     info = result.info
     return (
         int(getattr(info, "charge_integration_calls", 0) or 0),
         int(getattr(info, "density_integration_calls", 0) or 0),
         int(getattr(info, "n_kernel_evals", 0) or 0),
+        int(
+            getattr(
+                info,
+                "unique_evals",
+                getattr(info, "n_kernel_evals", getattr(info, "n_kpoints", 0)),
+            )
+            or 0
+        ),
         int(getattr(info, "n_evaluator_evals", 0) or 0),
     )
 
 
 def _record_density_result(state: _ScfState, result: DensityMatrixResult) -> None:
-    charge_calls, density_calls, kernel_evals, evaluator_evals = _integration_counters(
+    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = _integration_counters(
         result
     )
     state.density_matrix_result = result
@@ -60,6 +69,7 @@ def _record_density_result(state: _ScfState, result: DensityMatrixResult) -> Non
     state.total_charge_integration_calls += charge_calls
     state.total_density_integration_calls += density_calls
     state.total_kernel_evals += kernel_evals
+    state.total_unique_evals += unique_evals
     state.total_evaluator_evals += evaluator_evals
 
 
@@ -357,7 +367,7 @@ def solver(
         np.zeros((model._ndof, model._ndof), dtype=complex),
     ) - density_matrix_result.mu * np.eye(model._ndof)
 
-    charge_calls, density_calls, kernel_evals, evaluator_evals = _integration_counters(
+    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = _integration_counters(
         density_matrix_result
     )
     info = SCFInfo(
@@ -369,6 +379,7 @@ def solver(
         total_density_integration_calls=state.total_density_integration_calls
         + density_calls,
         total_kernel_evals=state.total_kernel_evals + kernel_evals,
+        total_unique_evals=state.total_unique_evals + unique_evals,
         total_evaluator_evals=state.total_evaluator_evals + evaluator_evals,
     )
     return SolverResult(

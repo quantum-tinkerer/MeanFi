@@ -9,6 +9,7 @@ class DensityIntegrationInfo:
     """Internal statistics for a single density integration at fixed chemical potential."""
 
     n_kernel_evals: int
+    unique_evals: int
     n_evaluator_evals: int
     n_cached_nodes: int
     n_leaves: int
@@ -31,6 +32,7 @@ class FixedFillingInfo:
     charge_n_kernel_evals: int
     density_n_kernel_evals: int
     n_kernel_evals: int
+    unique_evals: int
     charge_n_evaluator_evals: int
     density_n_evaluator_evals: int
     n_evaluator_evals: int
@@ -49,6 +51,7 @@ class AdaptiveSimplexInfo:
     """Public runtime metadata for adaptive zero-temperature simplicial integration."""
 
     n_kernel_evals: int
+    unique_evals: int
     n_evaluator_evals: int
     n_cached_nodes: int
     n_leaves: int
@@ -65,6 +68,7 @@ class AdaptiveQuadratureInfo:
     """Public runtime metadata for adaptive finite-temperature quadrature."""
 
     n_kernel_evals: int
+    unique_evals: int
     n_evaluator_evals: int
     n_cached_nodes: int
     n_leaves: int
@@ -82,6 +86,7 @@ class UniformGridInfo:
 
     nk: int
     n_kpoints: int
+    unique_evals: int
     error_estimate_available: bool = False
 
 
@@ -91,6 +96,7 @@ class SimplexGridInfo:
 
     nk: int
     n_kpoints: int
+    unique_evals: int
     error_estimate_available: bool = False
 
 
@@ -104,6 +110,7 @@ class SCFInfo:
     total_charge_integration_calls: int
     total_density_integration_calls: int
     total_kernel_evals: int
+    total_unique_evals: int
     total_evaluator_evals: int
 
 

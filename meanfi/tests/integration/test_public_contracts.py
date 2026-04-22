@@ -17,14 +17,14 @@ from meanfi import (
     solver,
 )
 from meanfi.solvers import NoConvergence
-from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
+from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import spinful_chain
 
 
 pytestmark = pytest.mark.integration
-requires_native = pytest.mark.skipif(
-    not _NATIVE_ZERO_TEMP_AVAILABLE,
-    reason="native zero-temperature backend is unavailable",
+requires_ext = pytest.mark.skipif(
+    not _ZERO_TEMP_EXT_AVAILABLE,
+    reason="compiled zero-temperature extension is unavailable",
 )
 
 
@@ -136,7 +136,7 @@ def test_uniform_grid_rejects_fixed_filling_root_controls():
         )
 
 
-@requires_native
+@requires_ext
 @pytest.mark.parametrize("mode", ("at_mu", "fixed_filling"))
 def test_root_mesh_only_zero_temperature_mode_reports_no_error_estimate(mode):
     tb = spinful_chain()
@@ -224,6 +224,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
                 mu=0.0,
                 charge=1.0,
                 n_kernel_evals=1,
+                unique_evals=1,
                 n_evaluator_evals=1,
                 n_cached_nodes=1,
                 n_leaves=1,
@@ -251,15 +252,15 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     assert result.filling == 1.0
 
 
-def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch):
+def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):
     import meanfi.zero_temp as zero_temp
 
-    monkeypatch.setattr(zero_temp, "_NATIVE_ZERO_TEMP_AVAILABLE", False)
+    monkeypatch.setattr(zero_temp, "_ZERO_TEMP_EXT_AVAILABLE", False)
     monkeypatch.setattr(zero_temp, "Geometry", None)
 
     with pytest.raises(
         RuntimeError,
-        match="requires the native meanfi._zero_temp_native extension",
+        match="requires the compiled meanfi._zero_temp_ext extension",
     ):
         density_matrix(
             spinful_chain(),
@@ -270,7 +271,7 @@ def test_zero_temperature_runtime_error_when_native_backend_missing(monkeypatch)
         )
 
 
-@requires_native
+@requires_ext
 def test_zero_temperature_backend_supports_higher_dimensions():
     result = density_matrix_at_mu(
         {(0, 0, 0, 0): np.diag([-1.0, 1.0])},
@@ -302,6 +303,28 @@ def test_density_matrix_result_uses_fully_explicit_field_names():
     assert hasattr(result, "density_matrix_error")
     assert not hasattr(result, "rho")
     assert not hasattr(result, "rho_error")
+    assert result.info.unique_evals == result.info.n_kernel_evals
+
+
+def test_public_info_exposes_unique_eval_counters():
+    adaptive = density_matrix(
+        spinful_chain(),
+        filling=1.0,
+        kT=0.1,
+        keys=[(0,)],
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-6),
+    )
+    uniform = density_matrix_at_mu(
+        spinful_chain(),
+        mu=0.0,
+        kT=0.0,
+        keys=[(0,)],
+        integration=UniformGrid(nk=9),
+    )
+
+    assert adaptive.info.unique_evals == adaptive.info.n_kernel_evals
+    assert adaptive.info.unique_evals > 0
+    assert uniform.info.unique_evals == uniform.info.n_kpoints == 9
 
 
 def test_solver_raises_no_convergence_when_scf_budget_is_exhausted():
@@ -350,6 +373,7 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
             integration=AdaptiveQuadrature(),
             info=AdaptiveQuadratureInfo(
                 n_kernel_evals=0,
+                unique_evals=0,
                 n_evaluator_evals=0,
                 n_cached_nodes=0,
                 n_leaves=0,
@@ -404,3 +428,23 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
 
     assert np.isclose(info_short.residual_norm, 0.1)
     assert np.isclose(info_long.residual_norm, 0.1)
+    assert info_short.total_unique_evals == info_long.total_unique_evals == 0
+
+
+def test_solver_info_exposes_total_unique_evals():
+    model = Model(
+        spinful_chain(),
+        {(0,): np.zeros((2, 2))},
+        filling=1.0,
+        kT=0.1,
+    )
+    result = solver(
+        model,
+        {(0,): np.zeros((2, 2))},
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-5),
+        scf=LinearMixing(max_iterations=3),
+        scf_tol=1e-5,
+    )
+
+    assert result.info.total_unique_evals >= result.density_matrix_result.info.unique_evals
+    assert result.info.total_unique_evals > 0

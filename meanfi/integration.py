@@ -200,6 +200,7 @@ def _translate_adaptive_info(
     )
     return info_type(
         n_kernel_evals=int(raw_info.n_kernel_evals),
+        unique_evals=int(getattr(raw_info, "unique_evals", raw_info.n_kernel_evals)),
         n_evaluator_evals=int(raw_info.n_evaluator_evals),
         n_cached_nodes=int(raw_info.n_cached_nodes),
         n_leaves=int(raw_info.n_leaves),
@@ -219,7 +220,11 @@ def _uniform_grid_info(
 ) -> UniformGridInfo:
     ndim = tb_dimension(hamiltonian)
     n_kpoints = 1 if ndim == 0 else int(integration.nk**ndim)
-    return UniformGridInfo(nk=int(integration.nk), n_kpoints=n_kpoints)
+    return UniformGridInfo(
+        nk=int(integration.nk),
+        n_kpoints=n_kpoints,
+        unique_evals=n_kpoints,
+    )
 
 
 def _wrap_density_result(
@@ -445,6 +450,7 @@ def _solve_adaptive_quadrature_fixed_filling(
             charge_n_kernel_evals=charge_kernel_evals,
             density_n_kernel_evals=int(density_result.n_kernel_evals),
             n_kernel_evals=charge_kernel_evals + int(density_result.n_kernel_evals),
+            unique_evals=charge_kernel_evals + int(density_result.n_kernel_evals),
             charge_n_evaluator_evals=charge_evaluator_evals,
             density_n_evaluator_evals=int(density_result.n_evaluator_evals),
             n_evaluator_evals=charge_evaluator_evals

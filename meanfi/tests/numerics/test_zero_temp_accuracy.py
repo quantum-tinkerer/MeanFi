@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from meanfi import AdaptiveSimplex, density_matrix, density_matrix_at_mu
-from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
+from meanfi import AdaptiveSimplex, UniformGrid, density_matrix, density_matrix_at_mu
+from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import (
     assert_estimator_covers_actual,
     converged_dense_reference,
@@ -16,9 +16,9 @@ from meanfi.tests.helpers import (
 
 
 pytestmark = pytest.mark.numerics
-requires_native = pytest.mark.skipif(
-    not _NATIVE_ZERO_TEMP_AVAILABLE,
-    reason="native zero-temperature backend is unavailable",
+requires_ext = pytest.mark.skipif(
+    not _ZERO_TEMP_EXT_AVAILABLE,
+    reason="compiled zero-temperature extension is unavailable",
 )
 
 
@@ -49,7 +49,7 @@ ZERO_TEMP_CASES = (
 )
 
 
-@requires_native
+@requires_ext
 @pytest.mark.parametrize("case", ZERO_TEMP_CASES, ids=lambda case: case.name)
 def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_across_density_ladder(
     case,
@@ -87,7 +87,7 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
         )
 
 
-@requires_native
+@requires_ext
 @pytest.mark.parametrize("case", ZERO_TEMP_CASES, ids=lambda case: case.name)
 def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_tolerance_ladder(
     case,
@@ -137,7 +137,7 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
         assert result.info.error_estimate_available is True
 
 
-@requires_native
+@requires_ext
 def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_seam():
     tb = shifted_spinful_chain()
     keys = [(0,), (1,), (-1,)]
@@ -169,3 +169,37 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
         actual_density_error,
         max_density_estimate(result.density_matrix_error),
     )
+
+
+@requires_ext
+@pytest.mark.parametrize("case", ZERO_TEMP_CASES, ids=lambda case: case.name)
+def test_uniform_grid_density_at_mu_converges_against_dense_reference(case):
+    tb = case.builder()
+    reference = converged_dense_reference(
+        tb,
+        mu=0.0,
+        kT=0.0,
+        keys=case.keys,
+        target_tol=2e-4,
+        nk_start=case.nk_start,
+        nk_max=case.nk_max,
+    )
+
+    records = []
+    for nk in (17, 33, 65):
+        result = density_matrix_at_mu(
+            tb,
+            mu=0.0,
+            kT=0.0,
+            keys=case.keys,
+            integration=UniformGrid(nk=nk),
+        )
+        records.append(
+            (
+                result.info.unique_evals,
+                max_density_error(result.density_matrix, reference.rho),
+            )
+        )
+
+    assert records[0][0] < records[1][0] < records[2][0]
+    assert records[0][1] > records[1][1] > records[2][1]

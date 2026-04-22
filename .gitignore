@@ -31,6 +31,11 @@
 _version.py
 !meanfi/_version.py
 MANIFEST
+*.egg-info
+*.pyd
+*.dylib
+meanfi/_zero_temp_ext*.so
+meanfi/_zero_temp_ext*.pyd
 
 ### Jupyter temporaries
 **/.ipynb_checkpoints
@@ -47,25 +52,34 @@ CMakeFiles/
 .skbuild-info.json
 CMakeCache.txt
 CMakeInit.txt
+cmake_install.cmake
+build.ninja
+compile_commands.json
 CMakeLists.txt
 !CMakeLists.txt
 
 ### Testing and coverage reports
-htmlcov/
-junit.xml
+build/
 .tox/
 .nox/
 .coverage
 .coverage.*
 .cache
-nosetests.xml
 coverage.xml
+junit.xml
+htmlcov/
+nosetests.xml
 *.cover
 .hypothesis/
 
-### Documentation builds
-**/build/*
+### Documentation and performance outputs
+docs/build/
+performance/results/
+*.bin
+*.html
+*.jsonl
 
 # pixi environments
 .pixi
-*.egg-info
+.pytest_cache/
+.ruff_cache/

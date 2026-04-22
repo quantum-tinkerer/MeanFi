@@ -39,7 +39,7 @@ from .tb.transforms import (
     tb_to_kfunc,
     tb_to_kgrid,
 )
-from .tb._native import tb_to_tight_binding_model, tb_to_vertex_cache
+from .tb._backend import tb_to_tight_binding_model, tb_to_vertex_cache
 from .tb.utils import fermi_energy, generate_tb_keys, guess_tb
 
 

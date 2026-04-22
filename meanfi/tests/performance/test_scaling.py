@@ -3,8 +3,8 @@ import textwrap
 import numpy as np
 import pytest
 
-from meanfi import AdaptiveQuadrature, AdaptiveSimplex, density_matrix, density_matrix_at_mu
-from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
+from meanfi import AdaptiveQuadrature, AdaptiveSimplex, UniformGrid, density_matrix, density_matrix_at_mu
+from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import (
     benchmark,
     converged_dense_reference,
@@ -16,9 +16,9 @@ from meanfi.tests.helpers import (
 
 
 pytestmark = [pytest.mark.performance, pytest.mark.perf_slow]
-requires_native = pytest.mark.skipif(
-    not _NATIVE_ZERO_TEMP_AVAILABLE,
-    reason="native zero-temperature backend is unavailable",
+requires_ext = pytest.mark.skipif(
+    not _ZERO_TEMP_EXT_AVAILABLE,
+    reason="compiled zero-temperature extension is unavailable",
 )
 
 
@@ -33,7 +33,7 @@ def _local_density_call(tb, *, filling: float):
     )
 
 
-@requires_native
+@requires_ext
 def test_zero_temperature_density_convergence_is_second_order():
     tb = dimerized_chain()
     keys = [(0,), (1,), (-1,)]
@@ -70,6 +70,37 @@ def test_zero_temperature_density_convergence_is_second_order():
     assert slope >= 1.7
 
 
+@requires_ext
+def test_uniform_grid_density_convergence_improves_with_more_kpoints():
+    tb = dimerized_chain()
+    keys = [(0,), (1,), (-1,)]
+    reference = converged_dense_reference(
+        tb,
+        mu=0.0,
+        kT=0.0,
+        keys=keys,
+        target_tol=1e-6,
+        nk_start=251,
+        nk_max=4001,
+    )
+
+    hs = []
+    errors = []
+    for nk in (17, 33, 65):
+        result = density_matrix_at_mu(
+            tb,
+            mu=0.0,
+            kT=0.0,
+            keys=keys,
+            integration=UniformGrid(nk=nk),
+        )
+        hs.append(result.info.unique_evals ** -1.0)
+        errors.append(max_density_error(result.density_matrix, reference.rho))
+
+    assert hs[0] > hs[1] > hs[2]
+    assert errors[0] > errors[1] > errors[2]
+
+
 def test_local_density_runtime_scales_consistent_with_cubic_dense_diagonalization(
     perf_slow_benchmark_config,
 ):
@@ -86,7 +117,7 @@ def test_local_density_runtime_scales_consistent_with_cubic_dense_diagonalizatio
         )
         info = result.last_result.info
         times.append(result.median_s)
-        kernel_evals.append(info.n_kernel_evals)
+        kernel_evals.append(info.unique_evals)
 
     assert kernel_evals[0] == kernel_evals[1] == kernel_evals[2]
 

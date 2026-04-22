@@ -50,6 +50,7 @@ def integration_stats(result) -> DensityIntegrationInfo:
     cached_nodes = getattr(result, "n_cached_nodes", getattr(result, "n_leaf_nodes", 0))
     return DensityIntegrationInfo(
         n_kernel_evals=int(result.n_kernel_evals),
+        unique_evals=int(result.n_kernel_evals),
         n_evaluator_evals=int(result.n_evaluator_evals),
         n_cached_nodes=int(cached_nodes),
         n_leaves=int(getattr(result, "n_leaves", 0)),

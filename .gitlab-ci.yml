@@ -31,22 +31,42 @@ run coverage:
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     paths:
-      - htmlcov
+      - build/test-reports/htmlcov
     reports:
-      junit: junit.xml
+      junit: build/test-reports/junit.xml
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
+        path: build/test-reports/coverage.xml
 
-
-run profiler:
-  when: manual # delete when profiler implemented and uncomment pages commands
+run performance benchmarks:
+  when: manual
   script:
-    - pixi run profiler
+    - pixi run -e performance performance-density-scaling
+    - pixi run -e performance performance-scf-scaling
   artifacts:
     paths:
-      - timeProfile.html
-      - memoryProfile.bin
+      - performance/results/density_scaling.json
+      - performance/results/scf_scaling.json
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .pixi
+
+run performance profiles:
+  when: manual
+  script:
+    - pixi run -e performance performance-profile-density
+    - pixi run -e performance performance-profile-scf
+  artifacts:
+    paths:
+      - performance/results/hubbard_1d_density_profile.bin
+      - performance/results/hubbard_1d_density_profile.json
+      - performance/results/hubbard_1d_scf_profile.bin
+      - performance/results/hubbard_1d_scf_profile.json
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .pixi
 
 
 run docs:
@@ -63,14 +83,14 @@ run docs:
 pages:
   needs:
     # - run tests
-    # - run profiler
+    # - run performance benchmarks
+    # - run performance profiles
     - run docs
     # - run coverage
   script:
     - mkdir public
-    # - cp -r htmlcov public/
+    # - cp -r build/test-reports/htmlcov public/
     - cp -r docs/build public/
-    # - cp -r timeProfile.html public/
   artifacts:
     paths:
       - public

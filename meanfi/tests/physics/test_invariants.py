@@ -4,12 +4,13 @@ import pytest
 from meanfi import (
     AdaptiveQuadrature,
     AdaptiveSimplex,
+    UniformGrid,
     add_tb,
     density_matrix,
     density_matrix_at_mu,
     fermi_dirac,
 )
-from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
+from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import (
     antiferromagnetic_guess,
     bipartite_hubbard_1d,
@@ -21,9 +22,9 @@ from meanfi.tests.helpers import (
 
 
 pytestmark = pytest.mark.physics
-requires_native = pytest.mark.skipif(
-    not _NATIVE_ZERO_TEMP_AVAILABLE,
-    reason="native zero-temperature backend is unavailable",
+requires_ext = pytest.mark.skipif(
+    not _ZERO_TEMP_EXT_AVAILABLE,
+    reason="compiled zero-temperature extension is unavailable",
 )
 
 
@@ -44,6 +45,7 @@ def test_zero_dimensional_density_matrix_at_mu_matches_exact_occupation():
     assert np.allclose(result.density_matrix[()], expected, atol=1e-12)
     assert np.allclose(result.density_matrix_error[()], np.zeros((2, 2)), atol=0.0)
     assert result.info.n_kernel_evals == 1
+    assert result.info.unique_evals == 1
     assert result.info.n_evaluator_evals == 1
 
 
@@ -88,7 +90,7 @@ def test_half_filling_keeps_particle_hole_symmetry():
     assert abs(result.filling - 1.0) < 1e-9
 
 
-@requires_native
+@requires_ext
 def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
     tb = spinful_chain()
     for filling in (0.1, 0.25, 0.5, 0.9, 1.1, 1.5, 1.75, 1.9):
@@ -109,7 +111,7 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
         assert result.info.refinements > 0
 
 
-@requires_native
+@requires_ext
 def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell():
     primitive, doubled = duplicated_local_two_band_1d()
 
@@ -155,3 +157,16 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
         np.zeros((2, 2)),
         atol=1e-12,
     )
+
+
+def test_uniform_grid_reports_unique_eval_count():
+    result = density_matrix_at_mu(
+        spinful_chain(),
+        mu=0.0,
+        kT=0.0,
+        keys=[(0,)],
+        integration=UniformGrid(nk=7),
+    )
+
+    assert result.info.n_kpoints == 7
+    assert result.info.unique_evals == 7

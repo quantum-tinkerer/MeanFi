@@ -39,6 +39,7 @@ def density_matrix_at_mu_zero_dim(
     rho, error = density_from_matrix(density, keys)
     info = DensityIntegrationInfo(
         n_kernel_evals=1,
+        unique_evals=1,
         n_evaluator_evals=1,
         n_cached_nodes=1,
         n_leaves=1,
@@ -85,6 +86,7 @@ def density_matrix_zero_dim(
             charge_n_kernel_evals=1,
             density_n_kernel_evals=0,
             n_kernel_evals=1,
+            unique_evals=1,
             charge_n_evaluator_evals=1,
             density_n_evaluator_evals=1,
             n_evaluator_evals=2,
@@ -142,6 +144,7 @@ def density_matrix_zero_dim(
         charge_n_kernel_evals=1,
         density_n_kernel_evals=0,
         n_kernel_evals=1,
+        unique_evals=1,
         charge_n_evaluator_evals=charge_calls,
         density_n_evaluator_evals=1,
         n_evaluator_evals=charge_calls + 1,

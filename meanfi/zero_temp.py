@@ -6,26 +6,26 @@ import numpy as np
 
 from meanfi._finite_temp import expand_mu_bracket, mu_bracket, solve_mu
 from meanfi._info import DensityIntegrationInfo, FixedFillingInfo
-from meanfi.tb._native import tb_to_vertex_cache
+from meanfi.tb._backend import tb_to_vertex_cache
 from meanfi.tb.tb import _tb_type
 
 try:
-    from meanfi._zero_temp_native import (
+    from meanfi._zero_temp_ext import (
         AdaptiveIntegrator,
         ChargeSolveOptions,
         DensityIntegrateOptions,
         Geometry,
     )
 
-    _NATIVE_ZERO_TEMP_AVAILABLE = True
+    _ZERO_TEMP_EXT_AVAILABLE = True
 except (
     ImportError
-):  # pragma: no cover - exercised only when native extension is unavailable
+):  # pragma: no cover - exercised only when the extension is unavailable
     AdaptiveIntegrator = None
     ChargeSolveOptions = None
     DensityIntegrateOptions = None
     Geometry = None
-    _NATIVE_ZERO_TEMP_AVAILABLE = False
+    _ZERO_TEMP_EXT_AVAILABLE = False
 
 
 _GEOM_TOL = 1e-14
@@ -37,19 +37,19 @@ def _root_subcells_per_axis(ndim: int) -> int:
     return 4 if ndim == 1 else _ROOT_SUBCELLS_PER_AXIS
 
 
-def _require_native_backend() -> None:
-    if not _NATIVE_ZERO_TEMP_AVAILABLE or Geometry is None:
+def _require_zero_temp_extension() -> None:
+    if not _ZERO_TEMP_EXT_AVAILABLE or Geometry is None:
         raise RuntimeError(
-            "Zero-temperature integration requires the native meanfi._zero_temp_native extension"
+            "Zero-temperature integration requires the compiled meanfi._zero_temp_ext extension"
         )
 
 
-def _native_subdivision_limit(max_subdivisions: int | None) -> int:
+def _extension_subdivision_limit(max_subdivisions: int | None) -> int:
     return -1 if max_subdivisions is None else int(max_subdivisions)
 
 
-def _build_native_runtime(hamiltonian: _tb_type):
-    _require_native_backend()
+def _build_extension_runtime(hamiltonian: _tb_type):
+    _require_zero_temp_extension()
     ndim = len(next(iter(hamiltonian)))
     geometry = Geometry.root(
         ndim,
@@ -80,6 +80,7 @@ def _vector_to_density(
 def _density_integration_info(*, result, spectral_cache) -> DensityIntegrationInfo:
     return DensityIntegrationInfo(
         n_kernel_evals=int(spectral_cache.n_kernel_evals),
+        unique_evals=int(spectral_cache.n_kernel_evals),
         n_evaluator_evals=int(result.evaluator_evals),
         n_cached_nodes=int(spectral_cache.size),
         n_leaves=int(result.n_leaves),
@@ -113,6 +114,7 @@ def _fixed_filling_info(
         charge_n_kernel_evals=int(charge_kernel_evals),
         density_n_kernel_evals=int(density_kernel_evals),
         n_kernel_evals=int(spectral_cache.n_kernel_evals),
+        unique_evals=int(spectral_cache.n_kernel_evals),
         charge_n_evaluator_evals=int(charge_result.evaluator_evals),
         density_n_evaluator_evals=int(density_result.evaluator_evals),
         n_evaluator_evals=int(
@@ -167,7 +169,7 @@ def _root_mesh_density_at_mu_zero_temp(
     mu: float,
     keys: list[tuple[int, ...]],
 ):
-    geometry, vertex_cache = _build_native_runtime(h)
+    geometry, vertex_cache = _build_extension_runtime(h)
     rho, error, evaluator_evals = _coarse_density_summary(
         geometry=geometry,
         vertex_cache=vertex_cache,
@@ -197,7 +199,7 @@ def _root_mesh_fixed_filling_zero_temp(
     mu_xtol: float,
     max_mu_iterations: int,
 ):
-    geometry, vertex_cache = _build_native_runtime(h)
+    geometry, vertex_cache = _build_extension_runtime(h)
     integrator = AdaptiveIntegrator(
         geometry,
         vertex_cache,
@@ -297,7 +299,7 @@ def _build_charge_options(
     options.charge_tol = float(charge_tol)
     options.mu_xtol = float(mu_xtol)
     options.max_mu_iterations = int(max_mu_iterations)
-    options.max_subdivisions = _native_subdivision_limit(max_subdivisions)
+    options.max_subdivisions = _extension_subdivision_limit(max_subdivisions)
     options.bulk_theta = float(_BULK_THETA)
     return options
 
@@ -341,7 +343,7 @@ def density_matrix_zero_temp(
     max_mu_iterations: int,
     max_subdivisions: int | None = None,
 ):
-    """Evaluate the zero-temperature fixed-filling density matrix with the native backend."""
+    """Evaluate the zero-temperature fixed-filling density matrix with the compiled backend."""
 
     if max_subdivisions == 0:
         return _root_mesh_fixed_filling_zero_temp(
@@ -356,7 +358,7 @@ def density_matrix_zero_temp(
             max_mu_iterations=max_mu_iterations,
         )
 
-    geometry, vertex_cache = _build_native_runtime(h)
+    geometry, vertex_cache = _build_extension_runtime(h)
     integrator = AdaptiveIntegrator(
         geometry,
         vertex_cache,
@@ -426,7 +428,7 @@ def density_matrix_at_mu_zero_temp(
     if max_subdivisions == 0:
         return _root_mesh_density_at_mu_zero_temp(h, mu=mu, keys=keys)
 
-    geometry, vertex_cache = _build_native_runtime(h)
+    geometry, vertex_cache = _build_extension_runtime(h)
     integrator = AdaptiveIntegrator(
         geometry,
         vertex_cache,

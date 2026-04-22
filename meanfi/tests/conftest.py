@@ -1,6 +1,6 @@
 import pytest
 
-from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
+from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
 
 
 DENSITY_TOLERANCE_LADDER = (1e-2, 3e-3, 1e-3)
@@ -28,5 +28,5 @@ def perf_slow_benchmark_config():
 
 
 @pytest.fixture(scope="session")
-def native_zero_temp_available():
-    return _NATIVE_ZERO_TEMP_AVAILABLE
+def zero_temp_ext_available():
+    return _ZERO_TEMP_EXT_AVAILABLE

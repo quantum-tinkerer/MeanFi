@@ -16,14 +16,14 @@ from meanfi import (
     tb_to_tight_binding_model,
 )
 from meanfi.kwant_helper import kwant_examples, utils
-from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
+from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import qiwuzhang, spinful_chain
 
 
 pytestmark = pytest.mark.integration
-requires_native = pytest.mark.skipif(
-    not _NATIVE_ZERO_TEMP_AVAILABLE,
-    reason="native zero-temperature backend is unavailable",
+requires_ext = pytest.mark.skipif(
+    not _ZERO_TEMP_EXT_AVAILABLE,
+    reason="compiled zero-temperature extension is unavailable",
 )
 
 
@@ -89,7 +89,7 @@ def test_solver_supports_explicit_anderson_optimizer_escape_hatch():
     )
 
 
-@requires_native
+@requires_ext
 def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
     h_0 = spinful_chain()
     h_int = {(0,): np.zeros((2, 2))}
@@ -112,10 +112,10 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
     )
 
 
-@requires_native
-def test_public_native_tight_binding_model_matches_python_kfunc():
+@requires_ext
+def test_public_compiled_tight_binding_model_matches_python_kfunc():
     tb = qiwuzhang()
-    native_model = tb_to_tight_binding_model(tb)
+    compiled_model = tb_to_tight_binding_model(tb)
     hkfunc = tb_to_kfunc(tb)
     points = np.array(
         [
@@ -126,8 +126,8 @@ def test_public_native_tight_binding_model_matches_python_kfunc():
         dtype=float,
     )
 
-    assert native_model.ndim == 2
-    assert native_model.ndof == 2
-    assert native_model.nterms == len(tb)
-    assert np.allclose(native_model.evaluate_point(points[0]), hkfunc(points[0]))
-    assert np.allclose(native_model.evaluate_many(points), hkfunc(points))
+    assert compiled_model.ndim == 2
+    assert compiled_model.ndof == 2
+    assert compiled_model.nterms == len(tb)
+    assert np.allclose(compiled_model.evaluate_point(points[0]), hkfunc(points[0]))
+    assert np.allclose(compiled_model.evaluate_many(points), hkfunc(points))
