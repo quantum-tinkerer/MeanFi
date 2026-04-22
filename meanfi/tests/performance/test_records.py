@@ -42,6 +42,13 @@ def test_density_record_exposes_required_schema_fields():
         "workflow",
         "kT",
         "ndof",
+        "problem_family",
+        "sweep_axis",
+        "sweep_value",
+        "held_constant",
+        "control_parameter",
+        "control_value",
+        "reference_kind",
         "wall_s",
         "peak_memory_bytes",
         "unique_evals",
@@ -62,6 +69,7 @@ def test_density_record_exposes_required_schema_fields():
     assert record["wall_per_unique_eval_s"] is not None
     assert record["root_iterations"] is not None
     assert record["total_unique_evals"] is None
+    assert record["problem_family"] is None
 
 
 def test_scf_record_exposes_required_schema_fields():
@@ -97,6 +105,13 @@ def test_scf_record_exposes_required_schema_fields():
         "workflow",
         "kT",
         "ndof",
+        "problem_family",
+        "sweep_axis",
+        "sweep_value",
+        "held_constant",
+        "control_parameter",
+        "control_value",
+        "reference_kind",
         "wall_s",
         "peak_memory_bytes",
         "unique_evals",

@@ -48,21 +48,37 @@ def main() -> None:
             ft_model,
             ft_guess,
             AdaptiveQuadrature(density_matrix_tol=1e-4),
-            {"density_matrix_tol": 1e-4},
+            {
+                "problem_family": "hubbard_chain",
+                "held_constant": "U=2.0,filling=2.0,kT=0.1",
+                "control_parameter": "density_matrix_tol",
+                "control_value": 1e-4,
+            },
         ),
         (
             "hubbard_chain_zt_scf",
             zt_model,
             zt_guess,
             AdaptiveSimplex(density_matrix_tol=1e-3, max_refinements=600),
-            {"density_matrix_tol": 1e-3, "max_refinements": 600},
+            {
+                "problem_family": "hubbard_chain",
+                "held_constant": "U=2.0,filling=2.0,kT=0.0",
+                "control_parameter": "density_matrix_tol",
+                "control_value": 1e-3,
+                "max_refinements": 600,
+            },
         ),
         (
             "hubbard_chain_zt_scf",
             zt_model,
             zt_guess,
             UniformGrid(nk=65),
-            {"nk": 65},
+            {
+                "problem_family": "hubbard_chain",
+                "held_constant": "U=2.0,filling=2.0,kT=0.0",
+                "control_parameter": "nk",
+                "control_value": 65,
+            },
         ),
     ]
 

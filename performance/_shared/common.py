@@ -45,6 +45,13 @@ def _base_record(
         "workflow": workflow,
         "kT": float(kT),
         "ndof": int(ndof),
+        "problem_family": None,
+        "sweep_axis": None,
+        "sweep_value": None,
+        "held_constant": None,
+        "control_parameter": None,
+        "control_value": None,
+        "reference_kind": None,
         "wall_s": float(wall_s),
         "peak_memory_bytes": None if peak_memory_bytes is None else int(peak_memory_bytes),
         "unique_evals": int(unique_evals),
@@ -168,6 +175,13 @@ def print_summary(records: list[dict[str, Any]]) -> None:
             f"wall={wall}",
             f"unique_evals={unique}",
         ]
+        if record.get("sweep_axis") is not None:
+            parts.append(f"{record['sweep_axis']}={record['sweep_value']}")
+        if (
+            record.get("control_parameter") is not None
+            and record.get("control_parameter") != record.get("sweep_axis")
+        ):
+            parts.append(f"{record['control_parameter']}={record['control_value']}")
         if per_unique is not None:
             parts.append(f"wall/unique={per_unique:.6e}s")
         if record.get("density_matrix_error") is not None:

@@ -172,7 +172,8 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 docs-build = { cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\"", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 
 [tool.pixi.feature.performance.tasks]
-performance-density-scaling = "python performance/benchmarks/density_scaling.py --output performance/results/density_scaling.json"
+performance-density-scaling = "python -m performance.benchmarks.density_scaling --profile quick --output performance/results/density_scaling.json"
+performance-density-scaling-manual = "python -m performance.benchmarks.density_scaling --profile full --output performance/results/manual/density_scaling.json --plot-dir performance/results/manual/plots"
 performance-scf-scaling = "python performance/benchmarks/scf_scaling.py --output performance/results/scf_scaling.json"
 performance-profile-density = "python -m memray run -o performance/results/hubbard_1d_density_profile.bin performance/profiling/hubbard_1d_density.py --output performance/results/hubbard_1d_density_profile.json && python -m memray stats performance/results/hubbard_1d_density_profile.bin"
 performance-profile-scf = "python -m memray run -o performance/results/hubbard_1d_scf_profile.bin performance/profiling/hubbard_1d_scf.py --output performance/results/hubbard_1d_scf_profile.json && python -m memray stats performance/results/hubbard_1d_scf_profile.bin"
