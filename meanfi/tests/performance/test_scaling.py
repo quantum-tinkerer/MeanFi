@@ -3,7 +3,7 @@ import textwrap
 import numpy as np
 import pytest
 
-from meanfi import density_matrix, density_matrix_at_mu
+from meanfi import AdaptiveQuadrature, AdaptiveSimplex, density_matrix, density_matrix_at_mu
 from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
 from meanfi.tests.helpers import (
     benchmark,
@@ -28,8 +28,8 @@ def _local_density_call(tb, *, filling: float):
         filling=filling,
         kT=0.1,
         keys=[(0, 0)],
-        charge_tol=1e-6,
-        density_atol=1e-6,
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-6),
+        filling_tol=1e-6,
     )
 
 
@@ -50,16 +50,18 @@ def test_zero_temperature_density_convergence_is_second_order():
     hs = []
     errors = []
     for density_atol in (1e-2, 3e-4, 1e-5):
-        rho, _error, info = density_matrix_at_mu(
+        result = density_matrix_at_mu(
             tb,
             mu=0.0,
             kT=0.0,
             keys=keys,
-            density_atol=density_atol,
-            max_subdivisions=None,
+            integration=AdaptiveSimplex(
+                density_matrix_tol=density_atol,
+                max_refinements=None,
+            ),
         )
-        hs.append(info.n_leaves ** -1.0)
-        errors.append(max_density_error(rho, reference.rho))
+        hs.append(result.info.n_leaves ** -1.0)
+        errors.append(max_density_error(result.density_matrix, reference.rho))
 
     assert hs[0] > hs[1] > hs[2]
     assert errors[0] > errors[1] > errors[2]
@@ -82,7 +84,7 @@ def test_local_density_runtime_scales_consistent_with_cubic_dense_diagonalizatio
             lambda tb=tb, filling=ndof / 2: _local_density_call(tb, filling=filling),
             **perf_slow_benchmark_config,
         )
-        _rho, _error, _mu, info = result.last_result
+        info = result.last_result.info
         times.append(result.median_s)
         kernel_evals.append(info.n_kernel_evals)
 
@@ -130,7 +132,7 @@ def test_local_density_memory_scales_with_dense_workspace(
     for ndof in sizes:
         body = textwrap.dedent(
             f"""
-            from meanfi import density_matrix
+            from meanfi import AdaptiveQuadrature, density_matrix
             from meanfi.tests.helpers import local_dense_model
 
             tb = local_dense_model({ndof})
@@ -139,8 +141,8 @@ def test_local_density_memory_scales_with_dense_workspace(
                 filling={ndof} / 2,
                 kT=0.1,
                 keys=[(0, 0)],
-                charge_tol=1e-6,
-                density_atol=1e-6,
+                integration=AdaptiveQuadrature(density_matrix_tol=1e-6),
+                filling_tol=1e-6,
             )
             """
         )

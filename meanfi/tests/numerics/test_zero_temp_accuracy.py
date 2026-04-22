@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from meanfi import density_matrix, density_matrix_at_mu
+from meanfi import AdaptiveSimplex, density_matrix, density_matrix_at_mu
 from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
 from meanfi.tests.helpers import (
     assert_estimator_covers_actual,
@@ -67,21 +67,23 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
     )
 
     for density_atol in density_tolerance_ladder:
-        rho, error, info = density_matrix_at_mu(
+        result = density_matrix_at_mu(
             tb,
             mu=0.0,
             kT=0.0,
             keys=case.keys,
-            density_atol=density_atol,
-            max_subdivisions=None,
+            integration=AdaptiveSimplex(
+                density_matrix_tol=density_atol,
+                max_refinements=None,
+            ),
         )
-        actual_density_error = max_density_error(rho, reference.rho)
+        actual_density_error = max_density_error(result.density_matrix, reference.rho)
 
         assert actual_density_error <= density_atol
-        assert info.error_estimate_available is True
+        assert result.info.error_estimate_available is True
         assert_estimator_covers_actual(
             actual_density_error,
-            max_density_estimate(error),
+            max_density_estimate(result.density_matrix_error),
         )
 
 
@@ -113,24 +115,26 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
         scalar_tolerance_ladder,
         strict=True,
     ):
-        rho, error, mu, info = density_matrix(
+        result = density_matrix(
             tb,
             filling=filling,
             kT=0.0,
             keys=case.keys,
-            charge_tol=scalar_tol,
-            density_atol=density_atol,
-            mu_xtol=scalar_tol,
-            max_subdivisions=None,
+            integration=AdaptiveSimplex(
+                density_matrix_tol=density_atol,
+                max_refinements=None,
+            ),
+            filling_tol=scalar_tol,
+            mu_tol=scalar_tol,
         )
-        actual_density_error = max_density_error(rho, reference.rho)
-        actual_charge_error = abs(info.charge - filling)
-        actual_mu_error = abs(mu - reference.mu)
+        actual_density_error = max_density_error(result.density_matrix, reference.rho)
+        actual_charge_error = abs(result.filling - filling)
+        actual_mu_error = abs(result.mu - reference.mu)
 
         assert actual_density_error <= density_atol
         assert actual_charge_error <= scalar_tol
         assert actual_mu_error <= scalar_tol
-        assert info.error_estimate_available is True
+        assert result.info.error_estimate_available is True
 
 
 @requires_native
@@ -147,19 +151,21 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
         nk_max=16001,
     )
 
-    rho, error, info = density_matrix_at_mu(
+    result = density_matrix_at_mu(
         tb,
         mu=1.5,
         kT=0.0,
         keys=keys,
-        density_atol=3e-3,
-        max_subdivisions=None,
+        integration=AdaptiveSimplex(
+            density_matrix_tol=3e-3,
+            max_refinements=None,
+        ),
     )
-    actual_density_error = max_density_error(rho, reference.rho)
+    actual_density_error = max_density_error(result.density_matrix, reference.rho)
 
     assert actual_density_error <= 2e-3
-    assert info.error_estimate_available is True
+    assert result.info.error_estimate_available is True
     assert_estimator_covers_actual(
         actual_density_error,
-        max_density_estimate(error),
+        max_density_estimate(result.density_matrix_error),
     )

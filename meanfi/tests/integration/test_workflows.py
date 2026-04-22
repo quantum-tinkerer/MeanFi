@@ -3,6 +3,10 @@ import pytest
 from scipy.optimize import anderson
 
 from meanfi import (
+    AdaptiveQuadrature,
+    AdaptiveSimplex,
+    AndersonMixing,
+    LinearMixing,
     Model,
     add_tb,
     density_matrix,
@@ -29,69 +33,60 @@ def test_graphene_kwant_end_to_end_regression():
     h_int = utils.builder_to_tb(int_builder, {"U": 1.0, "V": 0.0})
     np.random.seed(0)
     guess = guess_tb(frozenset(h_int), len(next(iter(h_0.values()))))
+    integration = AdaptiveQuadrature(density_matrix_tol=1e-6)
 
-    model = Model(
-        h_0,
-        h_int,
-        filling=2.0,
-        kT=0.05,
-        charge_tol=1e-6,
-        density_atol=1e-6,
-        scf_tol=5e-4,
-    )
-    mf_sol, solver_info = solver(
+    model = Model(h_0, h_int, filling=2.0, kT=0.05)
+    result = solver(
         model,
         guess,
-        optimizer=anderson,
-        optimizer_kwargs={
-            "M": 0,
-            "line_search": "wolfe",
-            "maxiter": 40,
-            "f_tol": model.scf_tol,
-        },
-        max_scf_steps=40,
-        return_info=True,
+        integration=integration,
+        scf=AndersonMixing(M=0, max_iterations=40),
+        scf_tol=5e-4,
     )
-    rho, _error, _mu, density_info = density_matrix(
-        add_tb(h_0, mf_sol),
+    density_result = density_matrix(
+        add_tb(h_0, result.mf),
         filling=2.0,
         kT=model.kT,
         keys=list(h_int),
-        charge_tol=model.charge_tol,
-        density_atol=model.density_atol,
+        integration=integration,
     )
 
-    assert solver_info.residual_norm <= 2.0 * model.scf_tol
-    assert abs(density_info.charge - model.filling) <= model.charge_tol
-    for key, matrix in mf_sol.items():
+    assert result.info.residual_norm <= 2.0 * 5e-4
+    assert abs(density_result.filling - model.filling) <= 2e-6
+    for key, matrix in result.mf.items():
         opposite = tuple(-np.array(key))
-        assert np.allclose(matrix, mf_sol[opposite].conj().T)
-        assert np.all(np.isfinite(rho[key]))
+        assert np.allclose(matrix, result.mf[opposite].conj().T)
+        assert np.all(np.isfinite(density_result.density_matrix[key]))
 
 
-def test_solver_supports_explicit_anderson_optimizer():
+def test_solver_supports_explicit_anderson_optimizer_escape_hatch():
     h_0 = spinful_chain()
     h_int = {(0,): np.zeros((2, 2))}
     guess = {(0,): np.zeros((2, 2))}
-    model = Model(h_0, h_int, filling=1.0, kT=0.2, scf_tol=1e-8)
+    model = Model(h_0, h_int, filling=1.0, kT=0.2)
 
-    solution, info = solver(
+    result = solver(
         model,
         guess,
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
+        scf=LinearMixing(max_iterations=8),
+        scf_tol=1e-8,
         optimizer=anderson,
         optimizer_kwargs={
             "M": 0,
             "line_search": "wolfe",
             "maxiter": 8,
-            "f_tol": model.scf_tol,
+            "f_tol": 1e-8,
         },
-        max_scf_steps=8,
-        return_info=True,
     )
 
-    assert info.optimizer == "anderson"
-    assert info.residual_norm <= model.scf_tol
-    assert np.allclose(solution[(0,)], -info.mu * np.eye(2), atol=1e-6)
+    assert result.info.method == "anderson"
+    assert result.info.residual_norm <= 1e-8
+    assert np.allclose(
+        result.mf[(0,)],
+        -result.density_matrix_result.mu * np.eye(2),
+        atol=1e-6,
+    )
 
 
 @requires_native
@@ -99,20 +94,22 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
     h_0 = spinful_chain()
     h_int = {(0,): np.zeros((2, 2))}
     guess = {(0,): np.zeros((2, 2))}
-    model = Model(
-        h_0,
-        h_int,
-        filling=1.0,
-        kT=0.0,
-        charge_tol=1e-3,
-        density_atol=1e-3,
+    model = Model(h_0, h_int, filling=1.0, kT=0.0)
+
+    result = solver(
+        model,
+        guess,
+        integration=AdaptiveSimplex(density_matrix_tol=1e-3),
+        scf=LinearMixing(),
         scf_tol=1e-3,
     )
 
-    solution, info = solver(model, guess, return_info=True)
-
-    assert abs(info.mu) < 1e-3
-    assert np.allclose(solution[(0,)], -info.mu * np.eye(2), atol=1e-3)
+    assert abs(result.density_matrix_result.mu) < 1e-3
+    assert np.allclose(
+        result.mf[(0,)],
+        -result.density_matrix_result.mu * np.eye(2),
+        atol=1e-3,
+    )
 
 
 @requires_native
@@ -134,4 +131,3 @@ def test_public_native_tight_binding_model_matches_python_kfunc():
     assert native_model.nterms == len(tb)
     assert np.allclose(native_model.evaluate_point(points[0]), hkfunc(points[0]))
     assert np.allclose(native_model.evaluate_many(points), hkfunc(points))
-

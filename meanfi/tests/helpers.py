@@ -173,7 +173,9 @@ def max_density_error(
     return max(float(np.max(np.abs(lhs[key] - rhs[key]))) for key in rhs)
 
 
-def max_density_estimate(error: dict[tuple[int, ...], np.ndarray]) -> float:
+def max_density_estimate(error: dict[tuple[int, ...], np.ndarray] | None) -> float:
+    if error is None:
+        return float("nan")
     return max(float(np.max(np.abs(matrix))) for matrix in error.values())
 
 

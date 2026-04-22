@@ -1,8 +1,8 @@
-# Install script for directory: /Users/kostas/.codex/worktrees/6db2/meanfi
+# Install script for directory: /Users/kostas/.codex/worktrees/e690/meanfi
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmpv__t3joz/wheel/platlib")
+  set(CMAKE_INSTALL_PREFIX "/var/folders/48/6y5gb3f12mzc7jw_vmbm6y0c0000gp/T/tmps_flbj7c/wheel/platlib")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -38,7 +38,7 @@ if(NOT DEFINED CMAKE_OBJDUMP)
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/meanfi" TYPE MODULE FILES "/Users/kostas/.codex/worktrees/6db2/meanfi/meanfi/_zero_temp_native.cpython-312-darwin.so")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/meanfi" TYPE MODULE FILES "/Users/kostas/.codex/worktrees/e690/meanfi/meanfi/_zero_temp_native.cpython-312-darwin.so")
   if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/meanfi/_zero_temp_native.cpython-312-darwin.so" AND
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/meanfi/_zero_temp_native.cpython-312-darwin.so")
     if(CMAKE_INSTALL_DO_STRIP)
@@ -50,7 +50,7 @@ endif()
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "/Users/kostas/.codex/worktrees/6db2/meanfi/install_local_manifest.txt"
+  file(WRITE "/Users/kostas/.codex/worktrees/e690/meanfi/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()
 if(CMAKE_INSTALL_COMPONENT)
@@ -66,6 +66,6 @@ else()
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "/Users/kostas/.codex/worktrees/6db2/meanfi/${CMAKE_INSTALL_MANIFEST}"
+  file(WRITE "/Users/kostas/.codex/worktrees/e690/meanfi/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

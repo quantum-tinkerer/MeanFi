@@ -133,10 +133,11 @@ crosses a periodic boundary, but the spectral layer wraps reduced coordinates be
 geometry vertices collapse onto the same physical $k$ point in the eigensystem cache. To avoid seam-crossing
 simplices, the root mesh partitions the fundamental cell into $2^d$ half-sized subcells before triangulating each
 one. Dense $k$-grid integrations and repeated SciPy cubature are kept only as testing and benchmarking references,
-not as the production solver path. The high-level `Model` exposes `max_subdivisions` so tutorials and benchmarks can
-bound that adaptive process. For `kT = 0`, adaptive density estimation compares a coarse owner-simplex vertex
+not as the production solver path. Adaptive integration controls now live on explicit integration methods such as
+`AdaptiveSimplex(max_refinements=...)`, `AdaptiveQuadrature(density_matrix_tol=...)`, and `UniformGrid(nk=...)`
+rather than on `Model`. For `kT = 0`, adaptive density estimation compares a coarse owner-simplex vertex
 cubature against a one-level preview vertex cubature and uses the preview value as the accepted contribution, but
 the native controller updates those active-leaf preview sums incrementally rather than recomputing the whole active
 frontier each round. All density and SCF stopping criteria are reported in componentwise max norms rather than L2
-norms. Finally, `max_subdivisions = 0` is a distinct root-mesh-only mode: it performs no preview, no refinement,
-and therefore provides no density-error indicator.
+norms. Finally, `AdaptiveSimplex(max_refinements=0)` is a distinct root-mesh-only mode: it performs no preview, no
+refinement, and therefore provides no density-error indicator.

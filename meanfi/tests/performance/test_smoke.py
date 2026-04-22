@@ -3,7 +3,7 @@ import tracemalloc
 
 import pytest
 
-from meanfi import density_matrix
+from meanfi import AdaptiveQuadrature, AdaptiveSimplex, density_matrix
 from meanfi.zero_temp import _NATIVE_ZERO_TEMP_AVAILABLE
 from meanfi.tests.helpers import (
     benchmark,
@@ -22,51 +22,53 @@ requires_native = pytest.mark.skipif(
 
 
 def test_operation_counts_1d_smoke():
-    _rho, _error, _mu, info = density_matrix(
+    result = density_matrix(
         spinful_chain(),
         filling=0.7,
         kT=0.15,
         keys=[(0,), (1,), (-1,)],
-        charge_tol=1e-4,
-        density_atol=1e-3,
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-3),
+        filling_tol=1e-4,
     )
 
-    assert info.root_iterations <= 4
-    assert info.n_kernel_evals <= 500
-    assert info.n_evaluator_evals <= 1500
+    assert result.info.root_iterations <= 4
+    assert result.info.n_kernel_evals <= 500
+    assert result.info.n_evaluator_evals <= 1500
 
 
 def test_operation_counts_2d_smoke():
-    _rho, _error, _mu, info = density_matrix(
+    result = density_matrix(
         qiwuzhang(m=0.5),
         filling=1.0,
         kT=0.1,
         keys=[(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)],
-        charge_tol=1e-4,
-        density_atol=1e-3,
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-3),
+        filling_tol=1e-4,
     )
 
-    assert info.root_iterations <= 2
-    assert info.n_kernel_evals <= 2000
-    assert info.n_evaluator_evals <= 4000
+    assert result.info.root_iterations <= 2
+    assert result.info.n_kernel_evals <= 2000
+    assert result.info.n_evaluator_evals <= 4000
 
 
 @requires_native
 def test_zero_temperature_operation_counts_smoke():
-    _rho, _error, _mu, info = density_matrix(
+    result = density_matrix(
         dimerized_chain(),
         filling=1.0,
         kT=0.0,
         keys=[(0,), (1,), (-1,)],
-        charge_tol=1e-4,
-        density_atol=1e-3,
-        max_subdivisions=None,
+        integration=AdaptiveSimplex(
+            density_matrix_tol=1e-3,
+            max_refinements=None,
+        ),
+        filling_tol=1e-4,
     )
 
-    assert info.root_iterations <= 2
-    assert info.n_kernel_evals <= 64
-    assert info.n_evaluator_evals <= 400
-    assert info.n_leaves <= 32
+    assert result.info.root_iterations <= 2
+    assert result.info.n_kernel_evals <= 64
+    assert result.info.n_evaluator_evals <= 400
+    assert result.info.n_leaves <= 32
 
 
 def test_repeated_density_solve_memory_growth_smoke():
@@ -80,8 +82,8 @@ def test_repeated_density_solve_memory_growth_smoke():
             filling=0.7,
             kT=0.15,
             keys=keys,
-            charge_tol=1e-4,
-            density_atol=1e-3,
+            integration=AdaptiveQuadrature(density_matrix_tol=1e-3),
+            filling_tol=1e-4,
         )
     gc.collect()
     baseline = tracemalloc.take_snapshot()
@@ -92,8 +94,8 @@ def test_repeated_density_solve_memory_growth_smoke():
             filling=0.7,
             kT=0.15,
             keys=keys,
-            charge_tol=1e-4,
-            density_atol=1e-3,
+            integration=AdaptiveQuadrature(density_matrix_tol=1e-3),
+            filling_tol=1e-4,
         )
     gc.collect()
     current = tracemalloc.take_snapshot()
@@ -117,8 +119,8 @@ def test_local_density_walltime_ratio_smoke(perf_smoke_benchmark_config):
             filling=16.0,
             kT=0.1,
             keys=[(0, 0)],
-            charge_tol=1e-6,
-            density_atol=1e-6,
+            integration=AdaptiveQuadrature(density_matrix_tol=1e-6),
+            filling_tol=1e-6,
         ),
         **perf_smoke_benchmark_config,
     )
@@ -128,8 +130,8 @@ def test_local_density_walltime_ratio_smoke(perf_smoke_benchmark_config):
             filling=32.0,
             kT=0.1,
             keys=[(0, 0)],
-            charge_tol=1e-6,
-            density_atol=1e-6,
+            integration=AdaptiveQuadrature(density_matrix_tol=1e-6),
+            filling_tol=1e-6,
         ),
         **perf_smoke_benchmark_config,
     )

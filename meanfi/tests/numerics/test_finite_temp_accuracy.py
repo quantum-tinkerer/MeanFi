@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from meanfi import density_matrix, density_matrix_at_mu, fermi_dirac
+from meanfi import AdaptiveQuadrature, density_matrix, density_matrix_at_mu, fermi_dirac
 from meanfi.tests.helpers import (
     assert_estimator_covers_actual,
     converged_dense_reference,
@@ -32,24 +32,25 @@ def test_finite_temperature_local_two_band_matches_exact_reference_across_tolera
         scalar_tolerance_ladder,
         strict=True,
     ):
-        rho, error, mu, info = density_matrix(
+        result = density_matrix(
             tb,
             filling=1.0,
             kT=0.2,
             keys=keys,
-            charge_tol=scalar_tol,
-            density_atol=density_atol,
+            integration=AdaptiveQuadrature(density_matrix_tol=density_atol),
+            filling_tol=scalar_tol,
         )
-        actual_density_error = max_density_error(rho, exact_rho)
+        actual_density_error = max_density_error(result.density_matrix, exact_rho)
 
-        assert abs(mu) <= scalar_tol
-        assert abs(info.charge - 1.0) <= scalar_tol
+        assert abs(result.mu) <= scalar_tol
+        assert abs(result.filling - 1.0) <= scalar_tol
         assert actual_density_error <= density_atol
         assert_estimator_covers_actual(
             actual_density_error,
-            max_density_estimate(error),
+            max_density_estimate(result.density_matrix_error),
         )
-        assert_estimator_covers_actual(abs(info.charge - 1.0), info.charge_error)
+        assert result.filling_residual is not None
+        assert result.filling_residual <= scalar_tol
 
 
 def test_finite_temperature_density_matrix_at_mu_matches_self_converged_reference_across_density_ladder(
@@ -68,20 +69,20 @@ def test_finite_temperature_density_matrix_at_mu_matches_self_converged_referenc
     )
 
     for density_atol in density_tolerance_ladder:
-        rho, error, info = density_matrix_at_mu(
+        result = density_matrix_at_mu(
             tb,
             mu=0.0,
             kT=0.15,
             keys=keys,
-            density_atol=density_atol,
+            integration=AdaptiveQuadrature(density_matrix_tol=density_atol),
         )
-        actual_density_error = max_density_error(rho, reference.rho)
+        actual_density_error = max_density_error(result.density_matrix, reference.rho)
 
         assert actual_density_error <= density_atol
-        assert info.error_estimate_available is True
+        assert result.info.error_estimate_available is True
         assert_estimator_covers_actual(
             actual_density_error,
-            max_density_estimate(error),
+            max_density_estimate(result.density_matrix_error),
         )
 
 
@@ -111,18 +112,18 @@ def test_finite_temperature_fixed_filling_matches_self_converged_reference_acros
         scalar_tolerance_ladder,
         strict=True,
     ):
-        rho, error, mu, info = density_matrix(
+        result = density_matrix(
             tb,
             filling=filling,
             kT=0.15,
             keys=keys,
-            charge_tol=scalar_tol,
-            density_atol=density_atol,
-            mu_xtol=scalar_tol,
+            integration=AdaptiveQuadrature(density_matrix_tol=density_atol),
+            filling_tol=scalar_tol,
+            mu_tol=scalar_tol,
         )
-        actual_density_error = max_density_error(rho, reference.rho)
-        actual_charge_error = abs(info.charge - filling)
+        actual_density_error = max_density_error(result.density_matrix, reference.rho)
+        actual_charge_error = abs(result.filling - filling)
 
         assert actual_density_error <= density_atol
         assert actual_charge_error <= scalar_tol
-        assert info.error_estimate_available is True
+        assert result.info.error_estimate_available is True
