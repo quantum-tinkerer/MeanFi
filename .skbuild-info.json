@@ -1,8 +1,8 @@
 {
-  "source_dir": "/Users/kostas/.codex/worktrees/083f/meanfi",
-  "build_dir": "/Users/kostas/.codex/worktrees/083f/meanfi",
-  "cmake_path": "/Users/kostas/.codex/worktrees/083f/meanfi/.pixi/envs/minimal/bin/cmake",
-  "skbuild_path": "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/lib/python3.12/site-packages/scikit_build_core",
+  "source_dir": "/Users/kostas/.codex/worktrees/6db2/meanfi",
+  "build_dir": "/Users/kostas/.codex/worktrees/6db2/meanfi",
+  "cmake_path": "/Users/kostas/.codex/worktrees/6db2/meanfi/.pixi/envs/mid/bin/cmake",
+  "skbuild_path": "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmptQip0P/lib/python3.12/site-packages/scikit_build_core",
   "skbuild_version": "0.12.2",
-  "python_executable": "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmpzQw1yq/bin/python"
+  "python_executable": "/Users/kostas/Library/Caches/rattler/cache/uv-cache/builds-v0/.tmptQip0P/bin/python"
 }

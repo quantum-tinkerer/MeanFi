@@ -17,7 +17,7 @@ from meanfi.tb.tb import _tb_type
 class NoConvergence(Exception):
     """Raised when the self-consistent field solver does not converge."""
 
-    def __init__(self, last_iterate: "numpy.ndarray"):
+    def __init__(self, last_iterate: "np.ndarray"):
         self.last_iterate = np.array(last_iterate, copy=True)
         super().__init__(self.last_iterate)
 
