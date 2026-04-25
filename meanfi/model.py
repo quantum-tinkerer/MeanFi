@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from meanfi._bdg import electron_to_bdg_tb, validate_bdg_tb
 from meanfi._validation import (
     tb_dimension,
     tb_orbital_count,
@@ -21,6 +22,7 @@ class Model:
         filling: float,
         *,
         kT: float,
+        superconducting: bool = False,
     ) -> None:
         validate_tb_dict(h_0)
         validate_tb_dict(h_int)
@@ -36,6 +38,7 @@ class Model:
         self.h_int = h_int
         self.filling = float(filling)
         self.kT = float(kT)
+        self.superconducting = bool(superconducting)
 
         self._ndim = tb_dimension(h_0)
         self._ndof = tb_orbital_count(h_0)
@@ -50,3 +53,16 @@ class Model:
         """Return the full Hamiltonian for a trial mean-field correction."""
 
         return add_tb(self.h_0, mf)
+
+    def bdg_hamiltonian_from_meanfield(self, mf: _tb_type) -> _tb_type:
+        """Return the unshifted electron-first BdG Hamiltonian for a mean-field correction."""
+
+        if not self.superconducting:
+            raise ValueError("bdg_hamiltonian_from_meanfield requires superconducting=True")
+        validate_bdg_tb(
+            mf,
+            ndof=self._ndof,
+            ndim=self._ndim,
+            name="BdG correction",
+        )
+        return add_tb(electron_to_bdg_tb(self.h_0, self._ndof), mf)

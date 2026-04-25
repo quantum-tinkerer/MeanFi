@@ -8,12 +8,14 @@ from meanfi import (
     AdaptiveQuadrature,
     AdaptiveQuadratureInfo,
     AdaptiveSimplex,
+    AndersonMixing,
     DensityMatrixResult,
     LinearMixing,
     Model,
     UniformGrid,
     density_matrix,
     density_matrix_at_mu,
+    guess_tb,
     solver,
 )
 from meanfi.solvers import NoConvergence
@@ -39,6 +41,8 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert model_params["kT"].kind is inspect.Parameter.KEYWORD_ONLY
     for name in ("charge_tol", "density_atol", "scf_tol", "max_subdivisions"):
         assert name not in model_params
+    assert model_params["superconducting"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert "bdg_meanfield" not in model_params
 
     solver_params = inspect.signature(solver).parameters
     for name in (
@@ -89,6 +93,106 @@ def test_model_rejects_nonhermitian_inputs():
 
     with pytest.raises(ValueError, match="hermitian"):
         Model(**kwargs)
+
+
+def test_superconducting_model_uses_electron_first_bdg_embedding():
+    model = Model(
+        {(): np.array([[2.0]], dtype=complex)},
+        {(): np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+
+    hamiltonian = model.bdg_hamiltonian_from_meanfield(
+        {(): np.zeros((2, 2), dtype=complex)}
+    )
+
+    assert np.allclose(hamiltonian[()], np.diag([2.0, -2.0]))
+
+
+def test_bdg_solver_validates_guess_shape_before_running_density():
+    model = Model(
+        spinful_chain(),
+        {(0,): np.zeros((2, 2), dtype=complex)},
+        filling=1.0,
+        kT=0.2,
+        superconducting=True,
+    )
+
+    with pytest.raises(ValueError, match="2\\*ndof"):
+        solver(
+            model,
+            {(0,): np.zeros((2, 2), dtype=complex)},
+            integration=AdaptiveQuadrature(),
+        )
+
+
+def test_bdg_solver_rejects_guess_without_opposite_key():
+    model = Model(
+        {
+            (0,): np.array([[0.0]], dtype=complex),
+            (1,): np.array([[0.0]], dtype=complex),
+            (-1,): np.array([[0.0]], dtype=complex),
+        },
+        {(0,): np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+
+    with pytest.raises(ValueError, match="opposite keys"):
+        solver(
+            model,
+            {(1,): np.zeros((2, 2), dtype=complex)},
+            integration=AdaptiveQuadrature(),
+        )
+
+
+def test_bdg_solver_rejects_guess_with_invalid_block_structure():
+    model = Model(
+        {(0,): np.array([[0.0]], dtype=complex)},
+        {(0,): np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+    guess = {
+        (0,): np.array([[1.0, 0.2], [0.2, 1.0]], dtype=complex),
+    }
+
+    with pytest.raises(ValueError, match="lower-right block"):
+        solver(
+            model,
+            guess,
+            integration=AdaptiveQuadrature(),
+        )
+
+
+def test_bdg_solver_rejects_unsupported_anderson_mode():
+    model = Model(
+        spinful_chain(),
+        {(0,): np.zeros((2, 2), dtype=complex)},
+        filling=1.0,
+        kT=0.2,
+        superconducting=True,
+    )
+
+    with pytest.raises(NotImplementedError, match="LinearMixing"):
+        solver(
+            model,
+            {(0,): np.zeros((4, 4), dtype=complex)},
+            integration=AdaptiveQuadrature(),
+            scf=AndersonMixing(),
+        )
+
+
+def test_guess_tb_can_generate_bdg_compliant_superconducting_guesses():
+    guess = guess_tb([(0,), (1,), (-1,)], ndof=2, scale=0.1, superconducting=True)
+
+    assert set(guess) == {(0,), (1,), (-1,)}
+    assert all(matrix.shape == (4, 4) for matrix in guess.values())
+    assert np.allclose(guess[(1,)], guess[(-1,)].conj().T)
 
 
 def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():

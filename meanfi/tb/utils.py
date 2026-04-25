@@ -1,12 +1,17 @@
 from itertools import product
 import numpy as np
 
+from meanfi._bdg import validate_bdg_tb
 from meanfi.tb.tb import _tb_type
 from meanfi.tb.transforms import tb_to_kgrid
 
 
 def guess_tb(
-    tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float = 1
+    tb_keys: list[tuple[None] | tuple[int, ...]],
+    ndof: int,
+    scale: float = 1,
+    *,
+    superconducting: bool = False,
 ) -> _tb_type:
     """Generate hermitian guess tight-binding dictionary.
 
@@ -18,11 +23,24 @@ def guess_tb(
         Number internal degrees of freedom within the unit cell.
     scale :
         Scale of the random guess.
+    superconducting :
+        When true, generate an electron-first BdG correction with shape
+        ``(2*ndof, 2*ndof)`` on each key.
     Returns
     -------
     :
         Hermitian guess tight-binding dictionary.
     """
+    ndim = len(tb_keys[0]) if tb_keys else 0
+    if superconducting:
+        return _guess_bdg_tb(tb_keys, ndof=ndof, ndim=ndim, scale=scale)
+
+    return _guess_electron_tb(tb_keys, ndof=ndof, scale=scale)
+
+
+def _guess_electron_tb(
+    tb_keys: list[tuple[None] | tuple[int, ...]], ndof: int, scale: float
+) -> _tb_type:
     guess = {}
     for vector in tb_keys:
         if vector not in guess.keys():
@@ -37,6 +55,34 @@ def guess_tb(
                 guess[vector] = rand_hermitian
                 guess[tuple(-np.array(vector))] = rand_hermitian.T.conj()
 
+    return guess
+
+
+def _guess_bdg_tb(
+    tb_keys: list[tuple[None] | tuple[int, ...]], *, ndof: int, ndim: int, scale: float
+) -> _tb_type:
+    support = set(tb_keys)
+    support.update(tuple(-np.asarray(vector, dtype=int)) for vector in tb_keys)
+
+    normal_block = _guess_electron_tb(sorted(support), ndof=ndof, scale=scale)
+    anomalous_block = {
+        vector: scale
+        * np.random.rand(ndof, ndof)
+        * np.exp(2j * np.pi * np.random.rand(ndof, ndof))
+        for vector in support
+    }
+
+    zero = np.zeros((ndof, ndof), dtype=complex)
+    guess = {}
+    for vector in support:
+        opposite = tuple(-np.asarray(vector, dtype=int))
+        normal = normal_block.get(vector, zero)
+        anomalous = anomalous_block.get(vector, zero)
+        lower = anomalous_block.get(opposite, zero).conj().T
+        hole = -normal_block.get(opposite, zero).T
+        guess[vector] = np.block([[normal, anomalous], [lower, hole]])
+
+    validate_bdg_tb(guess, ndof=ndof, ndim=ndim, name="BdG guess")
     return guess
 
 
