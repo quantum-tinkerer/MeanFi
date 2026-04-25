@@ -7,6 +7,12 @@ import numpy as np
 from meanfi.tb.tb import _tb_type
 
 
+def _matrix_array(value) -> np.ndarray:
+    if hasattr(value, "toarray"):
+        return np.asarray(value.toarray(), dtype=complex)
+    return np.asarray(value)
+
+
 def tb_dimension(tb: _tb_type) -> int:
     """Return the spatial dimension encoded by a tight-binding dictionary."""
 
@@ -30,12 +36,12 @@ def validate_tb_dict(tb: _tb_type) -> None:
 
     size = None
     for value in tb.values():
-        if not isinstance(value, np.ndarray):
+        shape = getattr(value, "shape", None)
+        if shape is None:
             raise ValueError(
-                "Values of the tight-binding dictionary must be numpy arrays"
+                "Values of the tight-binding dictionary must be matrix-like"
             )
 
-        shape = value.shape
         if len(shape) != 2 or shape[0] != shape[1]:
             raise ValueError(
                 "Values of the tight-binding dictionary must be square matrices"
@@ -54,7 +60,10 @@ def validate_hermiticity(tb: _tb_type) -> None:
 
     for vector, matrix in tb.items():
         opposite = tuple(-1 * np.asarray(vector))
-        if not np.allclose(matrix, tb[opposite].conj().T):
+        if not np.allclose(
+            _matrix_array(matrix),
+            _matrix_array(tb[opposite].conj().T),
+        ):
             raise ValueError("Tight-binding dictionary must be hermitian.")
 
 

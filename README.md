@@ -104,12 +104,13 @@ Current support includes:
 
 - density-density interactions,
 - finite- and zero-temperature mean-field calculations,
+- experimental finite-temperature BdG superconducting mean-field calculations,
 - adaptive and fixed-grid Brillouin-zone integration methods,
 - tight-binding dictionary workflows,
 - optional `kwant` conversion helpers.
 
 Not supported in the main package:
 
-- superconducting pairing terms.
+- a general interaction-channel API for superconducting updates.
 
 For `kT = 0`, the Brillouin zone is treated as a torus mathematically. The simplicial backend keeps duplicated seam vertices rather than identifying opposite faces in the cache, but it starts from a seam-safe `2^d` partition of the fundamental cell so no root simplex spans opposite faces. Setting `AdaptiveSimplex(max_refinements=0)` keeps only that root mesh, which is the closest analogue to a very coarse fixed `k` grid and does not provide a density-matrix error indicator.

@@ -73,6 +73,7 @@ class AdaptiveQuadrature(IntegrationMethod):
     max_refinements: int | None = None
     rule: str = "auto"
     batch_size: int | None = None
+    matrix_function: object | None = None
 
     def __post_init__(self) -> None:
         if self.density_matrix_tol <= 0:

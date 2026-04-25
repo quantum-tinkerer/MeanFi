@@ -265,6 +265,21 @@ def solver(
 
     if scf_tol <= 0:
         raise ValueError("scf_tol must be positive")
+    if getattr(model, "superconducting", False):
+        from meanfi._bdg import solve_bdg_scf
+
+        return solve_bdg_scf(
+            model,
+            guess,
+            integration=integration,
+            scf=scf,
+            scf_tol=scf_tol,
+            filling_tol=filling_tol,
+            mu_tol=mu_tol,
+            max_mu_iterations=max_mu_iterations,
+            optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs,
+        )
 
     keys = list(model.h_int)
     optimizer_kwargs = {} if optimizer_kwargs is None else dict(optimizer_kwargs)
