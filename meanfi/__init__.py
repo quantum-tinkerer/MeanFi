@@ -28,7 +28,7 @@ from .integration import (
     SimplexGrid,
     UniformGrid,
 )
-from .bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization
+from .bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization, RationalFOE
 from .model import Model
 from .observables import expectation_value
 from .scf import AndersonMixing, LinearMixing, SCFMethod
@@ -58,6 +58,7 @@ __all__ = [
     "LinearMixing",
     "Model",
     "NoConvergence",
+    "RationalFOE",
     "SCFInfo",
     "SCFMethod",
     "SimplexGrid",

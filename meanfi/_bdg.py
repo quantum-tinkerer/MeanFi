@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from types import SimpleNamespace
 from typing import Any
 import warnings
@@ -20,7 +21,7 @@ from meanfi._finite_temp import (
 )
 from meanfi._info import AdaptiveQuadratureInfo, DensityMatrixResult, FixedFillingInfo, SCFInfo
 from meanfi._validation import _matrix_allclose
-from meanfi.bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization
+from meanfi.bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization, RationalFOE
 from meanfi.integration import AdaptiveQuadrature, IntegrationMethod
 from meanfi.mf import meanfield as normal_meanfield
 from meanfi.params.rparams import bdg_tb_to_rparams
@@ -49,6 +50,14 @@ def _sparse_module():
     except ImportError as exc:  # pragma: no cover - depends on optional scipy
         raise ImportError("Sparse BdG inputs require scipy to be installed") from exc
     return sparse
+
+
+def _sparse_linalg_module():
+    try:
+        import scipy.sparse.linalg as sparse_linalg
+    except ImportError as exc:  # pragma: no cover - depends on optional scipy
+        raise ImportError("Sparse BdG inputs require scipy to be installed") from exc
+    return sparse_linalg
 
 
 def _to_dense(matrix: Any) -> np.ndarray:
@@ -170,6 +179,80 @@ def _gershgorin_bounds(matrix: Any) -> tuple[float, float]:
     return float(np.min(center - radius)), float(np.max(center + radius))
 
 
+def _matrix_function_label(matrix_function: BdGMatrixFunction) -> str:
+    if isinstance(matrix_function, ChebyshevFOE):
+        return "Chebyshev FOE"
+    if isinstance(matrix_function, RationalFOE):
+        return "Rational FOE"
+    if isinstance(matrix_function, ExactDiagonalization):
+        return "exact diagonalization"
+    return matrix_function.__class__.__name__
+
+
+def _derivative_convergence(
+    derivative_full: np.ndarray,
+    derivative_half: np.ndarray,
+    *,
+    derivative: bool,
+    dn_dmu_rtol: float,
+    derivative_trace_monitor,
+    derivative_context: str | None,
+    matrix_function_label: str,
+) -> tuple[bool, float]:
+    if not derivative:
+        return True, 0.0
+
+    if derivative_trace_monitor is None:
+        derivative_error = float(np.max(np.abs(derivative_full - derivative_half)))
+        derivative_scale = max(
+            float(np.max(np.abs(derivative_full))),
+            float(np.max(np.abs(derivative_half))),
+            1e-15,
+        )
+        return derivative_error <= float(dn_dmu_rtol) * derivative_scale, derivative_error
+
+    derivative_full_trace = float(derivative_trace_monitor(derivative_full))
+    derivative_half_trace = float(derivative_trace_monitor(derivative_half))
+    derivative_scale = max(
+        abs(derivative_full_trace),
+        abs(derivative_half_trace),
+        _DN_DMU_ABS_FLOOR,
+    )
+    derivative_error = abs(derivative_full_trace - derivative_half_trace)
+    if (
+        abs(derivative_full_trace) <= _DN_DMU_ABS_FLOOR
+        and abs(derivative_half_trace) <= _DN_DMU_ABS_FLOOR
+    ):
+        warnings.warn(
+            f"BdG {matrix_function_label} dn/dmu reached absolute floor; treating as singular local point"
+            + ("" if derivative_context is None else f" ({derivative_context})"),
+            RuntimeWarning,
+        )
+        return True, derivative_error
+    return derivative_error <= float(dn_dmu_rtol) * derivative_scale, derivative_error
+
+
+@lru_cache(maxsize=None)
+def _ozaki_poles_and_residues(pole_count: int) -> tuple[np.ndarray, np.ndarray]:
+    if pole_count <= 0:
+        raise ValueError("pole_count must be positive")
+
+    matrix_size = 2 * int(pole_count)
+    diagonal_weights = np.arange(1, 2 * matrix_size, 2, dtype=float)
+    off_diagonal = -0.5 / np.sqrt(diagonal_weights[:-1] * diagonal_weights[1:])
+    continued_fraction = np.diag(off_diagonal, 1) + np.diag(off_diagonal, -1)
+    eigenvalues, eigenvectors = np.linalg.eigh(continued_fraction)
+    negative = eigenvalues < 0.0
+    if int(np.count_nonzero(negative)) != int(pole_count):
+        raise ValueError("Ozaki pole construction returned an unexpected pole count")
+
+    selected_eigenvalues = eigenvalues[negative]
+    selected_vectors = eigenvectors[0, negative]
+    poles = -1.0 / selected_eigenvalues
+    residues = -0.25 * np.square(selected_vectors) * np.square(poles)
+    return np.asarray(poles, dtype=float), np.asarray(residues, dtype=float)
+
+
 def _chebyshev_coefficients(
     order: int,
     *,
@@ -252,6 +335,7 @@ def _chebyshev_density_block(
     accepted_error = float("inf")
     accepted_order = None
     derivative_error = 0.0
+    derivative_converged = True
 
     order_half = int(options.initial_order)
     while 2 * order_half <= int(options.max_order):
@@ -321,43 +405,16 @@ def _chebyshev_density_block(
                 s_prev, s_curr = s_curr, s_next
 
         accepted_error = float(np.max(np.abs(y_full - y_half)))
-        derivative_converged = True
         if derivative:
-            if derivative_trace_monitor is None:
-                derivative_error = float(np.max(np.abs(dy_full - dy_half)))
-                derivative_scale = max(
-                    float(np.max(np.abs(dy_full))),
-                    float(np.max(np.abs(dy_half))),
-                    1e-15,
-                )
-                derivative_converged = (
-                    derivative_error
-                    <= float(options.dn_dmu_rtol) * derivative_scale
-                )
-            else:
-                derivative_full_trace = float(derivative_trace_monitor(dy_full))
-                derivative_half_trace = float(derivative_trace_monitor(dy_half))
-                derivative_scale = max(
-                    abs(derivative_full_trace),
-                    abs(derivative_half_trace),
-                    _DN_DMU_ABS_FLOOR,
-                )
-                derivative_error = abs(derivative_full_trace - derivative_half_trace)
-                if (
-                    abs(derivative_full_trace) <= _DN_DMU_ABS_FLOOR
-                    and abs(derivative_half_trace) <= _DN_DMU_ABS_FLOOR
-                ):
-                    warnings.warn(
-                        "BdG Chebyshev dn/dmu reached absolute floor; treating as singular local point"
-                        + ("" if derivative_context is None else f" ({derivative_context})"),
-                        RuntimeWarning,
-                    )
-                    derivative_converged = True
-                else:
-                    derivative_converged = (
-                        derivative_error
-                        <= float(options.dn_dmu_rtol) * derivative_scale
-                    )
+            derivative_converged, derivative_error = _derivative_convergence(
+                dy_full,
+                dy_half,
+                derivative=derivative,
+                dn_dmu_rtol=options.dn_dmu_rtol,
+                derivative_trace_monitor=derivative_trace_monitor,
+                derivative_context=derivative_context,
+                matrix_function_label="Chebyshev",
+            )
         accepted_block = y_full
         accepted_derivative = dy_full
         accepted_order = order
@@ -367,6 +424,145 @@ def _chebyshev_density_block(
 
     if accepted_error > tolerance or (derivative and not derivative_converged):
         raise ValueError("Chebyshev FOE did not converge within max_order")
+
+    return _BlockResult(
+        block=accepted_block,
+        derivative_block=accepted_derivative,
+        error=accepted_error,
+        order=accepted_order,
+    )
+
+
+def _dense_shifted_matrix(matrix: np.ndarray, shift: float) -> np.ndarray:
+    shifted = np.array(matrix, dtype=complex, copy=True)
+    diagonal = shifted.diagonal().copy()
+    diagonal -= 1j * float(shift)
+    np.fill_diagonal(shifted, diagonal)
+    return shifted
+
+
+def _sparse_shifted_lu(matrix: Any, shift: float):
+    shifted = _as_sparse(matrix).tocsc().astype(complex)
+    shifted = shifted.copy()
+    diagonal = np.asarray(shifted.diagonal(), dtype=complex)
+    diagonal -= 1j * float(shift)
+    shifted.setdiag(diagonal)
+    return _sparse_linalg_module().splu(shifted)
+
+
+def _evaluate_rational_poles(
+    matrix: Any,
+    block: np.ndarray,
+    *,
+    kT: float,
+    q_diag: np.ndarray,
+    pole_count: int,
+    derivative: bool,
+) -> tuple[np.ndarray, np.ndarray | None]:
+    poles, residues = _ozaki_poles_and_residues(pole_count)
+    density_block = 0.5 * np.asarray(block, dtype=complex)
+    derivative_block = np.zeros_like(block) if derivative else None
+
+    if _is_sparse_like(matrix):
+        for pole, residue in zip(poles, residues, strict=True):
+            shift = float(pole) * float(kT)
+            lu = _sparse_shifted_lu(matrix, shift)
+            y = np.asarray(lu.solve(block), dtype=complex)
+            y_adj = np.asarray(lu.solve(block, trans="H"), dtype=complex)
+            density_block = density_block + residue * kT * (y + y_adj)
+
+            if derivative:
+                rhs = q_diag[:, np.newaxis] * y
+                rhs_adj = q_diag[:, np.newaxis] * y_adj
+                z = np.asarray(lu.solve(rhs), dtype=complex)
+                z_adj = np.asarray(lu.solve(rhs_adj, trans="H"), dtype=complex)
+                derivative_block = derivative_block + residue * kT * (z + z_adj)
+
+        return density_block, derivative_block
+
+    dense_matrix = np.asarray(matrix, dtype=complex)
+    for pole, residue in zip(poles, residues, strict=True):
+        shift = float(pole) * float(kT)
+        shifted = _dense_shifted_matrix(dense_matrix, shift)
+        shifted_adjoint = shifted.conj().T
+        y = np.linalg.solve(shifted, block)
+        y_adj = np.linalg.solve(shifted_adjoint, block)
+        density_block = density_block + residue * kT * (y + y_adj)
+
+        if derivative:
+            rhs = q_diag[:, np.newaxis] * y
+            rhs_adj = q_diag[:, np.newaxis] * y_adj
+            z = np.linalg.solve(shifted, rhs)
+            z_adj = np.linalg.solve(shifted_adjoint, rhs_adj)
+            derivative_block = derivative_block + residue * kT * (z + z_adj)
+
+    return density_block, derivative_block
+
+
+def _rational_density_block(
+    matrix: Any,
+    block: np.ndarray,
+    *,
+    kT: float,
+    q_diag: np.ndarray,
+    derivative: bool,
+    tolerance: float,
+    options: RationalFOE,
+    derivative_trace_monitor=None,
+    derivative_context: str | None = None,
+) -> _BlockResult:
+    accepted_block = None
+    accepted_derivative = None
+    accepted_error = float("inf")
+    accepted_order = None
+    derivative_error = 0.0
+    derivative_converged = True
+
+    half_poles = int(options.initial_poles)
+    half_block, half_derivative = _evaluate_rational_poles(
+        matrix,
+        block,
+        kT=kT,
+        q_diag=q_diag,
+        pole_count=half_poles,
+        derivative=derivative,
+    )
+
+    while 2 * half_poles <= int(options.max_poles):
+        pole_count = 2 * half_poles
+        full_block, full_derivative = _evaluate_rational_poles(
+            matrix,
+            block,
+            kT=kT,
+            q_diag=q_diag,
+            pole_count=pole_count,
+            derivative=derivative,
+        )
+        accepted_error = float(np.max(np.abs(full_block - half_block)))
+
+        if derivative:
+            derivative_converged, derivative_error = _derivative_convergence(
+                full_derivative,
+                half_derivative,
+                derivative=derivative,
+                dn_dmu_rtol=options.dn_dmu_rtol,
+                derivative_trace_monitor=derivative_trace_monitor,
+                derivative_context=derivative_context,
+                matrix_function_label="Rational FOE",
+            )
+
+        accepted_block = full_block
+        accepted_derivative = full_derivative
+        accepted_order = pole_count
+        if accepted_error <= tolerance and derivative_converged:
+            break
+
+        half_poles = pole_count
+        half_block = full_block
+        half_derivative = full_derivative
+
+    if accepted_error > tolerance or (derivative and not derivative_converged):
+        raise ValueError("Rational FOE did not converge within max_poles")
 
     return _BlockResult(
         block=accepted_block,
@@ -408,6 +604,18 @@ def _density_block(
             derivative_trace_monitor=derivative_trace_monitor,
             derivative_context=derivative_context,
         )
+    if isinstance(matrix_function, RationalFOE):
+        return _rational_density_block(
+            matrix,
+            block,
+            kT=kT,
+            q_diag=q_diag,
+            derivative=derivative,
+            tolerance=tolerance,
+            options=matrix_function,
+            derivative_trace_monitor=derivative_trace_monitor,
+            derivative_context=derivative_context,
+        )
     raise TypeError("matrix_function must be a BdGMatrixFunction instance")
 
 
@@ -422,11 +630,95 @@ def _tb_k_matrix(hamiltonian: _tb_type, point: np.ndarray):
     return accumulator
 
 
-def _dummy_payload(points: np.ndarray) -> np.ndarray:
-    return np.zeros((points.shape[0], 1), dtype=float)
+def _payload_helpers(hamiltonian: _tb_type):
+    first_matrix = next(iter(hamiltonian.values()))
+    shape = _matrix_shape(first_matrix)
+    if not any(_is_sparse_like(matrix) for matrix in hamiltonian.values()):
+        size = shape[0]
+
+        def kernel(points: np.ndarray) -> np.ndarray:
+            payload = np.empty((points.shape[0], size * size), dtype=complex)
+            for index, point in enumerate(points):
+                payload[index] = np.asarray(
+                    _tb_k_matrix(hamiltonian, point),
+                    dtype=complex,
+                ).reshape(-1)
+            return payload
+
+        def matrix_from_payload(payload_row: np.ndarray):
+            return np.asarray(payload_row, dtype=complex).reshape(shape)
+
+        return kernel, matrix_from_payload
+
+    sparse = _sparse_module()
+    structural = sparse.csr_matrix(shape, dtype=np.int8)
+    term_payloads: list[tuple[tuple[int, ...], np.ndarray, np.ndarray]] = []
+    for key, matrix in hamiltonian.items():
+        csr_matrix = _as_sparse(matrix).tocsr()
+        coo_matrix = csr_matrix.tocoo()
+        if coo_matrix.nnz > 0:
+            structural = structural + sparse.csr_matrix(
+                (
+                    np.ones(coo_matrix.nnz, dtype=np.int8),
+                    (coo_matrix.row, coo_matrix.col),
+                ),
+                shape=shape,
+            )
+        term_payloads.append(
+            (
+                key,
+                np.stack([coo_matrix.row, coo_matrix.col], axis=1).astype(int, copy=False),
+                np.asarray(coo_matrix.data, dtype=complex),
+            )
+        )
+
+    structural.sum_duplicates()
+    structural = structural.tocsr()
+    structural.sort_indices()
+    structural.data[:] = 1
+
+    locations: dict[tuple[int, int], int] = {}
+    for row in range(shape[0]):
+        start = int(structural.indptr[row])
+        end = int(structural.indptr[row + 1])
+        for offset in range(start, end):
+            locations[(row, int(structural.indices[offset]))] = offset
+
+    sparse_terms: list[tuple[tuple[int, ...], np.ndarray, np.ndarray]] = []
+    for key, coordinates, data in term_payloads:
+        if coordinates.size == 0:
+            sparse_terms.append((key, np.empty(0, dtype=int), data))
+            continue
+        positions = np.fromiter(
+            (locations[(int(row), int(col))] for row, col in coordinates),
+            dtype=int,
+            count=coordinates.shape[0],
+        )
+        sparse_terms.append((key, positions, data))
+
+    def kernel(points: np.ndarray) -> np.ndarray:
+        payload = np.zeros((points.shape[0], structural.nnz), dtype=complex)
+        for key, positions, data in sparse_terms:
+            if positions.size == 0:
+                continue
+            phase = np.exp(-1j * np.dot(points, np.asarray(key, dtype=float)))
+            payload[:, positions] += phase[:, np.newaxis] * data[np.newaxis, :]
+        return payload
+
+    def matrix_from_payload(payload_row: np.ndarray):
+        return sparse.csr_matrix(
+            (
+                np.asarray(payload_row, dtype=complex),
+                structural.indices,
+                structural.indptr,
+            ),
+            shape=shape,
+        )
+
+    return kernel, matrix_from_payload
 
 
-def _build_bdg_integrator(*, ndim: int, evaluator, integration: AdaptiveQuadrature):
+def _build_bdg_integrator(*, ndim: int, kernel, evaluator, integration: AdaptiveQuadrature):
     try:
         from stateful_quadrature import StatefulIntegrator
     except ImportError as exc:  # pragma: no cover - dependency is declared by meanfi
@@ -438,7 +730,7 @@ def _build_bdg_integrator(*, ndim: int, evaluator, integration: AdaptiveQuadratu
     return StatefulIntegrator(
         a=a,
         b=b,
-        kernel=_dummy_payload,
+        kernel=kernel,
         evaluator=evaluator,
         rule=integration.rule,
         batch_size=integration.batch_size,
@@ -452,7 +744,6 @@ def _local_filling(block: np.ndarray, indices: Sequence[int], weights: np.ndarra
 
 def _charge_evaluator(
     *,
-    hamiltonian: _tb_type,
     ndim: int,
     kT: float,
     q_diag: np.ndarray,
@@ -460,16 +751,16 @@ def _charge_evaluator(
     tolerance: float,
     filling_indices: Sequence[int],
     filling_weights: np.ndarray,
+    matrix_from_payload,
 ):
     prefactor = quadrature_prefactor(ndim)
     size = q_diag.size
     filling_block = _basis_block(size, filling_indices)
 
     def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
-        del payload
         values = np.empty((points.shape[0], 2), dtype=float)
         for index, point in enumerate(points):
-            matrix = _shift_by_mu(_tb_k_matrix(hamiltonian, point), mu, q_diag)
+            matrix = _shift_by_mu(matrix_from_payload(payload[index]), mu, q_diag)
             result = _density_block(
                 matrix_function,
                 matrix,
@@ -493,7 +784,9 @@ def _charge_evaluator(
             )
             if derivative < 0.0:
                 warnings.warn(
-                    "BdG local dn/dmu was negative after Chebyshev convergence; clamping to zero"
+                    "BdG local dn/dmu was negative after "
+                    + _matrix_function_label(matrix_function)
+                    + " convergence; clamping to zero"
                     + f" (k={tuple(np.asarray(point, dtype=float))}, mu={float(mu):.12g})",
                     RuntimeWarning,
                 )
@@ -511,13 +804,13 @@ def _charge_evaluator(
 
 def _density_evaluator(
     *,
-    hamiltonian: _tb_type,
     ndim: int,
     kT: float,
     q_diag: np.ndarray,
     matrix_function: BdGMatrixFunction,
     tolerance: float,
     keys: list[tuple[int, ...]],
+    matrix_from_payload,
 ):
     prefactor = quadrature_prefactor(ndim)
     keys_array = np.asarray(keys, dtype=float)
@@ -525,10 +818,9 @@ def _density_evaluator(
     density_block = np.eye(size, dtype=complex)
 
     def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
-        del payload
         values = np.empty((points.shape[0], size * size * len(keys)), dtype=complex)
         for index, point in enumerate(points):
-            matrix = _shift_by_mu(_tb_k_matrix(hamiltonian, point), mu, q_diag)
+            matrix = _shift_by_mu(matrix_from_payload(payload[index]), mu, q_diag)
             result = _density_block(
                 matrix_function,
                 matrix,
@@ -654,7 +946,9 @@ def _solve_bdg_zero_dim(
         )
         if derivative < 0.0:
             warnings.warn(
-                "BdG local dn/dmu was negative after Chebyshev convergence; clamping to zero"
+                "BdG local dn/dmu was negative after "
+                + _matrix_function_label(matrix_function)
+                + " convergence; clamping to zero"
                 + f" (mu={float(mu):.12g})",
                 RuntimeWarning,
             )
@@ -775,6 +1069,22 @@ def solve_bdg_density_fixed_filling(
     charge_integral_atol, charge_integral_rtol = charge_integral_tolerance(
         resolved_filling_tol
     )
+    kernel, matrix_from_payload = _payload_helpers(hamiltonian)
+    charge_integrator = _build_bdg_integrator(
+        ndim=model._ndim,
+        kernel=kernel,
+        evaluator=_charge_evaluator(
+            ndim=model._ndim,
+            kT=model.kT,
+            q_diag=q_diag,
+            matrix_function=matrix_function,
+            tolerance=integration.density_matrix_tol,
+            filling_indices=filling_indices,
+            filling_weights=filling_weights,
+            matrix_from_payload=matrix_from_payload,
+        ),
+        integration=integration,
+    )
     charge_integration_calls = 0
     charge_kernel_evals = 0
     charge_evaluator_evals = 0
@@ -782,20 +1092,6 @@ def solve_bdg_density_fixed_filling(
 
     def evaluate_charge(candidate_mu: float) -> tuple[float, float, float]:
         nonlocal charge_integration_calls, charge_kernel_evals, charge_evaluator_evals, charge_refinements
-        charge_integrator = _build_bdg_integrator(
-            ndim=model._ndim,
-            evaluator=_charge_evaluator(
-                hamiltonian=hamiltonian,
-                ndim=model._ndim,
-                kT=model.kT,
-                q_diag=q_diag,
-                matrix_function=matrix_function,
-                tolerance=integration.density_matrix_tol,
-                filling_indices=filling_indices,
-                filling_weights=filling_weights,
-            ),
-            integration=integration,
-        )
         result = run_integrator(
             charge_integrator,
             candidate_mu,
@@ -830,18 +1126,16 @@ def solve_bdg_density_fixed_filling(
         max_mu_iterations=max_mu_iterations,
     )
 
-    density_integrator = _build_bdg_integrator(
-        ndim=model._ndim,
-        evaluator=_density_evaluator(
-            hamiltonian=hamiltonian,
+    density_integrator = charge_integrator.replace_evaluator(
+        _density_evaluator(
             ndim=model._ndim,
             kT=model.kT,
             q_diag=q_diag,
             matrix_function=matrix_function,
             tolerance=integration.density_matrix_tol,
             keys=keys,
-        ),
-        integration=integration,
+            matrix_from_payload=matrix_from_payload,
+        )
     )
     density_result = run_integrator(
         density_integrator,
