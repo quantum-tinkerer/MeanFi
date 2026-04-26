@@ -24,6 +24,18 @@ def _square_lattice_2d(t: float = 0.25):
     }
 
 
+def _triangular_lattice_2d(t: float = 0.2):
+    return {
+        (0, 0): np.array([[0.0]], dtype=complex),
+        (1, 0): np.array([[-t]], dtype=complex),
+        (-1, 0): np.array([[-t]], dtype=complex),
+        (0, 1): np.array([[-t]], dtype=complex),
+        (0, -1): np.array([[-t]], dtype=complex),
+        (-1, 1): np.array([[-t]], dtype=complex),
+        (1, -1): np.array([[-t]], dtype=complex),
+    }
+
+
 def _pairing(delta: float, *, sparse=None):
     matrix = np.array([[0.0, delta], [delta, 0.0]], dtype=complex)
     if sparse is not None:
@@ -31,8 +43,22 @@ def _pairing(delta: float, *, sparse=None):
     return {(0, 0): matrix}
 
 
-def _constant_callback(meanfield):
-    return lambda density: meanfield
+def _chiral_pairing(delta: float):
+    phase = np.exp(2j * np.pi / 3.0)
+    return {
+        (1, 0): np.array([[0.0, delta], [delta, 0.0]], dtype=complex),
+        (-1, 0): np.array([[0.0, delta], [delta, 0.0]], dtype=complex),
+        (0, 1): np.array([[0.0, delta * phase], [delta * phase, 0.0]], dtype=complex),
+        (0, -1): np.array(
+            [[0.0, delta * np.conj(phase)], [delta * np.conj(phase), 0.0]],
+            dtype=complex,
+        ),
+        (-1, 1): np.array(
+            [[0.0, delta * np.conj(phase)], [delta * np.conj(phase), 0.0]],
+            dtype=complex,
+        ),
+        (1, -1): np.array([[0.0, delta * phase], [delta * phase, 0.0]], dtype=complex),
+    }
 
 
 def _bdg_reference(model: Model, meanfield, keys, *, nk: int):
@@ -54,7 +80,8 @@ def _bdg_reference(model: Model, meanfield, keys, *, nk: int):
 
     def charge(mu: float) -> float:
         density_k = density_at_mu(mu)
-        return float(np.mean(density_k[:, 0, 0].real))
+        electron_block = density_k[:, : model._ndof, : model._ndof]
+        return float(np.mean(np.trace(electron_block, axis1=1, axis2=2).real))
 
     lower, upper = -4.0, 4.0
     for _ in range(80):
@@ -82,11 +109,10 @@ def test_bdg_exact_density_matches_dense_2d_reference():
     meanfield = _pairing(0.3)
     model = Model(
         _square_lattice_2d(),
-        {(0, 0): np.array([[0.0]], dtype=complex)},
+        {(0, 0): np.array([[1.0]], dtype=complex)},
         filling=0.6,
         kT=0.35,
         superconducting=True,
-        bdg_meanfield=_constant_callback(meanfield),
     )
     reference_mu, reference_filling, reference_density = _bdg_reference(
         model,
@@ -120,11 +146,10 @@ def test_bdg_chebyshev_matches_exact_density_in_2d():
     meanfield = _pairing(0.25)
     model = Model(
         _square_lattice_2d(t=0.15),
-        {(0, 0): np.array([[0.0]], dtype=complex)},
+        {(0, 0): np.array([[1.0]], dtype=complex)},
         filling=0.6,
         kT=0.5,
         superconducting=True,
-        bdg_meanfield=_constant_callback(meanfield),
     )
     exact = solve_bdg_density_fixed_filling(
         model,
@@ -172,7 +197,6 @@ def test_bdg_chebyshev_accepts_sparse_matrices_when_scipy_is_available():
         filling=0.5,
         kT=0.2,
         superconducting=True,
-        bdg_meanfield=_constant_callback(meanfield),
     )
 
     result = solve_bdg_density_fixed_filling(
@@ -193,3 +217,47 @@ def test_bdg_chebyshev_accepts_sparse_matrices_when_scipy_is_available():
     assert abs(result.mu) <= 1e-8
     assert abs(result.filling - 0.5) <= 1e-6
     assert np.allclose(result.density_matrix[local], 0.5 * np.eye(2), atol=1e-6)
+
+
+def test_bdg_complex_chiral_density_matches_dense_reference():
+    keys = [(1, 0), (0, 1), (-1, 1)]
+    meanfield = _chiral_pairing(0.12)
+    model = Model(
+        _triangular_lattice_2d(t=0.25),
+        {
+            (1, 0): np.array([[1.0]], dtype=complex),
+            (-1, 0): np.array([[1.0]], dtype=complex),
+            (0, 1): np.array([[1.0]], dtype=complex),
+            (0, -1): np.array([[1.0]], dtype=complex),
+            (-1, 1): np.array([[1.0]], dtype=complex),
+            (1, -1): np.array([[1.0]], dtype=complex),
+        },
+        filling=0.55,
+        kT=0.14,
+        superconducting=True,
+    )
+    reference_mu, reference_filling, reference_density = _bdg_reference(
+        model,
+        meanfield,
+        keys,
+        nk=121,
+    )
+
+    result = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=6e-4,
+            max_refinements=120,
+            matrix_function=ExactDiagonalization(),
+        ),
+        filling_tol=6e-4,
+        mu_tol=6e-4,
+        max_mu_iterations=80,
+        mu_guess=0.0,
+    )
+
+    assert abs(result.mu - reference_mu) <= 1e-3
+    assert abs(result.filling - reference_filling) <= 1e-3
+    assert _max_density_error(result.density_matrix, reference_density) <= 1e-3

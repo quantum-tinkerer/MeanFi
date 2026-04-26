@@ -20,6 +20,7 @@ from meanfi._finite_temp import (
 from meanfi._info import AdaptiveQuadratureInfo, DensityMatrixResult, FixedFillingInfo, SCFInfo
 from meanfi.bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization
 from meanfi.integration import AdaptiveQuadrature, IntegrationMethod
+from meanfi.mf import meanfield as normal_meanfield
 from meanfi.scf import LinearMixing
 from meanfi.tb.tb import _tb_type
 
@@ -820,6 +821,82 @@ def _zero_bdg_matrix(model) -> np.ndarray:
     return np.zeros((2 * model._ndof, 2 * model._ndof), dtype=complex)
 
 
+def _zero_bdg_array(ndof: int) -> np.ndarray:
+    return np.zeros((2 * ndof, 2 * ndof), dtype=complex)
+
+
+def _zero_electron_matrix(model) -> np.ndarray:
+    return np.zeros((model._ndof, model._ndof), dtype=complex)
+
+
+def _extract_electron_density(density_matrix: _tb_type, model) -> _tb_type:
+    return {
+        key: _to_dense(matrix)[: model._ndof, : model._ndof]
+        for key, matrix in density_matrix.items()
+    }
+
+
+def _extract_anomalous_density(density_matrix: _tb_type, model) -> _tb_type:
+    return {
+        key: _to_dense(matrix)[: model._ndof, model._ndof :]
+        for key, matrix in density_matrix.items()
+    }
+
+
+def _particle_hole_conjugate(tb: _tb_type) -> _tb_type:
+    result = {}
+    for key, matrix in tb.items():
+        opposite = tuple(-np.asarray(key, dtype=int))
+        result[opposite] = -_transpose(matrix)
+    return result
+
+
+def _assemble_bdg_correction(
+    normal_block: _tb_type,
+    anomalous_block: _tb_type,
+    model,
+) -> _tb_type:
+    zero_e = _zero_electron_matrix(model)
+    keys = frozenset(normal_block) | frozenset(anomalous_block)
+    hole_block = _particle_hole_conjugate(normal_block)
+    assembled = {}
+    for key in keys | frozenset(hole_block):
+        opposite = tuple(-np.asarray(key, dtype=int))
+        normal = normal_block.get(key, zero_e)
+        anomalous = anomalous_block.get(key, zero_e)
+        lower = anomalous_block.get(opposite, zero_e).conj().T
+        hole = hole_block.get(key, zero_e)
+        if _is_sparse_like(normal) or _is_sparse_like(anomalous) or _is_sparse_like(hole):
+            sparse = _sparse_module()
+            assembled[key] = sparse.bmat(
+                [
+                    [_as_sparse(normal), _as_sparse(anomalous)],
+                    [_as_sparse(lower), _as_sparse(hole)],
+                ],
+                format="csr",
+            )
+        else:
+            assembled[key] = np.block(
+                [
+                    [np.asarray(normal, dtype=complex), np.asarray(anomalous, dtype=complex)],
+                    [np.asarray(lower, dtype=complex), np.asarray(hole, dtype=complex)],
+                ]
+            )
+    return assembled
+
+
+def _bdg_correction_from_density(density_matrix: _tb_type, model) -> _tb_type:
+    electron_density = _extract_electron_density(density_matrix, model)
+    anomalous_density = _extract_anomalous_density(density_matrix, model)
+    normal_block = normal_meanfield(electron_density, model.h_int)
+    zero_e = _zero_electron_matrix(model)
+    anomalous_block = {
+        key: -_to_dense(model.h_int.get(key, zero_e)) * anomalous_density.get(key, zero_e)
+        for key in frozenset(model.h_int) | frozenset(anomalous_density)
+    }
+    return _assemble_bdg_correction(normal_block, anomalous_block, model)
+
+
 def _mix_meanfields(old: _tb_type, new: _tb_type, *, alpha: float, model) -> _tb_type:
     zero = _zero_bdg_matrix(model)
     keys = frozenset(old) | frozenset(new)
@@ -840,6 +917,61 @@ def _flatten_tb(tb: _tb_type) -> np.ndarray:
     return np.concatenate(parts).astype(float, copy=False)
 
 
+def _split_bdg_matrix(matrix: Any, ndof: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    array = _to_dense(matrix)
+    return (
+        array[:ndof, :ndof],
+        array[:ndof, ndof:],
+        array[ndof:, :ndof],
+        array[ndof:, ndof:],
+    )
+
+
+def validate_bdg_tb(tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG correction") -> None:
+    expected_shape = (2 * ndof, 2 * ndof)
+    zero = _zero_bdg_array(ndof)
+
+    for key, matrix in tb.items():
+        if len(key) != ndim:
+            raise ValueError(f"{name} keys must match the model dimension")
+        if _matrix_shape(matrix) != expected_shape:
+            raise ValueError(f"{name} matrices must have shape (2*ndof, 2*ndof)")
+
+    for key, matrix in tb.items():
+        opposite = tuple(-np.asarray(key, dtype=int))
+        if opposite not in tb:
+            raise ValueError(f"{name} must include opposite keys for Hermiticity")
+        opposite_matrix = tb[opposite]
+        if not np.allclose(_to_dense(matrix), _to_dense(opposite_matrix).conj().T):
+            raise ValueError(f"{name} must be Hermitian in real-space tight-binding form")
+
+    keys = frozenset(tb) | {tuple(-np.asarray(key, dtype=int)) for key in tb}
+    for key in keys:
+        opposite = tuple(-np.asarray(key, dtype=int))
+        matrix = tb.get(key, zero)
+        opposite_matrix = tb.get(opposite, zero)
+        normal, anomalous, lower, hole = _split_bdg_matrix(matrix, ndof)
+        opposite_normal, opposite_anomalous, _, _ = _split_bdg_matrix(opposite_matrix, ndof)
+
+        if not np.allclose(hole, -opposite_normal.T):
+            raise ValueError(
+                f"{name} lower-right block must equal -h(-R).T in electron-first BdG form"
+            )
+        if not np.allclose(lower, opposite_anomalous.conj().T):
+            raise ValueError(
+                f"{name} lower-left block must equal Delta(-R).dagger in electron-first BdG form"
+            )
+
+
+def _bdg_density_keys(model, meanfield: _tb_type) -> list[tuple[int, ...]]:
+    del meanfield
+    keys = list(model.h_int)
+    onsite = (0,) * model._ndim
+    if onsite not in keys:
+        keys.append(onsite)
+    return keys
+
+
 def _counter_tuple(result: DensityMatrixResult) -> tuple[int, int, int, int, int]:
     info = result.info
     charge_calls = int(getattr(info, "charge_integration_calls", 0) or 0)
@@ -850,13 +982,13 @@ def _counter_tuple(result: DensityMatrixResult) -> tuple[int, int, int, int, int
     return charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals
 
 
-def _validate_bdg_meanfield(model, meanfield: _tb_type) -> None:
-    expected_shape = (2 * model._ndof, 2 * model._ndof)
-    for key, matrix in meanfield.items():
-        if len(key) != model._ndim:
-            raise ValueError("BdG mean-field keys must match the model dimension")
-        if _matrix_shape(matrix) != expected_shape:
-            raise ValueError("BdG mean-field matrices must have shape (2*ndof, 2*ndof)")
+def _validate_bdg_correction(model, meanfield: _tb_type) -> None:
+    validate_bdg_tb(
+        meanfield,
+        ndof=model._ndof,
+        ndim=model._ndim,
+        name="BdG correction",
+    )
 
 
 def solve_bdg_scf(
@@ -882,8 +1014,8 @@ def solve_bdg_scf(
     if scf_tol <= 0:
         raise ValueError("scf_tol must be positive")
 
-    _validate_bdg_meanfield(model, guess)
-    keys = list(guess)
+    _validate_bdg_correction(model, guess)
+    keys = _bdg_density_keys(model, guess)
     meanfield = dict(guess)
     previous_density = None
     last_density_result = None
@@ -942,15 +1074,18 @@ def solve_bdg_scf(
                     info=info,
                 )
 
-        new_meanfield = model.bdg_meanfield(density_result.density_matrix)
-        _validate_bdg_meanfield(model, new_meanfield)
-        keys = list(dict.fromkeys([*keys, *new_meanfield.keys()]))
+        new_meanfield = _bdg_correction_from_density(
+            density_result.density_matrix,
+            model,
+        )
+        _validate_bdg_correction(model, new_meanfield)
         meanfield = _mix_meanfields(
             meanfield,
             new_meanfield,
             alpha=float(scf.alpha),
             model=model,
         )
+        _validate_bdg_correction(model, meanfield)
         previous_density = density_result.density_matrix
         last_density_result = density_result
         mu_guess = density_result.mu
