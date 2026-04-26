@@ -21,6 +21,7 @@ from meanfi._info import AdaptiveQuadratureInfo, DensityMatrixResult, FixedFilli
 from meanfi.bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization
 from meanfi.integration import AdaptiveQuadrature, IntegrationMethod
 from meanfi.mf import meanfield as normal_meanfield
+from meanfi.params.rparams import bdg_tb_to_rparams
 from meanfi.scf import LinearMixing
 from meanfi.tb.tb import _tb_type
 
@@ -909,12 +910,8 @@ def _mix_meanfields(old: _tb_type, new: _tb_type, *, alpha: float, model) -> _tb
 def _flatten_tb(tb: _tb_type) -> np.ndarray:
     if not tb:
         return np.array([], dtype=float)
-    parts = []
-    for key in sorted(tb):
-        dense = _to_dense(tb[key]).reshape(-1)
-        parts.append(np.real(dense))
-        parts.append(np.imag(dense))
-    return np.concatenate(parts).astype(float, copy=False)
+    ndof = next(iter(tb.values())).shape[0] // 2
+    return np.asarray(bdg_tb_to_rparams(tb, ndof), dtype=float)
 
 
 def _split_bdg_matrix(matrix: Any, ndof: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

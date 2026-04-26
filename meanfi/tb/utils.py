@@ -31,11 +31,12 @@ def guess_tb(
     :
         Hermitian guess tight-binding dictionary.
     """
-    ndim = len(tb_keys[0]) if tb_keys else 0
+    normalized_keys = [tuple(np.asarray(key, dtype=int)) for key in tb_keys]
+    ndim = len(normalized_keys[0]) if normalized_keys else 0
     if superconducting:
-        return _guess_bdg_tb(tb_keys, ndof=ndof, ndim=ndim, scale=scale)
+        return _guess_bdg_tb(normalized_keys, ndof=ndof, ndim=ndim, scale=scale)
 
-    return _guess_electron_tb(tb_keys, ndof=ndof, scale=scale)
+    return _guess_electron_tb(normalized_keys, ndof=ndof, scale=scale)
 
 
 def _guess_electron_tb(
