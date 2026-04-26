@@ -7,10 +7,31 @@ import numpy as np
 from meanfi.tb.tb import _tb_type
 
 
+def _is_sparse_like(value) -> bool:
+    return hasattr(value, "toarray") and hasattr(value, "tocsr")
+
+
 def _matrix_array(value) -> np.ndarray:
-    if hasattr(value, "toarray"):
+    if _is_sparse_like(value):
         return np.asarray(value.toarray(), dtype=complex)
     return np.asarray(value)
+
+
+def _matrix_allclose(lhs, rhs, *, atol: float = 1e-8) -> bool:
+    if _is_sparse_like(lhs) or _is_sparse_like(rhs):
+        if not _is_sparse_like(lhs):
+            lhs = rhs.__class__(np.asarray(lhs, dtype=complex))
+        else:
+            lhs = lhs.tocsr()
+        if not _is_sparse_like(rhs):
+            rhs = lhs.__class__(np.asarray(rhs, dtype=complex))
+        else:
+            rhs = rhs.tocsr()
+        diff = (lhs - rhs).tocsr()
+        if diff.nnz == 0:
+            return True
+        return bool(np.max(np.abs(diff.data)) <= atol)
+    return bool(np.allclose(np.asarray(lhs), np.asarray(rhs), atol=atol))
 
 
 def tb_dimension(tb: _tb_type) -> int:
@@ -60,10 +81,7 @@ def validate_hermiticity(tb: _tb_type) -> None:
 
     for vector, matrix in tb.items():
         opposite = tuple(-1 * np.asarray(vector))
-        if not np.allclose(
-            _matrix_array(matrix),
-            _matrix_array(tb[opposite].conj().T),
-        ):
+        if not _matrix_allclose(matrix, tb[opposite].conj().T):
             raise ValueError("Tight-binding dictionary must be hermitian.")
 
 

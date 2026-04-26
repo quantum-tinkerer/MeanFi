@@ -18,6 +18,26 @@ __all__ = [
 ]
 
 
+def _is_sparse_like(matrix) -> bool:
+    return hasattr(matrix, "toarray") and hasattr(matrix, "tocsr")
+
+
+def _sparse_module():
+    try:
+        import scipy.sparse as sparse
+    except ImportError as exc:  # pragma: no cover - depends on optional scipy
+        raise ImportError("Sparse mean-field inputs require scipy to be installed") from exc
+    return sparse
+
+
+def _elementwise_product(lhs, rhs):
+    if _is_sparse_like(lhs):
+        return lhs.multiply(np.asarray(rhs, dtype=complex)).tocsr()
+    if _is_sparse_like(rhs):
+        return rhs.multiply(np.asarray(lhs, dtype=complex)).tocsr()
+    return np.asarray(lhs, dtype=complex) * np.asarray(rhs, dtype=complex)
+
+
 def density_matrix_at_mu(
     h: _tb_type,
     mu: float,
@@ -66,21 +86,25 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     """Compute the mean-field correction from a density matrix."""
 
     onsite_key = zero_key(tb_dimension(density_matrix))
+    diagonal_density = np.real(np.diag(np.asarray(density_matrix[onsite_key], dtype=complex)))
+    onsite_diagonal = np.zeros_like(diagonal_density, dtype=complex)
+    sparse_present = any(_is_sparse_like(matrix) for matrix in h_int.values())
+    sparse = _sparse_module() if sparse_present else None
+    for vector in frozenset(h_int):
+        interaction = h_int[vector]
+        if _is_sparse_like(interaction):
+            onsite_diagonal += np.asarray(diagonal_density @ interaction, dtype=complex).ravel()
+        else:
+            onsite_diagonal += diagonal_density @ np.asarray(interaction, dtype=complex)
     direct = {
-        onsite_key: np.sum(
-            np.asarray(
-                [
-                    np.diag(
-                        np.einsum("pp,pn->n", density_matrix[onsite_key], h_int[vector])
-                    )
-                    for vector in frozenset(h_int)
-                ]
-            ),
-            axis=0,
+        onsite_key: (
+            sparse.diags(onsite_diagonal, format="csr")
+            if sparse_present
+            else np.diag(onsite_diagonal)
         )
     }
     exchange = {
-        vector: -1 * h_int.get(vector, 0) * density_matrix[vector]
+        vector: -_elementwise_product(h_int.get(vector, 0), density_matrix[vector])
         for vector in frozenset(h_int)
     }
     return add_tb(direct, exchange)

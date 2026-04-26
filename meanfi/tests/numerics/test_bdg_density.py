@@ -1,11 +1,14 @@
 import numpy as np
 import pytest
 
+import meanfi._bdg as bdg_internal
 from meanfi import (
     AdaptiveQuadrature,
     ChebyshevFOE,
     ExactDiagonalization,
+    LinearMixing,
     Model,
+    solver,
     tb_to_kfunc,
 )
 from meanfi._bdg import charge_diagonal, solve_bdg_density_fixed_filling
@@ -41,6 +44,10 @@ def _pairing(delta: float, *, sparse=None):
     if sparse is not None:
         matrix = sparse.csr_matrix(matrix)
     return {(0, 0): matrix}
+
+
+def _sparsify_tb(tb, sparse):
+    return {key: sparse.csr_matrix(np.asarray(matrix, dtype=complex)) for key, matrix in tb.items()}
 
 
 def _chiral_pairing(delta: float):
@@ -217,6 +224,192 @@ def test_bdg_chebyshev_accepts_sparse_matrices_when_scipy_is_available():
     assert abs(result.mu) <= 1e-8
     assert abs(result.filling - 0.5) <= 1e-6
     assert np.allclose(result.density_matrix[local], 0.5 * np.eye(2), atol=1e-6)
+
+
+def test_bdg_sparse_chebyshev_matches_exact_density_in_2d():
+    sparse = pytest.importorskip("scipy.sparse")
+    keys = [(0, 0), (1, 0)]
+    meanfield = _pairing(0.25, sparse=sparse)
+    model = Model(
+        _sparsify_tb(_square_lattice_2d(t=0.15), sparse),
+        {local_key: sparse.csr_matrix([[1.0]]) for local_key in [(0, 0)]},
+        filling=0.6,
+        kT=0.5,
+        superconducting=True,
+    )
+    exact = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-3,
+            max_refinements=40,
+            matrix_function=ExactDiagonalization(),
+        ),
+        filling_tol=1e-3,
+        mu_tol=1e-3,
+        max_mu_iterations=80,
+        mu_guess=0.0,
+    )
+    chebyshev = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-3,
+            max_refinements=40,
+            matrix_function=ChebyshevFOE(initial_order=4, max_order=256),
+        ),
+        filling_tol=1e-3,
+        mu_tol=1e-3,
+        max_mu_iterations=80,
+        mu_guess=0.0,
+    )
+
+    assert abs(chebyshev.mu - exact.mu) <= 2e-3
+    assert abs(chebyshev.filling - exact.filling) <= 2e-3
+    assert _max_density_error(chebyshev.density_matrix, exact.density_matrix) <= 2e-3
+
+
+def test_bdg_sparse_chebyshev_does_not_fallback_to_exact_diagonalization(monkeypatch):
+    sparse = pytest.importorskip("scipy.sparse")
+    local = (0, 0)
+    h_0 = {local: sparse.csr_matrix([[0.0]])}
+    h_int = {local: sparse.csr_matrix([[0.0]])}
+    meanfield = _pairing(0.0, sparse=sparse)
+    model = Model(
+        h_0,
+        h_int,
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+
+    def fail_if_exact(*args, **kwargs):
+        raise AssertionError("Sparse Chebyshev path should not call exact diagonalization")
+
+    monkeypatch.setattr(bdg_internal, "_exact_density_block", fail_if_exact)
+    result = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=[local],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-6,
+            max_refinements=8,
+            matrix_function=ChebyshevFOE(),
+        ),
+        filling_tol=1e-6,
+        mu_tol=1e-8,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+
+    assert abs(result.mu) <= 1e-8
+    assert abs(result.filling - 0.5) <= 1e-6
+
+
+def test_bdg_sparse_chebyshev_density_path_avoids_dense_conversion(monkeypatch):
+    sparse = pytest.importorskip("scipy.sparse")
+    local = (0, 0)
+    h_0 = {local: sparse.csr_matrix([[0.0]])}
+    h_int = {local: sparse.csr_matrix([[0.0]])}
+    meanfield = _pairing(0.0, sparse=sparse)
+    model = Model(
+        h_0,
+        h_int,
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+
+    def fail_if_dense(*args, **kwargs):
+        raise AssertionError("Sparse Chebyshev density path should not densify matrices")
+
+    monkeypatch.setattr(bdg_internal, "_to_dense", fail_if_dense)
+    result = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=[local],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-6,
+            max_refinements=8,
+            matrix_function=ChebyshevFOE(),
+        ),
+        filling_tol=1e-6,
+        mu_tol=1e-8,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+
+    assert abs(result.mu) <= 1e-8
+    assert abs(result.filling - 0.5) <= 1e-6
+
+
+def test_bdg_dense_chebyshev_does_not_fallback_to_exact_diagonalization(monkeypatch):
+    local = (0, 0)
+    model = Model(
+        {local: np.array([[0.0]], dtype=complex)},
+        {local: np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+    meanfield = _pairing(0.0)
+
+    def fail_if_exact(*args, **kwargs):
+        raise AssertionError("Dense Chebyshev path should not call exact diagonalization")
+
+    monkeypatch.setattr(bdg_internal, "_exact_density_block", fail_if_exact)
+    result = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=[local],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-6,
+            max_refinements=8,
+            matrix_function=ChebyshevFOE(),
+        ),
+        filling_tol=1e-6,
+        mu_tol=1e-8,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+
+    assert abs(result.mu) <= 1e-8
+    assert abs(result.filling - 0.5) <= 1e-6
+
+
+def test_bdg_sparse_chebyshev_scf_path_avoids_dense_conversion(monkeypatch):
+    sparse = pytest.importorskip("scipy.sparse")
+    local = (0, 0)
+    model = Model(
+        {local: sparse.csr_matrix([[0.0]])},
+        {local: sparse.csr_matrix([[0.0]])},
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+    guess = {local: sparse.csr_matrix([[0.0, 0.0], [0.0, 0.0]])}
+
+    def fail_if_dense(*args, **kwargs):
+        raise AssertionError("Sparse Chebyshev SCF path should not densify matrices")
+
+    monkeypatch.setattr(bdg_internal, "_to_dense", fail_if_dense)
+    result = solver(
+        model,
+        guess,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-6,
+            max_refinements=8,
+            matrix_function=ChebyshevFOE(),
+        ),
+        scf=LinearMixing(max_iterations=2, alpha=0.5),
+        scf_tol=1e-8,
+        filling_tol=1e-6,
+    )
+
+    assert abs(result.density_matrix_result.mu) <= 1e-8
+    assert abs(result.density_matrix_result.filling - 0.5) <= 1e-6
 
 
 def test_bdg_complex_chiral_density_matches_dense_reference():

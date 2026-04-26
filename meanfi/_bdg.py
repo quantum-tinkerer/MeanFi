@@ -18,6 +18,7 @@ from meanfi._finite_temp import (
     split_density_result,
 )
 from meanfi._info import AdaptiveQuadratureInfo, DensityMatrixResult, FixedFillingInfo, SCFInfo
+from meanfi._validation import _matrix_allclose
 from meanfi.bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization
 from meanfi.integration import AdaptiveQuadrature, IntegrationMethod
 from meanfi.mf import meanfield as normal_meanfield
@@ -68,6 +69,18 @@ def _matrix_shape(matrix: Any) -> tuple[int, int]:
 
 def _transpose(matrix: Any):
     return matrix.T
+
+
+def _conjugate_transpose(matrix: Any):
+    return matrix.conj().T
+
+
+def _elementwise_product(lhs: Any, rhs: Any):
+    if _is_sparse_like(lhs):
+        return lhs.multiply(np.asarray(rhs, dtype=complex)).tocsr()
+    if _is_sparse_like(rhs):
+        return rhs.multiply(np.asarray(lhs, dtype=complex)).tocsr()
+    return np.asarray(lhs, dtype=complex) * np.asarray(rhs, dtype=complex)
 
 
 def _block_diag(top: Any, bottom: Any):
@@ -832,14 +845,14 @@ def _zero_electron_matrix(model) -> np.ndarray:
 
 def _extract_electron_density(density_matrix: _tb_type, model) -> _tb_type:
     return {
-        key: _to_dense(matrix)[: model._ndof, : model._ndof]
+        key: matrix[: model._ndof, : model._ndof]
         for key, matrix in density_matrix.items()
     }
 
 
 def _extract_anomalous_density(density_matrix: _tb_type, model) -> _tb_type:
     return {
-        key: _to_dense(matrix)[: model._ndof, model._ndof :]
+        key: matrix[: model._ndof, model._ndof :]
         for key, matrix in density_matrix.items()
     }
 
@@ -865,7 +878,7 @@ def _assemble_bdg_correction(
         opposite = tuple(-np.asarray(key, dtype=int))
         normal = normal_block.get(key, zero_e)
         anomalous = anomalous_block.get(key, zero_e)
-        lower = anomalous_block.get(opposite, zero_e).conj().T
+        lower = _conjugate_transpose(anomalous_block.get(opposite, zero_e))
         hole = hole_block.get(key, zero_e)
         if _is_sparse_like(normal) or _is_sparse_like(anomalous) or _is_sparse_like(hole):
             sparse = _sparse_module()
@@ -892,7 +905,10 @@ def _bdg_correction_from_density(density_matrix: _tb_type, model) -> _tb_type:
     normal_block = normal_meanfield(electron_density, model.h_int)
     zero_e = _zero_electron_matrix(model)
     anomalous_block = {
-        key: -_to_dense(model.h_int.get(key, zero_e)) * anomalous_density.get(key, zero_e)
+        key: -_elementwise_product(
+            model.h_int.get(key, zero_e),
+            anomalous_density.get(key, zero_e),
+        )
         for key in frozenset(model.h_int) | frozenset(anomalous_density)
     }
     return _assemble_bdg_correction(normal_block, anomalous_block, model)
@@ -914,8 +930,8 @@ def _flatten_tb(tb: _tb_type) -> np.ndarray:
     return np.asarray(bdg_tb_to_rparams(tb, ndof), dtype=float)
 
 
-def _split_bdg_matrix(matrix: Any, ndof: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    array = _to_dense(matrix)
+def _split_bdg_matrix(matrix: Any, ndof: int) -> tuple[Any, Any, Any, Any]:
+    array = matrix
     return (
         array[:ndof, :ndof],
         array[:ndof, ndof:],
@@ -939,7 +955,7 @@ def validate_bdg_tb(tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG corr
         if opposite not in tb:
             raise ValueError(f"{name} must include opposite keys for Hermiticity")
         opposite_matrix = tb[opposite]
-        if not np.allclose(_to_dense(matrix), _to_dense(opposite_matrix).conj().T):
+        if not _matrix_allclose(matrix, _conjugate_transpose(opposite_matrix)):
             raise ValueError(f"{name} must be Hermitian in real-space tight-binding form")
 
     keys = frozenset(tb) | {tuple(-np.asarray(key, dtype=int)) for key in tb}
@@ -950,11 +966,11 @@ def validate_bdg_tb(tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG corr
         normal, anomalous, lower, hole = _split_bdg_matrix(matrix, ndof)
         opposite_normal, opposite_anomalous, _, _ = _split_bdg_matrix(opposite_matrix, ndof)
 
-        if not np.allclose(hole, -opposite_normal.T):
+        if not _matrix_allclose(hole, -_transpose(opposite_normal)):
             raise ValueError(
                 f"{name} lower-right block must equal -h(-R).T in electron-first BdG form"
             )
-        if not np.allclose(lower, opposite_anomalous.conj().T):
+        if not _matrix_allclose(lower, _conjugate_transpose(opposite_anomalous)):
             raise ValueError(
                 f"{name} lower-left block must equal Delta(-R).dagger in electron-first BdG form"
             )
