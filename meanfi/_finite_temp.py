@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import warnings
 
 from meanfi._info import DensityIntegrationInfo
 from meanfi._validation import tb_dimension, tb_orbital_count
@@ -276,6 +277,11 @@ def solve_mu(
             mu = 0.5 * (lower + upper)
             continue
 
+        if last_derivative <= 0:
+            warnings.warn(
+                f"Integrated dN/dmu={last_derivative:.12g} is non-positive; falling back to bisection",
+                RuntimeWarning,
+            )
         candidate = mu - residual / last_derivative if last_derivative > 0 else np.nan
         if not np.isfinite(candidate) or candidate <= lower or candidate >= upper:
             candidate = 0.5 * (lower + upper)

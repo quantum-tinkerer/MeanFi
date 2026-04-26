@@ -27,6 +27,7 @@ class ChebyshevFOE(BdGMatrixFunction):
     max_order: int = 1024
     coefficient_oversampling: int = 4
     spectral_padding: float = 1e-8
+    dn_dmu_rtol: float = 1e-1
 
     def __post_init__(self) -> None:
         if self.initial_order <= 0:
@@ -37,3 +38,5 @@ class ChebyshevFOE(BdGMatrixFunction):
             raise ValueError("coefficient_oversampling must be positive")
         if self.spectral_padding < 0:
             raise ValueError("spectral_padding must be non-negative")
+        if self.dn_dmu_rtol < 0:
+            raise ValueError("dn_dmu_rtol must be non-negative")

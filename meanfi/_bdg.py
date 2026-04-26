@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
+import warnings
 
 import numpy as np
 
@@ -33,6 +34,9 @@ class _BlockResult:
     derivative_block: np.ndarray | None
     error: float
     order: int | None
+
+
+_DN_DMU_ABS_FLOOR = 1e-6
 
 
 def _is_sparse_like(matrix: Any) -> bool:
@@ -235,6 +239,8 @@ def _chebyshev_density_block(
     derivative: bool,
     tolerance: float,
     options: ChebyshevFOE,
+    derivative_trace_monitor=None,
+    derivative_context: str | None = None,
 ) -> _BlockResult:
     lower, upper = _gershgorin_bounds(matrix)
     width = max(upper - lower, 1e-12)
@@ -245,6 +251,7 @@ def _chebyshev_density_block(
     accepted_derivative = None
     accepted_error = float("inf")
     accepted_order = None
+    derivative_error = 0.0
 
     order_half = int(options.initial_order)
     while 2 * order_half <= int(options.max_order):
@@ -314,14 +321,51 @@ def _chebyshev_density_block(
                 s_prev, s_curr = s_curr, s_next
 
         accepted_error = float(np.max(np.abs(y_full - y_half)))
+        derivative_converged = True
+        if derivative:
+            if derivative_trace_monitor is None:
+                derivative_error = float(np.max(np.abs(dy_full - dy_half)))
+                derivative_scale = max(
+                    float(np.max(np.abs(dy_full))),
+                    float(np.max(np.abs(dy_half))),
+                    1e-15,
+                )
+                derivative_converged = (
+                    derivative_error
+                    <= float(options.dn_dmu_rtol) * derivative_scale
+                )
+            else:
+                derivative_full_trace = float(derivative_trace_monitor(dy_full))
+                derivative_half_trace = float(derivative_trace_monitor(dy_half))
+                derivative_scale = max(
+                    abs(derivative_full_trace),
+                    abs(derivative_half_trace),
+                    _DN_DMU_ABS_FLOOR,
+                )
+                derivative_error = abs(derivative_full_trace - derivative_half_trace)
+                if (
+                    abs(derivative_full_trace) <= _DN_DMU_ABS_FLOOR
+                    and abs(derivative_half_trace) <= _DN_DMU_ABS_FLOOR
+                ):
+                    warnings.warn(
+                        "BdG Chebyshev dn/dmu reached absolute floor; treating as singular local point"
+                        + ("" if derivative_context is None else f" ({derivative_context})"),
+                        RuntimeWarning,
+                    )
+                    derivative_converged = True
+                else:
+                    derivative_converged = (
+                        derivative_error
+                        <= float(options.dn_dmu_rtol) * derivative_scale
+                    )
         accepted_block = y_full
         accepted_derivative = dy_full
         accepted_order = order
-        if accepted_error <= tolerance:
+        if accepted_error <= tolerance and derivative_converged:
             break
         order_half = order
 
-    if accepted_error > tolerance:
+    if accepted_error > tolerance or (derivative and not derivative_converged):
         raise ValueError("Chebyshev FOE did not converge within max_order")
 
     return _BlockResult(
@@ -341,6 +385,8 @@ def _density_block(
     q_diag: np.ndarray,
     derivative: bool,
     tolerance: float,
+    derivative_trace_monitor=None,
+    derivative_context: str | None = None,
 ) -> _BlockResult:
     if isinstance(matrix_function, ExactDiagonalization):
         return _exact_density_block(
@@ -359,6 +405,8 @@ def _density_block(
             derivative=derivative,
             tolerance=tolerance,
             options=matrix_function,
+            derivative_trace_monitor=derivative_trace_monitor,
+            derivative_context=derivative_context,
         )
     raise TypeError("matrix_function must be a BdGMatrixFunction instance")
 
@@ -430,6 +478,12 @@ def _charge_evaluator(
                 q_diag=q_diag,
                 derivative=True,
                 tolerance=tolerance,
+                derivative_trace_monitor=lambda block: _local_filling(
+                    block,
+                    filling_indices,
+                    filling_weights,
+                ),
+                derivative_context=f"k={tuple(np.asarray(point, dtype=float))}, mu={float(mu):.12g}",
             )
             derivative_block = result.derivative_block
             derivative = (
@@ -437,6 +491,13 @@ def _charge_evaluator(
                 if derivative_block is None
                 else _local_filling(derivative_block, filling_indices, filling_weights)
             )
+            if derivative < 0.0:
+                warnings.warn(
+                    "BdG local dn/dmu was negative after Chebyshev convergence; clamping to zero"
+                    + f" (k={tuple(np.asarray(point, dtype=float))}, mu={float(mu):.12g})",
+                    RuntimeWarning,
+                )
+                derivative = 0.0
             values[index, 0] = _local_filling(
                 result.block,
                 filling_indices,
@@ -578,6 +639,12 @@ def _solve_bdg_zero_dim(
             q_diag=q_diag,
             derivative=True,
             tolerance=integration.density_matrix_tol,
+            derivative_trace_monitor=lambda block: _local_filling(
+                block,
+                filling_indices,
+                filling_weights,
+            ),
+            derivative_context=f"k={(0,) * len(tuple())}, mu={float(mu):.12g}",
         )
         derivative_block = result.derivative_block
         derivative = (
@@ -585,6 +652,13 @@ def _solve_bdg_zero_dim(
             if derivative_block is None
             else _local_filling(derivative_block, filling_indices, filling_weights)
         )
+        if derivative < 0.0:
+            warnings.warn(
+                "BdG local dn/dmu was negative after Chebyshev convergence; clamping to zero"
+                + f" (mu={float(mu):.12g})",
+                RuntimeWarning,
+            )
+            derivative = 0.0
         return _local_filling(result.block, filling_indices, filling_weights), 0.0, derivative
 
     lower, upper = _mu_bracket_for_bdg(hamiltonian, kT)
