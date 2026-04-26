@@ -546,7 +546,7 @@ def _solve_bdg_zero_dim(
     integration: AdaptiveQuadrature,
     filling_tol: float,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     mu_guess: float,
     q_diag: np.ndarray,
     matrix_function: BdGMatrixFunction,
@@ -645,7 +645,7 @@ def solve_bdg_density_fixed_filling(
     integration: IntegrationMethod,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     mu_guess: float,
 ) -> DensityMatrixResult:
     if not isinstance(integration, AdaptiveQuadrature):
@@ -654,7 +654,7 @@ def solve_bdg_density_fixed_filling(
         raise NotImplementedError("BdG density currently requires kT > 0")
     if mu_tol <= 0:
         raise ValueError("mu_tol must be positive")
-    if max_mu_iterations <= 0:
+    if max_mu_iterations is not None and max_mu_iterations <= 0:
         raise ValueError("max_mu_iterations must be positive")
 
     matrix_function = _matrix_function(integration)
@@ -997,7 +997,7 @@ def solve_bdg_scf(
     scf_tol: float,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     optimizer,
     optimizer_kwargs: dict | None,
 ):

@@ -61,7 +61,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
     assert density_params["filling_tol"].default is None
     assert density_params["mu_tol"].default == 1e-10
-    assert density_params["max_mu_iterations"].default == 128
+    assert density_params["max_mu_iterations"].default is None
 
     density_at_mu_params = inspect.signature(density_matrix_at_mu).parameters
     assert density_at_mu_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY

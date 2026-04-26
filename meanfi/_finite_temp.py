@@ -248,7 +248,7 @@ def solve_mu(
     upper: float,
     charge_tol: float,
     mu_xtol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
 ) -> tuple[float, float, float, float, int]:
     """Solve for the chemical potential using safeguarded Newton steps."""
 
@@ -259,7 +259,9 @@ def solve_mu(
     last_charge = float("nan")
     last_charge_error = float("nan")
     last_derivative = float("nan")
-    for iteration in range(1, max_mu_iterations + 1):
+    iteration = 0
+    while True:
+        iteration += 1
         last_charge, last_charge_error, last_derivative = evaluate_charge(mu)
         residual = last_charge - filling
         if abs(residual) <= charge_tol and last_charge_error <= charge_tol / 2.0:
@@ -278,6 +280,9 @@ def solve_mu(
         if not np.isfinite(candidate) or candidate <= lower or candidate >= upper:
             candidate = 0.5 * (lower + upper)
         mu = float(candidate)
+
+        if max_mu_iterations is not None and iteration >= max_mu_iterations:
+            break
 
     raise ValueError(
         "Chemical-potential solver did not converge within max_mu_iterations"

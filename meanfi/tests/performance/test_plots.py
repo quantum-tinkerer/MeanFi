@@ -1,13 +1,19 @@
 import json
 from pathlib import Path
 import sys
+import warnings
 
 import numpy as np
 import pytest
+from pyparsing.warnings import PyparsingDeprecationWarning
 
-from meanfi.tests.helpers import BenchmarkResult, DenseReference
-import performance.benchmarks.density_scaling as density_scaling
-from performance._shared.plots import (
+
+warnings.filterwarnings("ignore", category=PyparsingDeprecationWarning)
+
+import performance.profiling.chiral_square_pwave_demo as chiral_demo  # noqa: E402
+from meanfi.tests.helpers import BenchmarkResult, DenseReference  # noqa: E402
+import performance.benchmarks.density_scaling as density_scaling  # noqa: E402
+from performance._shared.plots import (  # noqa: E402
     _bytes_to_mib,
     _comparison_label,
     _cost_curves,
@@ -219,6 +225,42 @@ def test_comparison_labels_include_method_and_ndof():
     }
 
     assert _comparison_label(record) == "AdaptiveSimplex (ndof=8)"
+
+
+def test_chiral_square_demo_plot_writer_emits_png(tmp_path: Path, monkeypatch):
+    model = type("FakeModel", (), {"h_0": {(0, 0): np.zeros((1, 1), dtype=complex)}})()
+    result = type(
+        "FakeResult",
+        (),
+        {
+            "mf": {
+                (1, 0): np.array([[0.0, 0.1], [-0.1, 0.0]], dtype=complex),
+                (-1, 0): np.array([[0.0, -0.1], [0.1, 0.0]], dtype=complex),
+                (0, 1): np.array([[0.0, 0.1j], [0.1j, 0.0]], dtype=complex),
+                (0, -1): np.array([[0.0, -0.1j], [-0.1j, 0.0]], dtype=complex),
+            },
+            "density_matrix_result": type("Density", (), {"mu": 0.2})(),
+            "info": type("Info", (), {"residual_norm": 1e-4})(),
+        },
+    )()
+
+    def fake_solve():
+        return model, result
+
+    def fake_symbols(_model, _result, *, nk):
+        axis = np.linspace(-np.pi, np.pi, nk, endpoint=False)
+        kx, ky = np.meshgrid(axis, axis, indexing="ij")
+        xi = np.cos(kx) + np.cos(ky) - 0.2
+        gap = np.sin(kx) + 1j * np.sin(ky)
+        return axis, xi, gap, np.abs(gap), np.sqrt(xi**2 + np.abs(gap) ** 2)
+
+    monkeypatch.setattr(chiral_demo, "solve_chiral_square_state", fake_solve)
+    monkeypatch.setattr(chiral_demo, "_electron_and_pairing_symbols", fake_symbols)
+
+    output = chiral_demo.write_chiral_square_plot(tmp_path / "chiral_demo.png", nk=81)
+
+    assert output.exists()
+    assert output.suffix == ".png"
 
 
 def test_dense_reference_backoff_relaxes_target(monkeypatch):

@@ -59,7 +59,7 @@ def density_matrix_zero_dim(
     mu_guess: float,
     charge_tol: float,
     mu_xtol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     density_atol: float,
     density_rtol: float,
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:

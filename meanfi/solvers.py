@@ -81,7 +81,7 @@ def _density_for_hamiltonian(
     integration: IntegrationMethod,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     mu_guess: float,
 ) -> DensityMatrixResult:
     return solve_density_matrix_fixed_filling(
@@ -105,7 +105,7 @@ def _residual(
     integration: IntegrationMethod,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     state: _ScfState,
 ) -> np.ndarray:
     density_guess = rparams_to_tb(density_params, keys, model._ndof)
@@ -257,7 +257,7 @@ def solver(
     scf_tol: float = 1e-5,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
-    max_mu_iterations: int = 128,
+    max_mu_iterations: int | None = None,
     optimizer: Callable | None = None,
     optimizer_kwargs: dict | None = None,
 ) -> SolverResult:

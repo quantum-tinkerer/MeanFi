@@ -31,6 +31,7 @@ except (
 _GEOM_TOL = 1e-14
 _BULK_THETA = 0.5
 _ROOT_SUBCELLS_PER_AXIS = 2
+_UNLIMITED_MU_ITERATIONS = int(np.iinfo(np.int32).max)
 
 
 def _root_subcells_per_axis(ndim: int) -> int:
@@ -197,7 +198,7 @@ def _root_mesh_fixed_filling_zero_temp(
     density_rtol: float,
     mu_guess: float,
     mu_xtol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
 ):
     geometry, vertex_cache = _build_extension_runtime(h)
     integrator = AdaptiveIntegrator(
@@ -291,14 +292,18 @@ def _build_charge_options(
     mu_guess: float,
     charge_tol: float,
     mu_xtol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     max_subdivisions: int | None,
 ):
     options = ChargeSolveOptions()
     options.mu_guess = float(mu_guess)
     options.charge_tol = float(charge_tol)
     options.mu_xtol = float(mu_xtol)
-    options.max_mu_iterations = int(max_mu_iterations)
+    options.max_mu_iterations = (
+        _UNLIMITED_MU_ITERATIONS
+        if max_mu_iterations is None
+        else int(max_mu_iterations)
+    )
     options.max_subdivisions = _extension_subdivision_limit(max_subdivisions)
     options.bulk_theta = float(_BULK_THETA)
     return options
@@ -340,7 +345,7 @@ def density_matrix_zero_temp(
     density_rtol: float,
     mu_guess: float,
     mu_xtol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     max_subdivisions: int | None = None,
 ):
     """Evaluate the zero-temperature fixed-filling density matrix with the compiled backend."""

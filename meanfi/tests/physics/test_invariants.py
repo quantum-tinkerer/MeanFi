@@ -112,6 +112,38 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
 
 
 @requires_ext
+def test_zero_temperature_fixed_filling_default_mu_iteration_limit_matches_explicit_limit():
+    tb = spinful_chain()
+
+    default_result = density_matrix(
+        tb,
+        filling=0.1,
+        kT=0.0,
+        keys=[(0,), (1,)],
+        integration=AdaptiveSimplex(
+            density_matrix_tol=1e-2,
+            max_refinements=600,
+        ),
+        filling_tol=5e-5,
+    )
+    explicit_result = density_matrix(
+        tb,
+        filling=0.1,
+        kT=0.0,
+        keys=[(0,), (1,)],
+        integration=AdaptiveSimplex(
+            density_matrix_tol=1e-2,
+            max_refinements=600,
+        ),
+        filling_tol=5e-5,
+        max_mu_iterations=128,
+    )
+
+    assert abs(default_result.mu - explicit_result.mu) <= 1e-12
+    assert abs(default_result.filling - explicit_result.filling) <= 1e-12
+
+
+@requires_ext
 def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell():
     primitive, doubled = duplicated_local_two_band_1d()
 

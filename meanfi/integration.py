@@ -349,7 +349,7 @@ def _solve_adaptive_quadrature_fixed_filling(
     integration: AdaptiveQuadrature,
     filling_tol: float,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     mu_guess: float,
 ) -> DensityMatrixResult:
     ndim = tb_dimension(hamiltonian)
@@ -534,7 +534,7 @@ def _solve_adaptive_simplex_fixed_filling(
     integration: AdaptiveSimplex,
     filling_tol: float,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     mu_guess: float,
 ) -> DensityMatrixResult:
     from meanfi.zero_temp import density_matrix_zero_temp
@@ -653,10 +653,10 @@ def _solve_uniform_grid_fixed_filling(
     integration: UniformGrid,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
 ) -> DensityMatrixResult:
     del kT
-    if filling_tol is not None or mu_tol != 1e-10 or max_mu_iterations != 128:
+    if filling_tol is not None or mu_tol != 1e-10 or max_mu_iterations is not None:
         raise ValueError(
             "UniformGrid does not support filling_tol, mu_tol, or max_mu_iterations"
         )
@@ -742,13 +742,13 @@ def solve_density_matrix_fixed_filling(
     integration: IntegrationMethod,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int,
+    max_mu_iterations: int | None,
     mu_guess: float = 0.0,
 ) -> DensityMatrixResult:
     _validate_integration_method(integration, kT=kT)
     if mu_tol <= 0:
         raise ValueError("mu_tol must be positive")
-    if max_mu_iterations <= 0:
+    if max_mu_iterations is not None and max_mu_iterations <= 0:
         raise ValueError("max_mu_iterations must be positive")
 
     requested_keys, working_keys, _local_key = _prepare_keys(hamiltonian, keys)
