@@ -17,7 +17,6 @@ from ._info import (
     AdaptiveQuadratureInfo,
     AdaptiveSimplexInfo,
     SCFInfo,
-    SimplexGridInfo,
     SolverResult,
     UniformGridInfo,
 )
@@ -25,10 +24,15 @@ from .integration import (
     AdaptiveQuadrature,
     AdaptiveSimplex,
     IntegrationMethod,
-    SimplexGrid,
     UniformGrid,
 )
-from .bdg import BdGMatrixFunction, ChebyshevFOE, ExactDiagonalization, RationalFOE
+from .bdg import (
+    BdGMatrixFunction,
+    ChebyshevFOE,
+    DirectDiagonalization,
+    ExactDiagonalization,
+    RationalFOE,
+)
 from .model import Model
 from .observables import expectation_value
 from .scf import AndersonMixing, LinearMixing, SCFMethod
@@ -52,6 +56,7 @@ __all__ = [
     "AndersonMixing",
     "BdGMatrixFunction",
     "ChebyshevFOE",
+    "DirectDiagonalization",
     "DensityMatrixResult",
     "ExactDiagonalization",
     "IntegrationMethod",
@@ -61,8 +66,6 @@ __all__ = [
     "RationalFOE",
     "SCFInfo",
     "SCFMethod",
-    "SimplexGrid",
-    "SimplexGridInfo",
     "SolverResult",
     "UniformGrid",
     "UniformGridInfo",

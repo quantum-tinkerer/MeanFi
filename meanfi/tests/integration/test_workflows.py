@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from scipy.optimize import anderson
 
 from meanfi import (
     AdaptiveQuadrature,
@@ -59,7 +58,7 @@ def test_graphene_kwant_end_to_end_regression():
         assert np.all(np.isfinite(density_result.density_matrix[key]))
 
 
-def test_solver_supports_explicit_anderson_optimizer_escape_hatch():
+def test_solver_supports_anderson_mixing():
     h_0 = spinful_chain()
     h_int = {(0,): np.zeros((2, 2))}
     guess = {(0,): np.zeros((2, 2))}
@@ -69,18 +68,11 @@ def test_solver_supports_explicit_anderson_optimizer_escape_hatch():
         model,
         guess,
         integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
-        scf=LinearMixing(max_iterations=8),
+        scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=8),
         scf_tol=1e-8,
-        optimizer=anderson,
-        optimizer_kwargs={
-            "M": 0,
-            "line_search": "wolfe",
-            "maxiter": 8,
-            "f_tol": 1e-8,
-        },
     )
 
-    assert result.info.method == "anderson"
+    assert result.info.method == "anderson_mixing"
     assert result.info.residual_norm <= 1e-8
     assert np.allclose(
         result.mf[(0,)],

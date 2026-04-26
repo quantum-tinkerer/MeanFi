@@ -1,7 +1,12 @@
 import pytest
-from scipy.optimize import anderson
 
-from meanfi import AdaptiveQuadrature, LinearMixing, Model, density_matrix, solver
+from meanfi import (
+    AdaptiveQuadrature,
+    AndersonMixing,
+    Model,
+    density_matrix,
+    solver,
+)
 from meanfi.tests.helpers import (
     antiferromagnetic_guess,
     bipartite_hubbard_1d,
@@ -28,16 +33,9 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
         model,
         antiferromagnetic_guess(0.5 * delta_ref, 1),
         integration=integration,
-        scf=LinearMixing(max_iterations=80),
+        scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
         scf_tol=scf_tol,
         filling_tol=1e-6,
-        optimizer=anderson,
-        optimizer_kwargs={
-            "M": 0,
-            "line_search": "wolfe",
-            "maxiter": 80,
-            "f_tol": scf_tol,
-        },
     )
     density_result = density_matrix(
         model.hamiltonian_from_meanfield(result.mf),
@@ -67,16 +65,9 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
         model,
         antiferromagnetic_guess(0.5 * delta_ref, 2),
         integration=integration,
-        scf=LinearMixing(max_iterations=40),
+        scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=40),
         scf_tol=scf_tol,
         filling_tol=1e-5,
-        optimizer=anderson,
-        optimizer_kwargs={
-            "M": 0,
-            "line_search": "wolfe",
-            "maxiter": 40,
-            "f_tol": scf_tol,
-        },
     )
     density_result = density_matrix(
         model.hamiltonian_from_meanfield(result.mf),

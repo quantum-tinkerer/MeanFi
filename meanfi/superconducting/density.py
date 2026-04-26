@@ -1,0 +1,245 @@
+from __future__ import annotations
+
+import numpy as np
+
+from meanfi.core.filling import expand_mu_bracket, solve_mu
+from meanfi.core.results import DensityMatrixResult, FixedFillingInfo
+from meanfi.integrate.common import translate_adaptive_info, wrap_density_result
+from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
+from meanfi.integrate.quadrature.bdg_backend import build_bdg_backend
+from meanfi.integrate.quadrature.matrix_functions import (
+    BdGMatrixFunction,
+    DirectDiagonalization,
+    basis_block,
+    density_block,
+    shift_by_mu,
+)
+from meanfi.integrate.quadrature.runtime import solve_quadrature_fixed_filling
+from meanfi.superconducting.bdg import charge_diagonal
+from meanfi.tb.tb import _tb_type
+
+
+def effective_bdg_filling_tol(
+    *,
+    filling_tol: float | None,
+    density_matrix_tol: float,
+    filling_weights: np.ndarray,
+) -> float:
+    if filling_tol is not None:
+        if filling_tol <= 0:
+            raise ValueError("filling_tol must be positive when provided")
+        return float(filling_tol)
+    return float(np.sum(np.abs(filling_weights)) * density_matrix_tol)
+
+
+def matrix_function(integration: AdaptiveQuadrature) -> BdGMatrixFunction:
+    selected = getattr(integration, "matrix_function", None)
+    if selected is None:
+        return DirectDiagonalization()
+    if not isinstance(selected, BdGMatrixFunction):
+        raise TypeError("AdaptiveQuadrature.matrix_function must be a BdGMatrixFunction")
+    return selected
+
+
+def _local_filling(block: np.ndarray, indices, weights: np.ndarray) -> float:
+    values = block[np.asarray(indices, dtype=int), np.arange(len(indices))]
+    return float(np.real(np.sum(weights * values)))
+
+
+def _solve_bdg_zero_dim(
+    *,
+    hamiltonian: _tb_type,
+    filling: float,
+    kT: float,
+    keys: list[tuple[int, ...]],
+    integration: AdaptiveQuadrature,
+    filling_tol: float,
+    mu_tol: float,
+    max_mu_iterations: int | None,
+    mu_guess: float,
+    q_diag: np.ndarray,
+    selected_matrix_function: BdGMatrixFunction,
+    filling_indices,
+    filling_weights: np.ndarray,
+) -> DensityMatrixResult:
+    from meanfi.superconducting.bdg import mu_bracket_for_bdg
+
+    matrix = hamiltonian[tuple()]
+    filling_block = basis_block(q_diag.size, filling_indices)
+
+    def evaluate_charge(mu: float) -> tuple[float, float, float]:
+        result = density_block(
+            selected_matrix_function,
+            shift_by_mu(matrix, mu, q_diag),
+            filling_block,
+            kT=kT,
+            q_diag=q_diag,
+            derivative=True,
+            tolerance=integration.density_matrix_tol,
+            derivative_trace_monitor=lambda block: _local_filling(
+                block,
+                filling_indices,
+                filling_weights,
+            ),
+            derivative_context=f"mu={float(mu):.12g}",
+        )
+        derivative_block = result.derivative_block
+        derivative = (
+            0.0
+            if derivative_block is None
+            else _local_filling(derivative_block, filling_indices, filling_weights)
+        )
+        return _local_filling(result.block, filling_indices, filling_weights), 0.0, derivative
+
+    lower, upper = mu_bracket_for_bdg(hamiltonian, kT)
+    lower, upper = expand_mu_bracket(
+        evaluate_charge,
+        filling=filling,
+        lower=lower,
+        upper=upper,
+    )
+    mu, resolved_filling, charge_error, derivative, iteration = solve_mu(
+        evaluate_charge,
+        filling=filling,
+        mu_guess=mu_guess,
+        lower=lower,
+        upper=upper,
+        charge_tol=filling_tol,
+        mu_xtol=mu_tol,
+        max_mu_iterations=max_mu_iterations,
+    )
+
+    density_basis = np.eye(q_diag.size, dtype=complex)
+    density = density_block(
+        selected_matrix_function,
+        shift_by_mu(matrix, mu, q_diag),
+        density_basis,
+        kT=kT,
+        q_diag=q_diag,
+        derivative=False,
+        tolerance=integration.density_matrix_tol,
+    ).block
+    density_matrix = {key: density if key == tuple() else np.zeros_like(density) for key in keys}
+    density_matrix_error = {key: np.zeros_like(density) for key in keys}
+    raw_info = FixedFillingInfo(
+        mu=mu,
+        charge=resolved_filling,
+        charge_error=charge_error,
+        dcharge_dmu=derivative,
+        root_iterations=iteration,
+        charge_integration_calls=iteration,
+        density_integration_calls=1,
+        charge_n_kernel_evals=1,
+        density_n_kernel_evals=1,
+        n_kernel_evals=1,
+        unique_evals=1,
+        charge_n_evaluator_evals=iteration,
+        density_n_evaluator_evals=1,
+        n_evaluator_evals=iteration + 1,
+        n_cached_nodes=1,
+        n_leaves=1,
+        n_leaf_nodes=1,
+        subdivisions=0,
+        charge_integral_atol=filling_tol,
+        density_atol=integration.density_matrix_tol,
+        density_rtol=0.0,
+        error_estimate_available=True,
+    )
+    public_info = translate_adaptive_info(integration, raw_info)
+    return wrap_density_result(
+        density_matrix=density_matrix,
+        density_matrix_error=density_matrix_error,
+        mu=raw_info.mu,
+        filling=raw_info.charge,
+        target_filling=filling,
+        integration=integration,
+        info=public_info,
+        keys=keys,
+    )
+
+
+def solve_bdg_density_fixed_filling(
+    model,
+    meanfield: _tb_type,
+    *,
+    keys: list[tuple[int, ...]],
+    integration: IntegrationMethod,
+    filling_tol: float | None,
+    mu_tol: float,
+    max_mu_iterations: int | None,
+    mu_guess: float,
+) -> DensityMatrixResult:
+    if not isinstance(integration, AdaptiveQuadrature):
+        raise NotImplementedError("BdG density currently requires AdaptiveQuadrature")
+    if model.kT <= 0:
+        raise NotImplementedError("BdG density currently requires kT > 0")
+    if mu_tol <= 0:
+        raise ValueError("mu_tol must be positive")
+    if max_mu_iterations is not None and max_mu_iterations <= 0:
+        raise ValueError("max_mu_iterations must be positive")
+
+    selected_matrix_function = matrix_function(integration)
+    hamiltonian = model.bdg_hamiltonian_from_meanfield(meanfield)
+    q_diag = charge_diagonal(model._ndof)
+    filling_indices = tuple(range(model._ndof))
+    filling_weights = np.ones(model._ndof, dtype=float)
+    resolved_filling_tol = effective_bdg_filling_tol(
+        filling_tol=filling_tol,
+        density_matrix_tol=integration.density_matrix_tol,
+        filling_weights=filling_weights,
+    )
+
+    if model._ndim == 0:
+        return _solve_bdg_zero_dim(
+            hamiltonian=hamiltonian,
+            filling=model.filling,
+            kT=model.kT,
+            keys=keys,
+            integration=integration,
+            filling_tol=resolved_filling_tol,
+            mu_tol=mu_tol,
+            max_mu_iterations=max_mu_iterations,
+            mu_guess=mu_guess,
+            q_diag=q_diag,
+            selected_matrix_function=selected_matrix_function,
+            filling_indices=filling_indices,
+            filling_weights=filling_weights,
+        )
+
+    backend = build_bdg_backend(
+        hamiltonian,
+        keys=keys,
+        kT=model.kT,
+        q_diag=q_diag,
+        matrix_function=selected_matrix_function,
+        filling_indices=filling_indices,
+        filling_weights=filling_weights,
+        tolerance=integration.density_matrix_tol,
+    )
+    density_matrix, density_matrix_error, raw_info = solve_quadrature_fixed_filling(
+        backend,
+        filling=model.filling,
+        mu_guess=mu_guess,
+        rule=integration.rule,
+        batch_size=integration.batch_size,
+        filling_tol=resolved_filling_tol,
+        mu_tol=mu_tol,
+        max_mu_iterations=max_mu_iterations,
+        density_atol=integration.density_matrix_tol,
+        max_subdivisions=integration.max_refinements,
+        root_error_message=(
+            "BdG adaptive quadrature did not converge while solving for the chemical potential"
+        ),
+        density_error_message="BdG adaptive quadrature did not converge while evaluating density",
+    )
+    public_info = translate_adaptive_info(integration, raw_info)
+    return wrap_density_result(
+        density_matrix=density_matrix,
+        density_matrix_error=density_matrix_error,
+        mu=raw_info.mu,
+        filling=raw_info.charge,
+        target_filling=model.filling,
+        integration=integration,
+        info=public_info,
+        keys=keys,
+    )

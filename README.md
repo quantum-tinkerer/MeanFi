@@ -59,21 +59,18 @@ Advanced fixed-filling controls remain available on `density_matrix(...)` and `s
 
 `DensityMatrixResult` exposes fully explicit public names such as `density_matrix`, `density_matrix_error`, `filling`, `target_filling`, `filling_residual`, and `info`.
 
-## Optimizers
+## SCF Methods
 
 `meanfi.solver(...)` separates SCF method selection from integration method selection.
 Built-in SCF methods are `meanfi.LinearMixing(...)` and `meanfi.AndersonMixing(...)`.
-For harder self-consistent problems you can still pass an external optimizer explicitly, for example `scipy.optimize.anderson`:
+For harder self-consistent problems, switch the explicit SCF method instead of passing an external optimizer hook:
 
 ```python
-from scipy.optimize import anderson
-
 result = meanfi.solver(
     model,
     guess,
     integration=integration,
-    optimizer=anderson,
-    optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+    scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
 )
 ```
 

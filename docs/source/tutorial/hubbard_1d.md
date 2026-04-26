@@ -48,13 +48,16 @@ First, let's get the basic imports out of the way.
 import numpy as np
 import matplotlib.pyplot as plt
 import meanfi
-from scipy.optimize import anderson
 from scripts.zero_temp_validation import (
     HUBBARD_TUTORIAL_MODEL_KWARGS,
     resolved_hubbard_gap,
 )
 
 tutorial_model_kwargs = dict(HUBBARD_TUTORIAL_MODEL_KWARGS)
+integration = meanfi.AdaptiveSimplex(
+    density_matrix_tol=tutorial_model_kwargs["density_atol"],
+    max_refinements=tutorial_model_kwargs["max_subdivisions"],
+)
 np.random.seed(0)
 ```
 
@@ -115,7 +118,7 @@ In addition to the Hamiltonians, we also need to specify the filling of the syst
 
 ```{code-cell} ipython3
 filling = 2
-full_model = meanfi.Model(h_0, h_int, filling, **tutorial_model_kwargs)
+full_model = meanfi.Model(h_0, h_int, filling, kT=tutorial_model_kwargs["kT"])
 ```
 
 The object `full_model` now contains all the information needed to solve the mean-field problem.
@@ -130,13 +133,14 @@ It creates a random Hermitian tight-binding dictionary based on the hopping keys
 Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.guess_tb`.
 For the zero-temperature tutorial we keep the original physics inputs from `main` and only relax solver-side controls through `tutorial_model_kwargs`.
 In one dimension, `max_subdivisions=128` is already enough to match the unbounded adaptive result at this accuracy.
-The default solver uses internal linear mixing, which is sufficient for this small example. For the wider phase-diagram sweep below we still pass `scipy.optimize.anderson` explicitly through the `optimizer=` hook.
+The default solver uses internal linear mixing, which is sufficient for this small example. For the wider phase-diagram sweep below we switch to `meanfi.AndersonMixing(...)`.
 
 ```{code-cell} ipython3
 filling = 2
-full_model = meanfi.Model(h_0, h_int, filling, **tutorial_model_kwargs)
+full_model = meanfi.Model(h_0, h_int, filling, kT=tutorial_model_kwargs["kT"])
 guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
-mf_sol = meanfi.solver(full_model, guess)
+result = meanfi.solver(full_model, guess, integration=integration)
+mf_sol = result.mf
 ```
 
 The {autolink}`~meanfi.solvers.solver` function returns only the mean-field correction to the non-interacting Hamiltonian in the same tight-binding dictionary format.
@@ -166,28 +170,25 @@ def compute_sol(U, h_0, filling=2):
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
     }
     guess = meanfi.guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
-    full_model = meanfi.Model(h_0, h_int, filling, **tutorial_model_kwargs)
-    mf_sol = meanfi.solver(
+    full_model = meanfi.Model(h_0, h_int, filling, kT=tutorial_model_kwargs["kT"])
+    result = meanfi.solver(
         full_model,
         guess,
-        optimizer=anderson,
-        optimizer_kwargs={
-            "M": 0,
-            "line_search": "wolfe",
-            "f_tol": tutorial_model_kwargs["scf_tol"],
-        },
+        integration=integration,
+        scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+        scf_tol=tutorial_model_kwargs["scf_tol"],
+        filling_tol=tutorial_model_kwargs["charge_tol"],
     )
-    full_sol = meanfi.add_tb(h_0, mf_sol)
-    rho, _, _, _ = meanfi.density_matrix(
+    full_sol = meanfi.add_tb(h_0, result.mf)
+    rho_result = meanfi.density_matrix(
         full_sol,
         filling=filling,
         kT=tutorial_model_kwargs["kT"],
         keys=[(0,)],
-        charge_tol=tutorial_model_kwargs["charge_tol"],
-        density_atol=tutorial_model_kwargs["density_atol"],
-        max_subdivisions=tutorial_model_kwargs["max_subdivisions"],
+        integration=integration,
+        filling_tol=tutorial_model_kwargs["charge_tol"],
     )
-    return full_sol, rho[(0,)]
+    return full_sol, rho_result.density_matrix[(0,)]
 
 
 def compute_phase_diagram(

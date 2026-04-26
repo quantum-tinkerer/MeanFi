@@ -1,0 +1,200 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+
+from meanfi.core.matrix import as_sparse, is_sparse_like
+from meanfi.core.results import DensityMatrixResult, SCFInfo, SolverResult
+from meanfi.integrate.methods import IntegrationMethod
+from meanfi.params.rparams import bdg_tb_to_rparams, canonical_tb_keys, rparams_to_bdg_tb
+from meanfi.scf import NoConvergence, SCFMethod, max_norm, solve_fixed_point
+
+from .bdg import (
+    bdg_correction_from_density,
+    bdg_density_keys,
+    flatten_bdg_tb,
+    validate_bdg_tb,
+    zero_bdg_array,
+)
+from .density import solve_bdg_density_fixed_filling
+
+
+@dataclass
+class _BdGScfState:
+    iterations: int = 0
+    mu: float = 0.0
+    density_matrix_result: DensityMatrixResult | None = None
+    residual_norm: float = float("inf")
+    total_charge_integration_calls: int = 0
+    total_density_integration_calls: int = 0
+    total_kernel_evals: int = 0
+    total_unique_evals: int = 0
+    total_evaluator_evals: int = 0
+
+
+def _integration_counters(result: DensityMatrixResult) -> tuple[int, int, int, int, int]:
+    info = result.info
+    return (
+        int(getattr(info, "charge_integration_calls", 0) or 0),
+        int(getattr(info, "density_integration_calls", 0) or 0),
+        int(getattr(info, "n_kernel_evals", 0) or 0),
+        int(
+            getattr(
+                info,
+                "unique_evals",
+                getattr(info, "n_kernel_evals", getattr(info, "n_kpoints", 0)),
+            )
+            or 0
+        ),
+        int(getattr(info, "n_evaluator_evals", 0) or 0),
+    )
+
+
+def _record_density_result(state: _BdGScfState, result: DensityMatrixResult) -> None:
+    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = _integration_counters(
+        result
+    )
+    state.density_matrix_result = result
+    state.mu = result.mu
+    state.total_charge_integration_calls += charge_calls
+    state.total_density_integration_calls += density_calls
+    state.total_kernel_evals += kernel_evals
+    state.total_unique_evals += unique_evals
+    state.total_evaluator_evals += evaluator_evals
+
+
+def _fill_bdg_support(model, tb, support_keys: list[tuple[int, ...]]):
+    zero = zero_bdg_array(model._ndof)
+    use_sparse = any(is_sparse_like(value) for value in tb.values())
+    if use_sparse:
+        zero_sparse = as_sparse(zero)
+        return {
+            key: as_sparse(tb.get(key, zero_sparse))
+            for key in support_keys
+        }
+    return {
+        key: np.asarray(tb.get(key, zero), dtype=complex)
+        for key in support_keys
+    }
+
+
+def solve_bdg_scf(
+    model,
+    guess,
+    *,
+    integration: IntegrationMethod,
+    scf: SCFMethod,
+    scf_tol: float,
+    filling_tol: float | None,
+    mu_tol: float,
+    max_mu_iterations: int | None,
+):
+    if scf_tol <= 0:
+        raise ValueError("scf_tol must be positive")
+
+    validate_bdg_tb(
+        guess,
+        ndof=model._ndof,
+        ndim=model._ndim,
+        name="BdG correction",
+    )
+
+    onsite = (0,) * model._ndim
+    support_keys = canonical_tb_keys(set(guess) | {onsite})
+    density_keys = bdg_density_keys(model, guess)
+    initial_meanfield = _fill_bdg_support(model, guess, support_keys)
+    params0 = np.asarray(bdg_tb_to_rparams(initial_meanfield, model._ndof), dtype=float)
+    state = _BdGScfState()
+
+    def residual_fn(params: np.ndarray) -> np.ndarray:
+        meanfield = rparams_to_bdg_tb(params, support_keys, model._ndof)
+        density_result = solve_bdg_density_fixed_filling(
+            model,
+            meanfield,
+            keys=density_keys,
+            integration=integration,
+            filling_tol=filling_tol,
+            mu_tol=mu_tol,
+            max_mu_iterations=max_mu_iterations,
+            mu_guess=state.mu,
+        )
+        _record_density_result(state, density_result)
+
+        updated = _fill_bdg_support(
+            model,
+            bdg_correction_from_density(density_result.density_matrix, model),
+            support_keys,
+        )
+        validate_bdg_tb(
+            updated,
+            ndof=model._ndof,
+            ndim=model._ndim,
+            name="BdG correction",
+        )
+        residual = np.asarray(bdg_tb_to_rparams(updated, model._ndof) - params, dtype=float)
+        state.residual_norm = max_norm(residual)
+        return residual
+
+    def on_iteration(iteration: int, residual_norm: float) -> None:
+        state.iterations = iteration
+        state.residual_norm = residual_norm
+
+    result_params = solve_fixed_point(
+        residual_fn,
+        params0,
+        scf=scf,
+        scf_tol=scf_tol,
+        on_iteration=on_iteration,
+    )
+
+    meanfield = rparams_to_bdg_tb(result_params, support_keys, model._ndof)
+    density_matrix_result = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=density_keys,
+        integration=integration,
+        filling_tol=filling_tol,
+        mu_tol=mu_tol,
+        max_mu_iterations=max_mu_iterations,
+        mu_guess=state.mu,
+    )
+    residual_norm = max_norm(
+        np.asarray(
+            bdg_tb_to_rparams(
+                _fill_bdg_support(
+                    model,
+                    bdg_correction_from_density(density_matrix_result.density_matrix, model),
+                    support_keys,
+                ),
+                model._ndof,
+            )
+            - result_params,
+            dtype=float,
+        )
+    )
+
+    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = _integration_counters(
+        density_matrix_result
+    )
+    info = SCFInfo(
+        method="anderson_mixing" if scf.__class__.__name__ == "AndersonMixing" else "linear_mixing",
+        iterations=max(1, state.iterations),
+        residual_norm=residual_norm,
+        total_charge_integration_calls=state.total_charge_integration_calls + charge_calls,
+        total_density_integration_calls=state.total_density_integration_calls + density_calls,
+        total_kernel_evals=state.total_kernel_evals + kernel_evals,
+        total_unique_evals=state.total_unique_evals + unique_evals,
+        total_evaluator_evals=state.total_evaluator_evals + evaluator_evals,
+    )
+    return SolverResult(
+        mf=meanfield,
+        density_matrix_result=density_matrix_result,
+        integration=integration,
+        scf=scf,
+        info=info,
+    )
+
+
+def no_convergence_from_guess(meanfield) -> NoConvergence:
+    return NoConvergence(flatten_bdg_tb(meanfield))

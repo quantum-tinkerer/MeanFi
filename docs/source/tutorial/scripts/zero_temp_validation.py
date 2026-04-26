@@ -5,7 +5,7 @@ import json
 from typing import Iterable
 
 import numpy as np
-from scipy.optimize import anderson, brentq
+from scipy.optimize import brentq
 
 import meanfi
 
@@ -40,6 +40,13 @@ GRAPHENE_REFERENCE_POINTS = {
 }
 
 STRAINED_GRAPHENE_REFERENCE = {"U": 0.8}
+
+
+def _tutorial_integration(tutorial_model_kwargs):
+    return meanfi.AdaptiveSimplex(
+        density_matrix_tol=float(tutorial_model_kwargs["density_atol"]),
+        max_refinements=tutorial_model_kwargs["max_subdivisions"],
+    )
 
 
 def staggered_magnetization(local_density: np.ndarray) -> float:
@@ -215,13 +222,13 @@ def graphene_reference_suite(
 
     np.random.seed(0)
     h_0, builder_int, int_keys, ndof = _build_graphene_inputs()
+    integration = _tutorial_integration(tutorial_model_kwargs)
     tutorial_density_kwargs = dict(
         filling=2,
         kT=float(tutorial_model_kwargs["kT"]),
         keys=[(0, 0)],
-        charge_tol=float(tutorial_model_kwargs["charge_tol"]),
-        density_atol=float(tutorial_model_kwargs["density_atol"]),
-        max_subdivisions=tutorial_model_kwargs["max_subdivisions"],
+        integration=integration,
+        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
     )
     sz = np.diag([1, -1])
     s_list = [
@@ -234,21 +241,19 @@ def graphene_reference_suite(
     results = {}
     for label, params in GRAPHENE_REFERENCE_POINTS.items():
         h_int = utils.builder_to_tb(builder_int, params)
-        model = meanfi.Model(h_0, h_int, filling=2, **tutorial_model_kwargs)
+        model = meanfi.Model(h_0, h_int, filling=2, kT=float(tutorial_model_kwargs["kT"]))
         guess = meanfi.guess_tb(int_keys, ndof)
-        mf_sol, solver_info = meanfi.solver(
+        solver_result = meanfi.solver(
             model,
             guess,
-            optimizer=anderson,
-            optimizer_kwargs={
-                "M": 0,
-                "line_search": "wolfe",
-                "f_tol": float(tutorial_model_kwargs["scf_tol"]),
-            },
-            return_info=True,
+            integration=integration,
+            scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+            scf_tol=float(tutorial_model_kwargs["scf_tol"]),
+            filling_tol=float(tutorial_model_kwargs["charge_tol"]),
         )
-        h_full = meanfi.add_tb(h_0, mf_sol)
-        rho, _, _, density_info = meanfi.density_matrix(h_full, **tutorial_density_kwargs)
+        h_full = meanfi.add_tb(h_0, solver_result.mf)
+        density_result = meanfi.density_matrix(h_full, **tutorial_density_kwargs)
+        rho = density_result.density_matrix
 
         cdw = abs(meanfi.expectation_value(rho, cdw_operator))
         sdw_sq = 0.0
@@ -260,8 +265,8 @@ def graphene_reference_suite(
         results[label] = {
             "U": float(params["U"]),
             "V": float(params["V"]),
-            "residual_norm": float(solver_info.residual_norm),
-            "charge_error": float(abs(density_info.charge - 2.0)),
+            "residual_norm": float(solver_result.info.residual_norm),
+            "charge_error": float(abs(density_result.filling - 2.0)),
             "cdw": float(cdw),
             "sdw_sq": float(sdw_sq),
             "gap_nk_200": band_gap(h_full, nk=200),
@@ -318,24 +323,24 @@ def solve_strained_graphene_reference(
         tutorial_model_kwargs = dict(STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS)
 
     h0, h_int, guess, filling, _, _ = _build_strained_graphene_inputs()
-    model = meanfi.Model(h0, h_int, filling=filling, **tutorial_model_kwargs)
-    mf_sol, solver_info = meanfi.solver(
+    integration = _tutorial_integration(tutorial_model_kwargs)
+    model = meanfi.Model(h0, h_int, filling=filling, kT=float(tutorial_model_kwargs["kT"]))
+    solver_result = meanfi.solver(
         model,
         guess,
-        optimizer=anderson,
-        optimizer_kwargs={
-            "M": 10,
-            "line_search": "armijo",
-            "f_tol": float(tutorial_model_kwargs["scf_tol"]),
-            "maxiter": max_scf_steps,
-        },
-        max_scf_steps=max_scf_steps,
-        return_info=True,
+        integration=integration,
+        scf=meanfi.AndersonMixing(
+            M=10,
+            line_search="armijo",
+            max_iterations=max_scf_steps,
+        ),
+        scf_tol=float(tutorial_model_kwargs["scf_tol"]),
+        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
     )
-    mf_ham = meanfi.add_tb(h0, mf_sol)
+    mf_ham = meanfi.add_tb(h0, solver_result.mf)
     return {
-        "residual_norm": float(solver_info.residual_norm),
-        "charge_integrations": float(solver_info.total_charge_integration_calls),
+        "residual_norm": float(solver_result.info.residual_norm),
+        "charge_integrations": float(solver_result.info.total_charge_integration_calls),
         "gap_nk_40": band_gap(mf_ham, nk=40),
     }
 
@@ -360,34 +365,33 @@ def solve_hubbard_reference(
 
     np.random.seed(0)
     h_0, h_int, guess = _build_hubbard_inputs(U)
-    model = meanfi.Model(h_0, h_int, filling=2.0, **tutorial_model_kwargs)
-    mf_sol, solver_info = meanfi.solver(
+    integration = _tutorial_integration(tutorial_model_kwargs)
+    model = meanfi.Model(h_0, h_int, filling=2.0, kT=float(tutorial_model_kwargs["kT"]))
+    solver_result = meanfi.solver(
         model,
         guess,
-        optimizer=anderson,
-        optimizer_kwargs={
-            "M": 0,
-            "line_search": "wolfe",
-            "maxiter": 80,
-            "f_tol": float(tutorial_model_kwargs["scf_tol"]),
-        },
-        max_scf_steps=80,
-        return_info=True,
+        integration=integration,
+        scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+        scf_tol=float(tutorial_model_kwargs["scf_tol"]),
+        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
     )
-    h_full = meanfi.add_tb(h_0, mf_sol)
-    rho, _, _, density_info = meanfi.density_matrix(
+    h_full = meanfi.add_tb(h_0, solver_result.mf)
+    density_result = meanfi.density_matrix(
         h_full,
         filling=2.0,
         kT=float(tutorial_model_kwargs["kT"]),
         keys=[(0,)],
-        charge_tol=float(tutorial_model_kwargs["charge_tol"]),
-        density_atol=float(tutorial_model_kwargs["density_atol"]),
-        max_subdivisions=tutorial_model_kwargs["max_subdivisions"],
+        integration=integration,
+        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
     )
-    resolved_gap, gap_info = resolved_hubbard_gap(h_full, U=U, local_density=rho[(0,)])
+    resolved_gap, gap_info = resolved_hubbard_gap(
+        h_full,
+        U=U,
+        local_density=density_result.density_matrix[(0,)],
+    )
     return {
-        "residual_norm": float(solver_info.residual_norm),
-        "charge_error": float(abs(density_info.charge - 2.0)),
+        "residual_norm": float(solver_result.info.residual_norm),
+        "charge_error": float(abs(density_result.filling - 2.0)),
         "staggered_magnetization": staggered_magnetization(rho[(0,)]),
         "resolved_gap": float(resolved_gap),
         "reference_gap": float(hubbard_reference_gap(U)),

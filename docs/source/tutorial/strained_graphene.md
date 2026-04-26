@@ -89,6 +89,10 @@ from meanfi.kwant_helper import utils as utils
 from scripts.zero_temp_validation import STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS
 
 tutorial_model_kwargs = dict(STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS)
+integration = meanfi.AdaptiveSimplex(
+    density_matrix_tol=tutorial_model_kwargs["density_atol"],
+    max_refinements=tutorial_model_kwargs["max_subdivisions"],
+)
 
 h0, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
 
@@ -96,7 +100,7 @@ params_int = dict(U=0.8)
 ndof = [*h0.values()][0].shape[0]
 filling = ndof // 2
 h_int = utils.builder_to_tb(int_builder, params_int)
-mf_model = meanfi.Model(h0, h_int, filling=filling, **tutorial_model_kwargs)
+mf_model = meanfi.Model(h0, h_int, filling=filling, kT=tutorial_model_kwargs["kT"])
 ```
 
 Now getting the solution by providing a guess and the mean-field model to the solver. To accelerate the convergence, we use an antiferromagnetic guess.
@@ -129,23 +133,18 @@ produces a $1024 \times 1024$ Bloch Hamiltonian.
 We therefore keep the original geometry and only loosen solver-side controls for the zero-temperature build.
 At the moment we explicitly pin `max_subdivisions=0` so that only the root mesh is used, no preview mesh is generated, and no additional k-points are created by adaptive refinement.
 In this mode the density and charge error indicators are unavailable by construction, so `density_atol` is informational only.
-We also pass `scipy.optimize.anderson` explicitly through the `optimizer=` hook and keep a nonzero Anderson history, matching the aggressive coarse-grid strategy used in the original tutorial.
+We also switch the outer SCF method to `meanfi.AndersonMixing(...)` and keep a nonzero Anderson history, matching the aggressive coarse-grid strategy used in the original tutorial.
 
 ```{code-cell} ipython3
-from scipy.optimize import anderson
-
-mf_sol = meanfi.solver(
+result = meanfi.solver(
     mf_model,
     guess,
-    optimizer=anderson,
-    optimizer_kwargs={
-        "M": 10,
-        "line_search": "armijo",
-        "f_tol": tutorial_model_kwargs["scf_tol"],
-        "maxiter": 100,
-    },
-    max_scf_steps=100,
+    integration=integration,
+    scf=meanfi.AndersonMixing(M=10, line_search="armijo", max_iterations=100),
+    scf_tol=tutorial_model_kwargs["scf_tol"],
+    filling_tol=tutorial_model_kwargs["charge_tol"],
 )
+mf_sol = result.mf
 ```
 
 We now verify that the mean-field solution results in a gapped phase.

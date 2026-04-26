@@ -52,10 +52,10 @@ def test_public_signatures_expose_documented_keyword_only_controls():
         "filling_tol",
         "mu_tol",
         "max_mu_iterations",
-        "optimizer",
-        "optimizer_kwargs",
     ):
         assert solver_params[name].kind is inspect.Parameter.KEYWORD_ONLY
+    assert "optimizer" not in solver_params
+    assert "optimizer_kwargs" not in solver_params
 
     density_params = inspect.signature(density_matrix).parameters
     assert density_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
@@ -169,7 +169,7 @@ def test_bdg_solver_rejects_guess_with_invalid_block_structure():
         )
 
 
-def test_bdg_solver_rejects_unsupported_anderson_mode():
+def test_bdg_solver_supports_anderson_mixing():
     model = Model(
         spinful_chain(),
         {(0,): np.zeros((2, 2), dtype=complex)},
@@ -178,13 +178,15 @@ def test_bdg_solver_rejects_unsupported_anderson_mode():
         superconducting=True,
     )
 
-    with pytest.raises(NotImplementedError, match="LinearMixing"):
-        solver(
-            model,
-            {(0,): np.zeros((4, 4), dtype=complex)},
-            integration=AdaptiveQuadrature(),
-            scf=AndersonMixing(),
-        )
+    result = solver(
+        model,
+        {(0,): np.zeros((4, 4), dtype=complex)},
+        integration=AdaptiveQuadrature(),
+        scf=AndersonMixing(M=0, max_iterations=4),
+    )
+
+    assert result.info.method == "anderson_mixing"
+    assert result.info.iterations >= 1
 
 
 def test_guess_tb_can_generate_bdg_compliant_superconducting_guesses():
@@ -207,16 +209,16 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
 
 
 def test_adaptive_methods_default_filling_tol_from_density_matrix_tol(monkeypatch):
-    import meanfi._zero_dim as zero_dim
+    import meanfi.integrate.dispatch as dispatch
 
     captured = {}
-    original = zero_dim.solve_mu
+    original = dispatch.density_matrix_zero_dim
 
     def wrapped(*args, **kwargs):
         captured["charge_tol"] = kwargs["charge_tol"]
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(zero_dim, "solve_mu", wrapped)
+    monkeypatch.setattr(dispatch, "density_matrix_zero_dim", wrapped)
     density_matrix(
         {(): np.diag([-1.0, 1.0])},
         filling=1.0,
@@ -286,14 +288,14 @@ def test_root_mesh_only_zero_temperature_mode_reports_no_error_estimate(mode):
 def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.zero_temp as zero_temp
+    import meanfi.integrate.dispatch as dispatch
 
     def fail(*args, **kwargs):  # pragma: no cover - executed only on regression
         raise AssertionError(
             "AdaptiveQuadrature should not call the zero-temperature backend"
         )
 
-    monkeypatch.setattr(zero_temp, "density_matrix_zero_temp", fail)
+    monkeypatch.setattr(dispatch, "density_matrix_zero_temp", fail)
     result = density_matrix(
         spinful_chain(),
         filling=1.0,
@@ -314,7 +316,7 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
 def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.zero_temp as zero_temp
+    import meanfi.integrate.dispatch as dispatch
 
     called = {}
 
@@ -340,7 +342,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
             ),
         )
 
-    monkeypatch.setattr(zero_temp, "density_matrix_zero_temp", fake_density_matrix_zero_temp)
+    monkeypatch.setattr(dispatch, "density_matrix_zero_temp", fake_density_matrix_zero_temp)
     result = density_matrix(
         {(0,): np.zeros((1, 1)), (1,): np.zeros((1, 1)), (-1,): np.zeros((1, 1))},
         filling=1.0,
@@ -357,10 +359,10 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
 
 
 def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):
-    import meanfi.zero_temp as zero_temp
+    import meanfi.integrate.simplex as simplex
 
-    monkeypatch.setattr(zero_temp, "_ZERO_TEMP_EXT_AVAILABLE", False)
-    monkeypatch.setattr(zero_temp, "Geometry", None)
+    monkeypatch.setattr(simplex, "_ZERO_TEMP_EXT_AVAILABLE", False)
+    monkeypatch.setattr(simplex, "Geometry", None)
 
     with pytest.raises(
         RuntimeError,

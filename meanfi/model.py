@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from meanfi._bdg import electron_to_bdg_tb, validate_bdg_tb
-from meanfi._validation import (
+from meanfi.core.validation import (
     tb_dimension,
     tb_orbital_count,
     validate_hermiticity,
     validate_tb_dict,
     zero_key,
 )
-from meanfi.mf import meanfield
+from meanfi.normal.meanfield import meanfield
+from meanfi.superconducting.bdg import electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.tb import add_tb, _tb_type
 
 

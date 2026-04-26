@@ -30,18 +30,20 @@ import kwant
 import matplotlib.pyplot as plt
 import meanfi
 import numpy as np
-from scipy.optimize import anderson
 from meanfi.kwant_helper import utils
 from scripts.zero_temp_validation import GRAPHENE_TUTORIAL_MODEL_KWARGS
 
 tutorial_model_kwargs = dict(GRAPHENE_TUTORIAL_MODEL_KWARGS)
+integration = meanfi.AdaptiveSimplex(
+    density_matrix_tol=tutorial_model_kwargs["density_atol"],
+    max_refinements=tutorial_model_kwargs["max_subdivisions"],
+)
 tutorial_density_kwargs = dict(
     filling=2,
     kT=tutorial_model_kwargs["kT"],
     keys=[(0, 0)],
-    charge_tol=tutorial_model_kwargs["charge_tol"],
-    density_atol=tutorial_model_kwargs["density_atol"],
-    max_subdivisions=tutorial_model_kwargs["max_subdivisions"],
+    integration=integration,
+    filling_tol=tutorial_model_kwargs["charge_tol"],
 )
 np.random.seed(0)
 
@@ -111,17 +113,19 @@ During tuning, `max_subdivisions=16384` was the smallest finite zero-temperature
 
 ```{code-cell} ipython3
 filling = 2
-model = meanfi.Model(h_0, h_int, filling=2, **tutorial_model_kwargs)
+model = meanfi.Model(h_0, h_int, filling=2, kT=tutorial_model_kwargs["kT"])
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
 guess = meanfi.guess_tb(int_keys, ndof)
-mf_sol = meanfi.solver(
+result = meanfi.solver(
     model,
     guess,
-    optimizer=anderson,
-    optimizer_kwargs={"M": 0, "line_search": "wolfe"},
+    integration=integration,
+    scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+    scf_tol=tutorial_model_kwargs["scf_tol"],
+    filling_tol=tutorial_model_kwargs["charge_tol"],
 )
-h_full = meanfi.add_tb(h_0, mf_sol)
+h_full = meanfi.add_tb(h_0, result.mf)
 ```
 
 To investigate the effects of interaction on systems with more than one degree of freedom, it is more useful to consider the expectation values of various operators which serve as order parameters.
@@ -134,8 +138,10 @@ In this case, we compute the CDW order parameter by measuring the expectation va
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-rho, _, _, _ = meanfi.density_matrix(h_full, **tutorial_density_kwargs)
-rho_0, _, _, _ = meanfi.density_matrix(h_0, **tutorial_density_kwargs)
+rho_result = meanfi.density_matrix(h_full, **tutorial_density_kwargs)
+rho_0_result = meanfi.density_matrix(h_0, **tutorial_density_kwargs)
+rho = rho_result.density_matrix
+rho_0 = rho_0_result.density_matrix
 
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
@@ -180,21 +186,19 @@ for U in Us:
         params = dict(U=U, V=V)
         h_int = utils.builder_to_tb(builder_int, params)
 
-        model = meanfi.Model(h_0, h_int, filling=filling, **tutorial_model_kwargs)
+        model = meanfi.Model(h_0, h_int, filling=filling, kT=tutorial_model_kwargs["kT"])
         guess = meanfi.guess_tb(int_keys, ndof)
-        mf_sol = meanfi.solver(
+        result = meanfi.solver(
             model,
             guess,
-            optimizer=anderson,
-            optimizer_kwargs={
-                "M": 0,
-                "line_search": "wolfe",
-                "f_tol": tutorial_model_kwargs["scf_tol"],
-            },
+            integration=integration,
+            scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+            scf_tol=tutorial_model_kwargs["scf_tol"],
+            filling_tol=tutorial_model_kwargs["charge_tol"],
         )
-        mf_sols.append(mf_sol)
+        mf_sols.append(result.mf)
 
-        gap = compute_gap(meanfi.add_tb(h_0, mf_sol), fermi_energy=0, nk=100)
+        gap = compute_gap(meanfi.add_tb(h_0, result.mf), fermi_energy=0, nk=100)
         gaps.append(gap)
 gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
 mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
@@ -218,7 +222,10 @@ s_list = [sx, sy, sz]
 cdw_list = []
 sdw_list = []
 for mf_sol in mf_sols.flatten():
-    rho, _, _, _ = meanfi.density_matrix(meanfi.add_tb(h_0, mf_sol), **tutorial_density_kwargs)
+    rho = meanfi.density_matrix(
+        meanfi.add_tb(h_0, mf_sol),
+        **tutorial_density_kwargs,
+    ).density_matrix
 
     # Compute CDW order parameter
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)

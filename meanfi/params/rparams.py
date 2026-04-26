@@ -4,6 +4,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
+from meanfi.core.matrix import to_dense
 from meanfi.tb.tb import _tb_type
 
 
@@ -137,12 +138,12 @@ def rparams_to_tb(
 
 
 def _split_bdg_matrix(matrix: np.ndarray, ndof: int) -> tuple[np.ndarray, np.ndarray]:
-    array = np.asarray(matrix, dtype=complex)
+    array = to_dense(matrix)
     return array[:ndof, :ndof], array[:ndof, ndof:]
 
 
 def _validate_bdg(tb: _tb_type, ndof: int) -> None:
-    from meanfi._bdg import validate_bdg_tb
+    from meanfi.superconducting.bdg import validate_bdg_tb
 
     ndim = len(next(iter(tb)))
     validate_bdg_tb(tb, ndof=ndof, ndim=ndim, name="BdG correction")
@@ -190,10 +191,10 @@ def rparams_to_bdg_tb(
     if offset != len(params):
         raise ValueError("tb_params has the wrong length for the requested BdG support")
 
-    from meanfi._bdg import _assemble_bdg_correction
+    from meanfi.superconducting.bdg import assemble_bdg_correction
     from types import SimpleNamespace
 
     model = SimpleNamespace(_ndof=ndof)
-    tb = _assemble_bdg_correction(normal_block, anomalous_block, model)
+    tb = assemble_bdg_correction(normal_block, anomalous_block, model)
     _validate_bdg(tb, ndof)
     return tb

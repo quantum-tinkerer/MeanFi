@@ -114,10 +114,10 @@ $$
 $$
 
 with a convergence test on the residual norm. For harder problems, the public
-{autolink}`~meanfi.solvers.solver` interface also accepts an external optimizer callable through the
-`optimizer=` hook, for example `scipy.optimize.anderson`.
+{autolink}`~meanfi.solvers.solver` interface switches to an explicit SCF method such as
+{autolink}`~meanfi.scf.AndersonMixing`.
 
-Because the filling constraint is already handled inside each density update, such optimizers only see the
+Because the filling constraint is already handled inside each density update, such SCF methods only see the
 reduced-density fixed-point residual and do not need to manage the chemical potential separately.
 
 ### Chemical-Potential Stability
@@ -126,7 +126,7 @@ The chemical potential $\mu$ no longer appears as an independent variable in the
 density update brackets $\mu$ from a bandwidth estimate, expands the bracket until the target filling is enclosed,
 and then uses safeguarded Newton steps with bisection fallback to find the root.
 
-This keeps the outer optimizer away from chemical-potential instabilities while still reusing the adaptive
+This keeps the outer SCF method away from chemical-potential instabilities while still reusing the adaptive
 quadrature or simplicial cache across the repeated charge evaluations. For `kT = 0`, the Brillouin zone is treated
 as a torus mathematically. The geometry layer still keeps duplicated seam vertices so that the simplicial mesh never
 crosses a periodic boundary, but the spectral layer wraps reduced coordinates before diagonalization so seam-related
