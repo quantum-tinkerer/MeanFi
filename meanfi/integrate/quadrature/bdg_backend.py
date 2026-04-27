@@ -7,7 +7,7 @@ import warnings
 
 from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.core.validation import tb_dimension
-from meanfi.integrate.quadrature.matrix_functions import (
+from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
     density_block,
     matrix_function_label,
@@ -16,7 +16,7 @@ from meanfi.integrate.quadrature.matrix_functions import (
 from meanfi.superconducting.bdg import mu_bracket_for_bdg
 from meanfi.tb.tb import _tb_type
 
-from .matrix_functions import basis_block
+from ..matrix_functions import basis_block
 from .normal_backend import integration_bounds, quadrature_prefactor, split_density_result
 from .runtime import QuadratureBackend
 

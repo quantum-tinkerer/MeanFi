@@ -31,6 +31,14 @@ class SCFRunState:
     total_evaluator_evals: int = 0
 
 
+@dataclass
+class SCFRunResult:
+    params: np.ndarray
+    final_density_result: DensityMatrixResult
+    state: SCFRunState
+    residual_norm: float
+
+
 def max_norm(values: np.ndarray) -> float:
     array = np.asarray(values)
     if array.size == 0:
@@ -218,3 +226,47 @@ def solve_fixed_point(
             on_iteration=on_iteration,
         )
     raise TypeError("scf must be an SCFMethod instance")
+
+
+def run_scf_problem(
+    params0: np.ndarray,
+    *,
+    evaluate_density: Callable[[np.ndarray, float], DensityMatrixResult],
+    residual_from_density: Callable[[np.ndarray, DensityMatrixResult], np.ndarray],
+    scf: SCFMethod,
+    scf_tol: float,
+    state: SCFRunState | None = None,
+) -> SCFRunResult:
+    run_state = SCFRunState() if state is None else state
+
+    def residual_fn(params: np.ndarray) -> np.ndarray:
+        density_result = evaluate_density(params, run_state.mu)
+        record_density_result(run_state, density_result)
+        residual = np.asarray(residual_from_density(params, density_result), dtype=float)
+        run_state.residual_norm = max_norm(residual)
+        return residual
+
+    def on_iteration(iteration: int, residual_norm: float) -> None:
+        run_state.iterations = iteration
+        run_state.residual_norm = residual_norm
+
+    result_params = solve_fixed_point(
+        residual_fn,
+        params0,
+        scf=scf,
+        scf_tol=scf_tol,
+        on_iteration=on_iteration,
+    )
+    final_density_result = evaluate_density(result_params, run_state.mu)
+    residual_norm = max_norm(
+        np.asarray(
+            residual_from_density(result_params, final_density_result),
+            dtype=float,
+        )
+    )
+    return SCFRunResult(
+        params=np.asarray(result_params, dtype=float),
+        final_density_result=final_density_result,
+        state=run_state,
+        residual_norm=residual_norm,
+    )

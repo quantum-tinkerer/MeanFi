@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import numpy as np
 
-from meanfi.core.filling import charge_integral_tolerance, expand_mu_bracket, solve_mu
+from meanfi.core.filling import charge_integral_tolerance
 from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
+from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.tb.tb import _tb_type
 
 if TYPE_CHECKING:
@@ -152,28 +153,20 @@ def solve_quadrature_fixed_filling(
         charge_subdivisions += int(getattr(result, "subdivisions", 0))
         return backend.split_charge_result(result.estimate, result.error)
 
-    lower, upper = backend.mu_bracket()
-    lower, upper = expand_mu_bracket(
-        evaluate_charge,
-        filling=filling,
-        lower=lower,
-        upper=upper,
-    )
-    mu, resolved_filling, charge_error, derivative, iteration = solve_mu(
-        evaluate_charge,
+    root = solve_fixed_filling_root(
+        evaluate_charge=evaluate_charge,
+        mu_bracket=backend.mu_bracket,
         filling=filling,
         mu_guess=mu_guess,
-        lower=lower,
-        upper=upper,
-        charge_tol=filling_tol,
-        mu_xtol=mu_tol,
+        filling_tol=filling_tol,
+        mu_tol=mu_tol,
         max_mu_iterations=max_mu_iterations,
     )
 
     density_integrator = charge_integrator.replace_evaluator(backend.density_evaluator)
     density_result = run_integrator(
         density_integrator,
-        mu,
+        root.mu,
         atol=density_atol,
         rtol=0.0,
         max_subdivisions=max_subdivisions,
@@ -184,11 +177,11 @@ def solve_quadrature_fixed_filling(
         density_result.error,
     )
     raw_info = backend.fixed_filling_info_builder(
-        mu=mu,
-        charge=resolved_filling,
-        charge_error=charge_error,
-        derivative=derivative,
-        root_iterations=iteration,
+        mu=root.mu,
+        charge=root.charge,
+        charge_error=root.charge_error,
+        derivative=root.derivative,
+        root_iterations=root.root_iterations,
         charge_integration_calls=charge_integration_calls,
         charge_kernel_evals=charge_kernel_evals,
         charge_evaluator_evals=charge_evaluator_evals,

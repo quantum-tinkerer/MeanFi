@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-import meanfi.integrate.quadrature.matrix_functions as bdg_matrix_functions
+import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
 from meanfi import (
     AdaptiveQuadrature,
     ChebyshevFOE,
@@ -413,7 +413,7 @@ def test_bdg_sparse_chebyshev_does_not_fallback_to_exact_diagonalization(monkeyp
     def fail_if_exact(*args, **kwargs):
         raise AssertionError("Sparse Chebyshev path should not call exact diagonalization")
 
-    monkeypatch.setattr(bdg_matrix_functions, "_exact_density_block", fail_if_exact)
+    monkeypatch.setattr(bdg_matrix_direct, "_exact_density_block", fail_if_exact)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -450,7 +450,7 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
     def fail_if_exact(*args, **kwargs):
         raise AssertionError("Sparse Rational path should not call exact diagonalization")
 
-    monkeypatch.setattr(bdg_matrix_functions, "_exact_density_block", fail_if_exact)
+    monkeypatch.setattr(bdg_matrix_direct, "_exact_density_block", fail_if_exact)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -487,7 +487,7 @@ def test_bdg_sparse_chebyshev_density_path_avoids_dense_conversion(monkeypatch):
     def fail_if_dense(*args, **kwargs):
         raise AssertionError("Sparse Chebyshev density path should not densify matrices")
 
-    monkeypatch.setattr(bdg_matrix_functions, "to_dense", fail_if_dense)
+    monkeypatch.setattr(bdg_matrix_direct, "to_dense", fail_if_dense)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -524,7 +524,7 @@ def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
     def fail_if_dense(*args, **kwargs):
         raise AssertionError("Sparse Rational density path should not densify matrices")
 
-    monkeypatch.setattr(bdg_matrix_functions, "to_dense", fail_if_dense)
+    monkeypatch.setattr(bdg_matrix_direct, "to_dense", fail_if_dense)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -558,7 +558,7 @@ def test_bdg_dense_chebyshev_does_not_fallback_to_exact_diagonalization(monkeypa
     def fail_if_exact(*args, **kwargs):
         raise AssertionError("Dense Chebyshev path should not call exact diagonalization")
 
-    monkeypatch.setattr(bdg_matrix_functions, "_exact_density_block", fail_if_exact)
+    monkeypatch.setattr(bdg_matrix_direct, "_exact_density_block", fail_if_exact)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -592,7 +592,7 @@ def test_bdg_dense_rational_does_not_fallback_to_exact_diagonalization(monkeypat
     def fail_if_exact(*args, **kwargs):
         raise AssertionError("Dense Rational path should not call exact diagonalization")
 
-    monkeypatch.setattr(bdg_matrix_functions, "_exact_density_block", fail_if_exact)
+    monkeypatch.setattr(bdg_matrix_direct, "_exact_density_block", fail_if_exact)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -627,7 +627,7 @@ def test_bdg_sparse_chebyshev_scf_path_avoids_dense_conversion(monkeypatch):
     def fail_if_dense(*args, **kwargs):
         raise AssertionError("Sparse Chebyshev SCF path should not densify matrices")
 
-    monkeypatch.setattr(bdg_matrix_functions, "to_dense", fail_if_dense)
+    monkeypatch.setattr(bdg_matrix_direct, "to_dense", fail_if_dense)
     result = solver(
         model,
         guess,

@@ -179,12 +179,3 @@ def bdg_density_keys(model, meanfield: _tb_type) -> list[tuple[int, ...]]:
     if onsite not in keys:
         keys.append(onsite)
     return keys
-
-
-def flatten_bdg_tb(tb: _tb_type) -> np.ndarray:
-    if not tb:
-        return np.array([], dtype=float)
-    from meanfi.params.rparams import bdg_tb_to_rparams
-
-    ndof = next(iter(tb.values())).shape[0] // 2
-    return np.asarray(bdg_tb_to_rparams(tb, ndof), dtype=float)

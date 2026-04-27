@@ -8,14 +8,7 @@ from meanfi.integrate.methods import IntegrationMethod
 from meanfi.model import Model
 from meanfi.normal.meanfield import meanfield
 from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
-from meanfi.scf.engine import (
-    NoConvergence,
-    SCFRunState,
-    build_scf_info,
-    max_norm,
-    record_density_result,
-    solve_fixed_point,
-)
+from meanfi.scf.engine import NoConvergence, SCFRunState, build_scf_info, record_density_result, run_scf_problem
 from meanfi.scf.methods import LinearMixing, SCFMethod
 from meanfi.superconducting.scf import solve_bdg_scf
 from meanfi.tb.tb import _tb_type
@@ -73,7 +66,7 @@ def solver(
         )
 
     keys = list(model.h_int)
-    density_matrix_result = _density_for_hamiltonian(
+    initial_density_result = _density_for_hamiltonian(
         model,
         model.hamiltonian_from_meanfield(guess),
         keys=keys,
@@ -83,58 +76,42 @@ def solver(
         max_mu_iterations=max_mu_iterations,
         mu_guess=0.0,
     )
-    density_guess = {key: density_matrix_result.density_matrix[key] for key in keys}
+    density_guess = {key: initial_density_result.density_matrix[key] for key in keys}
     density_params0 = tb_to_rparams(density_guess)
 
     state = SCFRunState()
-    record_density_result(state, density_matrix_result)
+    record_density_result(state, initial_density_result)
 
-    def residual_fn(params: np.ndarray) -> np.ndarray:
-        density_guess = rparams_to_tb(params, keys, model._ndof)
-        density_result = _density_for_hamiltonian(
+    def evaluate_density(params: np.ndarray, mu_guess: float) -> DensityMatrixResult:
+        return _density_for_hamiltonian(
             model,
-            model.hamiltonian_from_rho(density_guess),
+            model.hamiltonian_from_rho(rparams_to_tb(params, keys, model._ndof)),
             keys=keys,
             integration=integration,
             filling_tol=filling_tol,
             mu_tol=mu_tol,
             max_mu_iterations=max_mu_iterations,
-            mu_guess=state.mu,
+            mu_guess=mu_guess,
         )
+
+    def residual_from_density(
+        params: np.ndarray,
+        density_result: DensityMatrixResult,
+    ) -> np.ndarray:
         density_new = {key: density_result.density_matrix[key] for key in keys}
-        residual = np.asarray(tb_to_rparams(density_new) - params, dtype=float).real
-        record_density_result(state, density_result)
-        state.residual_norm = max_norm(residual)
-        return residual
+        return np.asarray(tb_to_rparams(density_new) - params, dtype=float).real
 
-    def on_iteration(iteration: int, residual_norm: float) -> None:
-        state.iterations = iteration
-        state.residual_norm = residual_norm
-
-    result_params = solve_fixed_point(
-        residual_fn,
+    run = run_scf_problem(
         density_params0,
+        evaluate_density=evaluate_density,
+        residual_from_density=residual_from_density,
         scf=scf,
         scf_tol=scf_tol,
-        on_iteration=on_iteration,
+        state=state,
     )
 
-    density_result_guess = rparams_to_tb(result_params, keys, model._ndof)
-    density_matrix_result = _density_for_hamiltonian(
-        model,
-        model.hamiltonian_from_rho(density_result_guess),
-        keys=keys,
-        integration=integration,
-        filling_tol=filling_tol,
-        mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
-        mu_guess=state.mu,
-    )
-    density_reduced = {
-        key: density_matrix_result.density_matrix[key]
-        for key in keys
-    }
-    residual_norm = max_norm(tb_to_rparams(density_reduced) - result_params)
+    density_matrix_result = run.final_density_result
+    density_reduced = {key: density_matrix_result.density_matrix[key] for key in keys}
     mf_result = meanfield(density_reduced, model.h_int)
     tb_result = dict(mf_result)
     tb_result[model._local_key] = tb_result.get(
@@ -143,10 +120,10 @@ def solver(
     ) - density_matrix_result.mu * np.eye(model._ndof)
 
     info = build_scf_info(
-        state,
+        run.state,
         final_result=density_matrix_result,
         scf=scf,
-        residual_norm=residual_norm,
+        residual_norm=run.residual_norm,
     )
     return SolverResult(
         mf=tb_result,

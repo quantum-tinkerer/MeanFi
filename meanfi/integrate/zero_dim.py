@@ -4,14 +4,12 @@ import numpy as np
 
 from meanfi.core.filling import (
     charge_integral_tolerance,
-    expand_mu_bracket,
     mu_bracket,
-    solve_mu,
 )
+from meanfi.integrate.fixed_filling import solve_fixed_filling_root
+from meanfi.integrate.occupations import fermi_dirac
 from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.tb.tb import _tb_type
-
-from .quadrature.normal_backend import fermi_dirac
 
 
 def density_from_matrix(
@@ -102,7 +100,6 @@ def density_matrix_zero_dim(
         )
         return rho, error, mu, info
 
-    lower, upper = mu_bracket({tuple(): matrix}, kT)
     charge_calls = 0
 
     def evaluate_charge(mu: float) -> tuple[float, float, float]:
@@ -113,33 +110,26 @@ def density_matrix_zero_dim(
         derivative = float(np.sum(occupation * (1.0 - occupation) / kT))
         return charge, 0.0, derivative
 
-    lower, upper = expand_mu_bracket(
-        evaluate_charge,
-        filling=filling,
-        lower=lower,
-        upper=upper,
-    )
-    mu, charge, charge_error, derivative, iteration = solve_mu(
-        evaluate_charge,
+    root = solve_fixed_filling_root(
+        evaluate_charge=evaluate_charge,
+        mu_bracket=lambda: mu_bracket({tuple(): matrix}, kT),
         filling=filling,
         mu_guess=mu_guess,
-        lower=lower,
-        upper=upper,
-        charge_tol=charge_tol,
-        mu_xtol=mu_xtol,
+        filling_tol=charge_tol,
+        mu_tol=mu_xtol,
         max_mu_iterations=max_mu_iterations,
     )
 
-    occupation = fermi_dirac(eigenvalues, kT, mu)
+    occupation = fermi_dirac(eigenvalues, kT, root.mu)
     density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
     rho, error = density_from_matrix(density, keys)
     charge_integral_atol, _ = charge_integral_tolerance(charge_tol)
     info = FixedFillingInfo(
-        mu=mu,
-        charge=charge,
-        charge_error=charge_error,
-        dcharge_dmu=derivative,
-        root_iterations=iteration,
+        mu=root.mu,
+        charge=root.charge,
+        charge_error=root.charge_error,
+        dcharge_dmu=root.derivative,
+        root_iterations=root.root_iterations,
         charge_integration_calls=charge_calls,
         density_integration_calls=1,
         charge_n_kernel_evals=1,
@@ -158,7 +148,7 @@ def density_matrix_zero_dim(
         density_rtol=density_rtol,
         error_estimate_available=True,
     )
-    return rho, error, mu, info
+    return rho, error, root.mu, info
 
 
 def zero_dim_zero_temp_mu(

@@ -3,39 +3,38 @@ from __future__ import annotations
 import numpy as np
 
 from meanfi.core.matrix import as_sparse, is_sparse_like
-from meanfi.core.results import SolverResult
+from meanfi.core.results import DensityMatrixResult, SolverResult
 from meanfi.integrate.methods import IntegrationMethod
 from meanfi.params.rparams import bdg_tb_to_rparams, canonical_tb_keys, rparams_to_bdg_tb
-from meanfi.scf.engine import (
-    SCFRunState,
-    build_scf_info,
-    max_norm,
-    record_density_result,
-    solve_fixed_point,
-)
+from meanfi.scf.engine import SCFRunState, build_scf_info, run_scf_problem
 from meanfi.scf.methods import SCFMethod
 
-from .bdg import (
-    bdg_correction_from_density,
-    bdg_density_keys,
-    validate_bdg_tb,
-    zero_bdg_array,
-)
+from .bdg import bdg_correction_from_density, bdg_density_keys, validate_bdg_tb, zero_bdg_array
 from .density import solve_bdg_density_fixed_filling
+
 
 def _fill_bdg_support(model, tb, support_keys: list[tuple[int, ...]]):
     zero = zero_bdg_array(model._ndof)
     use_sparse = any(is_sparse_like(value) for value in tb.values())
     if use_sparse:
         zero_sparse = as_sparse(zero)
-        return {
-            key: as_sparse(tb.get(key, zero_sparse))
-            for key in support_keys
-        }
-    return {
-        key: np.asarray(tb.get(key, zero), dtype=complex)
-        for key in support_keys
-    }
+        return {key: as_sparse(tb.get(key, zero_sparse)) for key in support_keys}
+    return {key: np.asarray(tb.get(key, zero), dtype=complex) for key in support_keys}
+
+
+def _validated_bdg_update(model, support_keys, density_matrix) -> dict[tuple[int, ...], np.ndarray]:
+    updated = _fill_bdg_support(
+        model,
+        bdg_correction_from_density(density_matrix, model),
+        support_keys,
+    )
+    validate_bdg_tb(
+        updated,
+        ndof=model._ndof,
+        ndim=model._ndim,
+        name="BdG correction",
+    )
+    return updated
 
 
 def solve_bdg_scf(
@@ -64,80 +63,46 @@ def solve_bdg_scf(
     density_keys = bdg_density_keys(model, guess)
     initial_meanfield = _fill_bdg_support(model, guess, support_keys)
     params0 = np.asarray(bdg_tb_to_rparams(initial_meanfield, model._ndof), dtype=float)
-    state = SCFRunState()
 
-    def residual_fn(params: np.ndarray) -> np.ndarray:
-        meanfield = rparams_to_bdg_tb(params, support_keys, model._ndof)
-        density_result = solve_bdg_density_fixed_filling(
+    def evaluate_density(params: np.ndarray, mu_guess: float) -> DensityMatrixResult:
+        return solve_bdg_density_fixed_filling(
             model,
-            meanfield,
+            rparams_to_bdg_tb(params, support_keys, model._ndof),
             keys=density_keys,
             integration=integration,
             filling_tol=filling_tol,
             mu_tol=mu_tol,
             max_mu_iterations=max_mu_iterations,
-            mu_guess=state.mu,
+            mu_guess=mu_guess,
         )
-        record_density_result(state, density_result)
 
-        updated = _fill_bdg_support(
+    def residual_from_density(
+        params: np.ndarray,
+        density_result: DensityMatrixResult,
+    ) -> np.ndarray:
+        updated = _validated_bdg_update(
             model,
-            bdg_correction_from_density(density_result.density_matrix, model),
             support_keys,
+            density_result.density_matrix,
         )
-        validate_bdg_tb(
-            updated,
-            ndof=model._ndof,
-            ndim=model._ndim,
-            name="BdG correction",
-        )
-        residual = np.asarray(bdg_tb_to_rparams(updated, model._ndof) - params, dtype=float)
-        state.residual_norm = max_norm(residual)
-        return residual
+        return np.asarray(bdg_tb_to_rparams(updated, model._ndof) - params, dtype=float)
 
-    def on_iteration(iteration: int, residual_norm: float) -> None:
-        state.iterations = iteration
-        state.residual_norm = residual_norm
-
-    result_params = solve_fixed_point(
-        residual_fn,
+    run = run_scf_problem(
         params0,
+        evaluate_density=evaluate_density,
+        residual_from_density=residual_from_density,
         scf=scf,
         scf_tol=scf_tol,
-        on_iteration=on_iteration,
+        state=SCFRunState(),
     )
 
-    meanfield = rparams_to_bdg_tb(result_params, support_keys, model._ndof)
-    density_matrix_result = solve_bdg_density_fixed_filling(
-        model,
-        meanfield,
-        keys=density_keys,
-        integration=integration,
-        filling_tol=filling_tol,
-        mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
-        mu_guess=state.mu,
-    )
-    residual_norm = max_norm(
-        np.asarray(
-            bdg_tb_to_rparams(
-                _fill_bdg_support(
-                    model,
-                    bdg_correction_from_density(density_matrix_result.density_matrix, model),
-                    support_keys,
-                ),
-                model._ndof,
-            )
-            - result_params,
-            dtype=float,
-        )
-    )
-
+    meanfield = rparams_to_bdg_tb(run.params, support_keys, model._ndof)
+    density_matrix_result = run.final_density_result
     info = build_scf_info(
-        state,
+        run.state,
         final_result=density_matrix_result,
         scf=scf,
-        residual_norm=residual_norm,
+        residual_norm=run.residual_norm,
     )
     return SolverResult(
         mf=meanfield,

@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.core.filling import expand_mu_bracket, solve_mu
 from meanfi.core.results import DensityMatrixResult, FixedFillingInfo
 from meanfi.integrate.common import wrap_adaptive_result
-from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
-from meanfi.integrate.quadrature.bdg_backend import build_bdg_backend
-from meanfi.integrate.quadrature.matrix_functions import (
+from meanfi.integrate.fixed_filling import solve_fixed_filling_root
+from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
     DirectDiagonalization,
     basis_block,
     density_block,
     shift_by_mu,
 )
+from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
+from meanfi.integrate.quadrature.bdg_backend import build_bdg_backend
 from meanfi.integrate.quadrature.runtime import solve_quadrature_fixed_filling
 from meanfi.superconducting.bdg import charge_diagonal
 from meanfi.tb.tb import _tb_type
@@ -91,28 +91,20 @@ def _solve_bdg_zero_dim(
         )
         return _local_filling(result.block, filling_indices, filling_weights), 0.0, derivative
 
-    lower, upper = mu_bracket_for_bdg(hamiltonian, kT)
-    lower, upper = expand_mu_bracket(
-        evaluate_charge,
-        filling=filling,
-        lower=lower,
-        upper=upper,
-    )
-    mu, resolved_filling, charge_error, derivative, iteration = solve_mu(
-        evaluate_charge,
+    root = solve_fixed_filling_root(
+        evaluate_charge=evaluate_charge,
+        mu_bracket=lambda: mu_bracket_for_bdg(hamiltonian, kT),
         filling=filling,
         mu_guess=mu_guess,
-        lower=lower,
-        upper=upper,
-        charge_tol=filling_tol,
-        mu_xtol=mu_tol,
+        filling_tol=filling_tol,
+        mu_tol=mu_tol,
         max_mu_iterations=max_mu_iterations,
     )
 
     density_basis = np.eye(q_diag.size, dtype=complex)
     density = density_block(
         selected_matrix_function,
-        shift_by_mu(matrix, mu, q_diag),
+        shift_by_mu(matrix, root.mu, q_diag),
         density_basis,
         kT=kT,
         q_diag=q_diag,
@@ -122,20 +114,20 @@ def _solve_bdg_zero_dim(
     density_matrix = {key: density if key == tuple() else np.zeros_like(density) for key in keys}
     density_matrix_error = {key: np.zeros_like(density) for key in keys}
     raw_info = FixedFillingInfo(
-        mu=mu,
-        charge=resolved_filling,
-        charge_error=charge_error,
-        dcharge_dmu=derivative,
-        root_iterations=iteration,
-        charge_integration_calls=iteration,
+        mu=root.mu,
+        charge=root.charge,
+        charge_error=root.charge_error,
+        dcharge_dmu=root.derivative,
+        root_iterations=root.root_iterations,
+        charge_integration_calls=root.root_iterations,
         density_integration_calls=1,
         charge_n_kernel_evals=1,
         density_n_kernel_evals=1,
         n_kernel_evals=1,
         unique_evals=1,
-        charge_n_evaluator_evals=iteration,
+        charge_n_evaluator_evals=root.root_iterations,
         density_n_evaluator_evals=1,
-        n_evaluator_evals=iteration + 1,
+        n_evaluator_evals=root.root_iterations + 1,
         n_cached_nodes=1,
         n_leaves=1,
         n_leaf_nodes=1,

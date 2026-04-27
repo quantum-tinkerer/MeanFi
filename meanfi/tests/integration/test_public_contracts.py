@@ -95,6 +95,14 @@ def test_top_level_exports_only_supported_diagonalization_names():
     assert not hasattr(meanfi, "ExactDiagonalization")
 
 
+def test_internal_matrix_function_package_root_exposes_shared_symbols():
+    import meanfi.integrate.matrix_functions as matrix_functions
+
+    assert matrix_functions.DirectDiagonalization is DirectDiagonalization
+    assert hasattr(matrix_functions, "density_block")
+    assert hasattr(matrix_functions, "shift_by_mu")
+
+
 @pytest.mark.parametrize(
     ("overrides", "match"),
     [
@@ -236,16 +244,16 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
 
 
 def test_adaptive_methods_default_filling_tol_from_density_matrix_tol(monkeypatch):
-    import meanfi.integrate.dispatch as dispatch
+    import meanfi.integrate.families as families
 
     captured = {}
-    original = dispatch.density_matrix_zero_dim
+    original = families.density_matrix_zero_dim
 
     def wrapped(*args, **kwargs):
         captured["charge_tol"] = kwargs["charge_tol"]
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(dispatch, "density_matrix_zero_dim", wrapped)
+    monkeypatch.setattr(families, "density_matrix_zero_dim", wrapped)
     density_matrix(
         {(): np.diag([-1.0, 1.0])},
         filling=1.0,
@@ -315,14 +323,14 @@ def test_root_mesh_only_zero_temperature_mode_reports_no_error_estimate(mode):
 def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.integrate.dispatch as dispatch
+    import meanfi.integrate.families as families
 
     def fail(*args, **kwargs):  # pragma: no cover - executed only on regression
         raise AssertionError(
             "AdaptiveQuadrature should not call the zero-temperature backend"
         )
 
-    monkeypatch.setattr(dispatch, "density_matrix_zero_temp", fail)
+    monkeypatch.setattr(families, "density_matrix_zero_temp", fail)
     result = density_matrix(
         spinful_chain(),
         filling=1.0,
@@ -343,7 +351,7 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
 def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.integrate.dispatch as dispatch
+    import meanfi.integrate.families as families
 
     called = {}
 
@@ -369,7 +377,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
             ),
         )
 
-    monkeypatch.setattr(dispatch, "density_matrix_zero_temp", fake_density_matrix_zero_temp)
+    monkeypatch.setattr(families, "density_matrix_zero_temp", fake_density_matrix_zero_temp)
     result = density_matrix(
         {(0,): np.zeros((1, 1)), (1,): np.zeros((1, 1)), (-1,): np.zeros((1, 1))},
         filling=1.0,
@@ -386,10 +394,10 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
 
 
 def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):
-    import meanfi.integrate.simplex as simplex
+    import meanfi.integrate.simplex.backend as simplex_backend
 
-    monkeypatch.setattr(simplex, "_ZERO_TEMP_EXT_AVAILABLE", False)
-    monkeypatch.setattr(simplex, "Geometry", None)
+    monkeypatch.setattr(simplex_backend, "_ZERO_TEMP_EXT_AVAILABLE", False)
+    monkeypatch.setattr(simplex_backend, "Geometry", None)
 
     with pytest.raises(
         RuntimeError,

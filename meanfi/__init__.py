@@ -26,13 +26,13 @@ from .integrate.methods import (
     IntegrationMethod,
     UniformGrid,
 )
-from .integrate.quadrature.matrix_functions import (
+from .integrate.matrix_functions import (
     BdGMatrixFunction,
     ChebyshevFOE,
     DirectDiagonalization,
     RationalFOE,
 )
-from .integrate.quadrature.normal_backend import fermi_dirac
+from .integrate.occupations import fermi_dirac
 from .model import Model
 from .normal.meanfield import meanfield
 from .observables import expectation_value

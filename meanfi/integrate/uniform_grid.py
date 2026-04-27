@@ -8,7 +8,7 @@ from meanfi.tb.transforms import kgrid_to_tb, tb_to_kgrid
 
 from .common import uniform_grid_info, wrap_density_result
 from .methods import UniformGrid
-from .quadrature.normal_backend import fermi_dirac
+from .occupations import fermi_dirac
 
 
 def uniform_grid_density_terms(
