@@ -1,6 +1,6 @@
 from .base import BdGMatrixFunction, ChebyshevFOE, DirectDiagonalization, RationalFOE
 from .common import basis_block, shift_by_mu
-from .dispatch import density_block, matrix_function_label
+from .dispatch import density_block, matrix_function_label, resolve_matrix_function
 
 __all__ = [
     "BdGMatrixFunction",
@@ -10,5 +10,6 @@ __all__ = [
     "basis_block",
     "density_block",
     "matrix_function_label",
+    "resolve_matrix_function",
     "shift_by_mu",
 ]

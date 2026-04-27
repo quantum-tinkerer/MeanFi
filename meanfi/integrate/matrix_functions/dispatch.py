@@ -10,6 +10,14 @@ from .direct import _exact_density_block
 from .rational import _rational_density_block
 
 
+def resolve_matrix_function(selected: object | None) -> BdGMatrixFunction:
+    if selected is None:
+        return DirectDiagonalization()
+    if not isinstance(selected, BdGMatrixFunction):
+        raise TypeError("AdaptiveQuadrature.matrix_function must be a BdGMatrixFunction")
+    return selected
+
+
 def matrix_function_label(matrix_function: BdGMatrixFunction) -> str:
     if isinstance(matrix_function, ChebyshevFOE):
         return "Chebyshev FOE"

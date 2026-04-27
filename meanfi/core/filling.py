@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.core.matrix import to_dense
+from meanfi.core.matrix import matrix_bound
 from meanfi.tb.tb import _tb_type
 
 
 def mu_bracket(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
     """Return a conservative chemical-potential bracket."""
 
-    bound = sum(np.linalg.norm(to_dense(matrix), ord=2) for matrix in hamiltonian.values())
+    bound = sum(matrix_bound(matrix) for matrix in hamiltonian.values())
     padding = max(1.0, 10.0 * kT)
     return -float(bound + padding), float(bound + padding)
 

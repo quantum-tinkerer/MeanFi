@@ -47,7 +47,12 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
             keys=context.solve_keys,
         )
     else:
-        backend = build_normal_backend(hamiltonian, keys=context.solve_keys, kT=context.kT)
+        backend = build_normal_backend(
+            hamiltonian,
+            integration=integration,
+            keys=context.solve_keys,
+            kT=context.kT,
+        )
         density_matrix, density_matrix_error, raw_info = solve_quadrature_at_mu(
             backend,
             mu=mu,
@@ -106,7 +111,12 @@ def _adaptive_quadrature_fixed_filling(
             density_rtol=0.0,
         )
     else:
-        backend = build_normal_backend(hamiltonian, keys=context.solve_keys, kT=context.kT)
+        backend = build_normal_backend(
+            hamiltonian,
+            integration=integration,
+            keys=context.solve_keys,
+            kT=context.kT,
+        )
         density_matrix, density_matrix_error, raw_info = solve_quadrature_fixed_filling(
             backend,
             filling=filling,

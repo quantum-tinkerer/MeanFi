@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -20,8 +21,9 @@ else:
 class QuadratureBackend:
     bounds: tuple[list[float], list[float]]
     kernel: Callable[[np.ndarray], np.ndarray]
-    charge_evaluator: Callable[[np.ndarray, np.ndarray, float], np.ndarray]
-    density_evaluator: Callable[[np.ndarray, np.ndarray, float], np.ndarray]
+    payload_builder: Callable[[np.ndarray, np.ndarray], Any] | None
+    charge_evaluator: Callable[[np.ndarray, Any, float], np.ndarray]
+    density_evaluator: Callable[[np.ndarray, Any, float], np.ndarray]
     split_charge_result: Callable[[np.ndarray, np.ndarray], tuple[float, float, float]]
     split_density_result: Callable[[np.ndarray, np.ndarray], tuple[_tb_type, _tb_type]]
     density_info_builder: Callable[[Any], DensityIntegrationInfo]
@@ -46,7 +48,7 @@ def build_integrator(
         ) from exc
 
     a, b = backend.bounds
-    return StatefulIntegrator(
+    kwargs = dict(
         a=a,
         b=b,
         kernel=backend.kernel,
@@ -54,6 +56,16 @@ def build_integrator(
         rule=rule,
         batch_size=batch_size,
     )
+    if backend.payload_builder is not None:
+        signature = inspect.signature(StatefulIntegrator)
+        if "payload_builder" not in signature.parameters:
+            raise RuntimeError(
+                "This MeanFi build requires a newer stateful_quadrature with "
+                "StatefulIntegrator(..., payload_builder=...). "
+                "Please upgrade stateful_quadrature."
+            )
+        kwargs["payload_builder"] = backend.payload_builder
+    return StatefulIntegrator(**kwargs)
 
 
 def run_integrator(

@@ -7,9 +7,9 @@ from meanfi.integrate.common import wrap_adaptive_result
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
-    DirectDiagonalization,
     basis_block,
     density_block,
+    resolve_matrix_function,
     shift_by_mu,
 )
 from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
@@ -33,12 +33,7 @@ def effective_bdg_filling_tol(
 
 
 def matrix_function(integration: AdaptiveQuadrature) -> BdGMatrixFunction:
-    selected = getattr(integration, "matrix_function", None)
-    if selected is None:
-        return DirectDiagonalization()
-    if not isinstance(selected, BdGMatrixFunction):
-        raise TypeError("AdaptiveQuadrature.matrix_function must be a BdGMatrixFunction")
-    return selected
+    return resolve_matrix_function(getattr(integration, "matrix_function", None))
 
 
 def _local_filling(block: np.ndarray, indices, weights: np.ndarray) -> float:
