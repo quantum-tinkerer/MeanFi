@@ -1,6 +1,8 @@
+import importlib
 import inspect
 from types import SimpleNamespace
 
+import meanfi
 import numpy as np
 import pytest
 
@@ -10,6 +12,7 @@ from meanfi import (
     AdaptiveSimplex,
     AndersonMixing,
     DensityMatrixResult,
+    DirectDiagonalization,
     LinearMixing,
     Model,
     UniformGrid,
@@ -18,8 +21,8 @@ from meanfi import (
     guess_tb,
     solver,
 )
+from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.solvers import NoConvergence
-from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import spinful_chain
 
 
@@ -66,6 +69,30 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     density_at_mu_params = inspect.signature(density_matrix_at_mu).parameters
     assert density_at_mu_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
     assert "filling_tol" not in density_at_mu_params
+
+
+@pytest.mark.parametrize(
+    "module_name",
+    [
+        "meanfi._bdg",
+        "meanfi._finite_temp",
+        "meanfi._info",
+        "meanfi._validation",
+        "meanfi._zero_dim",
+        "meanfi.integration",
+        "meanfi.mf",
+        "meanfi.zero_temp",
+        "meanfi.bdg",
+    ],
+)
+def test_removed_shim_modules_are_no_longer_importable(module_name):
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(module_name)
+
+
+def test_top_level_exports_only_supported_diagonalization_names():
+    assert DirectDiagonalization.__name__ == "DirectDiagonalization"
+    assert not hasattr(meanfi, "ExactDiagonalization")
 
 
 @pytest.mark.parametrize(

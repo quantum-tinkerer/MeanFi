@@ -10,7 +10,7 @@ from meanfi import (
     density_matrix_at_mu,
     fermi_dirac,
 )
-from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import (
     antiferromagnetic_guess,
     bipartite_hubbard_1d,

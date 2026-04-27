@@ -4,7 +4,7 @@ import tracemalloc
 import pytest
 
 from meanfi import AdaptiveQuadrature, AdaptiveSimplex, UniformGrid, density_matrix
-from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import (
     benchmark,
     dimerized_chain,

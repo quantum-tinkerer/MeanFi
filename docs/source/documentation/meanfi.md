@@ -4,22 +4,65 @@
 
 ```{eval-rst}
 .. autoclass:: meanfi.model.Model
-   :members: density_matrix, density_matrix_at_mu
+   :members: hamiltonian_from_rho, hamiltonian_from_meanfield, bdg_hamiltonian_from_meanfield
 ```
 
 ## Mean-field and density matrix
 
 ```{eval-rst}
-.. automodule:: meanfi.mf
-   :members: DensityIntegrationInfo, FixedFillingInfo, meanfield, density_matrix, density_matrix_at_mu, fermi_dirac
+.. autofunction:: meanfi.meanfield
+```
+
+```{eval-rst}
+.. autofunction:: meanfi.density_matrix
+```
+
+```{eval-rst}
+.. autofunction:: meanfi.density_matrix_at_mu
+```
+
+```{eval-rst}
+.. autofunction:: meanfi.fermi_dirac
+```
+
+```{eval-rst}
+.. autoclass:: meanfi.DensityMatrixResult
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoclass:: meanfi.AdaptiveQuadratureInfo
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoclass:: meanfi.AdaptiveSimplexInfo
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoclass:: meanfi.UniformGridInfo
    :show-inheritance:
 ```
 
 ## Solvers
 
 ```{eval-rst}
-.. automodule:: meanfi.solvers
-   :members: solver, SolverInfo, NoConvergence
+.. autofunction:: meanfi.solver
+```
+
+```{eval-rst}
+.. autoclass:: meanfi.SolverResult
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoclass:: meanfi.SCFInfo
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoexception:: meanfi.NoConvergence
    :show-inheritance:
 ```
 

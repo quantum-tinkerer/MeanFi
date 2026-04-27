@@ -172,6 +172,31 @@ def wrap_density_result(
     )
 
 
+def wrap_adaptive_result(
+    *,
+    density_matrix: _tb_type,
+    density_matrix_error: _tb_type | None,
+    raw_info: DensityIntegrationInfo | FixedFillingInfo,
+    mu: float,
+    filling: float,
+    target_filling: float | None,
+    integration: AdaptiveSimplex | AdaptiveQuadrature,
+    keys: list[tuple[int, ...]],
+) -> DensityMatrixResult:
+    public_info = translate_adaptive_info(integration, raw_info)
+    error = density_matrix_error if public_info.error_estimate_available else None
+    return wrap_density_result(
+        density_matrix=density_matrix,
+        density_matrix_error=error,
+        mu=mu,
+        filling=filling,
+        target_filling=target_filling,
+        integration=integration,
+        info=public_info,
+        keys=keys,
+    )
+
+
 def retarget_result_keys(
     result: DensityMatrixResult,
     *,

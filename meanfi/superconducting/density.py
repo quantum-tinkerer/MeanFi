@@ -4,7 +4,7 @@ import numpy as np
 
 from meanfi.core.filling import expand_mu_bracket, solve_mu
 from meanfi.core.results import DensityMatrixResult, FixedFillingInfo
-from meanfi.integrate.common import translate_adaptive_info, wrap_density_result
+from meanfi.integrate.common import wrap_adaptive_result
 from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
 from meanfi.integrate.quadrature.bdg_backend import build_bdg_backend
 from meanfi.integrate.quadrature.matrix_functions import (
@@ -145,15 +145,14 @@ def _solve_bdg_zero_dim(
         density_rtol=0.0,
         error_estimate_available=True,
     )
-    public_info = translate_adaptive_info(integration, raw_info)
-    return wrap_density_result(
+    return wrap_adaptive_result(
         density_matrix=density_matrix,
         density_matrix_error=density_matrix_error,
+        raw_info=raw_info,
         mu=raw_info.mu,
         filling=raw_info.charge,
         target_filling=filling,
         integration=integration,
-        info=public_info,
         keys=keys,
     )
 
@@ -232,14 +231,13 @@ def solve_bdg_density_fixed_filling(
         ),
         density_error_message="BdG adaptive quadrature did not converge while evaluating density",
     )
-    public_info = translate_adaptive_info(integration, raw_info)
-    return wrap_density_result(
+    return wrap_adaptive_result(
         density_matrix=density_matrix,
         density_matrix_error=density_matrix_error,
+        raw_info=raw_info,
         mu=raw_info.mu,
         filling=raw_info.charge,
         target_filling=model.filling,
         integration=integration,
-        info=public_info,
         keys=keys,
     )

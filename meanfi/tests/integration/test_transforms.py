@@ -3,7 +3,6 @@ import itertools as it
 import numpy as np
 import pytest
 
-from meanfi._bdg import validate_bdg_tb
 from meanfi.params.rparams import (
     bdg_tb_to_rparams,
     canonical_tb_keys,
@@ -11,6 +10,7 @@ from meanfi.params.rparams import (
     rparams_to_tb,
     tb_to_rparams,
 )
+from meanfi.superconducting.bdg import validate_bdg_tb
 from meanfi.tb.tb import compare_dicts
 from meanfi.tb.transforms import ifftn_to_tb, tb_to_kfunc, tb_to_kgrid
 from meanfi.tb.utils import generate_tb_keys, guess_tb

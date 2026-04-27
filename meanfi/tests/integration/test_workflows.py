@@ -15,7 +15,7 @@ from meanfi import (
     tb_to_tight_binding_model,
 )
 from meanfi.kwant_helper import kwant_examples, utils
-from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import qiwuzhang, spinful_chain
 
 

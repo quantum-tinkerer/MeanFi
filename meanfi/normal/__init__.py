@@ -1,3 +1,1 @@
-from .meanfield import meanfield
-
-__all__ = ["meanfield"]
+"""Internal normal-state helpers for MeanFi."""

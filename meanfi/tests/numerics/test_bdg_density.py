@@ -12,7 +12,8 @@ from meanfi import (
     solver,
     tb_to_kfunc,
 )
-from meanfi._bdg import charge_diagonal, solve_bdg_density_fixed_filling
+from meanfi.superconducting.bdg import charge_diagonal
+from meanfi.superconducting.density import solve_bdg_density_fixed_filling
 
 
 pytestmark = pytest.mark.numerics

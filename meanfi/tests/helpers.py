@@ -13,7 +13,7 @@ import numpy as np
 from scipy.optimize import brentq
 
 from meanfi import fermi_dirac, tb_to_kfunc
-from meanfi._zero_dim import zero_dim_zero_temp_mu
+from meanfi.integrate.zero_dim import zero_dim_zero_temp_mu
 
 
 @dataclass(frozen=True)

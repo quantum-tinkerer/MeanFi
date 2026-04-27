@@ -1,62 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 
-from meanfi.core.results import DensityMatrixResult, SCFInfo, SolverResult
+from meanfi.core.results import DensityMatrixResult, SolverResult
 from meanfi.integrate.dispatch import solve_density_matrix_fixed_filling
 from meanfi.integrate.methods import IntegrationMethod
 from meanfi.model import Model
 from meanfi.normal.meanfield import meanfield
 from meanfi.params.rparams import rparams_to_tb, tb_to_rparams
-from meanfi.scf import LinearMixing, NoConvergence, SCFMethod, max_norm, solve_fixed_point
+from meanfi.scf.engine import (
+    NoConvergence,
+    SCFRunState,
+    build_scf_info,
+    max_norm,
+    record_density_result,
+    solve_fixed_point,
+)
+from meanfi.scf.methods import LinearMixing, SCFMethod
 from meanfi.superconducting.scf import solve_bdg_scf
 from meanfi.tb.tb import _tb_type
-
-
-@dataclass
-class _ScfState:
-    iterations: int = 0
-    mu: float = 0.0
-    density_matrix_result: DensityMatrixResult | None = None
-    residual_norm: float = float("inf")
-    total_charge_integration_calls: int = 0
-    total_density_integration_calls: int = 0
-    total_kernel_evals: int = 0
-    total_unique_evals: int = 0
-    total_evaluator_evals: int = 0
-
-
-def _integration_counters(result: DensityMatrixResult) -> tuple[int, int, int, int, int]:
-    info = result.info
-    return (
-        int(getattr(info, "charge_integration_calls", 0) or 0),
-        int(getattr(info, "density_integration_calls", 0) or 0),
-        int(getattr(info, "n_kernel_evals", 0) or 0),
-        int(
-            getattr(
-                info,
-                "unique_evals",
-                getattr(info, "n_kernel_evals", getattr(info, "n_kpoints", 0)),
-            )
-            or 0
-        ),
-        int(getattr(info, "n_evaluator_evals", 0) or 0),
-    )
-
-
-def _record_density_result(state: _ScfState, result: DensityMatrixResult) -> None:
-    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = _integration_counters(
-        result
-    )
-    state.density_matrix_result = result
-    state.mu = result.mu
-    state.total_charge_integration_calls += charge_calls
-    state.total_density_integration_calls += density_calls
-    state.total_kernel_evals += kernel_evals
-    state.total_unique_evals += unique_evals
-    state.total_evaluator_evals += evaluator_evals
 
 
 def _density_for_hamiltonian(
@@ -124,8 +86,8 @@ def solver(
     density_guess = {key: density_matrix_result.density_matrix[key] for key in keys}
     density_params0 = tb_to_rparams(density_guess)
 
-    state = _ScfState(mu=density_matrix_result.mu, density_matrix_result=density_matrix_result)
-    _record_density_result(state, density_matrix_result)
+    state = SCFRunState()
+    record_density_result(state, density_matrix_result)
 
     def residual_fn(params: np.ndarray) -> np.ndarray:
         density_guess = rparams_to_tb(params, keys, model._ndof)
@@ -141,7 +103,7 @@ def solver(
         )
         density_new = {key: density_result.density_matrix[key] for key in keys}
         residual = np.asarray(tb_to_rparams(density_new) - params, dtype=float).real
-        _record_density_result(state, density_result)
+        record_density_result(state, density_result)
         state.residual_norm = max_norm(residual)
         return residual
 
@@ -180,20 +142,11 @@ def solver(
         np.zeros((model._ndof, model._ndof), dtype=complex),
     ) - density_matrix_result.mu * np.eye(model._ndof)
 
-    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = _integration_counters(
-        density_matrix_result
-    )
-    info = SCFInfo(
-        method="anderson_mixing" if scf.__class__.__name__ == "AndersonMixing" else "linear_mixing",
-        iterations=max(1, state.iterations),
+    info = build_scf_info(
+        state,
+        final_result=density_matrix_result,
+        scf=scf,
         residual_norm=residual_norm,
-        total_charge_integration_calls=state.total_charge_integration_calls
-        + charge_calls,
-        total_density_integration_calls=state.total_density_integration_calls
-        + density_calls,
-        total_kernel_evals=state.total_kernel_evals + kernel_evals,
-        total_unique_evals=state.total_unique_evals + unique_evals,
-        total_evaluator_evals=state.total_evaluator_evals + evaluator_evals,
     )
     return SolverResult(
         mf=tb_result,

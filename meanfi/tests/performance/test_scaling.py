@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from meanfi import AdaptiveQuadrature, AdaptiveSimplex, UniformGrid, density_matrix, density_matrix_at_mu
-from meanfi.zero_temp import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import (
     benchmark,
     converged_dense_reference,

@@ -27,11 +27,11 @@ $$
 \mathrm{MF}\bigl(\rho_{mn}(R)_{\text{init}}\bigr) \to \rho_{mn}(R)_{\text{new}}.
 $$
 
-This iteration is defined in the {autolink}`~meanfi.model.Model.density_matrix` method and proceeds as follows:
+This iteration is exposed through the top-level density API and proceeds as follows:
 
-1. **Mean-field calculation** ({autolink}`~meanfi.mf.meanfield`): Compute the new mean-field potential
+1. **Mean-field calculation** ({autolink}`~meanfi.meanfield`): Compute the new mean-field potential
    $\hat{V}_{\text{new, MF}}(R)$ using {eq}`mf_infinite`.
-2. **Density matrix update** ({autolink}`~meanfi.mf.density_matrix`):
+2. **Density matrix update** ({autolink}`~meanfi.density_matrix`):
    1. **Momentum-space Hamiltonian** ({autolink}`~meanfi.tb.transforms.tb_to_kfunc`): Transform the real-space
       tight-binding Hamiltonian into a function of $k$ that returns $\hat{H}(k)$.
    2. **Temperature-dependent backend**:
@@ -40,7 +40,7 @@ This iteration is defined in the {autolink}`~meanfi.model.Model.density_matrix` 
       - For `kT = 0`, a separate adaptive simplicial backend first solves $N(\mu)=\nu$ on a hierarchically refined
         simplex mesh and then starts an adaptive density quadrature pass from that charge-converged mesh at frozen $\mu$.
 
-The related {autolink}`~meanfi.mf.density_matrix_at_mu` function performs the same spectral caching and density
+The related {autolink}`~meanfi.density_matrix_at_mu` function performs the same spectral caching and density
 integration steps when the chemical potential is supplied explicitly. In the zero-temperature backend, this means
 starting directly from the simplicial density stage at fixed $\mu$.
 

@@ -3,7 +3,7 @@ import pytest
 from scipy.optimize import brentq
 
 from meanfi import AdaptiveQuadrature, LinearMixing, Model, solver, tb_to_kfunc
-from meanfi._bdg import _bdg_correction_from_density, charge_diagonal
+from meanfi.superconducting.bdg import bdg_correction_from_density, charge_diagonal
 
 
 pytestmark = pytest.mark.physics
@@ -169,7 +169,7 @@ def _dense_bdg_scf_reference(
 
     for _ in range(max_iterations):
         mu, density = _dense_bdg_density(model, meanfield, keys=keys, nk=nk)
-        updated = _bdg_correction_from_density(density, model)
+        updated = bdg_correction_from_density(density, model)
         residual = max(
             np.max(np.abs(updated.get(key, 0.0) - meanfield.get(key, 0.0)))
             for key in frozenset(updated) | frozenset(meanfield)
