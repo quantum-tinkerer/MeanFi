@@ -18,10 +18,12 @@ from meanfi.core.validation import (
 )
 from meanfi.tb.tb import _tb_type
 
+from .density_support import require_supported_workspace_precision
 from .methods import AdaptiveQuadrature, AdaptiveSimplex, IntegrationMethod, UniformGrid
 
 
 def validate_integration_method(integration: IntegrationMethod, *, kT: float) -> None:
+    require_supported_workspace_precision(integration)
     if kT < 0:
         raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
     if isinstance(integration, AdaptiveSimplex):

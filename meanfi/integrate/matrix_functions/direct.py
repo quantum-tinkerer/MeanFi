@@ -17,8 +17,10 @@ def _exact_density_block(
     kT: float,
     q_diag: np.ndarray,
     derivative: bool,
+    workspace_dtype: np.dtype,
 ) -> _BlockResult:
-    array = to_dense(matrix)
+    array = np.asarray(to_dense(matrix), dtype=workspace_dtype)
+    block = np.asarray(block, dtype=workspace_dtype)
     eigenvalues, eigenvectors = np.linalg.eigh(array)
     occupation = fermi_dirac(eigenvalues, kT, 0.0)
     projected_block = eigenvectors.conj().T @ block

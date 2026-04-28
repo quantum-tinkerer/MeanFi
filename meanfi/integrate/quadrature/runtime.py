@@ -29,6 +29,7 @@ class QuadratureBackend:
     density_info_builder: Callable[[Any], DensityIntegrationInfo]
     fixed_filling_info_builder: Callable[..., FixedFillingInfo]
     mu_bracket: Callable[[], tuple[float, float]]
+    freeze_density_mesh: bool = False
 
 
 def build_integrator(
@@ -76,6 +77,7 @@ def run_integrator(
     rtol: float,
     max_subdivisions: int | None,
     error_message: str,
+    accepted_statuses: tuple[str, ...] = ("converged",),
 ):
     """Run the adaptive integrator and normalize non-convergence errors."""
 
@@ -85,7 +87,7 @@ def run_integrator(
         rtol=rtol,
         max_subdivisions=max_subdivisions,
     )
-    if result.status != "converged":
+    if result.status not in accepted_statuses:
         raise ValueError(error_message)
     return result
 
@@ -113,6 +115,7 @@ def solve_quadrature_at_mu(
         rtol=0.0,
         max_subdivisions=max_subdivisions,
         error_message=error_message,
+        accepted_statuses=("converged",),
     )
     density_matrix, density_matrix_error = backend.split_density_result(
         result.estimate,
@@ -176,13 +179,20 @@ def solve_quadrature_fixed_filling(
     )
 
     density_integrator = charge_integrator.replace_evaluator(backend.density_evaluator)
+    density_max_subdivisions = 0 if backend.freeze_density_mesh else max_subdivisions
+    density_statuses = (
+        ("converged", "max_subdivisions")
+        if backend.freeze_density_mesh
+        else ("converged",)
+    )
     density_result = run_integrator(
         density_integrator,
         root.mu,
         atol=density_atol,
         rtol=0.0,
-        max_subdivisions=max_subdivisions,
+        max_subdivisions=density_max_subdivisions,
         error_message=density_error_message,
+        accepted_statuses=density_statuses,
     )
     density_matrix, density_matrix_error = backend.split_density_result(
         density_result.estimate,

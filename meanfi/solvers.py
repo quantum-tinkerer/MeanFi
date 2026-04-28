@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import inspect
+
 import numpy as np
 
 from meanfi.core.results import DensityMatrixResult, SolverResult
+from meanfi.integrate.density_support import normal_density_entry_support
 from meanfi.integrate.dispatch import solve_density_matrix_fixed_filling
 from meanfi.integrate.methods import IntegrationMethod
 from meanfi.model import Model
@@ -24,6 +27,7 @@ def _density_for_hamiltonian(
     mu_tol: float,
     max_mu_iterations: int | None,
     mu_guess: float,
+    density_entry_support=None,
 ) -> DensityMatrixResult:
     return solve_density_matrix_fixed_filling(
         hamiltonian,
@@ -35,7 +39,33 @@ def _density_for_hamiltonian(
         mu_tol=mu_tol,
         max_mu_iterations=max_mu_iterations,
         mu_guess=mu_guess,
+        density_entry_support=density_entry_support,
     )
+
+
+def _evaluate_density_for_hamiltonian(
+    model: Model,
+    hamiltonian: _tb_type,
+    *,
+    keys: list[tuple[int, ...]],
+    integration: IntegrationMethod,
+    filling_tol: float | None,
+    mu_tol: float,
+    max_mu_iterations: int | None,
+    mu_guess: float,
+    density_entry_support=None,
+) -> DensityMatrixResult:
+    kwargs = dict(
+        keys=keys,
+        integration=integration,
+        filling_tol=filling_tol,
+        mu_tol=mu_tol,
+        max_mu_iterations=max_mu_iterations,
+        mu_guess=mu_guess,
+    )
+    if "density_entry_support" in inspect.signature(_density_for_hamiltonian).parameters:
+        kwargs["density_entry_support"] = density_entry_support
+    return _density_for_hamiltonian(model, hamiltonian, **kwargs)
 
 
 def solver(
@@ -66,7 +96,13 @@ def solver(
         )
 
     keys = list(model.h_int)
-    initial_density_result = _density_for_hamiltonian(
+    density_support = normal_density_entry_support(
+        keys=keys if model._local_key in keys else [*keys, model._local_key],
+        interaction_support=model.h_int,
+        ndof=model._ndof,
+        local_key=model._local_key,
+    )
+    initial_density_result = _evaluate_density_for_hamiltonian(
         model,
         model.hamiltonian_from_meanfield(guess),
         keys=keys,
@@ -75,6 +111,7 @@ def solver(
         mu_tol=mu_tol,
         max_mu_iterations=max_mu_iterations,
         mu_guess=0.0,
+        density_entry_support=density_support,
     )
     density_guess = {key: initial_density_result.density_matrix[key] for key in keys}
     density_params0 = tb_to_rparams(density_guess)
@@ -83,7 +120,7 @@ def solver(
     record_density_result(state, initial_density_result)
 
     def evaluate_density(params: np.ndarray, mu_guess: float) -> DensityMatrixResult:
-        return _density_for_hamiltonian(
+        return _evaluate_density_for_hamiltonian(
             model,
             model.hamiltonian_from_rho(rparams_to_tb(params, keys, model._ndof)),
             keys=keys,
@@ -92,6 +129,7 @@ def solver(
             mu_tol=mu_tol,
             max_mu_iterations=max_mu_iterations,
             mu_guess=mu_guess,
+            density_entry_support=density_support,
         )
 
     def residual_from_density(

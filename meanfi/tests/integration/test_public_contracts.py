@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import meanfi
 import numpy as np
 import pytest
+import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
@@ -21,6 +22,8 @@ from meanfi import (
     guess_tb,
     solver,
 )
+from meanfi.core.matrix import matrix_bound
+from meanfi.core.filling import mu_bracket
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.solvers import NoConvergence
 from meanfi.tests.helpers import spinful_chain
@@ -101,6 +104,22 @@ def test_internal_matrix_function_package_root_exposes_shared_symbols():
     assert matrix_functions.DirectDiagonalization is DirectDiagonalization
     assert hasattr(matrix_functions, "density_block")
     assert hasattr(matrix_functions, "shift_by_mu")
+
+
+def test_sparse_mu_bracket_uses_tighter_spectral_probe_than_row_sum_bound():
+    size = 32
+    offdiag = np.ones(size - 1, dtype=complex)
+    path = sp.diags([offdiag, offdiag], offsets=[-1, 1], format="csr")
+    tb = {tuple(): path}
+
+    lower, upper = mu_bracket(tb, 0.2)
+    exact_bound = float(np.max(np.abs(np.linalg.eigvalsh(path.toarray()))))
+    fallback = matrix_bound(path)
+    padding = max(1.0, 10.0 * 0.2)
+
+    assert upper >= exact_bound + padding
+    assert upper < fallback + padding
+    assert lower == -upper
 
 
 @pytest.mark.parametrize(

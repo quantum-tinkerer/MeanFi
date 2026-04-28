@@ -7,15 +7,30 @@ from meanfi.core.filling import (
     mu_bracket,
 )
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
+from meanfi.integrate.matrix_functions import (
+    RationalFOE,
+    density_block,
+    resolve_matrix_function,
+    shift_by_mu,
+)
+from meanfi.integrate.matrix_functions.rational import PreparedRationalNode
 from meanfi.integrate.occupations import fermi_dirac
 from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.tb.tb import _tb_type
+from .density_support import DensityEntrySupport
 
 
 def density_from_matrix(
-    matrix: np.ndarray, keys: list[tuple[int, ...]]
+    matrix: np.ndarray,
+    keys: list[tuple[int, ...]],
+    density_entry_support: DensityEntrySupport | None = None,
 ) -> tuple[_tb_type, _tb_type]:
     """Embed a local density matrix into the requested tight-binding keys."""
+
+    if density_entry_support is not None:
+        values = density_entry_support.pack_columns(matrix)
+        zeros = np.zeros(density_entry_support.output_size, dtype=float)
+        return density_entry_support.expand_entries(values, zeros)
 
     onsite_key = tuple(0 for _ in next(iter(keys), tuple()))
     rho = {key: matrix if key == onsite_key else np.zeros_like(matrix) for key in keys}
@@ -29,13 +44,41 @@ def density_matrix_at_mu_zero_dim(
     mu: float,
     kT: float,
     keys: list[tuple[int, ...]],
+    density_entry_support: DensityEntrySupport | None = None,
+    matrix_function: object | None = None,
+    workspace_dtype: np.dtype = np.dtype(complex),
+    density_tolerance: float = 0.0,
 ) -> tuple[_tb_type, _tb_type, DensityIntegrationInfo]:
     """Evaluate the density matrix for a finite system at fixed chemical potential."""
 
-    eigenvalues, eigenvectors = np.linalg.eigh(matrix)
-    occupation = fermi_dirac(eigenvalues, kT, mu)
-    density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-    rho, error = density_from_matrix(density, keys)
+    resolved_matrix_function = resolve_matrix_function(matrix_function)
+    if isinstance(resolved_matrix_function, RationalFOE):
+        q_diag = np.ones(matrix.shape[0], dtype=float)
+        density_basis = (
+            density_entry_support.basis_block(dtype=workspace_dtype)
+            if density_entry_support is not None
+            else np.eye(matrix.shape[0], dtype=workspace_dtype)
+        )
+        density_result = density_block(
+            resolved_matrix_function,
+            shift_by_mu(matrix, mu, q_diag, dtype=workspace_dtype),
+            density_basis,
+            kT=kT,
+            q_diag=q_diag,
+            derivative=False,
+            tolerance=density_tolerance,
+            workspace_dtype=workspace_dtype,
+        ).block
+        rho, error = density_from_matrix(
+            density_result,
+            keys,
+            density_entry_support,
+        )
+    else:
+        eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+        occupation = fermi_dirac(eigenvalues, kT, mu)
+        density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
+        rho, error = density_from_matrix(density, keys, density_entry_support)
     info = DensityIntegrationInfo(
         n_kernel_evals=1,
         unique_evals=1,
@@ -61,11 +104,19 @@ def density_matrix_zero_dim(
     max_mu_iterations: int | None,
     density_atol: float,
     density_rtol: float,
+    density_entry_support: DensityEntrySupport | None = None,
+    matrix_function: object | None = None,
+    workspace_dtype: np.dtype = np.dtype(complex),
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
     """Evaluate the fixed-filling density matrix for a finite system."""
 
-    eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+    resolved_matrix_function = resolve_matrix_function(matrix_function)
+    eigenvalues = eigenvectors = None
+    if not isinstance(resolved_matrix_function, RationalFOE):
+        eigenvalues, eigenvectors = np.linalg.eigh(matrix)
     if kT == 0:
+        assert eigenvalues is not None
+        assert eigenvectors is not None
         mu, charge = zero_dim_zero_temp_mu(
             eigenvalues,
             filling=filling,
@@ -73,7 +124,7 @@ def density_matrix_zero_dim(
         )
         occupation = fermi_dirac(eigenvalues, kT, mu)
         density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-        rho, error = density_from_matrix(density, keys)
+        rho, error = density_from_matrix(density, keys, density_entry_support)
         info = FixedFillingInfo(
             mu=mu,
             charge=charge,
@@ -100,6 +151,76 @@ def density_matrix_zero_dim(
         )
         return rho, error, mu, info
 
+    if isinstance(resolved_matrix_function, RationalFOE):
+        q_diag = np.ones(matrix.shape[0], dtype=float)
+        density_basis = (
+            density_entry_support.basis_block(dtype=workspace_dtype)
+            if density_entry_support is not None
+            else np.eye(matrix.shape[0], dtype=workspace_dtype)
+        )
+        prepared = PreparedRationalNode(
+            matrix,
+            kT=kT,
+            q_diag=q_diag,
+            options=resolved_matrix_function,
+            charge_tolerance=charge_tol,
+            workspace_dtype=workspace_dtype,
+            trace_weights_diag=np.ones(matrix.shape[0], dtype=float),
+        )
+
+        charge_calls = 0
+
+        def evaluate_charge(mu: float) -> tuple[float, float, float]:
+            nonlocal charge_calls
+            charge_calls += 1
+            charge, derivative = prepared.charge_and_derivative(mu)
+            return charge, 0.0, derivative
+
+        root = solve_fixed_filling_root(
+            evaluate_charge=evaluate_charge,
+            mu_bracket=lambda: mu_bracket({tuple(): matrix}, kT),
+            filling=filling,
+            mu_guess=mu_guess,
+            filling_tol=charge_tol,
+            mu_tol=mu_xtol,
+            max_mu_iterations=max_mu_iterations,
+        )
+
+        density_result = prepared.density_columns_from_charge_order(root.mu, density_basis)
+        rho, error = density_from_matrix(
+            density_result,
+            keys,
+            density_entry_support,
+        )
+        charge_integral_atol, _ = charge_integral_tolerance(charge_tol)
+        info = FixedFillingInfo(
+            mu=root.mu,
+            charge=root.charge,
+            charge_error=root.charge_error,
+            dcharge_dmu=root.derivative,
+            root_iterations=root.root_iterations,
+            charge_integration_calls=charge_calls,
+            density_integration_calls=1,
+            charge_n_kernel_evals=charge_calls,
+            density_n_kernel_evals=1,
+            n_kernel_evals=charge_calls + 1,
+            unique_evals=charge_calls + 1,
+            charge_n_evaluator_evals=charge_calls,
+            density_n_evaluator_evals=1,
+            n_evaluator_evals=charge_calls + 1,
+            n_cached_nodes=1,
+            n_leaves=1,
+            n_leaf_nodes=1,
+            subdivisions=0,
+            charge_integral_atol=charge_integral_atol,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+            error_estimate_available=True,
+        )
+        return rho, error, root.mu, info
+
+    assert eigenvalues is not None
+    assert eigenvectors is not None
     charge_calls = 0
 
     def evaluate_charge(mu: float) -> tuple[float, float, float]:
@@ -122,7 +243,7 @@ def density_matrix_zero_dim(
 
     occupation = fermi_dirac(eigenvalues, kT, root.mu)
     density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-    rho, error = density_from_matrix(density, keys)
+    rho, error = density_from_matrix(density, keys, density_entry_support)
     charge_integral_atol, _ = charge_integral_tolerance(charge_tol)
     info = FixedFillingInfo(
         mu=root.mu,

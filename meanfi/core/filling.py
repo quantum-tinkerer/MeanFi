@@ -2,14 +2,59 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.core.matrix import matrix_bound
+from meanfi.core.matrix import hermitian_spectral_bound, is_sparse_like, matrix_bound
 from meanfi.tb.tb import _tb_type
+
+
+def _tb_k_matrix(hamiltonian: _tb_type, point: np.ndarray):
+    accumulator = None
+    for key, matrix in hamiltonian.items():
+        phase = np.exp(-1j * np.dot(point, np.asarray(key, dtype=float)))
+        term = matrix * phase
+        accumulator = term if accumulator is None else accumulator + term
+    if accumulator is None:
+        raise ValueError("Hamiltonian cannot be empty")
+    return accumulator
+
+
+def _spectral_probe_points(ndim: int) -> list[np.ndarray]:
+    if ndim == 0:
+        return [np.zeros(0, dtype=float)]
+
+    points = [np.zeros(ndim, dtype=float), np.full(ndim, np.pi, dtype=float)]
+    for axis in range(ndim):
+        point = np.zeros(ndim, dtype=float)
+        point[axis] = np.pi
+        points.append(point)
+
+    unique: list[np.ndarray] = []
+    for point in points:
+        if not any(np.array_equal(point, existing) for existing in unique):
+            unique.append(point)
+    return unique
+
+
+def _initial_spectral_bound(hamiltonian: _tb_type) -> float:
+    fallback = sum(matrix_bound(matrix) for matrix in hamiltonian.values())
+    if fallback == 0.0:
+        return 0.0
+
+    if not any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
+        return fallback
+
+    ndim = len(next(iter(hamiltonian)))
+    estimate = 0.0
+    for point in _spectral_probe_points(ndim):
+        estimate = max(estimate, hermitian_spectral_bound(_tb_k_matrix(hamiltonian, point)))
+    if estimate == 0.0:
+        return fallback
+    return float(min(fallback, estimate + 1e-3 * max(1.0, estimate)))
 
 
 def mu_bracket(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
     """Return a conservative chemical-potential bracket."""
 
-    bound = sum(matrix_bound(matrix) for matrix in hamiltonian.values())
+    bound = _initial_spectral_bound(hamiltonian)
     padding = max(1.0, 10.0 * kT)
     return -float(bound + padding), float(bound + padding)
 

@@ -4,13 +4,13 @@ from typing import Any
 
 import numpy as np
 
+from meanfi.core.filling import _initial_spectral_bound
 from meanfi.core.matrix import (
     as_sparse,
     block_diag,
     conjugate_transpose,
     elementwise_product,
     is_sparse_like,
-    matrix_bound,
     matrix_shape,
     sparse_module,
     transpose,
@@ -42,7 +42,7 @@ def charge_diagonal(ndof: int) -> np.ndarray:
 
 
 def mu_bracket_for_bdg(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
-    bound = sum(matrix_bound(matrix) for matrix in hamiltonian.values())
+    bound = _initial_spectral_bound(hamiltonian)
     padding = max(1.0, 10.0 * kT)
     return -float(bound + padding), float(bound + padding)
 

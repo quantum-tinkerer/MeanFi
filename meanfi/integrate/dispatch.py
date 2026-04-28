@@ -3,6 +3,7 @@ from __future__ import annotations
 from meanfi.tb.tb import _tb_type
 
 from .common import prepare_keys, validate_integration_method
+from .density_support import DensityEntrySupport
 from .families import DispatchContext, integration_handler
 from .methods import IntegrationMethod
 
@@ -14,6 +15,7 @@ def solve_density_matrix_at_mu(
     kT: float,
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod,
+    density_entry_support: DensityEntrySupport | None = None,
 ):
     validate_integration_method(integration, kT=kT)
     requested_keys, working_keys, _local_key = prepare_keys(hamiltonian, keys)
@@ -23,6 +25,7 @@ def solve_density_matrix_at_mu(
         integration=integration,
         requested_keys=requested_keys,
         solve_keys=working_keys,
+        density_entry_support=density_entry_support,
     )
     return integration_handler(integration).solve_at_mu(context, mu)
 
@@ -38,6 +41,7 @@ def solve_density_matrix_fixed_filling(
     mu_tol: float,
     max_mu_iterations: int | None,
     mu_guess: float = 0.0,
+    density_entry_support: DensityEntrySupport | None = None,
 ):
     validate_integration_method(integration, kT=kT)
     if mu_tol <= 0:
@@ -52,6 +56,7 @@ def solve_density_matrix_fixed_filling(
         integration=integration,
         requested_keys=requested_keys,
         solve_keys=working_keys,
+        density_entry_support=density_entry_support,
     )
     return integration_handler(integration).solve_fixed_filling(
         context,

@@ -6,7 +6,7 @@ from meanfi import AdaptiveQuadrature, LinearMixing, Model, solver, tb_to_kfunc
 from meanfi.superconducting.bdg import bdg_correction_from_density, charge_diagonal
 
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.perf_slow]
 
 
 def _bdg_guess(delta: complex):

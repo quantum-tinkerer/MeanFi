@@ -7,8 +7,9 @@ from meanfi.core.validation import require_zero_dim_local_key_only, tb_dimension
 from meanfi.tb.tb import _tb_type
 
 from .common import effective_filling_tol, local_density_filling, retarget_result_keys, wrap_adaptive_result
+from .density_support import DensityEntrySupport, workspace_complex_dtype
 from .methods import AdaptiveQuadrature, AdaptiveSimplex, IntegrationMethod, UniformGrid
-from .quadrature.normal_backend import build_normal_backend
+from .quadrature.normal_backend import build_normal_backend, resolve_normal_matrix_function
 from .quadrature.runtime import solve_quadrature_at_mu, solve_quadrature_fixed_filling
 from .simplex import density_matrix_at_mu_zero_temp, density_matrix_zero_temp
 from .uniform_grid import solve_uniform_grid_at_mu, solve_uniform_grid_fixed_filling
@@ -22,6 +23,7 @@ class DispatchContext:
     integration: IntegrationMethod
     requested_keys: list[tuple[int, ...]]
     solve_keys: list[tuple[int, ...]]
+    density_entry_support: DensityEntrySupport | None = None
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,7 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
     hamiltonian = context.hamiltonian
     integration = context.integration
     assert isinstance(integration, AdaptiveQuadrature)
+    resolve_normal_matrix_function(getattr(integration, "matrix_function", None))
 
     if tb_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
@@ -45,6 +48,10 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
             mu=mu,
             kT=context.kT,
             keys=context.solve_keys,
+            density_entry_support=None,
+            matrix_function=getattr(integration, "matrix_function", None),
+            workspace_dtype=workspace_complex_dtype(integration),
+            density_tolerance=integration.density_matrix_tol,
         )
     else:
         backend = build_normal_backend(
@@ -52,6 +59,7 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
             integration=integration,
             keys=context.solve_keys,
             kT=context.kT,
+            density_entry_support=context.density_entry_support,
         )
         density_matrix, density_matrix_error, raw_info = solve_quadrature_at_mu(
             backend,
@@ -96,6 +104,7 @@ def _adaptive_quadrature_fixed_filling(
         hamiltonian=hamiltonian,
         filling_tol=filling_tol,
     )
+    resolve_normal_matrix_function(getattr(integration, "matrix_function", None))
     if tb_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
         density_matrix, density_matrix_error, _mu, raw_info = density_matrix_zero_dim(
@@ -109,6 +118,9 @@ def _adaptive_quadrature_fixed_filling(
             max_mu_iterations=max_mu_iterations,
             density_atol=integration.density_matrix_tol,
             density_rtol=0.0,
+            density_entry_support=None,
+            matrix_function=getattr(integration, "matrix_function", None),
+            workspace_dtype=workspace_complex_dtype(integration),
         )
     else:
         backend = build_normal_backend(
@@ -116,6 +128,8 @@ def _adaptive_quadrature_fixed_filling(
             integration=integration,
             keys=context.solve_keys,
             kT=context.kT,
+            fixed_filling_tolerance=resolved_filling_tol,
+            density_entry_support=context.density_entry_support,
         )
         density_matrix, density_matrix_error, raw_info = solve_quadrature_fixed_filling(
             backend,
@@ -256,6 +270,7 @@ def _uniform_grid_at_mu(context: DispatchContext, mu: float):
             kT=context.kT,
             keys=context.solve_keys,
             integration=integration,
+            density_entry_support=context.density_entry_support,
         ),
         keys=context.requested_keys,
     )
@@ -282,6 +297,7 @@ def _uniform_grid_fixed_filling(
             filling_tol=filling_tol,
             mu_tol=mu_tol,
             max_mu_iterations=max_mu_iterations,
+            density_entry_support=context.density_entry_support,
         ),
         keys=context.requested_keys,
     )

@@ -4,6 +4,7 @@ import numpy as np
 
 from meanfi.core.matrix import as_sparse, is_sparse_like
 from meanfi.core.results import DensityMatrixResult, SolverResult
+from meanfi.integrate.density_support import bdg_density_entry_support
 from meanfi.integrate.methods import IntegrationMethod
 from meanfi.params.rparams import bdg_tb_to_rparams, canonical_tb_keys, rparams_to_bdg_tb
 from meanfi.scf.engine import SCFRunState, build_scf_info, run_scf_problem
@@ -61,6 +62,12 @@ def solve_bdg_scf(
     onsite = (0,) * model._ndim
     support_keys = canonical_tb_keys(set(guess) | {onsite})
     density_keys = bdg_density_keys(model, guess)
+    density_support = bdg_density_entry_support(
+        keys=density_keys,
+        interaction_support=model.h_int,
+        ndof=model._ndof,
+        local_key=onsite,
+    )
     initial_meanfield = _fill_bdg_support(model, guess, support_keys)
     params0 = np.asarray(bdg_tb_to_rparams(initial_meanfield, model._ndof), dtype=float)
 
@@ -74,6 +81,7 @@ def solve_bdg_scf(
             mu_tol=mu_tol,
             max_mu_iterations=max_mu_iterations,
             mu_guess=mu_guess,
+            density_entry_support=density_support,
         )
 
     def residual_from_density(

@@ -39,6 +39,7 @@ def density_block(
     tolerance: float,
     derivative_trace_monitor=None,
     derivative_context: str | None = None,
+    workspace_dtype: np.dtype = np.dtype(complex),
 ) -> _BlockResult:
     if isinstance(matrix_function, DirectDiagonalization):
         return _exact_density_block(
@@ -47,6 +48,7 @@ def density_block(
             kT=kT,
             q_diag=q_diag,
             derivative=derivative,
+            workspace_dtype=workspace_dtype,
         )
     if isinstance(matrix_function, ChebyshevFOE):
         return _chebyshev_density_block(
@@ -59,6 +61,7 @@ def density_block(
             options=matrix_function,
             derivative_trace_monitor=derivative_trace_monitor,
             derivative_context=derivative_context,
+            workspace_dtype=workspace_dtype,
         )
     if isinstance(matrix_function, RationalFOE):
         return _rational_density_block(
@@ -71,5 +74,6 @@ def density_block(
             options=matrix_function,
             derivative_trace_monitor=derivative_trace_monitor,
             derivative_context=derivative_context,
+            workspace_dtype=workspace_dtype,
         )
     raise TypeError("matrix_function must be a BdGMatrixFunction instance")

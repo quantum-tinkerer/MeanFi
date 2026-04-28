@@ -4,14 +4,23 @@ import numpy as np
 
 from meanfi.core.results import DensityMatrixResult, FixedFillingInfo
 from meanfi.integrate.common import wrap_adaptive_result
+from meanfi.integrate.density_support import (
+    DensityEntrySupport,
+    workspace_complex_dtype,
+)
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
+    ChebyshevFOE,
+    DirectDiagonalization,
     basis_block,
     density_block,
+    RationalFOE,
     resolve_matrix_function,
     shift_by_mu,
 )
+from meanfi.integrate.matrix_functions.prepared_normal import PreparedShiftedChebyshevNode
+from meanfi.integrate.matrix_functions.rational import PreparedRationalNode
 from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
 from meanfi.integrate.quadrature.bdg_backend import build_bdg_backend
 from meanfi.integrate.quadrature.runtime import solve_quadrature_fixed_filling
@@ -56,16 +65,47 @@ def _solve_bdg_zero_dim(
     selected_matrix_function: BdGMatrixFunction,
     filling_indices,
     filling_weights: np.ndarray,
+    density_entry_support: DensityEntrySupport,
 ) -> DensityMatrixResult:
     from meanfi.superconducting.bdg import mu_bracket_for_bdg
 
+    workspace_dtype = workspace_complex_dtype(integration)
     matrix = hamiltonian[tuple()]
-    filling_block = basis_block(q_diag.size, filling_indices)
+    filling_block = basis_block(q_diag.size, filling_indices, dtype=workspace_dtype)
+    trace_weights = np.zeros(q_diag.size, dtype=float)
+    trace_weights[np.asarray(filling_indices, dtype=int)] = np.asarray(
+        filling_weights,
+        dtype=float,
+    )
+    prepared_node = None
+    if isinstance(selected_matrix_function, ChebyshevFOE):
+        prepared_node = PreparedShiftedChebyshevNode(
+            matrix,
+            kT=kT,
+            q_diag=q_diag,
+            options=selected_matrix_function,
+            charge_tolerance=filling_tol,
+            workspace_dtype=workspace_dtype,
+            trace_weights_diag=trace_weights,
+        )
+    elif isinstance(selected_matrix_function, RationalFOE):
+        prepared_node = PreparedRationalNode(
+            matrix,
+            kT=kT,
+            q_diag=q_diag,
+            options=selected_matrix_function,
+            charge_tolerance=filling_tol,
+            workspace_dtype=workspace_dtype,
+            trace_weights_diag=trace_weights,
+        )
 
     def evaluate_charge(mu: float) -> tuple[float, float, float]:
+        if prepared_node is not None:
+            charge, derivative = prepared_node.charge_and_derivative(mu)
+            return charge, 0.0, derivative
         result = density_block(
             selected_matrix_function,
-            shift_by_mu(matrix, mu, q_diag),
+            shift_by_mu(matrix, mu, q_diag, dtype=workspace_dtype),
             filling_block,
             kT=kT,
             q_diag=q_diag,
@@ -77,6 +117,7 @@ def _solve_bdg_zero_dim(
                 filling_weights,
             ),
             derivative_context=f"mu={float(mu):.12g}",
+            workspace_dtype=workspace_dtype,
         )
         derivative_block = result.derivative_block
         derivative = (
@@ -96,18 +137,28 @@ def _solve_bdg_zero_dim(
         max_mu_iterations=max_mu_iterations,
     )
 
-    density_basis = np.eye(q_diag.size, dtype=complex)
-    density = density_block(
-        selected_matrix_function,
-        shift_by_mu(matrix, root.mu, q_diag),
-        density_basis,
-        kT=kT,
-        q_diag=q_diag,
-        derivative=False,
-        tolerance=integration.density_matrix_tol,
-    ).block
-    density_matrix = {key: density if key == tuple() else np.zeros_like(density) for key in keys}
-    density_matrix_error = {key: np.zeros_like(density) for key in keys}
+    density_basis = density_entry_support.basis_block(dtype=workspace_dtype)
+    if isinstance(selected_matrix_function, DirectDiagonalization):
+        density_basis = np.eye(q_diag.size, dtype=workspace_dtype)
+        density = density_block(
+            selected_matrix_function,
+            shift_by_mu(matrix, root.mu, q_diag, dtype=workspace_dtype),
+            density_basis,
+            kT=kT,
+            q_diag=q_diag,
+            derivative=False,
+            tolerance=integration.density_matrix_tol,
+            workspace_dtype=workspace_dtype,
+        ).block
+        density_matrix = {key: density if key == tuple() else np.zeros_like(density) for key in keys}
+        density_matrix_error = {key: np.zeros_like(density, dtype=float) for key in keys}
+    else:
+        assert prepared_node is not None
+        density = prepared_node.density_columns_from_charge_order(root.mu, density_basis)
+        density_matrix, density_matrix_error = density_entry_support.expand_entries(
+            density_entry_support.pack_columns(density),
+            np.zeros(density_entry_support.output_size, dtype=float),
+        )
     raw_info = FixedFillingInfo(
         mu=root.mu,
         charge=root.charge,
@@ -154,6 +205,7 @@ def solve_bdg_density_fixed_filling(
     mu_tol: float,
     max_mu_iterations: int | None,
     mu_guess: float,
+    density_entry_support: DensityEntrySupport | None = None,
 ) -> DensityMatrixResult:
     if not isinstance(integration, AdaptiveQuadrature):
         raise NotImplementedError("BdG density currently requires AdaptiveQuadrature")
@@ -174,6 +226,7 @@ def solve_bdg_density_fixed_filling(
         density_matrix_tol=integration.density_matrix_tol,
         filling_weights=filling_weights,
     )
+    density_support = density_entry_support
 
     if model._ndim == 0:
         return _solve_bdg_zero_dim(
@@ -190,6 +243,7 @@ def solve_bdg_density_fixed_filling(
             selected_matrix_function=selected_matrix_function,
             filling_indices=filling_indices,
             filling_weights=filling_weights,
+            density_entry_support=density_support,
         )
 
     backend = build_bdg_backend(
@@ -201,6 +255,9 @@ def solve_bdg_density_fixed_filling(
         filling_indices=filling_indices,
         filling_weights=filling_weights,
         tolerance=integration.density_matrix_tol,
+        charge_tolerance=resolved_filling_tol,
+        density_entry_support=density_support,
+        workspace_dtype=workspace_complex_dtype(integration),
     )
     density_matrix, density_matrix_error, raw_info = solve_quadrature_fixed_filling(
         backend,

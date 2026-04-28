@@ -16,7 +16,7 @@ from meanfi.superconducting.bdg import charge_diagonal
 from meanfi.superconducting.density import solve_bdg_density_fixed_filling
 
 
-pytestmark = pytest.mark.numerics
+pytestmark = [pytest.mark.numerics, pytest.mark.perf_slow]
 
 
 def _square_lattice_2d(t: float = 0.25):
@@ -687,6 +687,75 @@ def test_bdg_zero_dimensional_rational_density_matches_exact():
     assert abs(rational.mu - exact.mu) <= 1e-10
     assert abs(rational.filling - exact.filling) <= 1e-8
     assert np.allclose(rational.density_matrix[local], exact.density_matrix[local], atol=1e-8)
+
+
+@pytest.mark.parametrize(
+    "matrix_function",
+    [
+        pytest.param(
+            ChebyshevFOE(
+                initial_order=4,
+                max_order=128,
+                trace_estimator="hutchinson",
+                trace_probes=512,
+                trace_seed=5,
+            ),
+            id="chebyshev-hutchinson",
+        ),
+        pytest.param(
+            RationalFOE(
+                initial_poles=4,
+                max_poles=128,
+                trace_estimator="hutchinson",
+                trace_probes=512,
+                trace_seed=5,
+            ),
+            id="rational-hutchinson",
+        ),
+    ],
+)
+def test_bdg_zero_dimensional_hutchinson_matches_exact(matrix_function):
+    local = (0, 0)
+    model = Model(
+        {local: np.array([[0.0]], dtype=complex)},
+        {local: np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+    meanfield = _pairing(0.0)
+    exact = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=[local],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-8,
+            max_refinements=8,
+            matrix_function=DirectDiagonalization(),
+        ),
+        filling_tol=1e-8,
+        mu_tol=1e-10,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+    estimated = solve_bdg_density_fixed_filling(
+        model,
+        meanfield,
+        keys=[local],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-3,
+            max_refinements=8,
+            matrix_function=matrix_function,
+        ),
+        filling_tol=1e-3,
+        mu_tol=1e-8,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+
+    assert abs(estimated.mu - exact.mu) <= 5e-3
+    assert abs(estimated.filling - exact.filling) <= 5e-3
+    assert _max_density_error(estimated.density_matrix, exact.density_matrix) <= 5e-3
 
 
 def test_bdg_rational_scf_smoke():

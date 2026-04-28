@@ -4,88 +4,18 @@ from typing import Any
 
 import numpy as np
 
-from meanfi.core.matrix import as_sparse, is_sparse_like, sparse_linalg_module
-from meanfi.integrate.occupations import fermi_dirac
-
-from .base import ChebyshevFOE, RationalFOE
-from .common import gershgorin_bounds, matrix_action
-
-
-_DN_DMU_ABS_FLOOR = 1e-6
-
-
-def _fermi_derivative(energies: np.ndarray, *, kT: float, mu: float) -> np.ndarray:
-    occupation = fermi_dirac(energies, kT, mu)
-    return occupation * (1.0 - occupation) / kT
-
-
-def _scalar_derivative_converged(full: float, half: float, *, rtol: float) -> bool:
-    scale = max(abs(full), abs(half), _DN_DMU_ABS_FLOOR)
-    if abs(full) <= _DN_DMU_ABS_FLOOR and abs(half) <= _DN_DMU_ABS_FLOOR:
-        return True
-    return abs(full - half) <= float(rtol) * scale
-
-
-def _chebyshev_coefficients(
-    order: int,
-    *,
-    center: float,
-    scale: float,
-    kT: float,
-    mu: float,
-    oversampling: int,
-    derivative: bool,
-) -> np.ndarray:
-    n_nodes = max(64, int(oversampling) * (order + 1))
-    theta = np.pi * (np.arange(n_nodes) + 0.5) / n_nodes
-    energies = scale * np.cos(theta) + center
-    if derivative:
-        values = _fermi_derivative(energies, kT=kT, mu=mu)
-    else:
-        values = fermi_dirac(energies, kT, mu)
-
-    coeffs = np.empty(order + 1, dtype=float)
-    coeffs[0] = np.mean(values)
-    for mode in range(1, order + 1):
-        coeffs[mode] = 2.0 * np.mean(values * np.cos(mode * theta))
-    return coeffs
-
-
-def _bernstein_positive_poles(max_poles: int) -> np.ndarray:
-    rho = 1.0 + 2.0 / max(float(max_poles), 1.0)
-    theta = np.pi * (np.arange(max_poles, dtype=float) + 0.5) / max_poles
-    return 0.5 * (
-        rho * np.exp(1j * theta) + rho ** (-1.0) * np.exp(-1j * theta)
-    )
-
-
-def _fit_rational_coefficients(
-    poles: np.ndarray,
-    *,
-    center: float,
-    scale: float,
-    kT: float,
-    mu: float,
-    derivative: bool,
-) -> tuple[complex, np.ndarray, np.ndarray]:
-    n_columns = 1 + 2 * poles.size
-    n_samples = max(96, 8 * n_columns)
-    theta = np.pi * (np.arange(n_samples) + 0.5) / n_samples
-    nodes = np.cos(theta)
-    energies = scale * nodes + center
-    if derivative:
-        values = _fermi_derivative(energies, kT=kT, mu=mu)
-    else:
-        values = fermi_dirac(energies, kT, mu)
-
-    design = np.empty((n_samples, n_columns), dtype=complex)
-    design[:, 0] = 1.0
-    for index, pole in enumerate(poles):
-        design[:, 1 + index] = 1.0 / (nodes - pole)
-        design[:, 1 + poles.size + index] = 1.0 / (nodes - pole.conjugate())
-
-    coeffs, *_ = np.linalg.lstsq(design, values.astype(complex), rcond=None)
-    return coeffs[0], coeffs[1 : 1 + poles.size], coeffs[1 + poles.size :]
+from .base import ChebyshevFOE
+from .common import (
+    chebyshev_foe_coefficients,
+    matrix_action,
+    scalar_derivative_converged,
+    spectral_interval,
+    trace_probe_block,
+    weighted_trace_from_basis_result,
+    workspace_matrix,
+)
+from .chebyshev import _chebyshev_density_block_at_order
+from .common import shift_by_mu
 
 
 class PreparedNormalChebyshevNode:
@@ -95,114 +25,177 @@ class PreparedNormalChebyshevNode:
         *,
         kT: float,
         options: ChebyshevFOE,
-        tolerance: float,
+        charge_tolerance: float | None,
+        workspace_dtype: np.dtype = np.dtype(complex),
+        trace_weights_diag: np.ndarray | None = None,
     ) -> None:
-        self.matrix = matrix
+        self.workspace_dtype = np.dtype(workspace_dtype)
+        self.matrix = workspace_matrix(matrix, self.workspace_dtype)
         self.kT = float(kT)
         self.options = options
-        self.tolerance = float(tolerance)
+        self.charge_tolerance = (
+            None if charge_tolerance is None else float(charge_tolerance)
+        )
         self.size = int(getattr(matrix, "shape")[0])
 
-        lower, upper = gershgorin_bounds(matrix)
+        lower, upper = spectral_interval(
+            matrix,
+            spectral_padding=options.spectral_padding,
+        )
         width = max(upper - lower, 1e-12)
-        self.scale = 0.5 * width * (1.0 + options.spectral_padding)
+        self.scale = 0.5 * width
         self.center = 0.5 * (upper + lower)
 
-        identity = np.eye(self.size, dtype=complex)
-        self._basis_terms: list[np.ndarray] = [identity]
-        self._trace_moments: list[complex] = [complex(self.size)]
-        self._charge_cache: dict[float, tuple[float, float, int, np.ndarray]] = {}
-        self._density_cache: dict[float, tuple[np.ndarray, int, np.ndarray]] = {}
+        self._identity = np.eye(self.size, dtype=self.workspace_dtype)
+        self._trace_weights = (
+            np.ones(self.size, dtype=float)
+            if trace_weights_diag is None
+            else np.asarray(trace_weights_diag, dtype=float)
+        )
+        self._trace_estimator = options.trace_estimator
+        self._trace_columns = (
+            np.flatnonzero(np.abs(self._trace_weights) > 0.0).astype(int, copy=False)
+            if self._trace_estimator == "exact"
+            else None
+        )
+        if self._trace_estimator == "exact":
+            if self._trace_columns is None or self._trace_columns.size == 0:
+                raise ValueError("Exact weighted trace requires at least one nonzero trace weight")
+            self._trace_basis = np.zeros(
+                (self.size, self._trace_columns.size),
+                dtype=self.workspace_dtype,
+            )
+            self._trace_basis[
+                self._trace_columns,
+                np.arange(self._trace_columns.size),
+            ] = 1.0
+        else:
+            self._trace_basis = trace_probe_block(
+                self.size,
+                estimator=self._trace_estimator,
+                trace_probes=options.trace_probes,
+                trace_seed=options.trace_seed,
+                dtype=self.workspace_dtype,
+            )
+
+        self._trace_moments: list[complex] = [
+            complex(
+                weighted_trace_from_basis_result(
+                    self._trace_basis,
+                    self._trace_basis,
+                    weights_diag=self._trace_weights,
+                    estimator=self._trace_estimator,
+                    trace_columns=self._trace_columns,
+                )
+            )
+        ]
+        self._prepared_order = 0
+        self._tail_prev = np.array(self._trace_basis, copy=True)
+        self._tail_curr: np.ndarray | None = None
+        self._charge_cache: dict[float, tuple[float, float, int]] = {}
+        self._coefficient_cache: dict[tuple[float, int, bool], np.ndarray] = {}
 
     def _apply_rescaled(self, block: np.ndarray) -> np.ndarray:
         return (matrix_action(self.matrix, block) - self.center * block) / self.scale
 
-    def _ensure_order(self, order: int) -> None:
-        while len(self._basis_terms) <= order:
-            mode = len(self._basis_terms)
-            if mode == 1:
-                term = self._apply_rescaled(self._basis_terms[0])
+    def ensure_trace_order(self, order: int) -> None:
+        while self._prepared_order < order:
+            if self._prepared_order == 0:
+                next_term = self._apply_rescaled(self._tail_prev)
             else:
-                term = 2.0 * self._apply_rescaled(self._basis_terms[-1]) - self._basis_terms[-2]
-            self._basis_terms.append(np.asarray(term, dtype=complex))
-            self._trace_moments.append(complex(np.trace(self._basis_terms[-1])))
+                assert self._tail_curr is not None
+                next_term = 2.0 * self._apply_rescaled(self._tail_curr) - self._tail_prev
+                self._tail_prev = self._tail_curr
+
+            self._tail_curr = np.asarray(next_term, dtype=self.workspace_dtype)
+            moment = weighted_trace_from_basis_result(
+                self._tail_curr,
+                self._trace_basis,
+                weights_diag=self._trace_weights,
+                estimator=self._trace_estimator,
+                trace_columns=self._trace_columns,
+            )
+            self._trace_moments.append(complex(moment))
+            self._prepared_order += 1
 
     def _charge_from_coeffs(self, coeffs: np.ndarray) -> float:
         moments = np.asarray(self._trace_moments[: coeffs.size], dtype=complex)
         return float(np.real(np.dot(coeffs.astype(complex), moments)))
 
+    def _coefficients(self, mu: float, order: int, *, derivative: bool) -> np.ndarray:
+        cache_key = (float(mu), int(order), bool(derivative))
+        cached = self._coefficient_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        coeffs = chebyshev_foe_coefficients(
+            order,
+            center=self.center,
+            scale=self.scale,
+            kT=self.kT,
+            mu=mu,
+            oversampling=self.options.coefficient_oversampling,
+            derivative=derivative,
+        )
+        self._coefficient_cache[cache_key] = coeffs
+        return coeffs
+
+    def _density_columns_from_coeffs(
+        self,
+        coeffs: np.ndarray,
+        basis: np.ndarray,
+    ) -> np.ndarray:
+        result = coeffs[0] * np.array(basis, copy=True)
+        if coeffs.size == 1:
+            return result
+
+        previous = np.asarray(basis, dtype=self.workspace_dtype)
+        current = np.asarray(self._apply_rescaled(previous), dtype=self.workspace_dtype)
+        result += coeffs[1] * current
+
+        for mode in range(2, coeffs.size):
+            next_term = 2.0 * self._apply_rescaled(current) - previous
+            next_term = np.asarray(next_term, dtype=self.workspace_dtype)
+            result += coeffs[mode] * next_term
+            previous, current = current, next_term
+
+        return result
+
     def _density_from_coeffs(self, coeffs: np.ndarray) -> np.ndarray:
-        result = np.zeros_like(self._basis_terms[0], dtype=complex)
-        for coeff, term in zip(coeffs, self._basis_terms[: coeffs.size], strict=True):
-            result += coeff * term
-        return 0.5 * (result + result.conj().T)
+        columns = self._density_columns_from_coeffs(coeffs, self._identity)
+        return 0.5 * (columns + columns.conj().T)
 
     def charge_and_derivative(self, mu: float) -> tuple[float, float]:
         if mu in self._charge_cache:
-            charge, derivative, _order, _coeffs = self._charge_cache[mu]
+            charge, derivative, _order = self._charge_cache[mu]
             return charge, derivative
+        if self.charge_tolerance is None:
+            raise RuntimeError("Charge tolerance is not configured for this Chebyshev node")
 
         half_order = int(self.options.initial_order)
-        self._ensure_order(half_order)
-        half_coeffs = _chebyshev_coefficients(
-            half_order,
-            center=self.center,
-            scale=self.scale,
-            kT=self.kT,
-            mu=mu,
-            oversampling=self.options.coefficient_oversampling,
-            derivative=False,
-        )
-        half_derivative_coeffs = _chebyshev_coefficients(
-            half_order,
-            center=self.center,
-            scale=self.scale,
-            kT=self.kT,
-            mu=mu,
-            oversampling=self.options.coefficient_oversampling,
-            derivative=True,
-        )
+        self.ensure_trace_order(half_order)
+        half_coeffs = self._coefficients(mu, half_order, derivative=False)
+        half_derivative_coeffs = self._coefficients(mu, half_order, derivative=True)
         half_charge = self._charge_from_coeffs(half_coeffs)
         half_derivative = self._charge_from_coeffs(half_derivative_coeffs)
 
         while True:
             order = min(int(self.options.max_order), 2 * half_order)
-            self._ensure_order(order)
-            full_coeffs = _chebyshev_coefficients(
-                order,
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
-                oversampling=self.options.coefficient_oversampling,
-                derivative=False,
-            )
-            full_derivative_coeffs = _chebyshev_coefficients(
-                order,
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
-                oversampling=self.options.coefficient_oversampling,
-                derivative=True,
-            )
+            self.ensure_trace_order(order)
+            full_coeffs = self._coefficients(mu, order, derivative=False)
+            full_derivative_coeffs = self._coefficients(mu, order, derivative=True)
             full_charge = self._charge_from_coeffs(full_coeffs)
             full_derivative = self._charge_from_coeffs(full_derivative_coeffs)
 
             if (
-                abs(full_charge - half_charge) <= self.tolerance
-                and _scalar_derivative_converged(
+                abs(full_charge - half_charge) <= self.charge_tolerance
+                and scalar_derivative_converged(
                     full_derivative,
                     half_derivative,
                     rtol=self.options.dn_dmu_rtol,
                 )
             ):
-                self._charge_cache[mu] = (
-                    full_charge,
-                    full_derivative,
-                    order,
-                    full_coeffs,
-                )
+                self._charge_cache[mu] = (full_charge, full_derivative, order)
                 return full_charge, full_derivative
 
             if order == int(self.options.max_order):
@@ -212,49 +205,40 @@ class PreparedNormalChebyshevNode:
             half_charge = full_charge
             half_derivative = full_derivative
 
-    def density(self, mu: float) -> np.ndarray:
-        if mu in self._density_cache:
-            density, _order, _coeffs = self._density_cache[mu]
-            return density
+    def density_from_charge_order(self, mu: float) -> np.ndarray:
+        charge_cache = self._charge_cache.get(mu)
+        if charge_cache is None:
+            raise ValueError("Charge order is unavailable for the requested chemical potential")
 
+        coeffs = self._coefficients(mu, charge_cache[2], derivative=False)
+        return self._density_from_coeffs(coeffs)
+
+    def density_columns_from_charge_order(self, mu: float, basis: np.ndarray) -> np.ndarray:
+        charge_cache = self._charge_cache.get(mu)
+        if charge_cache is None:
+            raise ValueError("Charge order is unavailable for the requested chemical potential")
+        coeffs = self._coefficients(mu, charge_cache[2], derivative=False)
+        return self._density_columns_from_coeffs(
+            coeffs,
+            np.asarray(basis, dtype=self.workspace_dtype),
+        )
+
+    def density(self, mu: float, *, tolerance: float) -> np.ndarray:
         charge_cache = self._charge_cache.get(mu)
         half_order = (
             max(int(self.options.initial_order), charge_cache[2])
             if charge_cache is not None
             else int(self.options.initial_order)
         )
-        self._ensure_order(half_order)
-        half_coeffs = (
-            charge_cache[3]
-            if charge_cache is not None and charge_cache[2] == half_order
-            else _chebyshev_coefficients(
-                half_order,
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
-                oversampling=self.options.coefficient_oversampling,
-                derivative=False,
-            )
-        )
+        half_coeffs = self._coefficients(mu, half_order, derivative=False)
         half_density = self._density_from_coeffs(half_coeffs)
 
         while True:
             order = min(int(self.options.max_order), 2 * half_order)
-            self._ensure_order(order)
-            full_coeffs = _chebyshev_coefficients(
-                order,
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
-                oversampling=self.options.coefficient_oversampling,
-                derivative=False,
-            )
+            full_coeffs = self._coefficients(mu, order, derivative=False)
             full_density = self._density_from_coeffs(full_coeffs)
 
-            if float(np.max(np.abs(full_density - half_density))) <= self.tolerance:
-                self._density_cache[mu] = (full_density, order, full_coeffs)
+            if float(np.max(np.abs(full_density - half_density))) <= float(tolerance):
                 return full_density
 
             if order == int(self.options.max_order):
@@ -264,204 +248,154 @@ class PreparedNormalChebyshevNode:
             half_density = full_density
 
 
-class PreparedNormalRationalNode:
+class PreparedShiftedChebyshevNode:
     def __init__(
         self,
         matrix: Any,
         *,
         kT: float,
-        options: RationalFOE,
-        tolerance: float,
+        q_diag: np.ndarray,
+        options: ChebyshevFOE,
+        charge_tolerance: float,
+        workspace_dtype: np.dtype = np.dtype(complex),
+        trace_weights_diag: np.ndarray | None = None,
     ) -> None:
-        self.matrix = matrix
+        self.workspace_dtype = np.dtype(workspace_dtype)
+        self.matrix = workspace_matrix(matrix, self.workspace_dtype)
         self.kT = float(kT)
+        self.q_diag = np.asarray(q_diag, dtype=float)
         self.options = options
-        self.tolerance = float(tolerance)
+        self.charge_tolerance = float(charge_tolerance)
         self.size = int(getattr(matrix, "shape")[0])
-        lower, upper = gershgorin_bounds(matrix)
-        width = max(upper - lower, 1e-12)
-        self.scale = 0.5 * width
-        self.center = 0.5 * (upper + lower)
+        self._trace_weights = (
+            np.ones(self.size, dtype=float)
+            if trace_weights_diag is None
+            else np.asarray(trace_weights_diag, dtype=float)
+        )
+        self._trace_estimator = options.trace_estimator
+        self._trace_columns = (
+            np.flatnonzero(np.abs(self._trace_weights) > 0.0).astype(int, copy=False)
+            if self._trace_estimator == "exact"
+            else None
+        )
+        if self._trace_estimator == "exact":
+            if self._trace_columns is None or self._trace_columns.size == 0:
+                raise ValueError("Exact weighted trace requires at least one nonzero trace weight")
+            self._trace_basis = np.zeros(
+                (self.size, self._trace_columns.size),
+                dtype=self.workspace_dtype,
+            )
+            self._trace_basis[
+                self._trace_columns,
+                np.arange(self._trace_columns.size),
+            ] = 1.0
+        else:
+            self._trace_basis = trace_probe_block(
+                self.size,
+                estimator=self._trace_estimator,
+                trace_probes=options.trace_probes,
+                trace_seed=options.trace_seed,
+                dtype=self.workspace_dtype,
+            )
+        self._charge_cache: dict[float, tuple[float, float, int]] = {}
 
-        self._identity = np.eye(self.size, dtype=complex)
-        self._positive_poles = _bernstein_positive_poles(int(options.max_poles))
-        self._prepared_poles = 0
-        self._resolvents: list[np.ndarray] = []
-        self._traces: list[complex] = []
-        self._charge_cache: dict[float, tuple[float, float, int, tuple[complex, np.ndarray, np.ndarray]]] = {}
-        self._density_cache: dict[float, tuple[np.ndarray, int, tuple[complex, np.ndarray, np.ndarray]]] = {}
+    def _trace_scalar(self, block: np.ndarray) -> float:
+        return weighted_trace_from_basis_result(
+            block,
+            self._trace_basis,
+            weights_diag=self._trace_weights,
+            estimator=self._trace_estimator,
+            trace_columns=self._trace_columns,
+        )
 
-    def _inverse_resolvent(self, pole: complex) -> np.ndarray:
-        shift = self.center + self.scale * pole
-        rhs = self.scale * self._identity
-        if is_sparse_like(self.matrix):
-            shifted = as_sparse(self.matrix).tocsc().astype(complex)
-            shifted = shifted.copy()
-            diagonal = np.asarray(shifted.diagonal(), dtype=complex) - shift
-            shifted.setdiag(diagonal)
-            lu = sparse_linalg_module().splu(shifted)
-            return np.asarray(lu.solve(rhs), dtype=complex)
-
-        dense = np.asarray(self.matrix, dtype=complex)
-        shifted = dense - shift * np.eye(self.size, dtype=complex)
-        return np.asarray(np.linalg.solve(shifted, rhs), dtype=complex)
-
-    def _ensure_poles(self, pole_count: int) -> None:
-        while self._prepared_poles < pole_count:
-            pole = self._positive_poles[self._prepared_poles]
-            resolvent = self._inverse_resolvent(pole)
-            self._resolvents.append(resolvent)
-            self._traces.append(complex(np.trace(resolvent)))
-            self._prepared_poles += 1
-
-    def _charge_from_coeffs(
+    def _evaluate_at_order(
         self,
-        coeffs: tuple[complex, np.ndarray, np.ndarray],
-    ) -> float:
-        constant, positive_coeffs, negative_coeffs = coeffs
-        traces = np.asarray(self._traces[: positive_coeffs.size], dtype=complex)
-        total = constant * self.size
-        if traces.size:
-            total = total + np.dot(positive_coeffs, traces)
-            total = total + np.dot(negative_coeffs, np.conjugate(traces))
-        return float(np.real(total))
-
-    def _density_from_coeffs(
-        self,
-        coeffs: tuple[complex, np.ndarray, np.ndarray],
-    ) -> np.ndarray:
-        constant, positive_coeffs, negative_coeffs = coeffs
-        result = constant * self._identity.astype(complex, copy=True)
-        for coeff, resolvent in zip(
-            positive_coeffs,
-            self._resolvents[: positive_coeffs.size],
-            strict=True,
-        ):
-            result += coeff * resolvent
-        for coeff, resolvent in zip(
-            negative_coeffs,
-            self._resolvents[: negative_coeffs.size],
-            strict=True,
-        ):
-            result += coeff * resolvent.conj().T
-        return 0.5 * (result + result.conj().T)
+        mu: float,
+        basis: np.ndarray,
+        *,
+        order: int,
+        derivative: bool,
+    ) -> tuple[np.ndarray, np.ndarray | None]:
+        shifted = shift_by_mu(
+            self.matrix,
+            mu,
+            self.q_diag,
+            dtype=self.workspace_dtype,
+        )
+        return _chebyshev_density_block_at_order(
+            shifted,
+            np.asarray(basis, dtype=self.workspace_dtype),
+            kT=self.kT,
+            q_diag=self.q_diag,
+            order=order,
+            options=self.options,
+            derivative=derivative,
+            workspace_dtype=self.workspace_dtype,
+        )
 
     def charge_and_derivative(self, mu: float) -> tuple[float, float]:
         if mu in self._charge_cache:
-            charge, derivative, _order, _coeffs = self._charge_cache[mu]
+            charge, derivative, _order = self._charge_cache[mu]
             return charge, derivative
 
-        half_poles = int(self.options.initial_poles)
-        self._ensure_poles(half_poles)
-        half_coeffs = _fit_rational_coefficients(
-            self._positive_poles[:half_poles],
-            center=self.center,
-            scale=self.scale,
-            kT=self.kT,
-            mu=mu,
-            derivative=False,
-        )
-        half_derivative_coeffs = _fit_rational_coefficients(
-            self._positive_poles[:half_poles],
-            center=self.center,
-            scale=self.scale,
-            kT=self.kT,
-            mu=mu,
+        half_order = int(self.options.initial_order)
+        half_block, half_derivative_block = self._evaluate_at_order(
+            mu,
+            self._trace_basis,
+            order=half_order,
             derivative=True,
         )
-        half_charge = self._charge_from_coeffs(half_coeffs)
-        half_derivative = self._charge_from_coeffs(half_derivative_coeffs)
+        half_charge = self._trace_scalar(half_block)
+        half_derivative = (
+            0.0 if half_derivative_block is None else self._trace_scalar(half_derivative_block)
+        )
 
         while True:
-            pole_count = min(int(self.options.max_poles), 2 * half_poles)
-            self._ensure_poles(pole_count)
-            full_coeffs = _fit_rational_coefficients(
-                self._positive_poles[:pole_count],
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
-                derivative=False,
-            )
-            full_derivative_coeffs = _fit_rational_coefficients(
-                self._positive_poles[:pole_count],
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
+            order = min(int(self.options.max_order), 2 * half_order)
+            full_block, full_derivative_block = self._evaluate_at_order(
+                mu,
+                self._trace_basis,
+                order=order,
                 derivative=True,
             )
-            full_charge = self._charge_from_coeffs(full_coeffs)
-            full_derivative = self._charge_from_coeffs(full_derivative_coeffs)
+            full_charge = self._trace_scalar(full_block)
+            full_derivative = (
+                0.0 if full_derivative_block is None else self._trace_scalar(full_derivative_block)
+            )
 
             if (
-                abs(full_charge - half_charge) <= self.tolerance
-                and _scalar_derivative_converged(
+                abs(full_charge - half_charge) <= self.charge_tolerance
+                and scalar_derivative_converged(
                     full_derivative,
                     half_derivative,
                     rtol=self.options.dn_dmu_rtol,
                 )
             ):
-                self._charge_cache[mu] = (
-                    full_charge,
-                    full_derivative,
-                    pole_count,
-                    full_coeffs,
-                )
+                self._charge_cache[mu] = (full_charge, full_derivative, order)
                 return full_charge, full_derivative
 
-            if pole_count == int(self.options.max_poles):
-                raise ValueError("Rational FOE did not converge within max_poles")
+            if order == int(self.options.max_order):
+                raise ValueError("Chebyshev FOE did not converge within max_order")
 
-            half_poles = pole_count
+            half_order = order
             half_charge = full_charge
             half_derivative = full_derivative
 
-    def density(self, mu: float) -> np.ndarray:
-        if mu in self._density_cache:
-            density, _order, _coeffs = self._density_cache[mu]
-            return density
-
+    def density_columns_from_charge_order(self, mu: float, basis: np.ndarray) -> np.ndarray:
         charge_cache = self._charge_cache.get(mu)
-        half_poles = (
-            max(int(self.options.initial_poles), charge_cache[2])
-            if charge_cache is not None
-            else int(self.options.initial_poles)
+        if charge_cache is None:
+            raise ValueError("Charge order is unavailable for the requested chemical potential")
+        block, _ = self._evaluate_at_order(
+            mu,
+            basis,
+            order=charge_cache[2],
+            derivative=False,
         )
-        self._ensure_poles(half_poles)
-        half_coeffs = (
-            charge_cache[3]
-            if charge_cache is not None and charge_cache[2] == half_poles
-            else _fit_rational_coefficients(
-                self._positive_poles[:half_poles],
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
-                derivative=False,
-            )
+        return block
+
+    def density_from_charge_order(self, mu: float) -> np.ndarray:
+        block = self.density_columns_from_charge_order(
+            mu,
+            np.eye(self.size, dtype=self.workspace_dtype),
         )
-        half_density = self._density_from_coeffs(half_coeffs)
-
-        while True:
-            pole_count = min(int(self.options.max_poles), 2 * half_poles)
-            self._ensure_poles(pole_count)
-            full_coeffs = _fit_rational_coefficients(
-                self._positive_poles[:pole_count],
-                center=self.center,
-                scale=self.scale,
-                kT=self.kT,
-                mu=mu,
-                derivative=False,
-            )
-            full_density = self._density_from_coeffs(full_coeffs)
-
-            if float(np.max(np.abs(full_density - half_density))) <= self.tolerance:
-                self._density_cache[mu] = (full_density, pole_count, full_coeffs)
-                return full_density
-
-            if pole_count == int(self.options.max_poles):
-                raise ValueError("Rational FOE did not converge within max_poles")
-
-            half_poles = pole_count
-            half_density = full_density
+        return 0.5 * (block + block.conj().T)
