@@ -35,13 +35,14 @@ def test_graphene_kwant_end_to_end_regression():
     integration = AdaptiveQuadrature(density_matrix_tol=1e-6)
 
     model = Model(h_0, h_int, filling=2.0, kT=0.05)
-    result = solver(
-        model,
-        guess,
-        integration=integration,
-        scf=AndersonMixing(M=0, max_iterations=40),
-        scf_tol=5e-4,
-    )
+    with pytest.warns(UserWarning, match="structurally allowed SCF support"):
+        result = solver(
+            model,
+            guess,
+            integration=integration,
+            scf=AndersonMixing(M=0, max_iterations=40),
+            scf_tol=5e-4,
+        )
     density_result = density_matrix(
         add_tb(h_0, result.mf),
         filling=2.0,

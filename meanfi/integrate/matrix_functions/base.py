@@ -56,7 +56,7 @@ class RationalFOE(BdGMatrixFunction):
     trace_estimator: Literal["exact", "hutchinson"] = "exact"
     trace_probes: int = 16
     trace_seed: int = 0
-    rational_scheme: Literal["ozaki", "minimax"] = "ozaki"
+    rational_scheme: Literal["ozaki", "minimax", "aaa"] = "ozaki"
 
     def __post_init__(self) -> None:
         if self.initial_poles <= 0:
@@ -69,8 +69,8 @@ class RationalFOE(BdGMatrixFunction):
             raise ValueError("trace_estimator must be 'exact' or 'hutchinson'")
         if self.trace_probes <= 0:
             raise ValueError("trace_probes must be positive")
-        if self.rational_scheme not in {"ozaki", "minimax"}:
-            raise ValueError("rational_scheme must be 'ozaki' or 'minimax'")
+        if self.rational_scheme not in {"ozaki", "minimax", "aaa"}:
+            raise ValueError("rational_scheme must be 'ozaki', 'minimax', or 'aaa'")
 
 
 @dataclass(frozen=True)

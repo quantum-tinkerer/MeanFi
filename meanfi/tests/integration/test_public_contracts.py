@@ -16,6 +16,7 @@ from meanfi import (
     DirectDiagonalization,
     LinearMixing,
     Model,
+    RationalFOE,
     UniformGrid,
     density_matrix,
     density_matrix_at_mu,
@@ -24,6 +25,7 @@ from meanfi import (
 )
 from meanfi.core.matrix import matrix_bound
 from meanfi.core.filling import mu_bracket
+from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.solvers import NoConvergence
 from meanfi.tests.helpers import spinful_chain
@@ -120,6 +122,259 @@ def test_sparse_mu_bracket_uses_tighter_spectral_probe_than_row_sum_bound():
     assert upper >= exact_bound + padding
     assert upper < fallback + padding
     assert lower == -upper
+
+
+def test_sparse_rational_dense_input_uses_existing_dense_path(monkeypatch):
+    import meanfi.integrate.matrix_functions.mumps_backend as mumps_backend
+
+    monkeypatch.setattr(mumps_backend, "_import_mumps", lambda: None)
+    tb = spinful_chain()
+    result = density_matrix_at_mu(
+        tb,
+        mu=0.0,
+        kT=0.15,
+        keys=[(0,), (1,), (-1,)],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            matrix_function=RationalFOE(),
+        ),
+    )
+    assert result.mu == 0.0
+    assert result.info.error_estimate_available is True
+
+
+def test_sparse_rational_requires_python_mumps_on_sparse_input(monkeypatch):
+    import meanfi.integrate.matrix_functions.mumps_backend as mumps_backend
+
+    monkeypatch.setattr(mumps_backend, "_import_mumps", lambda: None)
+    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
+    with pytest.raises(RuntimeError, match="python-mumps"):
+        density_matrix_at_mu(
+            sparse_tb,
+            mu=0.0,
+            kT=0.15,
+            keys=[(0,), (1,), (-1,)],
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-2,
+                matrix_function=RationalFOE(),
+            ),
+        )
+
+
+def test_derivative_free_fixed_filling_root_solves_monotone_charge():
+    def evaluate_charge(mu: float) -> tuple[float, float, None]:
+        return 1.0 / (1.0 + np.exp(-mu)), 0.0, None
+
+    root = solve_fixed_filling_root(
+        evaluate_charge=evaluate_charge,
+        mu_bracket=lambda: (-4.0, 4.0),
+        filling=0.7,
+        mu_guess=0.0,
+        filling_tol=1e-6,
+        mu_tol=1e-8,
+        max_mu_iterations=200,
+        use_derivative=False,
+    )
+
+    assert root.derivative is None
+    assert abs(root.charge - 0.7) <= 1e-6
+    assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
+
+
+def test_sparse_rational_rejects_hutchinson_trace_estimator():
+    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
+    with pytest.raises(ValueError, match="trace_estimator='exact'"):
+        density_matrix_at_mu(
+            sparse_tb,
+            mu=0.0,
+            kT=0.15,
+            keys=[(0,), (1,), (-1,)],
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-2,
+                matrix_function=RationalFOE(trace_estimator="hutchinson"),
+            ),
+        )
+
+
+def test_sparse_rational_rejects_minimax_scheme():
+    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
+    with pytest.raises(ValueError, match="rational_scheme='ozaki'"):
+        density_matrix_at_mu(
+            sparse_tb,
+            mu=0.0,
+            kT=0.15,
+            keys=[(0,), (1,), (-1,)],
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-2,
+                matrix_function=RationalFOE(rational_scheme="minimax"),
+            ),
+        )
+
+
+def test_dense_rational_rejects_aaa_scheme():
+    with pytest.raises(ValueError, match="supported only on the sparse MUMPS"):
+        density_matrix_at_mu(
+            spinful_chain(),
+            mu=0.0,
+            kT=0.15,
+            keys=[(0,), (1,), (-1,)],
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-2,
+                matrix_function=RationalFOE(rational_scheme="aaa"),
+            ),
+        )
+
+
+def test_mumps_selected_inverse_matches_dense_inverse_entries():
+    pytest.importorskip("mumps")
+    from meanfi.integrate.matrix_functions.mumps_backend import (
+        SelectedInverseFactorization,
+        build_selected_entry_pattern,
+    )
+
+    matrix = sp.csc_matrix(
+        np.array(
+            [[2.0 + 0.0j, 1.0 - 0.2j], [1.0 + 0.2j, 3.0 + 0.0j]],
+            dtype=complex,
+        )
+    )
+    pattern = build_selected_entry_pattern(
+        size=2,
+        rows=np.array([0, 1, 1]),
+        cols=np.array([0, 0, 1]),
+    )
+    factorization = SelectedInverseFactorization()
+    factorization.factor(matrix)
+    selected = factorization.selected_inverse(pattern)
+    inverse = np.linalg.inv(matrix.toarray())
+
+    np.testing.assert_allclose(
+        selected,
+        np.array([inverse[0, 0], inverse[1, 0], inverse[1, 1]], dtype=complex),
+        atol=1e-10,
+        rtol=1e-10,
+    )
+
+
+@pytest.mark.perf_slow
+def test_sparse_rational_fixed_filling_matches_dense_reference():
+    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
+    keys = [(0,), (1,), (-1,)]
+    dense_result = density_matrix(
+        spinful_chain(),
+        filling=1.0,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=20,
+            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
+        ),
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+    )
+    sparse_result = density_matrix(
+        sparse_tb,
+        filling=1.0,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=20,
+            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
+        ),
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+    )
+
+    assert abs(sparse_result.mu - dense_result.mu) <= 1e-8
+    assert abs(sparse_result.filling - dense_result.filling) <= 1e-8
+    for key in keys:
+        assert (
+            np.max(np.abs(sparse_result.density_matrix[key] - dense_result.density_matrix[key]))
+            <= 5e-4
+        )
+
+
+@pytest.mark.perf_slow
+def test_sparse_rational_fixed_mu_matches_dense_reference():
+    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
+    keys = [(0,), (1,), (-1,)]
+    dense_result = density_matrix_at_mu(
+        spinful_chain(),
+        mu=0.05,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=20,
+            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
+        ),
+    )
+    sparse_result = density_matrix_at_mu(
+        sparse_tb,
+        mu=0.05,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=20,
+            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
+        ),
+    )
+    for key in keys:
+        assert np.max(np.abs(sparse_result.density_matrix[key] - dense_result.density_matrix[key])) <= 1e-8
+
+
+@pytest.mark.perf_slow
+def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
+    from meanfi.integrate.density_support import full_density_entry_support
+    from meanfi.integrate.matrix_functions.rational import (
+        PreparedMumpsRationalNode,
+        PreparedRationalNode,
+    )
+
+    matrix = sp.csr_matrix(
+        np.array(
+            [[0.2, 0.15 + 0.05j], [0.15 - 0.05j, -0.2]],
+            dtype=complex,
+        )
+    )
+    options = RationalFOE(initial_poles=4, max_poles=64)
+    q_diag = np.array([1.0, -1.0], dtype=float)
+    trace_weights = np.array([1.0, 0.0], dtype=float)
+    support = full_density_entry_support([tuple()], size=2)
+
+    solve_node = PreparedRationalNode(
+        matrix,
+        kT=0.2,
+        q_diag=q_diag,
+        options=RationalFOE(initial_poles=4, max_poles=64),
+        charge_tolerance=1e-3,
+        trace_weights_diag=trace_weights,
+    )
+    mumps_node = PreparedMumpsRationalNode(
+        matrix,
+        kT=0.2,
+        q_diag=q_diag,
+        options=options,
+        charge_tolerance=1e-3,
+        density_support=support,
+        density_tolerance=1e-3,
+        trace_weights_diag=trace_weights,
+    )
+
+    solve_charge, _solve_derivative = solve_node.charge_and_derivative(0.05)
+    mumps_charge, mumps_derivative = mumps_node.charge_and_derivative(0.05)
+    solve_density = solve_node.density_columns_from_charge_order(
+        0.05,
+        support.basis_block(dtype=np.complex128),
+    )
+    mumps_density = mumps_node.density_columns_from_charge_order(0.05)
+
+    assert np.isnan(mumps_derivative)
+    assert abs(mumps_charge - solve_charge) <= 1e-8
+    assert np.max(np.abs(mumps_density - solve_density)) <= 1e-8
 
 
 @pytest.mark.parametrize(
@@ -240,6 +495,47 @@ def test_bdg_solver_supports_anderson_mixing():
     )
 
     assert result.info.method == "anderson_mixing"
+    assert result.info.iterations >= 1
+
+
+def test_normal_solver_warns_when_guess_is_projected_to_structural_support():
+    model = Model(
+        spinful_chain(),
+        {(0,): np.zeros((2, 2), dtype=complex)},
+        filling=1.0,
+        kT=0.2,
+    )
+
+    with pytest.warns(UserWarning, match="projected away"):
+        result = solver(
+            model,
+            {(0,): np.array([[0.0, 0.3], [0.3, 0.0]], dtype=complex)},
+            integration=AdaptiveQuadrature(density_matrix_tol=1e-2),
+            scf=LinearMixing(max_iterations=1),
+            scf_tol=1e-8,
+        )
+
+    assert result.info.iterations >= 1
+
+
+def test_bdg_solver_warns_when_guess_is_projected_to_structural_support():
+    model = Model(
+        {(0,): np.array([[0.0]], dtype=complex)},
+        {(0,): np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    )
+
+    with pytest.warns(UserWarning, match="projected away"):
+        result = solver(
+            model,
+            {(0,): np.array([[0.0, 0.3], [0.3, 0.0]], dtype=complex)},
+            integration=AdaptiveQuadrature(density_matrix_tol=1e-2),
+            scf=LinearMixing(max_iterations=1),
+            scf_tol=1e-8,
+        )
+
     assert result.info.iterations >= 1
 
 
@@ -510,10 +806,12 @@ def test_solver_raises_no_convergence_when_scf_budget_is_exhausted():
 def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatch):
     import meanfi.solvers as solvers
 
-    def fake_tb_to_rparams(tb):
+    def fake_tb_to_rparams(tb, support=None):
+        del support
         return np.asarray(tb[(0,)], dtype=float)
 
-    def fake_rparams_to_tb(params, keys, ndof):
+    def fake_rparams_to_tb(params, keys, ndof, support=None):
+        del support
         del keys, ndof
         return {(0,): np.asarray(params, dtype=float)}
 

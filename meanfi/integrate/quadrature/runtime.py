@@ -24,12 +24,13 @@ class QuadratureBackend:
     payload_builder: Callable[[np.ndarray, np.ndarray], Any] | None
     charge_evaluator: Callable[[np.ndarray, Any, float], np.ndarray]
     density_evaluator: Callable[[np.ndarray, Any, float], np.ndarray]
-    split_charge_result: Callable[[np.ndarray, np.ndarray], tuple[float, float, float]]
+    split_charge_result: Callable[[np.ndarray, np.ndarray], tuple[float, float, float | None]]
     split_density_result: Callable[[np.ndarray, np.ndarray], tuple[_tb_type, _tb_type]]
     density_info_builder: Callable[[Any], DensityIntegrationInfo]
     fixed_filling_info_builder: Callable[..., FixedFillingInfo]
     mu_bracket: Callable[[], tuple[float, float]]
     freeze_density_mesh: bool = False
+    charge_has_derivative: bool = True
 
 
 def build_integrator(
@@ -152,7 +153,7 @@ def solve_quadrature_fixed_filling(
     charge_evaluator_evals = 0
     charge_subdivisions = 0
 
-    def evaluate_charge(candidate_mu: float) -> tuple[float, float, float]:
+    def evaluate_charge(candidate_mu: float) -> tuple[float, float, float | None]:
         nonlocal charge_integration_calls, charge_kernel_evals, charge_evaluator_evals, charge_subdivisions
         result = run_integrator(
             charge_integrator,
@@ -176,6 +177,7 @@ def solve_quadrature_fixed_filling(
         filling_tol=filling_tol,
         mu_tol=mu_tol,
         max_mu_iterations=max_mu_iterations,
+        use_derivative=backend.charge_has_derivative,
     )
 
     density_integrator = charge_integrator.replace_evaluator(backend.density_evaluator)
@@ -202,7 +204,7 @@ def solve_quadrature_fixed_filling(
         mu=root.mu,
         charge=root.charge,
         charge_error=root.charge_error,
-        derivative=root.derivative,
+        derivative=float("nan") if root.derivative is None else root.derivative,
         root_iterations=root.root_iterations,
         charge_integration_calls=charge_integration_calls,
         charge_kernel_evals=charge_kernel_evals,

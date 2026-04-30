@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from meanfi.core.matrix import as_sparse, is_sparse_like
 from meanfi.core.results import DensityMatrixResult, SolverResult
-from meanfi.integrate.density_support import bdg_density_entry_support
+from meanfi.integrate.density_support import bdg_density_entry_support, bdg_top_half_support
 from meanfi.integrate.methods import IntegrationMethod
-from meanfi.params.rparams import bdg_tb_to_rparams, canonical_tb_keys, rparams_to_bdg_tb
-from meanfi.scf.engine import SCFRunState, build_scf_info, run_scf_problem
+from meanfi.params.rparams import (
+    bdg_density_to_rparams,
+    bdg_tb_to_rparams,
+    canonical_tb_keys,
+    rparams_to_bdg_density,
+    rparams_to_bdg_tb,
+)
+from meanfi.scf.engine import SCFRunState, build_scf_info, record_density_result, run_scf_problem
 from meanfi.scf.methods import SCFMethod
 
 from .bdg import bdg_correction_from_density, bdg_density_keys, validate_bdg_tb, zero_bdg_array
@@ -38,6 +46,43 @@ def _validated_bdg_update(model, support_keys, density_matrix) -> dict[tuple[int
     return updated
 
 
+def _warn_on_projection(original, projected) -> None:
+    for key in frozenset(original) | frozenset(projected):
+        before = np.asarray(original.get(key, 0.0), dtype=complex)
+        after = np.asarray(projected.get(key, 0.0), dtype=complex)
+        if before.shape != after.shape:
+            continue
+        if np.any(np.abs(before - after) > 0.0):
+            warnings.warn(
+                "BdG SCF guess contains entries outside the structurally allowed support; "
+                "those entries were projected away before the first iteration",
+                UserWarning,
+                stacklevel=2,
+            )
+            return
+
+
+def _project_bdg_guess(model, guess, *, support, support_keys):
+    projected = rparams_to_bdg_tb(
+        bdg_tb_to_rparams(guess, model._ndof, support=support),
+        support_keys,
+        model._ndof,
+        support=support,
+    )
+    _warn_on_projection(guess, projected)
+    return _fill_bdg_support(model, projected, support_keys)
+
+
+def _sparse_only_density_support(meanfield, density_support):
+    if density_support is None or density_support.output_size == 0:
+        return None
+    return (
+        density_support
+        if any(is_sparse_like(value) for value in meanfield.values())
+        else None
+    )
+
+
 def solve_bdg_scf(
     model,
     guess,
@@ -62,38 +107,85 @@ def solve_bdg_scf(
     onsite = (0,) * model._ndim
     support_keys = canonical_tb_keys(set(guess) | {onsite})
     density_keys = bdg_density_keys(model, guess)
+    top_half_support = bdg_top_half_support(
+        keys=density_keys,
+        interaction_support=model.h_int,
+        ndof=model._ndof,
+        local_key=onsite,
+    )
     density_support = bdg_density_entry_support(
         keys=density_keys,
         interaction_support=model.h_int,
         ndof=model._ndof,
         local_key=onsite,
     )
-    initial_meanfield = _fill_bdg_support(model, guess, support_keys)
-    params0 = np.asarray(bdg_tb_to_rparams(initial_meanfield, model._ndof), dtype=float)
+    initial_meanfield = _project_bdg_guess(
+        model,
+        guess,
+        support=top_half_support,
+        support_keys=support_keys,
+    )
+    initial_density_result = solve_bdg_density_fixed_filling(
+        model,
+        initial_meanfield,
+        keys=density_keys,
+        integration=integration,
+        filling_tol=filling_tol,
+        mu_tol=mu_tol,
+        max_mu_iterations=max_mu_iterations,
+        mu_guess=0.0,
+        density_entry_support=_sparse_only_density_support(
+            initial_meanfield,
+            density_support,
+        ),
+    )
+    params0 = np.asarray(
+        bdg_density_to_rparams(
+            initial_density_result.density_matrix,
+            support=top_half_support,
+            ndof=model._ndof,
+        ),
+        dtype=float,
+    )
+    state = SCFRunState()
+    record_density_result(state, initial_density_result)
 
     def evaluate_density(params: np.ndarray, mu_guess: float) -> DensityMatrixResult:
+        density_state = rparams_to_bdg_density(
+            params,
+            support=top_half_support,
+            ndof=model._ndof,
+        )
+        meanfield = _validated_bdg_update(
+            model,
+            support_keys,
+            density_state,
+        )
         return solve_bdg_density_fixed_filling(
             model,
-            rparams_to_bdg_tb(params, support_keys, model._ndof),
+            meanfield,
             keys=density_keys,
             integration=integration,
             filling_tol=filling_tol,
             mu_tol=mu_tol,
             max_mu_iterations=max_mu_iterations,
             mu_guess=mu_guess,
-            density_entry_support=density_support,
+            density_entry_support=_sparse_only_density_support(
+                meanfield,
+                density_support,
+            ),
         )
 
     def residual_from_density(
         params: np.ndarray,
         density_result: DensityMatrixResult,
     ) -> np.ndarray:
-        updated = _validated_bdg_update(
-            model,
-            support_keys,
+        updated = bdg_density_to_rparams(
             density_result.density_matrix,
+            support=top_half_support,
+            ndof=model._ndof,
         )
-        return np.asarray(bdg_tb_to_rparams(updated, model._ndof) - params, dtype=float)
+        return np.asarray(updated - params, dtype=float)
 
     run = run_scf_problem(
         params0,
@@ -101,11 +193,15 @@ def solve_bdg_scf(
         residual_from_density=residual_from_density,
         scf=scf,
         scf_tol=scf_tol,
-        state=SCFRunState(),
+        state=state,
     )
 
-    meanfield = rparams_to_bdg_tb(run.params, support_keys, model._ndof)
     density_matrix_result = run.final_density_result
+    meanfield = _validated_bdg_update(
+        model,
+        support_keys,
+        density_matrix_result.density_matrix,
+    )
     info = build_scf_info(
         run.state,
         final_result=density_matrix_result,

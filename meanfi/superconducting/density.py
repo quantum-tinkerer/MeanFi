@@ -163,7 +163,7 @@ def _solve_bdg_zero_dim(
         mu=root.mu,
         charge=root.charge,
         charge_error=root.charge_error,
-        dcharge_dmu=root.derivative,
+        dcharge_dmu=float("nan") if root.derivative is None else root.derivative,
         root_iterations=root.root_iterations,
         charge_integration_calls=root.root_iterations,
         density_integration_calls=1,

@@ -120,11 +120,34 @@ class DensityEntrySupport:
         return rho
 
 
+@dataclass(frozen=True)
+class BdGTopHalfSupport:
+    normal_support: DensityEntrySupport
+    keys: tuple[tuple[int, ...], ...]
+    anomalous_rows: tuple[np.ndarray, ...]
+    anomalous_cols: tuple[np.ndarray, ...]
+
+
 def _build_support(
     *,
     size: int,
     keys: list[tuple[int, ...]],
     entries_by_key: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]],
+) -> DensityEntrySupport | None:
+    return _build_support_allowing_empty(
+        size=size,
+        keys=keys,
+        entries_by_key=entries_by_key,
+        allow_empty=False,
+    )
+
+
+def _build_support_allowing_empty(
+    *,
+    size: int,
+    keys: list[tuple[int, ...]],
+    entries_by_key: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]],
+    allow_empty: bool,
 ) -> DensityEntrySupport | None:
     selected_columns = sorted(
         {
@@ -134,7 +157,17 @@ def _build_support(
         }
     )
     if not selected_columns:
-        return None
+        if not allow_empty:
+            return None
+        return DensityEntrySupport(
+            size=size,
+            keys=tuple(keys),
+            selected_columns=np.empty(0, dtype=int),
+            row_indices=tuple(np.empty(0, dtype=int) for _ in keys),
+            col_indices=tuple(np.empty(0, dtype=int) for _ in keys),
+            column_positions=tuple(np.empty(0, dtype=int) for _ in keys),
+            offsets=tuple(0 for _ in range(len(keys) + 1)),
+        )
 
     lookup = np.full(size, -1, dtype=int)
     lookup[np.asarray(selected_columns, dtype=int)] = np.arange(len(selected_columns), dtype=int)
@@ -165,34 +198,130 @@ def _build_support(
     )
 
 
+def _deduplicate_pairs(rows: np.ndarray, cols: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    rows = np.asarray(rows, dtype=int)
+    cols = np.asarray(cols, dtype=int)
+    if rows.size == 0:
+        return rows, cols
+    pairs = np.unique(np.stack([rows, cols], axis=1), axis=0)
+    return pairs[:, 0], pairs[:, 1]
+
+
+def _normal_entries_by_key(
+    keys: list[tuple[int, ...]],
+    interaction_support: _tb_type,
+    *,
+    ndof: int,
+    local_key: tuple[int, ...],
+) -> dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]]:
+    diag_support: set[int] = set()
+    for interaction in interaction_support.values():
+        rows, cols = _structural_entry_indices(interaction)
+        diag_support.update(int(row) for row in rows.tolist())
+        diag_support.update(int(col) for col in cols.tolist())
+
+    diag = np.asarray(sorted(diag_support), dtype=int)
+    entries_by_key: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]] = {}
+    for key in keys:
+        interaction = interaction_support.get(key)
+        if interaction is None:
+            rows = np.empty(0, dtype=int)
+            cols = np.empty(0, dtype=int)
+        else:
+            rows, cols = _structural_entry_indices(interaction)
+
+        if key == local_key and diag.size:
+            rows = np.concatenate([rows, diag])
+            cols = np.concatenate([cols, diag])
+
+        rows, cols = _deduplicate_pairs(rows, cols)
+        if rows.size or key == local_key:
+            entries_by_key[key] = (rows, cols)
+
+    return entries_by_key
+
+
 def normal_density_entry_support(
     keys: list[tuple[int, ...]],
     interaction_support: _tb_type | None,
     *,
     ndof: int,
     local_key: tuple[int, ...],
+    allow_empty: bool = False,
 ) -> DensityEntrySupport | None:
     if interaction_support is None:
         return None
 
-    entries_by_key: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]] = {}
-    diag = np.arange(ndof, dtype=int)
-    entries_by_key[local_key] = (diag, diag)
+    entries_by_key = _normal_entries_by_key(
+        keys,
+        interaction_support,
+        ndof=ndof,
+        local_key=local_key,
+    )
+    return _build_support_allowing_empty(
+        size=ndof,
+        keys=keys,
+        entries_by_key=entries_by_key,
+        allow_empty=allow_empty,
+    )
+
+
+def full_density_entry_support(
+    keys: list[tuple[int, ...]],
+    *,
+    size: int,
+) -> DensityEntrySupport:
+    full_rows, full_cols = np.indices((size, size), dtype=int)
+    rows = full_rows.reshape(-1)
+    cols = full_cols.reshape(-1)
+    entries_by_key = {key: (rows, cols) for key in keys}
+    support = _build_support_allowing_empty(
+        size=size,
+        keys=keys,
+        entries_by_key=entries_by_key,
+        allow_empty=True,
+    )
+    if support is None:  # pragma: no cover - full support always yields a descriptor
+        raise ValueError("Full density support unexpectedly missing")
+    return support
+
+
+def bdg_top_half_support(
+    keys: list[tuple[int, ...]],
+    interaction_support: _tb_type,
+    *,
+    ndof: int,
+    local_key: tuple[int, ...],
+) -> BdGTopHalfSupport:
+    normal_support = normal_density_entry_support(
+        keys=keys,
+        interaction_support=interaction_support,
+        ndof=ndof,
+        local_key=local_key,
+        allow_empty=True,
+    )
+    if normal_support is None:  # pragma: no cover - allow_empty=True guarantees a descriptor
+        raise ValueError("Normal support unexpectedly missing")
+
+    anomalous_rows: list[np.ndarray] = []
+    anomalous_cols: list[np.ndarray] = []
     for key in keys:
         interaction = interaction_support.get(key)
         if interaction is None:
-            continue
-        rows, cols = _structural_entry_indices(interaction)
-        if rows.size == 0 and key != local_key:
-            continue
-        if key == local_key and rows.size:
-            rows = np.concatenate([diag, rows])
-            cols = np.concatenate([diag, cols])
-            pairs = np.unique(np.stack([rows, cols], axis=1), axis=0)
-            rows, cols = pairs[:, 0], pairs[:, 1]
-        entries_by_key[key] = (rows, cols)
+            rows = np.empty(0, dtype=int)
+            cols = np.empty(0, dtype=int)
+        else:
+            rows, cols = _structural_entry_indices(interaction)
+            rows, cols = _deduplicate_pairs(rows, cols)
+        anomalous_rows.append(rows)
+        anomalous_cols.append(cols)
 
-    return _build_support(size=ndof, keys=keys, entries_by_key=entries_by_key)
+    return BdGTopHalfSupport(
+        normal_support=normal_support,
+        keys=tuple(keys),
+        anomalous_rows=tuple(anomalous_rows),
+        anomalous_cols=tuple(anomalous_cols),
+    )
 
 
 def bdg_density_entry_support(
@@ -203,30 +332,28 @@ def bdg_density_entry_support(
     local_key: tuple[int, ...],
 ) -> DensityEntrySupport:
     entries_by_key: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]] = {}
-    diag = np.arange(ndof, dtype=int)
-    entries_by_key[local_key] = (diag, diag)
-
-    for key in keys:
-        interaction = interaction_support.get(key)
-        if interaction is None:
-            continue
-        rows, cols = _structural_entry_indices(interaction)
-        if rows.size == 0 and key != local_key:
-            continue
-
-        electron_rows = rows
-        electron_cols = cols
-        anomalous_rows = rows
-        anomalous_cols = cols + ndof
+    top_half = bdg_top_half_support(
+        keys=keys,
+        interaction_support=interaction_support,
+        ndof=ndof,
+        local_key=local_key,
+    )
+    for index, key in enumerate(keys):
+        electron_rows = np.asarray(top_half.normal_support.row_indices[index], dtype=int)
+        electron_cols = np.asarray(top_half.normal_support.col_indices[index], dtype=int)
+        anomalous_rows = np.asarray(top_half.anomalous_rows[index], dtype=int)
+        anomalous_cols = np.asarray(top_half.anomalous_cols[index], dtype=int) + ndof
         stacked_rows = np.concatenate([electron_rows, anomalous_rows])
         stacked_cols = np.concatenate([electron_cols, anomalous_cols])
-        if key == local_key:
-            stacked_rows = np.concatenate([diag, stacked_rows])
-            stacked_cols = np.concatenate([diag, stacked_cols])
-        pairs = np.unique(np.stack([stacked_rows, stacked_cols], axis=1), axis=0)
-        entries_by_key[key] = (pairs[:, 0], pairs[:, 1])
+        stacked_rows, stacked_cols = _deduplicate_pairs(stacked_rows, stacked_cols)
+        entries_by_key[key] = (stacked_rows, stacked_cols)
 
-    support = _build_support(size=2 * ndof, keys=keys, entries_by_key=entries_by_key)
-    if support is None:
-        raise ValueError("BdG density support unexpectedly had no selected entries")
+    support = _build_support_allowing_empty(
+        size=2 * ndof,
+        keys=keys,
+        entries_by_key=entries_by_key,
+        allow_empty=True,
+    )
+    if support is None:  # pragma: no cover - allow_empty=True guarantees a descriptor
+        raise ValueError("BdG density support unexpectedly missing")
     return support

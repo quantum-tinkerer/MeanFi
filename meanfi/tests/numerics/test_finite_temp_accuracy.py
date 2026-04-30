@@ -3,7 +3,7 @@ import inspect
 import numpy as np
 import pytest
 
-from meanfi.core.matrix import matrix_bound
+from meanfi.core.matrix import matrix_bound, to_dense
 from meanfi.integrate.density_support import (
     bdg_density_entry_support,
     normal_density_entry_support,
@@ -14,6 +14,7 @@ import meanfi.integrate.matrix_functions.rational as rational_matrix_functions
 import meanfi.integrate.quadrature.normal_backend as normal_quadrature_backend
 import meanfi.integrate.quadrature.runtime as quadrature_runtime
 from meanfi.integrate.quadrature.payloads import build_tb_payload_helpers, tb_k_matrix
+from meanfi.params.rparams import tb_to_rparams
 from meanfi import (
     AdaptiveQuadrature,
     AdaptiveSimplex,
@@ -472,6 +473,65 @@ def test_sparse_normal_matrix_function_scf_smoke(matrix_function):
     assert result.info.iterations <= 2
 
 
+@requires_prepared_payloads
+def test_normal_scf_sparse_minimal_support_matches_dense_reference():
+    sparse = pytest.importorskip("scipy.sparse")
+    dense_h0 = spinful_chain()
+    dense_hint = {(0,): np.diag([1.2, 0.0]).astype(complex)}
+    dense_guess = {(0,): np.diag([0.05, 0.0]).astype(complex)}
+
+    sparse_h0 = _sparse_tb(dense_h0)
+    sparse_hint = {(0,): sparse.csr_matrix(dense_hint[(0,)])}
+    sparse_guess = {(0,): sparse.csr_matrix(dense_guess[(0,)])}
+
+    integration = AdaptiveQuadrature(
+        density_matrix_tol=1e-2,
+        max_refinements=40,
+        matrix_function=ChebyshevFOE(initial_order=8, max_order=256),
+    )
+    scf = LinearMixing(max_iterations=16, alpha=0.5)
+
+    dense_result = solver(
+        Model(dense_h0, dense_hint, filling=1.0, kT=0.15),
+        dense_guess,
+        integration=integration,
+        scf=scf,
+        scf_tol=1e-6,
+        filling_tol=1e-2,
+    )
+    sparse_result = solver(
+        Model(sparse_h0, sparse_hint, filling=1.0, kT=0.15),
+        sparse_guess,
+        integration=integration,
+        scf=scf,
+        scf_tol=1e-6,
+        filling_tol=1e-2,
+    )
+
+    assert abs(dense_result.density_matrix_result.mu - sparse_result.density_matrix_result.mu) <= 5e-4
+    assert abs(dense_result.density_matrix_result.filling - sparse_result.density_matrix_result.filling) <= 5e-4
+    assert abs(dense_result.info.residual_norm - sparse_result.info.residual_norm) <= 5e-4
+    for key in dense_result.mf:
+        np.testing.assert_allclose(
+            to_dense(dense_result.mf[key]),
+            to_dense(sparse_result.mf[key]),
+            atol=5e-4,
+        )
+    support = normal_density_entry_support(
+        keys=[(0,)],
+        interaction_support=dense_hint,
+        ndof=2,
+        local_key=(0,),
+        allow_empty=True,
+    )
+    assert support is not None
+    np.testing.assert_allclose(
+        tb_to_rparams(dense_result.density_matrix_result.density_matrix, support=support),
+        tb_to_rparams(sparse_result.density_matrix_result.density_matrix, support=support),
+        atol=5e-4,
+    )
+
+
 def test_zero_dimensional_normal_rational_matches_direct_reference():
     tb_zero_dim = {tuple(): np.diag([-1.0, 1.0]).astype(complex)}
     keys = [tuple()]
@@ -743,6 +803,238 @@ def test_prepared_rational_hutchinson_charge_is_reproducible_and_close_to_exact(
     assert abs(hutch_derivative_a - exact_derivative) <= 5e-2
 
 
+def test_sparse_aaa_terms_certify_scalar_error_on_local_interval():
+    terms, _builder = rational_matrix_functions._aaa_terms_for_interval(
+        512,
+        lower=-2.0,
+        upper=2.5,
+        kT=0.2,
+        initial_poles=4,
+        scalar_tolerance=1e-2,
+    )
+    probe = np.linspace(-2.0, 2.5, 2001, dtype=float)
+    approximation = rational_matrix_functions._evaluate_canonical_rational(
+        probe,
+        constant=terms.constant,
+        shifts=terms.shifts,
+        residues=terms.residues,
+        tail_lower_bound=terms.tail_lower_bound,
+        tail_upper_bound=terms.tail_upper_bound,
+    )
+    exact = np.asarray(fermi_dirac(probe, 0.2, 0.0), dtype=complex)
+    assert np.max(np.abs(approximation - exact)) <= 1e-2
+
+
+def test_sparse_aaa_tail_shortcut_returns_constant_zero_pole_terms():
+    terms, _builder = rational_matrix_functions._aaa_terms_for_interval(
+        512,
+        lower=5.0,
+        upper=7.0,
+        kT=0.2,
+        initial_poles=4,
+        scalar_tolerance=1e-2,
+    )
+    assert terms.shifts.size == 0
+    assert terms.residues.size == 0
+    assert terms.constant == pytest.approx(0.0)
+
+
+def test_vectorized_barycentric_evaluation_matches_scalar_reference():
+    support_x = np.array([-1.5, -0.2, 0.7, 1.8], dtype=float)
+    support_y = np.array([0.9, 0.6, 0.25, 0.05], dtype=complex)
+    weights = np.array([1.0, -0.4, 0.7, -0.2], dtype=complex)
+    probe = np.linspace(-2.0, 2.0, 401, dtype=float)
+    vectorized = rational_matrix_functions._barycentric_evaluate(
+        probe,
+        support_x,
+        support_y,
+        weights,
+    )
+
+    scalar = np.empty_like(vectorized)
+    for index, point in enumerate(probe):
+        diff = point - support_x
+        exact = np.abs(diff) <= 32.0 * np.finfo(float).eps * max(
+            1.0,
+            float(np.max(np.abs(support_x))),
+            abs(point),
+        )
+        if np.any(exact):
+            scalar[index] = support_y[int(np.flatnonzero(exact)[0])]
+            continue
+        scaled = weights / diff
+        scalar[index] = np.dot(scaled, support_y) / np.sum(scaled)
+
+    np.testing.assert_allclose(vectorized, scalar, atol=1e-12, rtol=1e-12)
+
+
+def test_sparse_aaa_arrowhead_poles_reproduce_barycentric_values():
+    training_grid = rational_matrix_functions._aaa_sample_grid(-2.0, 2.5, count=256, kT=0.2)
+    target = np.asarray(fermi_dirac(training_grid, 0.2, 0.0), dtype=complex)
+    builder = rational_matrix_functions._initialize_aaa_builder(
+        training_grid,
+        target,
+        training_grid,
+        target,
+    )
+    while len(builder.support_indices) < 12:
+        builder = rational_matrix_functions._advance_aaa_builder(builder)
+
+    constant, poles, residues = rational_matrix_functions._extract_aaa_poles_arrowhead(
+        builder.support_x,
+        builder.support_y,
+        builder.weights,
+    )
+    constant, shifts, residues = rational_matrix_functions._canonicalize_conjugate_terms(
+        constant,
+        poles,
+        residues,
+    )
+    barycentric = rational_matrix_functions._barycentric_evaluate(
+        training_grid,
+        builder.support_x,
+        builder.support_y,
+        builder.weights,
+    )
+    pole_values = rational_matrix_functions._evaluate_canonical_rational(
+        training_grid,
+        constant=constant,
+        shifts=shifts,
+        residues=residues,
+    )
+    assert np.max(np.abs(pole_values - barycentric)) <= 1e-3
+
+
+def test_sparse_aaa_canonicalization_preserves_real_axis_values():
+    constant = 0.5 + 0.0j
+    poles = np.array([0.3 + 1.2j, 0.3 - 1.2j, -0.7 + 0.0j], dtype=complex)
+    residues = np.array([0.2 - 0.05j, 0.2 + 0.05j, 0.12 + 0.0j], dtype=complex)
+    canonical_constant, canonical_poles, canonical_residues = (
+        rational_matrix_functions._canonicalize_conjugate_terms(
+            constant,
+            poles,
+            residues,
+        )
+    )
+    probe = np.linspace(-3.0, 3.0, 2001, dtype=float)
+    original = (
+        constant
+        + residues[0] / (probe - poles[0])
+        + residues[1] / (probe - poles[1])
+        + residues[2] / (probe - poles[2])
+    )
+    canonical = rational_matrix_functions._evaluate_canonical_rational(
+        probe,
+        constant=canonical_constant,
+        shifts=canonical_poles,
+        residues=canonical_residues,
+    )
+    assert canonical_poles.size < poles.size
+    np.testing.assert_allclose(canonical, original, atol=1e-10, rtol=1e-10)
+
+
+def test_sparse_rational_aaa_matches_direct_reference_at_mu():
+    sparse_tb = _sparse_tb(spinful_chain())
+    keys = [(0,), (1,), (-1,)]
+    reference = density_matrix_at_mu(
+        spinful_chain(),
+        mu=0.05,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-8,
+            matrix_function=DirectDiagonalization(),
+        ),
+    )
+    result = density_matrix_at_mu(
+        sparse_tb,
+        mu=0.05,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=20,
+            matrix_function=RationalFOE(
+                initial_poles=4,
+                max_poles=512,
+                rational_scheme="aaa",
+            ),
+        ),
+    )
+
+    assert max_density_error(result.density_matrix, reference.density_matrix) <= 1e-2
+
+
+def test_sparse_rational_aaa_matches_direct_reference_at_fixed_filling():
+    sparse_tb = _sparse_tb(spinful_chain())
+    keys = [(0,), (1,), (-1,)]
+    reference = density_matrix(
+        spinful_chain(),
+        filling=1.0,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-8,
+            matrix_function=DirectDiagonalization(),
+        ),
+        filling_tol=1e-8,
+        mu_tol=1e-10,
+    )
+    result = density_matrix(
+        sparse_tb,
+        filling=1.0,
+        kT=0.15,
+        keys=keys,
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=20,
+            matrix_function=RationalFOE(
+                initial_poles=4,
+                max_poles=512,
+                rational_scheme="aaa",
+            ),
+        ),
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+    )
+
+    assert abs(result.mu - reference.mu) <= 1e-2
+    assert abs(result.filling - reference.filling) <= 1e-2
+    assert max_density_error(result.density_matrix, reference.density_matrix) <= 1e-2
+
+
+def test_sparse_aaa_interval_cache_reuses_nested_interval():
+    pytest.importorskip("mumps")
+    sparse = pytest.importorskip("scipy.sparse")
+    matrix = sparse.csr_matrix(np.array([[0.2, 0.1], [0.1, -0.3]], dtype=complex))
+    support = normal_density_entry_support(
+        keys=[(0,)],
+        interaction_support={(0,): np.array([[1.0, 0.0], [0.0, 1.0]], dtype=complex)},
+        ndof=2,
+        local_key=(0,),
+    )
+    assert support is not None
+    node = rational_matrix_functions.PreparedMumpsRationalNode(
+        matrix,
+        kT=0.2,
+        q_diag=np.ones(2, dtype=float),
+        options=RationalFOE(initial_poles=4, max_poles=512, rational_scheme="aaa"),
+        charge_tolerance=1e-2,
+        density_support=support,
+        density_tolerance=1e-2,
+    )
+    first = node._sparse_terms(0.0, pole_count=512)
+    assert len(node._aaa_interval_cache) == 1
+    cached_interval = node._aaa_interval_cache[0]
+    reused = node._aaa_cached_terms_for_interval(
+        lower=cached_interval.lower + 0.05,
+        upper=cached_interval.upper - 0.05,
+        pole_cap=512,
+    )
+    assert reused is not None
+    assert reused.support_count == first.support_count
+
+
 def test_density_support_builders_select_only_interaction_entries():
     interaction = {
         (0,): np.array([[1.0, 0.0], [0.0, 2.0]], dtype=complex),
@@ -774,6 +1066,37 @@ def test_density_support_builders_select_only_interaction_entries():
     np.testing.assert_array_equal(bdg_support.col_indices[0], np.array([0, 2, 1, 3]))
     np.testing.assert_array_equal(bdg_support.row_indices[1], np.array([0, 0]))
     np.testing.assert_array_equal(bdg_support.col_indices[1], np.array([1, 3]))
+
+
+def test_normal_density_support_tracks_only_structurally_touched_diagonals():
+    support = normal_density_entry_support(
+        keys=[(0,), (1,), (-1,)],
+        interaction_support={
+            (0,): np.zeros((3, 3), dtype=complex),
+            (1,): np.array(
+                [
+                    [0.0, 0.0, 0.0],
+                    [2.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                ],
+                dtype=complex,
+            ),
+            (-1,): np.array(
+                [
+                    [0.0, 2.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                ],
+                dtype=complex,
+            ),
+        },
+        ndof=3,
+        local_key=(0,),
+        allow_empty=True,
+    )
+    assert support is not None
+    np.testing.assert_array_equal(support.row_indices[0], np.array([0, 1]))
+    np.testing.assert_array_equal(support.col_indices[0], np.array([0, 1]))
 
 
 def test_workspace_precision_controls_are_validated():
@@ -835,6 +1158,28 @@ def test_quadrature_workspace_precision_64_matches_128():
 
 @requires_prepared_payloads
 def test_solver_density_result_zeroes_entries_outside_interaction_support():
+    sparse = pytest.importorskip("scipy.sparse")
+    h0 = {(0,): sparse.csr_matrix(np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=complex))}
+    h_int = {(0,): sparse.csr_matrix(np.diag([1.0, 1.0]).astype(complex))}
+    model = Model(h0, h_int, filling=1.0, kT=0.15)
+    result = solver(
+        model,
+        {(0,): sparse.csr_matrix(np.zeros((2, 2), dtype=complex))},
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=40,
+            matrix_function=ChebyshevFOE(initial_order=8, max_order=256),
+        ),
+        scf=LinearMixing(max_iterations=1, alpha=0.5),
+        scf_tol=1e-8,
+        filling_tol=1e-2,
+    )
+
+    onsite_block = result.density_matrix_result.density_matrix[(0,)]
+    np.testing.assert_allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
+
+
+def test_dense_solver_density_result_keeps_full_dense_blocks():
     h0 = {(0,): np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=complex)}
     h_int = {(0,): np.diag([1.0, 1.0]).astype(complex)}
     model = Model(h0, h_int, filling=1.0, kT=0.15)
@@ -850,9 +1195,8 @@ def test_solver_density_result_zeroes_entries_outside_interaction_support():
         scf_tol=1e-8,
         filling_tol=1e-2,
     )
-
     onsite_block = result.density_matrix_result.density_matrix[(0,)]
-    np.testing.assert_allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
+    assert not np.allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
 
 
 @requires_prepared_payloads

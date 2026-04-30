@@ -84,6 +84,70 @@ def expand_mu_bracket(
     return lower, upper
 
 
+def solve_mu_charge_only(
+    evaluate_charge,
+    *,
+    filling: float,
+    mu_guess: float,
+    lower: float,
+    upper: float,
+    charge_tol: float,
+    mu_xtol: float,
+    max_mu_iterations: int | None,
+) -> tuple[float, float, float, None, int]:
+    """Solve for the chemical potential using safeguarded bracketing only."""
+
+    lower_charge, _lower_error, _ = evaluate_charge(lower)
+    upper_charge, _upper_error, _ = evaluate_charge(upper)
+    if lower_charge > filling or upper_charge < filling:
+        raise ValueError("Chemical-potential bracket does not enclose the requested filling")
+
+    mu = float(np.clip(mu_guess, lower, upper))
+    last_charge = float("nan")
+    last_charge_error = float("nan")
+    iteration = 0
+
+    if lower < mu < upper:
+        iteration += 1
+        last_charge, last_charge_error, _ = evaluate_charge(mu)
+        residual = last_charge - filling
+        if abs(residual) <= charge_tol and last_charge_error <= charge_tol / 2.0:
+            return mu, last_charge, last_charge_error, None, iteration
+        if residual < 0:
+            lower = mu
+            lower_charge = last_charge
+        else:
+            upper = mu
+            upper_charge = last_charge
+
+    while True:
+        iteration += 1
+        denominator = upper_charge - lower_charge
+        if denominator > 0 and np.isfinite(denominator):
+            mu = lower + (filling - lower_charge) * (upper - lower) / denominator
+        else:
+            mu = 0.5 * (lower + upper)
+        if not lower < mu < upper:
+            mu = 0.5 * (lower + upper)
+        last_charge, last_charge_error, _ = evaluate_charge(mu)
+        residual = last_charge - filling
+        if abs(residual) <= charge_tol and last_charge_error <= charge_tol / 2.0:
+            return mu, last_charge, last_charge_error, None, iteration
+
+        if residual < 0:
+            lower = mu
+            lower_charge = last_charge
+        else:
+            upper = mu
+            upper_charge = last_charge
+
+        if upper - lower <= mu_xtol:
+            return 0.5 * (lower + upper), last_charge, last_charge_error, None, iteration
+
+        if max_mu_iterations is not None and iteration >= max_mu_iterations:
+            return mu, last_charge, last_charge_error, None, iteration
+
+
 def solve_mu(
     evaluate_charge,
     *,

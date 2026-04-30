@@ -7,7 +7,8 @@ import warnings
 
 from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.core.validation import tb_dimension
-from meanfi.integrate.density_support import DensityEntrySupport
+from meanfi.core.matrix import is_sparse_like
+from meanfi.integrate.density_support import DensityEntrySupport, full_density_entry_support
 from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
     ChebyshevFOE,
@@ -18,13 +19,17 @@ from meanfi.integrate.matrix_functions import (
     shift_by_mu,
 )
 from meanfi.integrate.matrix_functions.prepared_normal import PreparedShiftedChebyshevNode
-from meanfi.integrate.matrix_functions.rational import PreparedRationalNode
+from meanfi.integrate.matrix_functions.rational import (
+    PreparedMumpsRationalNode,
+    PreparedRationalNode,
+)
 from meanfi.superconducting.bdg import mu_bracket_for_bdg
 from meanfi.tb.tb import _tb_type
 
 from ..matrix_functions import basis_block
 from .normal_backend import (
     integration_bounds,
+    prepared_charge_only_evaluator,
     prepared_charge_evaluator,
     prepared_frozen_density_evaluator,
     prepared_selected_frozen_density_evaluator,
@@ -170,10 +175,14 @@ def _density_evaluator(
     return evaluator
 
 
-def _split_charge(estimate: np.ndarray, error: np.ndarray) -> tuple[float, float, float]:
+def _split_charge(
+    estimate: np.ndarray,
+    error: np.ndarray,
+) -> tuple[float, float, float | None]:
     estimate = np.asarray(estimate)
     error = np.asarray(error)
-    return float(np.real(estimate[0])), float(abs(error[0])), float(np.real(estimate[1]))
+    derivative = float(np.real(estimate[1])) if estimate.size > 1 else None
+    return float(np.real(estimate[0])), float(abs(error[0])), derivative
 
 
 def _prepared_payload_builder(
@@ -183,9 +192,13 @@ def _prepared_payload_builder(
     q_diag: np.ndarray,
     filling_weights: np.ndarray,
     charge_tolerance: float,
+    density_tolerance: float,
     matrix_from_payload,
     workspace_dtype: np.dtype,
+    density_support: DensityEntrySupport | None = None,
 ):
+    shared_aaa_interval_cache = []
+
     def builder(points: np.ndarray, payload: np.ndarray) -> list[object]:
         del points
         prepared: list[object] = []
@@ -204,17 +217,37 @@ def _prepared_payload_builder(
                     )
                 )
             elif isinstance(matrix_function, RationalFOE):
-                prepared.append(
-                    PreparedRationalNode(
-                        matrix,
-                        kT=kT,
-                        q_diag=q_diag,
-                        options=matrix_function,
-                        charge_tolerance=charge_tolerance,
-                        workspace_dtype=workspace_dtype,
-                        trace_weights_diag=filling_weights,
+                if is_sparse_like(matrix):
+                    if density_support is None:
+                        raise ValueError(
+                            "Sparse MUMPS-backed BdG RationalFOE requires a density support descriptor"
+                        )
+                    prepared.append(
+                        PreparedMumpsRationalNode(
+                            matrix,
+                            kT=kT,
+                            q_diag=q_diag,
+                            options=matrix_function,
+                            charge_tolerance=charge_tolerance,
+                            density_support=density_support,
+                            density_tolerance=density_tolerance,
+                            workspace_dtype=workspace_dtype,
+                            trace_weights_diag=filling_weights,
+                            shared_aaa_interval_cache=shared_aaa_interval_cache,
+                        )
                     )
-                )
+                else:
+                    prepared.append(
+                        PreparedRationalNode(
+                            matrix,
+                            kT=kT,
+                            q_diag=q_diag,
+                            options=matrix_function,
+                            charge_tolerance=charge_tolerance,
+                            workspace_dtype=workspace_dtype,
+                            trace_weights_diag=filling_weights,
+                        )
+                    )
             else:  # pragma: no cover - guarded by caller
                 raise TypeError("Prepared payloads require a matrix-function backend")
         return prepared
@@ -238,6 +271,14 @@ def build_bdg_backend(
 ) -> QuadratureBackend:
     ndim = tb_dimension(hamiltonian)
     kernel, matrix_from_payload = build_tb_payload_helpers(hamiltonian)
+    use_sparse_mumps = isinstance(matrix_function, RationalFOE) and any(
+        is_sparse_like(matrix) for matrix in hamiltonian.values()
+    )
+    mumps_density_support = (
+        full_density_entry_support(keys, size=q_diag.size)
+        if use_sparse_mumps and density_entry_support is None
+        else density_entry_support
+    )
 
     def density_info_builder(result) -> DensityIntegrationInfo:
         cached_nodes = getattr(result, "n_cached_nodes", getattr(result, "n_leaf_nodes", 0))
@@ -321,6 +362,7 @@ def build_bdg_backend(
         workspace_dtype=workspace_dtype,
     )
     freeze_density_mesh = False
+    charge_has_derivative = True
     if not isinstance(matrix_function, DirectDiagonalization):
         trace_weights = np.zeros(q_diag.size, dtype=float)
         trace_weights[np.asarray(filling_indices, dtype=int)] = np.asarray(
@@ -333,20 +375,27 @@ def build_bdg_backend(
             q_diag=q_diag,
             filling_weights=trace_weights,
             charge_tolerance=charge_tolerance,
+            density_tolerance=tolerance,
             matrix_from_payload=matrix_from_payload,
             workspace_dtype=workspace_dtype,
+            density_support=mumps_density_support if use_sparse_mumps else None,
         )
-        charge_evaluator = prepared_charge_evaluator(ndim)
+        charge_evaluator = (
+            prepared_charge_only_evaluator(ndim)
+            if use_sparse_mumps
+            else prepared_charge_evaluator(ndim)
+        )
         density_evaluator = (
             prepared_selected_frozen_density_evaluator(
                 ndim,
-                density_entry_support,
+                mumps_density_support if use_sparse_mumps else density_entry_support,
                 workspace_dtype=workspace_dtype,
             )
-            if density_entry_support is not None
+            if (mumps_density_support if use_sparse_mumps else density_entry_support) is not None
             else prepared_frozen_density_evaluator(ndim, keys)
         )
         freeze_density_mesh = True
+        charge_has_derivative = not use_sparse_mumps
 
     return QuadratureBackend(
         bounds=integration_bounds(ndim),
@@ -356,8 +405,12 @@ def build_bdg_backend(
         density_evaluator=density_evaluator,
         split_charge_result=_split_charge,
         split_density_result=(
-            (lambda estimate, error: density_entry_support.expand_entries(estimate, error))
-            if density_entry_support is not None
+            (
+                lambda estimate, error: (
+                    mumps_density_support if use_sparse_mumps else density_entry_support
+                ).expand_entries(estimate, error)
+            )
+            if (mumps_density_support if use_sparse_mumps else density_entry_support) is not None
             and not isinstance(matrix_function, DirectDiagonalization)
             else lambda estimate, error: split_density_result(
                 estimate,
@@ -370,4 +423,5 @@ def build_bdg_backend(
         fixed_filling_info_builder=fixed_filling_info_builder,
         mu_bracket=lambda: mu_bracket_for_bdg(hamiltonian, kT),
         freeze_density_mesh=freeze_density_mesh,
+        charge_has_derivative=charge_has_derivative,
     )

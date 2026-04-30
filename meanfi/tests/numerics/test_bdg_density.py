@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
-
+from meanfi.integrate.density_support import bdg_top_half_support
 import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
+from meanfi.params.rparams import bdg_density_to_rparams
 from meanfi import (
     AdaptiveQuadrature,
     ChebyshevFOE,
@@ -784,6 +785,137 @@ def test_bdg_rational_scf_smoke():
 
     assert abs(result.density_matrix_result.mu) <= 1e-8
     assert abs(result.density_matrix_result.filling - 0.5) <= 1e-6
+
+
+def test_bdg_sparse_supported_density_matches_dense_reference():
+    sparse = pytest.importorskip("scipy.sparse")
+    h0_dense = {
+        (0,): np.diag([0.3, -0.1]).astype(complex),
+    }
+    h_int_dense = {
+        (0,): np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex),
+    }
+    meanfield_dense = {(0,): np.zeros((4, 4), dtype=complex)}
+
+    h0_sparse = _sparsify_tb(h0_dense, sparse)
+    h_int_sparse = _sparsify_tb(h_int_dense, sparse)
+    meanfield_sparse = _sparsify_tb(meanfield_dense, sparse)
+    integration = AdaptiveQuadrature(
+        density_matrix_tol=1e-2,
+        max_refinements=12,
+        matrix_function=RationalFOE(initial_poles=4, max_poles=128),
+    )
+    dense_result = solve_bdg_density_fixed_filling(
+        Model(h0_dense, h_int_dense, filling=0.8, kT=0.2, superconducting=True),
+        meanfield_dense,
+        keys=[(0,)],
+        integration=integration,
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+    sparse_result = solve_bdg_density_fixed_filling(
+        Model(h0_sparse, h_int_sparse, filling=0.8, kT=0.2, superconducting=True),
+        meanfield_sparse,
+        keys=[(0,)],
+        integration=integration,
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+
+    assert abs(dense_result.mu - sparse_result.mu) <= 5e-4
+    assert abs(dense_result.filling - sparse_result.filling) <= 5e-4
+    support = bdg_top_half_support(
+        keys=[(0,)],
+        interaction_support=h_int_dense,
+        ndof=2,
+        local_key=(0,),
+    )
+    np.testing.assert_allclose(
+        bdg_density_to_rparams(
+            dense_result.density_matrix,
+            support=support,
+            ndof=2,
+        ),
+        bdg_density_to_rparams(
+            sparse_result.density_matrix,
+            support=support,
+            ndof=2,
+        ),
+        atol=5e-4,
+    )
+
+
+def test_bdg_sparse_rational_aaa_supported_density_matches_dense_reference():
+    sparse = pytest.importorskip("scipy.sparse")
+    h0_dense = {
+        (0,): np.diag([0.3, -0.1]).astype(complex),
+    }
+    h_int_dense = {
+        (0,): np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex),
+    }
+    meanfield_dense = {(0,): np.zeros((4, 4), dtype=complex)}
+
+    h0_sparse = _sparsify_tb(h0_dense, sparse)
+    h_int_sparse = _sparsify_tb(h_int_dense, sparse)
+    meanfield_sparse = _sparsify_tb(meanfield_dense, sparse)
+    dense_result = solve_bdg_density_fixed_filling(
+        Model(h0_dense, h_int_dense, filling=0.8, kT=0.2, superconducting=True),
+        meanfield_dense,
+        keys=[(0,)],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-8,
+            max_refinements=12,
+            matrix_function=DirectDiagonalization(),
+        ),
+        filling_tol=1e-8,
+        mu_tol=1e-10,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+    sparse_result = solve_bdg_density_fixed_filling(
+        Model(h0_sparse, h_int_sparse, filling=0.8, kT=0.2, superconducting=True),
+        meanfield_sparse,
+        keys=[(0,)],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            max_refinements=12,
+            matrix_function=RationalFOE(
+                initial_poles=4,
+                max_poles=512,
+                rational_scheme="aaa",
+            ),
+        ),
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+        max_mu_iterations=40,
+        mu_guess=0.0,
+    )
+
+    assert abs(dense_result.mu - sparse_result.mu) <= 5e-3
+    assert abs(dense_result.filling - sparse_result.filling) <= 5e-3
+    support = bdg_top_half_support(
+        keys=[(0,)],
+        interaction_support=h_int_dense,
+        ndof=2,
+        local_key=(0,),
+    )
+    np.testing.assert_allclose(
+        bdg_density_to_rparams(
+            dense_result.density_matrix,
+            support=support,
+            ndof=2,
+        ),
+        bdg_density_to_rparams(
+            sparse_result.density_matrix,
+            support=support,
+            ndof=2,
+        ),
+        atol=5e-3,
+    )
 
 
 def test_bdg_complex_chiral_density_matches_dense_reference():
