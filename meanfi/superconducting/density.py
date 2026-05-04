@@ -11,7 +11,6 @@ from meanfi.integrate.density_support import (
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
-    ChebyshevFOE,
     DirectDiagonalization,
     basis_block,
     density_block,
@@ -19,10 +18,10 @@ from meanfi.integrate.matrix_functions import (
     resolve_matrix_function,
     shift_by_mu,
 )
-from meanfi.integrate.matrix_functions.prepared_normal import PreparedShiftedChebyshevNode
 from meanfi.integrate.matrix_functions.rational import PreparedRationalNode
 from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
 from meanfi.integrate.quadrature.bdg_backend import build_bdg_backend
+from meanfi.core.matrix import is_sparse_like
 from meanfi.integrate.quadrature.runtime import solve_quadrature_fixed_filling
 from meanfi.superconducting.bdg import charge_diagonal
 from meanfi.tb.tb import _tb_type
@@ -41,8 +40,11 @@ def effective_bdg_filling_tol(
     return float(np.sum(np.abs(filling_weights)) * density_matrix_tol)
 
 
-def matrix_function(integration: AdaptiveQuadrature) -> BdGMatrixFunction:
-    return resolve_matrix_function(getattr(integration, "matrix_function", None))
+def matrix_function(integration: AdaptiveQuadrature, hamiltonian: _tb_type) -> BdGMatrixFunction:
+    selected = getattr(integration, "matrix_function", None)
+    if selected is None and any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
+        return RationalFOE(rational_scheme="aaa")
+    return resolve_matrix_function(selected)
 
 
 def _local_filling(block: np.ndarray, indices, weights: np.ndarray) -> float:
@@ -78,17 +80,7 @@ def _solve_bdg_zero_dim(
         dtype=float,
     )
     prepared_node = None
-    if isinstance(selected_matrix_function, ChebyshevFOE):
-        prepared_node = PreparedShiftedChebyshevNode(
-            matrix,
-            kT=kT,
-            q_diag=q_diag,
-            options=selected_matrix_function,
-            charge_tolerance=filling_tol,
-            workspace_dtype=workspace_dtype,
-            trace_weights_diag=trace_weights,
-        )
-    elif isinstance(selected_matrix_function, RationalFOE):
+    if isinstance(selected_matrix_function, RationalFOE):
         prepared_node = PreparedRationalNode(
             matrix,
             kT=kT,
@@ -216,8 +208,8 @@ def solve_bdg_density_fixed_filling(
     if max_mu_iterations is not None and max_mu_iterations <= 0:
         raise ValueError("max_mu_iterations must be positive")
 
-    selected_matrix_function = matrix_function(integration)
     hamiltonian = model.bdg_hamiltonian_from_meanfield(meanfield)
+    selected_matrix_function = matrix_function(integration, hamiltonian)
     q_diag = charge_diagonal(model._ndof)
     filling_indices = tuple(range(model._ndof))
     filling_weights = np.ones(model._ndof, dtype=float)

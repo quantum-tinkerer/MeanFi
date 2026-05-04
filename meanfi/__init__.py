@@ -28,7 +28,6 @@ from .integrate.methods import (
 )
 from .integrate.matrix_functions import (
     BdGMatrixFunction,
-    ChebyshevFOE,
     DirectDiagonalization,
     RationalFOE,
 )
@@ -96,7 +95,6 @@ __all__ = [
     "AdaptiveSimplexInfo",
     "AndersonMixing",
     "BdGMatrixFunction",
-    "ChebyshevFOE",
     "DensityMatrixResult",
     "DirectDiagonalization",
     "IntegrationMethod",

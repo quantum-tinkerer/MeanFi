@@ -4,8 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from .base import BdGMatrixFunction, ChebyshevFOE, DirectDiagonalization, RationalFOE, _BlockResult
-from .chebyshev import _chebyshev_density_block
+from .base import BdGMatrixFunction, DirectDiagonalization, RationalFOE, _BlockResult
 from .direct import _exact_density_block
 from .rational import _rational_density_block
 
@@ -19,8 +18,6 @@ def resolve_matrix_function(selected: object | None) -> BdGMatrixFunction:
 
 
 def matrix_function_label(matrix_function: BdGMatrixFunction) -> str:
-    if isinstance(matrix_function, ChebyshevFOE):
-        return "Chebyshev FOE"
     if isinstance(matrix_function, RationalFOE):
         return "Rational FOE"
     if isinstance(matrix_function, DirectDiagonalization):
@@ -48,19 +45,6 @@ def density_block(
             kT=kT,
             q_diag=q_diag,
             derivative=derivative,
-            workspace_dtype=workspace_dtype,
-        )
-    if isinstance(matrix_function, ChebyshevFOE):
-        return _chebyshev_density_block(
-            matrix,
-            block,
-            kT=kT,
-            q_diag=q_diag,
-            derivative=derivative,
-            tolerance=tolerance,
-            options=matrix_function,
-            derivative_trace_monitor=derivative_trace_monitor,
-            derivative_context=derivative_context,
             workspace_dtype=workspace_dtype,
         )
     if isinstance(matrix_function, RationalFOE):

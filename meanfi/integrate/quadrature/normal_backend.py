@@ -14,7 +14,6 @@ from meanfi.integrate.density_support import (
     workspace_complex_dtype,
 )
 from meanfi.integrate.matrix_functions import (
-    ChebyshevFOE,
     DirectDiagonalization,
     RationalFOE,
     basis_block,
@@ -22,7 +21,6 @@ from meanfi.integrate.matrix_functions import (
     resolve_matrix_function,
     shift_by_mu,
 )
-from meanfi.integrate.matrix_functions.prepared_normal import PreparedNormalChebyshevNode
 from meanfi.integrate.matrix_functions.rational import (
     PreparedMumpsRationalNode,
     PreparedRationalNode,
@@ -66,8 +64,14 @@ def integration_stats(result) -> DensityIntegrationInfo:
 
 def resolve_normal_matrix_function(
     selected: object | None,
-) -> DirectDiagonalization | ChebyshevFOE | RationalFOE:
-    return resolve_matrix_function(selected)
+    hamiltonian: _tb_type,
+) -> DirectDiagonalization | RationalFOE:
+    if selected is None and any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
+        return RationalFOE(rational_scheme="aaa")
+    resolved = resolve_matrix_function(selected)
+    if not isinstance(resolved, (DirectDiagonalization, RationalFOE)):
+        raise TypeError("AdaptiveQuadrature.matrix_function must be DirectDiagonalization or RationalFOE")
+    return resolved
 
 
 def spectral_payload(hamiltonian: _tb_type):
@@ -158,35 +162,6 @@ def selected_density_evaluator(
         return prefactor * values
 
     return evaluator
-
-
-def prepared_payload_builder(
-    *,
-    matrix_function: ChebyshevFOE,
-    matrix_from_payload,
-    kT: float,
-    charge_tolerance: float | None,
-    workspace_dtype: np.dtype,
-    trace_weights_diag: np.ndarray | None = None,
-):
-    def builder(points: np.ndarray, payload: np.ndarray) -> list[Any]:
-        del points
-        prepared = []
-        for payload_row in payload:
-            matrix = matrix_from_payload(payload_row)
-            prepared.append(
-                PreparedNormalChebyshevNode(
-                    matrix,
-                    kT=kT,
-                    options=matrix_function,
-                    charge_tolerance=charge_tolerance,
-                    workspace_dtype=workspace_dtype,
-                    trace_weights_diag=trace_weights_diag,
-                )
-            )
-        return prepared
-
-    return builder
 
 
 def prepared_rational_payload_builder(
@@ -542,7 +517,8 @@ def build_normal_backend(
     ndof = tb_orbital_count(hamiltonian)
     workspace_dtype = workspace_complex_dtype(integration)
     matrix_function = resolve_normal_matrix_function(
-        getattr(integration, "matrix_function", None)
+        getattr(integration, "matrix_function", None),
+        hamiltonian,
     )
     density_support = density_entry_support
     use_sparse_mumps = isinstance(matrix_function, RationalFOE) and any(
@@ -603,34 +579,6 @@ def build_normal_backend(
         payload_builder = None
         charge_kernel = charge_evaluator(ndim, ndof, kT)
         density_kernel = density_evaluator(ndim, ndof, keys, kT)
-    elif isinstance(matrix_function, ChebyshevFOE):
-        kernel, matrix_from_payload = build_tb_payload_helpers(hamiltonian)
-        payload_builder = prepared_payload_builder(
-            matrix_function=matrix_function,
-            matrix_from_payload=matrix_from_payload,
-            kT=kT,
-            charge_tolerance=fixed_filling_tolerance,
-            workspace_dtype=workspace_dtype,
-            trace_weights_diag=np.ones(ndof, dtype=float),
-        )
-        charge_kernel = prepared_charge_evaluator(ndim)
-        if fixed_filling_tolerance is None:
-            density_kernel = prepared_transient_density_evaluator(
-                ndim,
-                keys,
-                density_tolerance=integration.density_matrix_tol,
-            )
-        else:
-            density_kernel = (
-                prepared_selected_frozen_density_evaluator(
-                    ndim,
-                    density_support,
-                    workspace_dtype=workspace_dtype,
-                )
-                if density_support is not None
-                else prepared_frozen_density_evaluator(ndim, keys)
-            )
-            freeze_density_mesh = True
     elif isinstance(matrix_function, RationalFOE):
         kernel, matrix_from_payload = build_tb_payload_helpers(hamiltonian)
         if use_sparse_mumps:
@@ -710,8 +658,8 @@ def build_normal_backend(
                 else prepared_frozen_density_evaluator(ndim, keys)
             )
             freeze_density_mesh = True
-    else:  # pragma: no cover - guarded by resolve_matrix_function
-        raise TypeError("AdaptiveQuadrature.matrix_function must be a BdGMatrixFunction")
+    else:  # pragma: no cover - guarded by resolve_normal_matrix_function
+        raise TypeError("AdaptiveQuadrature.matrix_function must be DirectDiagonalization or RationalFOE")
 
     return QuadratureBackend(
         bounds=integration_bounds(ndim),

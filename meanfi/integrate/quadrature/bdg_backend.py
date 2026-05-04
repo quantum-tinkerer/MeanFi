@@ -11,14 +11,12 @@ from meanfi.core.matrix import is_sparse_like
 from meanfi.integrate.density_support import DensityEntrySupport, full_density_entry_support
 from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
-    ChebyshevFOE,
     DirectDiagonalization,
     RationalFOE,
     density_block,
     matrix_function_label,
     shift_by_mu,
 )
-from meanfi.integrate.matrix_functions.prepared_normal import PreparedShiftedChebyshevNode
 from meanfi.integrate.matrix_functions.rational import (
     PreparedMumpsRationalNode,
     PreparedRationalNode,
@@ -204,19 +202,7 @@ def _prepared_payload_builder(
         prepared: list[object] = []
         for payload_row in payload:
             matrix = matrix_from_payload(payload_row)
-            if isinstance(matrix_function, ChebyshevFOE):
-                prepared.append(
-                    PreparedShiftedChebyshevNode(
-                        matrix,
-                        kT=kT,
-                        q_diag=q_diag,
-                        options=matrix_function,
-                        charge_tolerance=charge_tolerance,
-                        workspace_dtype=workspace_dtype,
-                        trace_weights_diag=filling_weights,
-                    )
-                )
-            elif isinstance(matrix_function, RationalFOE):
+            if isinstance(matrix_function, RationalFOE):
                 if is_sparse_like(matrix):
                     if density_support is None:
                         raise ValueError(

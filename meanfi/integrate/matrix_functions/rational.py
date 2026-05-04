@@ -14,8 +14,6 @@ from .common import (
     _derivative_convergence,
     scalar_derivative_converged,
     spectral_interval,
-    trace_probe_block,
-    weighted_trace_from_basis_result,
     workspace_matrix,
 )
 from ..occupations import fermi_dirac
@@ -248,52 +246,6 @@ def _ozaki_exact_poles_and_residues(pole_count: int) -> tuple[np.ndarray, np.nda
     poles = -1.0 / selected_eigenvalues
     residues = -0.25 * np.square(selected_vectors) * np.square(poles)
     return np.asarray(poles, dtype=float), np.asarray(residues, dtype=float)
-
-
-def _irls_minimax_fit(
-    design: np.ndarray,
-    target: np.ndarray,
-    *,
-    iterations: int = 6,
-) -> np.ndarray:
-    weights = np.ones(target.size, dtype=float)
-    coeffs = np.zeros(design.shape[1], dtype=float)
-    for _ in range(iterations):
-        weighted_design = weights[:, np.newaxis] * design
-        weighted_target = weights * target
-        coeffs, *_ = np.linalg.lstsq(weighted_design, weighted_target, rcond=None)
-        residual = target - design @ coeffs
-        weights = 1.0 / np.maximum(np.abs(residual), 1e-8)
-    return coeffs
-
-
-def _minimax_terms(
-    pole_count: int,
-    *,
-    max_poles: int,
-    lower: float,
-    upper: float,
-    kT: float,
-) -> tuple[complex, np.ndarray, np.ndarray]:
-    poles, _ = _ozaki_exact_poles_and_residues(max(int(max_poles), int(pole_count)))
-    shifts = 1j * np.asarray(poles[: int(pole_count)], dtype=float) * float(kT)
-    n_samples = max(256, 16 * int(max_poles))
-    x = np.cos(np.pi * (np.arange(n_samples, dtype=float) + 0.5) / n_samples)
-    center = 0.5 * (upper + lower)
-    scale = 0.5 * max(upper - lower, 1e-12)
-    energies = center + scale * x
-    target = fermi_dirac(energies, kT, 0.0)
-
-    design = np.empty((n_samples, 1 + 2 * shifts.size), dtype=float)
-    design[:, 0] = 1.0
-    for index, shift in enumerate(shifts):
-        basis = 1.0 / (energies - shift)
-        design[:, 1 + 2 * index] = 2.0 * np.real(basis)
-        design[:, 2 + 2 * index] = -2.0 * np.imag(basis)
-    coeffs = _irls_minimax_fit(design, np.asarray(target, dtype=float))
-    constant = complex(coeffs[0])
-    residues = coeffs[1::2].astype(float) + 1j * coeffs[2::2].astype(float)
-    return constant, np.asarray(shifts, dtype=complex), np.asarray(residues, dtype=complex)
 
 
 def _lobatto_grid(lower: float, upper: float, count: int) -> np.ndarray:
@@ -867,14 +819,6 @@ def _scheme_terms(
             1j * np.asarray(poles, dtype=float) * float(kT),
             np.asarray(residues, dtype=float) * float(kT),
         )
-    if options.rational_scheme == "minimax":
-        return _minimax_terms(
-            pole_count,
-            max_poles=int(options.max_poles),
-            lower=lower,
-            upper=upper,
-            kT=kT,
-        )
     if options.rational_scheme == "aaa":
         raise ValueError(
             "rational_scheme='aaa' is currently supported only on the sparse MUMPS RationalFOE path"
@@ -1011,24 +955,6 @@ def _rational_density_block(
     derivative_context: str | None = None,
     workspace_dtype: np.dtype = np.dtype(complex),
 ) -> _BlockResult:
-    if options.rational_scheme == "minimax":
-        full_block, full_derivative = _evaluate_rational_poles(
-            matrix,
-            block,
-            kT=kT,
-            q_diag=q_diag,
-            pole_count=int(options.max_poles),
-            derivative=derivative,
-            options=options,
-            workspace_dtype=workspace_dtype,
-        )
-        return _BlockResult(
-            block=full_block,
-            derivative_block=full_derivative,
-            error=0.0,
-            order=int(options.max_poles),
-        )
-
     accepted_block = None
     accepted_derivative = None
     accepted_error = float("inf")
@@ -1117,43 +1043,27 @@ class PreparedRationalNode:
             if trace_weights_diag is None
             else np.asarray(trace_weights_diag, dtype=float)
         )
-        self._trace_estimator = options.trace_estimator
-        self._trace_columns = (
-            np.flatnonzero(np.abs(self._trace_weights) > 0.0).astype(int, copy=False)
-            if self._trace_estimator == "exact"
-            else None
+        self._trace_columns = np.flatnonzero(np.abs(self._trace_weights) > 0.0).astype(
+            int,
+            copy=False,
         )
-        if self._trace_estimator == "exact":
-            if self._trace_columns is None or self._trace_columns.size == 0:
-                raise ValueError("Exact weighted trace requires at least one nonzero trace weight")
-            self._trace_basis = np.zeros(
-                (self.size, self._trace_columns.size),
-                dtype=self.workspace_dtype,
-            )
-            self._trace_basis[
-                self._trace_columns,
-                np.arange(self._trace_columns.size),
-            ] = 1.0
-        else:
-            self._trace_basis = trace_probe_block(
-                self.size,
-                estimator=self._trace_estimator,
-                trace_probes=options.trace_probes,
-                trace_seed=options.trace_seed,
-                dtype=self.workspace_dtype,
-            )
+        if self._trace_columns.size == 0:
+            raise ValueError("Exact weighted trace requires at least one nonzero trace weight")
+        self._trace_basis = np.zeros(
+            (self.size, self._trace_columns.size),
+            dtype=self.workspace_dtype,
+        )
+        self._trace_basis[
+            self._trace_columns,
+            np.arange(self._trace_columns.size),
+        ] = 1.0
         self._charge_cache: dict[float, tuple[float, float, int]] = {}
         self._last_mu: float | None = None
         self._last_lu_cache: dict[complex, Any] = {}
 
     def _trace_scalar(self, block: np.ndarray) -> float:
-        return weighted_trace_from_basis_result(
-            block,
-            self._trace_basis,
-            weights_diag=self._trace_weights,
-            estimator=self._trace_estimator,
-            trace_columns=self._trace_columns,
-        )
+        values = block[self._trace_columns, np.arange(self._trace_columns.size)]
+        return float(np.real(np.sum(self._trace_weights[self._trace_columns] * values)))
 
     def _evaluate_terms_for_basis(
         self,
@@ -1195,27 +1105,6 @@ class PreparedRationalNode:
             charge, derivative, _order = self._charge_cache[mu]
             return charge, derivative
 
-        if self.options.rational_scheme == "minimax":
-            full_block, full_derivative_block, lu_cache = self._evaluate_terms_for_basis(
-                mu,
-                self._trace_basis,
-                pole_count=int(self.options.max_poles),
-                derivative=True,
-                lu_cache=None,
-            )
-            full_charge = self._trace_scalar(full_block)
-            full_derivative = (
-                0.0 if full_derivative_block is None else self._trace_scalar(full_derivative_block)
-            )
-            self._charge_cache[mu] = (
-                full_charge,
-                full_derivative,
-                int(self.options.max_poles),
-            )
-            self._last_mu = float(mu)
-            self._last_lu_cache = {} if lu_cache is None else dict(lu_cache)
-            return full_charge, full_derivative
-
         half_poles = int(self.options.initial_poles)
         half_block, half_derivative_block, lu_cache = self._evaluate_terms_for_basis(
             mu,
@@ -1236,7 +1125,7 @@ class PreparedRationalNode:
                 self._trace_basis,
                 pole_count=pole_count,
                 derivative=True,
-                lu_cache=lu_cache if self.options.rational_scheme == "ozaki" else None,
+                lu_cache=lu_cache,
             )
             full_charge = self._trace_scalar(full_block)
             full_derivative = (
@@ -1303,8 +1192,6 @@ class PreparedMumpsRationalNode:
         trace_weights_diag: np.ndarray | None = None,
         shared_aaa_interval_cache: list[_AAAIntervalCacheEntry] | None = None,
     ) -> None:
-        if options.trace_estimator != "exact":
-            raise ValueError("Sparse RationalFOE requires trace_estimator='exact'")
         if options.rational_scheme not in {"ozaki", "aaa"}:
             raise ValueError("Sparse RationalFOE currently requires rational_scheme='ozaki' or 'aaa'")
         if not is_sparse_like(matrix):

@@ -39,7 +39,7 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
     hamiltonian = context.hamiltonian
     integration = context.integration
     assert isinstance(integration, AdaptiveQuadrature)
-    resolve_normal_matrix_function(getattr(integration, "matrix_function", None))
+    resolve_normal_matrix_function(getattr(integration, "matrix_function", None), hamiltonian)
 
     if tb_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
@@ -104,7 +104,7 @@ def _adaptive_quadrature_fixed_filling(
         hamiltonian=hamiltonian,
         filling_tol=filling_tol,
     )
-    resolve_normal_matrix_function(getattr(integration, "matrix_function", None))
+    resolve_normal_matrix_function(getattr(integration, "matrix_function", None), hamiltonian)
     if tb_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
         density_matrix, density_matrix_error, _mu, raw_info = density_matrix_zero_dim(

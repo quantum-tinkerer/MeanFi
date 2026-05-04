@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import lru_cache
 from typing import Any
 import warnings
 
 import numpy as np
 
 from meanfi.core.matrix import hermitian_spectral_bound, is_sparse_like, sparse_module
-from meanfi.integrate.occupations import fermi_dirac
-
-
 _DN_DMU_ABS_FLOOR = 1e-6
 
 
@@ -70,87 +66,11 @@ def spectral_interval(
     return center - padded, center + padded
 
 
-def trace_probe_block(
-    size: int,
-    *,
-    estimator: str,
-    trace_probes: int,
-    trace_seed: int,
-    dtype: np.dtype,
-) -> np.ndarray:
-    if estimator == "exact":
-        return np.eye(size, dtype=dtype)
-    generator = np.random.default_rng(int(trace_seed))
-    signs = generator.integers(0, 2, size=(size, int(trace_probes)), endpoint=False)
-    probes = 2 * signs.astype(float) - 1.0
-    return np.asarray(probes, dtype=dtype)
-
-
-def weighted_trace_from_basis_result(
-    block_result: np.ndarray,
-    basis: np.ndarray,
-    *,
-    weights_diag: np.ndarray,
-    estimator: str,
-    trace_columns: np.ndarray | None = None,
-) -> float:
-    weights_diag = np.asarray(weights_diag, dtype=float)
-    if estimator == "exact":
-        if trace_columns is None:
-            raise ValueError("trace_columns are required for exact weighted traces")
-        columns = np.asarray(trace_columns, dtype=int)
-        values = block_result[columns, np.arange(columns.size)]
-        return float(np.real(np.sum(weights_diag[columns] * values)))
-
-    weighted_basis = weights_diag[:, np.newaxis] * np.asarray(basis)
-    contributions = np.sum(np.conjugate(weighted_basis) * block_result, axis=0)
-    return float(np.real(np.mean(contributions)))
-
-
 def scalar_derivative_converged(full: float, half: float, *, rtol: float) -> bool:
     scale = max(abs(full), abs(half), _DN_DMU_ABS_FLOOR)
     if abs(full) <= _DN_DMU_ABS_FLOOR and abs(half) <= _DN_DMU_ABS_FLOOR:
         return True
     return abs(full - half) <= float(rtol) * scale
-
-
-@lru_cache(maxsize=None)
-def _chebyshev_sample_cosines(n_nodes: int) -> np.ndarray:
-    theta = np.pi * (np.arange(n_nodes, dtype=float) + 0.5) / n_nodes
-    return np.cos(theta)
-
-
-def chebyshev_foe_coefficients(
-    order: int,
-    *,
-    center: float,
-    scale: float,
-    kT: float,
-    mu: float,
-    oversampling: int,
-    derivative: bool,
-) -> np.ndarray:
-    n_nodes = max(64, int(oversampling) * (order + 1))
-    cos_theta = _chebyshev_sample_cosines(n_nodes)
-    energies = scale * cos_theta + center
-    if derivative:
-        occupation = fermi_dirac(energies, kT, mu)
-        values = occupation * (1.0 - occupation) / kT
-    else:
-        values = fermi_dirac(energies, kT, mu)
-
-    try:
-        from scipy.fft import dct
-    except ImportError as exc:  # pragma: no cover - depends on runtime environment
-        raise RuntimeError(
-            "ChebyshevFOE coefficient acceleration requires scipy. "
-            "Please install scipy to use ChebyshevFOE."
-        ) from exc
-
-    coeffs = np.asarray(dct(values, type=2, norm="forward"), dtype=float)[: order + 1]
-    if coeffs.size > 1:
-        coeffs[1:] *= 2.0
-    return coeffs
 
 
 def _derivative_convergence(

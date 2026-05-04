@@ -53,6 +53,10 @@ def density_matrix_at_mu_zero_dim(
 
     resolved_matrix_function = resolve_matrix_function(matrix_function)
     if isinstance(resolved_matrix_function, RationalFOE):
+        if resolved_matrix_function.rational_scheme == "aaa":
+            raise ValueError(
+                "rational_scheme='aaa' is currently supported only on the sparse MUMPS RationalFOE path"
+            )
         q_diag = np.ones(matrix.shape[0], dtype=float)
         density_basis = (
             density_entry_support.basis_block(dtype=workspace_dtype)
@@ -152,6 +156,10 @@ def density_matrix_zero_dim(
         return rho, error, mu, info
 
     if isinstance(resolved_matrix_function, RationalFOE):
+        if resolved_matrix_function.rational_scheme == "aaa":
+            raise ValueError(
+                "rational_scheme='aaa' is currently supported only on the sparse MUMPS RationalFOE path"
+            )
         q_diag = np.ones(matrix.shape[0], dtype=float)
         density_basis = (
             density_entry_support.basis_block(dtype=workspace_dtype)

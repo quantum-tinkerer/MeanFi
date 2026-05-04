@@ -26,6 +26,7 @@ from meanfi import (
 from meanfi.core.matrix import matrix_bound
 from meanfi.core.filling import mu_bracket
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
+from meanfi.integrate.quadrature.normal_backend import resolve_normal_matrix_function
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.solvers import NoConvergence
 from meanfi.tests.helpers import spinful_chain
@@ -98,14 +99,36 @@ def test_removed_shim_modules_are_no_longer_importable(module_name):
 def test_top_level_exports_only_supported_diagonalization_names():
     assert DirectDiagonalization.__name__ == "DirectDiagonalization"
     assert not hasattr(meanfi, "ExactDiagonalization")
+    assert not hasattr(meanfi, "ChebyshevFOE")
+
+
+def test_removed_chebyshev_public_api_is_not_importable():
+    with pytest.raises(ImportError):
+        exec("from meanfi import ChebyshevFOE")
 
 
 def test_internal_matrix_function_package_root_exposes_shared_symbols():
     import meanfi.integrate.matrix_functions as matrix_functions
 
     assert matrix_functions.DirectDiagonalization is DirectDiagonalization
+    assert not hasattr(matrix_functions, "ChebyshevFOE")
     assert hasattr(matrix_functions, "density_block")
     assert hasattr(matrix_functions, "shift_by_mu")
+
+
+def test_rational_foe_defaults_to_ozaki():
+    assert RationalFOE().rational_scheme == "ozaki"
+
+
+def test_sparse_normal_backend_defaults_to_aaa():
+    resolved = resolve_normal_matrix_function(None, {key: sp.csr_matrix(value) for key, value in spinful_chain().items()})
+    assert isinstance(resolved, RationalFOE)
+    assert resolved.rational_scheme == "aaa"
+
+
+def test_dense_normal_backend_defaults_to_direct_diagonalization():
+    resolved = resolve_normal_matrix_function(None, spinful_chain())
+    assert isinstance(resolved, DirectDiagonalization)
 
 
 def test_sparse_mu_bracket_uses_tighter_spectral_probe_than_row_sum_bound():
@@ -179,36 +202,6 @@ def test_derivative_free_fixed_filling_root_solves_monotone_charge():
     assert root.derivative is None
     assert abs(root.charge - 0.7) <= 1e-6
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
-
-
-def test_sparse_rational_rejects_hutchinson_trace_estimator():
-    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
-    with pytest.raises(ValueError, match="trace_estimator='exact'"):
-        density_matrix_at_mu(
-            sparse_tb,
-            mu=0.0,
-            kT=0.15,
-            keys=[(0,), (1,), (-1,)],
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-2,
-                matrix_function=RationalFOE(trace_estimator="hutchinson"),
-            ),
-        )
-
-
-def test_sparse_rational_rejects_minimax_scheme():
-    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
-    with pytest.raises(ValueError, match="rational_scheme='ozaki'"):
-        density_matrix_at_mu(
-            sparse_tb,
-            mu=0.0,
-            kT=0.15,
-            keys=[(0,), (1,), (-1,)],
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-2,
-                matrix_function=RationalFOE(rational_scheme="minimax"),
-            ),
-        )
 
 
 def test_dense_rational_rejects_aaa_scheme():

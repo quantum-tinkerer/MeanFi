@@ -4,8 +4,8 @@ import argparse
 
 import numpy as np
 
-from meanfi import AdaptiveQuadrature, ChebyshevFOE, ExactDiagonalization, Model, RationalFOE
-from meanfi._bdg import solve_bdg_density_fixed_filling
+from meanfi import AdaptiveQuadrature, DirectDiagonalization, Model, RationalFOE
+from meanfi.superconducting.density import solve_bdg_density_fixed_filling
 from meanfi.tests.helpers import benchmark
 from performance._shared.common import density_record, print_summary, write_records
 
@@ -56,7 +56,7 @@ def main() -> None:
         integration=AdaptiveQuadrature(
             density_matrix_tol=5e-5,
             max_refinements=160,
-            matrix_function=ExactDiagonalization(),
+            matrix_function=DirectDiagonalization(),
         ),
         filling_tol=5e-5,
         mu_tol=5e-5,
@@ -65,9 +65,9 @@ def main() -> None:
     )
 
     configurations = (
-        ("exact_diagonalization", ExactDiagonalization()),
-        ("chebyshev_foe", ChebyshevFOE(initial_order=4, max_order=256)),
-        ("rational_foe", RationalFOE(initial_poles=4, max_poles=256)),
+        ("direct_diagonalization", DirectDiagonalization()),
+        ("rational_aaa", RationalFOE(initial_poles=4, max_poles=256, rational_scheme="aaa")),
+        ("rational_ozaki", RationalFOE(initial_poles=4, max_poles=256, rational_scheme="ozaki")),
     )
 
     records = []
