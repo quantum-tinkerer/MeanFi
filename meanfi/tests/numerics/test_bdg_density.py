@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
-from meanfi import AdaptiveQuadrature, DirectDiagonalization, Model, RationalFOE, tb_to_kfunc
+from meanfi import AdaptiveQuadrature, DirectDiagonalization, Model, RationalFOE, UniformGrid, tb_to_kfunc
 from meanfi.integrate.density_support import bdg_top_half_support
 from meanfi.params.rparams import bdg_density_to_rparams
 from meanfi.superconducting.bdg import charge_diagonal
@@ -415,4 +415,69 @@ def test_bdg_sparse_supported_density_matches_dense_reference():
         bdg_density_to_rparams(dense_result.density_matrix, ndof=1, support=support),
         bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, support=support),
         atol=1e-3,
+    )
+
+
+@pytest.mark.parametrize(
+    "matrix_function",
+    [
+        None,
+        RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"),
+        RationalFOE(initial_poles=4, max_poles=128, rational_scheme="ozaki"),
+    ],
+    ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
+)
+def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(matrix_function):
+    sparse = pytest.importorskip("scipy.sparse")
+    local = (0, 0)
+    dense_h0 = {local: np.array([[0.0]], dtype=complex)}
+    dense_hint = {local: np.array([[1.0]], dtype=complex)}
+    meanfield = _pairing(0.05)
+    sparse_h0 = {local: sparse.csr_matrix(dense_h0[local])}
+    sparse_hint = {local: sparse.csr_matrix(dense_hint[local])}
+    sparse_meanfield = _pairing(0.05, sparse=sparse)
+
+    dense_model = Model(dense_h0, dense_hint, filling=0.5, kT=0.2, superconducting=True)
+    sparse_model = Model(sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True)
+    support = bdg_top_half_support(
+        keys=[local],
+        local_key=local,
+        interaction_support=dense_hint,
+        ndof=1,
+    )
+
+    dense_result = solve_bdg_density_fixed_filling(
+        dense_model,
+        meanfield,
+        keys=[local],
+        integration=UniformGrid(
+            nk=25,
+            density_matrix_tol=1e-8,
+            matrix_function=DirectDiagonalization(),
+        ),
+        filling_tol=1e-8,
+        mu_tol=1e-10,
+        max_mu_iterations=80,
+        mu_guess=0.0,
+    )
+    sparse_result = solve_bdg_density_fixed_filling(
+        sparse_model,
+        sparse_meanfield,
+        keys=[local],
+        integration=UniformGrid(
+            nk=25,
+            density_matrix_tol=1e-3,
+            matrix_function=matrix_function,
+        ),
+        filling_tol=1e-3,
+        mu_tol=1e-8,
+        max_mu_iterations=80,
+        mu_guess=0.0,
+        density_entry_support=None,
+    )
+
+    np.testing.assert_allclose(
+        bdg_density_to_rparams(dense_result.density_matrix, ndof=1, support=support),
+        bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, support=support),
+        atol=2e-3,
     )

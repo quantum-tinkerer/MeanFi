@@ -49,13 +49,17 @@ class AdaptiveQuadrature(IntegrationMethod):
 
 @dataclass(frozen=True)
 class UniformGrid(IntegrationMethod):
-    """Uniform zero-temperature k-grid point sampling."""
+    """Uniform k-grid point sampling."""
 
     nk: int
+    density_matrix_tol: float = 1e-6
+    matrix_function: object | None = None
     workspace_precision: int = 128
 
     def __post_init__(self) -> None:
         if self.nk <= 0:
             raise ValueError("nk must be positive")
+        if self.density_matrix_tol <= 0:
+            raise ValueError("density_matrix_tol must be positive")
         if self.workspace_precision not in (64, 128):
             raise ValueError("workspace_precision must be 64 or 128")

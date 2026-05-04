@@ -27,6 +27,7 @@ from meanfi.core.matrix import matrix_bound
 from meanfi.core.filling import mu_bracket
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.integrate.quadrature.normal_backend import resolve_normal_matrix_function
+from meanfi.integrate.uniform_grid import resolve_uniform_grid_matrix_function
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.solvers import NoConvergence
 from meanfi.tests.helpers import spinful_chain
@@ -126,8 +127,23 @@ def test_sparse_normal_backend_defaults_to_aaa():
     assert resolved.rational_scheme == "aaa"
 
 
+def test_sparse_uniform_grid_defaults_to_aaa_at_positive_temperature():
+    resolved = resolve_uniform_grid_matrix_function(
+        None,
+        {key: sp.csr_matrix(value) for key, value in spinful_chain().items()},
+        kT=0.15,
+    )
+    assert isinstance(resolved, RationalFOE)
+    assert resolved.rational_scheme == "aaa"
+
+
 def test_dense_normal_backend_defaults_to_direct_diagonalization():
     resolved = resolve_normal_matrix_function(None, spinful_chain())
+    assert isinstance(resolved, DirectDiagonalization)
+
+
+def test_dense_uniform_grid_defaults_to_direct_diagonalization():
+    resolved = resolve_uniform_grid_matrix_function(None, spinful_chain(), kT=0.15)
     assert isinstance(resolved, DirectDiagonalization)
 
 
@@ -573,16 +589,20 @@ def test_adaptive_methods_default_filling_tol_from_density_matrix_tol(monkeypatc
     assert captured["charge_tol"] == 2e-8
 
 
-def test_uniform_grid_rejects_fixed_filling_root_controls():
-    with pytest.raises(ValueError, match="does not support"):
-        density_matrix(
-            spinful_chain(),
-            filling=1.0,
-            kT=0.0,
-            keys=[(0,)],
-            integration=UniformGrid(nk=8),
-            filling_tol=1e-4,
-        )
+def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():
+    result = density_matrix(
+        spinful_chain(),
+        filling=1.0,
+        kT=0.15,
+        keys=[(0,)],
+        integration=UniformGrid(nk=8),
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+        max_mu_iterations=80,
+    )
+
+    assert np.isfinite(result.mu)
+    assert abs(result.filling - 1.0) <= 1e-2
 
 
 @requires_ext

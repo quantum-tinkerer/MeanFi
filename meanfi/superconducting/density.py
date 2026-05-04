@@ -3,9 +3,10 @@ from __future__ import annotations
 import numpy as np
 
 from meanfi.core.results import DensityMatrixResult, FixedFillingInfo
-from meanfi.integrate.common import wrap_adaptive_result
+from meanfi.integrate.common import uniform_grid_info, wrap_adaptive_result, wrap_density_result
 from meanfi.integrate.density_support import (
     DensityEntrySupport,
+    full_density_entry_support,
     workspace_complex_dtype,
 )
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
@@ -19,12 +20,17 @@ from meanfi.integrate.matrix_functions import (
     shift_by_mu,
 )
 from meanfi.integrate.matrix_functions.rational import PreparedRationalNode
-from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod
+from meanfi.integrate.methods import AdaptiveQuadrature, IntegrationMethod, UniformGrid
 from meanfi.integrate.quadrature.bdg_backend import build_bdg_backend
 from meanfi.core.matrix import is_sparse_like
 from meanfi.integrate.quadrature.runtime import solve_quadrature_fixed_filling
-from meanfi.superconducting.bdg import charge_diagonal
+from meanfi.superconducting.bdg import charge_diagonal, mu_bracket_for_bdg
 from meanfi.tb.tb import _tb_type
+from meanfi.integrate.uniform_grid import (
+    build_uniform_grid_node_bundle,
+    resolve_uniform_grid_matrix_function,
+    uniform_grid_fixed_filling_from_nodes,
+)
 
 
 def effective_bdg_filling_tol(
@@ -40,8 +46,10 @@ def effective_bdg_filling_tol(
     return float(np.sum(np.abs(filling_weights)) * density_matrix_tol)
 
 
-def matrix_function(integration: AdaptiveQuadrature, hamiltonian: _tb_type) -> BdGMatrixFunction:
+def matrix_function(integration: IntegrationMethod, hamiltonian: _tb_type, *, kT: float) -> BdGMatrixFunction:
     selected = getattr(integration, "matrix_function", None)
+    if isinstance(integration, UniformGrid):
+        return resolve_uniform_grid_matrix_function(selected, hamiltonian, kT=kT)
     if selected is None and any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
         return RationalFOE(rational_scheme="aaa")
     return resolve_matrix_function(selected)
@@ -58,7 +66,7 @@ def _solve_bdg_zero_dim(
     filling: float,
     kT: float,
     keys: list[tuple[int, ...]],
-    integration: AdaptiveQuadrature,
+    integration: IntegrationMethod,
     filling_tol: float,
     mu_tol: float,
     max_mu_iterations: int | None,
@@ -175,6 +183,26 @@ def _solve_bdg_zero_dim(
         density_rtol=0.0,
         error_estimate_available=True,
     )
+    if isinstance(integration, UniformGrid):
+        return wrap_density_result(
+            density_matrix=density_matrix,
+            density_matrix_error=None,
+            mu=raw_info.mu,
+            filling=raw_info.charge,
+            target_filling=filling,
+            integration=integration,
+            info=uniform_grid_info(
+                integration=integration,
+                hamiltonian=hamiltonian,
+                n_kernel_evals=raw_info.n_kernel_evals,
+                n_evaluator_evals=raw_info.n_evaluator_evals,
+                root_iterations=raw_info.root_iterations,
+                charge_integration_calls=raw_info.charge_integration_calls,
+                density_integration_calls=raw_info.density_integration_calls,
+                error_estimate_available=False,
+            ),
+            keys=keys,
+        )
     return wrap_adaptive_result(
         density_matrix=density_matrix,
         density_matrix_error=density_matrix_error,
@@ -199,8 +227,6 @@ def solve_bdg_density_fixed_filling(
     mu_guess: float,
     density_entry_support: DensityEntrySupport | None = None,
 ) -> DensityMatrixResult:
-    if not isinstance(integration, AdaptiveQuadrature):
-        raise NotImplementedError("BdG density currently requires AdaptiveQuadrature")
     if model.kT <= 0:
         raise NotImplementedError("BdG density currently requires kT > 0")
     if mu_tol <= 0:
@@ -209,13 +235,13 @@ def solve_bdg_density_fixed_filling(
         raise ValueError("max_mu_iterations must be positive")
 
     hamiltonian = model.bdg_hamiltonian_from_meanfield(meanfield)
-    selected_matrix_function = matrix_function(integration, hamiltonian)
+    selected_matrix_function = matrix_function(integration, hamiltonian, kT=model.kT)
     q_diag = charge_diagonal(model._ndof)
     filling_indices = tuple(range(model._ndof))
     filling_weights = np.ones(model._ndof, dtype=float)
     resolved_filling_tol = effective_bdg_filling_tol(
         filling_tol=filling_tol,
-        density_matrix_tol=integration.density_matrix_tol,
+        density_matrix_tol=getattr(integration, "density_matrix_tol"),
         filling_weights=filling_weights,
     )
     density_support = density_entry_support
@@ -237,6 +263,62 @@ def solve_bdg_density_fixed_filling(
             filling_weights=filling_weights,
             density_entry_support=density_support,
         )
+
+    if isinstance(integration, UniformGrid):
+        workspace_dtype = workspace_complex_dtype(integration)
+        resolved_density_support = (
+            density_support
+            if density_support is not None
+            else full_density_entry_support(keys, size=2 * model._ndof)
+        )
+        bundle = build_uniform_grid_node_bundle(
+            hamiltonian,
+            kT=model.kT,
+            nk=integration.nk,
+            keys=keys,
+            matrix_function=selected_matrix_function,
+            q_diag=q_diag,
+            trace_weights_diag=np.concatenate(
+                [np.ones(model._ndof, dtype=float), np.zeros(model._ndof, dtype=float)]
+            ),
+            charge_tolerance=resolved_filling_tol,
+            density_tolerance=integration.density_matrix_tol,
+            density_entry_support=resolved_density_support,
+            workspace_dtype=workspace_dtype,
+        )
+        density_matrix, mu, resolved_filling, info = uniform_grid_fixed_filling_from_nodes(
+            bundle,
+            hamiltonian=hamiltonian,
+            integration=integration,
+            filling=model.filling,
+            mu_guess=mu_guess,
+            filling_tol=resolved_filling_tol,
+            mu_tol=mu_tol,
+            max_mu_iterations=max_mu_iterations,
+            mu_bracket_builder=lambda: mu_bracket_for_bdg(hamiltonian, model.kT),
+        )
+        return wrap_density_result(
+            density_matrix=density_matrix,
+            density_matrix_error=None,
+            mu=mu,
+            filling=resolved_filling,
+            target_filling=model.filling,
+            integration=integration,
+            info=uniform_grid_info(
+                integration=integration,
+                hamiltonian=hamiltonian,
+                n_kernel_evals=info.n_kernel_evals,
+                n_evaluator_evals=info.n_evaluator_evals,
+                root_iterations=info.root_iterations,
+                charge_integration_calls=info.charge_integration_calls,
+                density_integration_calls=info.density_integration_calls,
+                error_estimate_available=False,
+            ),
+            keys=keys,
+        )
+
+    if not isinstance(integration, AdaptiveQuadrature):
+        raise NotImplementedError("BdG density currently requires AdaptiveQuadrature or UniformGrid")
 
     backend = build_bdg_backend(
         hamiltonian,

@@ -35,8 +35,8 @@ def validate_integration_method(integration: IntegrationMethod, *, kT: float) ->
             raise ValueError("AdaptiveQuadrature requires kT > 0")
         return
     if isinstance(integration, UniformGrid):
-        if kT != 0:
-            raise ValueError("UniformGrid requires kT == 0")
+        if kT < 0:
+            raise ValueError("UniformGrid requires kT >= 0")
         return
     raise TypeError("integration must be an IntegrationMethod instance")
 
@@ -101,7 +101,7 @@ def effective_filling_tol(
             raise ValueError("filling_tol must be positive when provided")
         return float(filling_tol)
 
-    if isinstance(integration, (AdaptiveSimplex, AdaptiveQuadrature)):
+    if isinstance(integration, (AdaptiveSimplex, AdaptiveQuadrature, UniformGrid)):
         return float(tb_orbital_count(hamiltonian) * integration.density_matrix_tol)
 
     raise ValueError("UniformGrid requires an implicit grid-resolved filling target")
@@ -133,6 +133,12 @@ def uniform_grid_info(
     *,
     integration: UniformGrid,
     hamiltonian: _tb_type,
+    n_kernel_evals: int | None = None,
+    n_evaluator_evals: int | None = None,
+    root_iterations: int | None = None,
+    charge_integration_calls: int | None = None,
+    density_integration_calls: int | None = None,
+    error_estimate_available: bool = False,
 ) -> UniformGridInfo:
     ndim = tb_dimension(hamiltonian)
     n_kpoints = 1 if ndim == 0 else int(integration.nk**ndim)
@@ -140,6 +146,18 @@ def uniform_grid_info(
         nk=int(integration.nk),
         n_kpoints=n_kpoints,
         unique_evals=n_kpoints,
+        n_kernel_evals=n_kpoints if n_kernel_evals is None else int(n_kernel_evals),
+        n_evaluator_evals=(
+            n_kpoints if n_evaluator_evals is None else int(n_evaluator_evals)
+        ),
+        root_iterations=None if root_iterations is None else int(root_iterations),
+        charge_integration_calls=(
+            None if charge_integration_calls is None else int(charge_integration_calls)
+        ),
+        density_integration_calls=(
+            None if density_integration_calls is None else int(density_integration_calls)
+        ),
+        error_estimate_available=bool(error_estimate_available),
     )
 
 

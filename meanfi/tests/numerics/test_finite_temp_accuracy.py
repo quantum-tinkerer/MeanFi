@@ -10,6 +10,7 @@ from meanfi import (
     LinearMixing,
     Model,
     RationalFOE,
+    UniformGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
@@ -170,6 +171,80 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
         ),
         filling_tol=1e-2,
         mu_tol=1e-8,
+    )
+
+    assert abs(result.mu - reference.mu) <= 2e-2
+    assert abs(result.filling - reference.filling) <= 1e-2
+    assert max_density_error(result.density_matrix, reference.density_matrix) <= 2e-2
+
+
+@pytest.mark.parametrize(
+    ("matrix_function", "atol"),
+    [
+        (None, 2e-2),
+        (RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"), 2e-2),
+        (RationalFOE(initial_poles=4, max_poles=128, rational_scheme="ozaki"), 3e-2),
+    ],
+    ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
+)
+def test_sparse_uniform_grid_matches_dense_reference_at_mu(matrix_function, atol):
+    sparse_tb = _sparse_tb(spinful_chain())
+    keys = [(0,), (1,), (-1,)]
+    reference = density_matrix_at_mu(
+        spinful_chain(),
+        mu=0.0,
+        kT=0.15,
+        keys=keys,
+        integration=UniformGrid(
+            nk=31,
+            density_matrix_tol=1e-8,
+            matrix_function=DirectDiagonalization(),
+        ),
+    )
+    result = density_matrix_at_mu(
+        sparse_tb,
+        mu=0.0,
+        kT=0.15,
+        keys=keys,
+        integration=UniformGrid(
+            nk=31,
+            density_matrix_tol=1e-2,
+            matrix_function=matrix_function,
+        ),
+    )
+
+    assert abs(result.mu) <= 1e-12
+    assert max_density_error(result.density_matrix, reference.density_matrix) <= atol
+
+
+def test_sparse_uniform_grid_fixed_filling_matches_dense_reference():
+    sparse_tb = _sparse_tb(spinful_chain())
+    keys = [(0,), (1,), (-1,)]
+    reference = density_matrix(
+        spinful_chain(),
+        filling=0.7,
+        kT=0.15,
+        keys=keys,
+        integration=UniformGrid(
+            nk=31,
+            density_matrix_tol=1e-8,
+            matrix_function=DirectDiagonalization(),
+        ),
+        filling_tol=1e-8,
+        mu_tol=1e-10,
+    )
+    result = density_matrix(
+        sparse_tb,
+        filling=0.7,
+        kT=0.15,
+        keys=keys,
+        integration=UniformGrid(
+            nk=31,
+            density_matrix_tol=1e-2,
+        ),
+        filling_tol=1e-2,
+        mu_tol=1e-8,
+        max_mu_iterations=80,
     )
 
     assert abs(result.mu - reference.mu) <= 2e-2

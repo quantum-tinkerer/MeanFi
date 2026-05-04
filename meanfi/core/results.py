@@ -82,11 +82,16 @@ class AdaptiveQuadratureInfo:
 
 @dataclass(frozen=True)
 class UniformGridInfo:
-    """Public runtime metadata for uniform-grid zero-temperature integration."""
+    """Public runtime metadata for uniform-grid integration."""
 
     nk: int
     n_kpoints: int
     unique_evals: int
+    n_kernel_evals: int | None = None
+    n_evaluator_evals: int | None = None
+    root_iterations: int | None = None
+    charge_integration_calls: int | None = None
+    density_integration_calls: int | None = None
     error_estimate_available: bool = False
 
 
