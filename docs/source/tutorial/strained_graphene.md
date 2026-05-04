@@ -19,13 +19,6 @@ We showcase the interface between `meanfi` and `Kwant` with a strained graphene 
 
 We first create the atomistic model in `Kwant`. The complete source code of this example can be found in [`strained_graphene_kwant.py`](./scripts/strained_graphene_kwant.py). To reduce the computational cost, we perform the calculations with a $16 \times 16$ supercell whereas in [1](https://doi.org/10.1088/2053-1583/ac0b48) the calculations were performed with a $25 \times 25$ supercell. Thus, the agreement throughout the tutorial is only qualitative.
 
-```{note}
-This page now uses `max_subdivisions=0`, so the native backend stays on the root mesh, does no preview evaluation, and does not refine to additional k-points.
-For the two-dimensional Brillouin zone used here, the root-mesh-only path now collapses periodic boundary vertices in the spectral cache, so it evaluates the same four physical k-points as the old `nk=2` tutorial on `main`.
-The earlier Python-kernel crash on this example came from a native memory-scaling bug in the zero-temperature density evaluator; that crash path has been fixed.
-Root-mesh-only mode deliberately abandons adaptive error indicators, so the returned SCF solution has no built-in reason to be quantitatively correct even when the coarse SCF residual is small.
-```
-
 ```{code-cell} ipython3
 :tags: [hide-input]
 
@@ -33,11 +26,17 @@ import kwant
 import matplotlib.pyplot as plt
 import meanfi
 import numpy as np
-from meanfi.kwant_helper import utils
+from meanfi.interop import kwant as utils
 from scripts.pauli import s0, sx, sy, sz
 from scripts.strained_graphene_kwant import create_system, plot_bands
 
 sigmas = [sx, sy, sz]
+xi = 7
+U = 0.8
+kT = 0.01
+charge_tol = 2
+density_atol = 1e-2
+scf_tol = 2e-2
 ```
 
 We verify the band structure of the Kwant model along a high-symmetry k-path.
@@ -50,12 +49,10 @@ h0_builder, lat, k_path = create_system(n=16)
 :tags: [hide-input]
 
 fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
-params = {"xi": 7}
-
 
 def hk(k):
     return fsyst.hamiltonian_submatrix(
-        params={**params, **dict(k_x=k[0], k_y=k[1])}, sparse=False
+        params={"xi": xi, "k_x": k[0], "k_y": k[1]}, sparse=False
     )
 
 
@@ -85,22 +82,15 @@ int_builder = utils.build_interacting_syst(
 After we have created the interacting system we can use MeanFi again for getting the solution. We turn both the non-interacting and interacting systems into tight binding dictionaries using the kwant utils. Then we combine them into a mean-field model.
 
 ```{code-cell} ipython3
-from meanfi.kwant_helper import utils as utils
-from scripts.zero_temp_validation import STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS
+integration = meanfi.UniformGrid(nk=2, density_matrix_tol=density_atol)
 
-tutorial_model_kwargs = dict(STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS)
-integration = meanfi.AdaptiveSimplex(
-    density_matrix_tol=tutorial_model_kwargs["density_atol"],
-    max_refinements=tutorial_model_kwargs["max_subdivisions"],
-)
+h0_dense, data = utils.builder_to_tb(h0_builder, params={"xi": xi}, return_data=True)
+h0 = utils.builder_to_tb(h0_builder, params={"xi": xi}, sparse=True)
 
-h0, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
-
-params_int = dict(U=0.8)
-ndof = [*h0.values()][0].shape[0]
+ndof = [*h0_dense.values()][0].shape[0]
 filling = ndof // 2
-h_int = utils.builder_to_tb(int_builder, params_int)
-mf_model = meanfi.Model(h0, h_int, filling=filling, kT=tutorial_model_kwargs["kT"])
+h_int = utils.builder_to_tb(int_builder, {"U": U}, sparse=True)
+mf_model = meanfi.Model(h0, h_int, filling=filling, kT=kT)
 ```
 
 Now getting the solution by providing a guess and the mean-field model to the solver. To accelerate the convergence, we use an antiferromagnetic guess.
@@ -125,32 +115,28 @@ guess_builder = utils.build_interacting_syst(
     max_neighbor=0,
 )
 
-guess = utils.builder_to_tb(guess_builder)
+guess = utils.builder_to_tb(guess_builder, sparse=True)
 ```
-
-This remains the most expensive tutorial because the original $16 \times 16$ supercell from `main`
-produces a $1024 \times 1024$ Bloch Hamiltonian.
-We therefore keep the original geometry and only loosen solver-side controls for the zero-temperature build.
-At the moment we explicitly pin `max_subdivisions=0` so that only the root mesh is used, no preview mesh is generated, and no additional k-points are created by adaptive refinement.
-In this mode the density and charge error indicators are unavailable by construction, so `density_atol` is informational only.
-We also switch the outer SCF method to `meanfi.AndersonMixing(...)` and keep a nonzero Anderson history, matching the aggressive coarse-grid strategy used in the original tutorial.
 
 ```{code-cell} ipython3
 result = meanfi.solver(
     mf_model,
     guess,
     integration=integration,
-    scf=meanfi.AndersonMixing(M=10, line_search="armijo", max_iterations=100),
-    scf_tol=tutorial_model_kwargs["scf_tol"],
-    filling_tol=tutorial_model_kwargs["charge_tol"],
+    scf=meanfi.AndersonMixing(M=10, line_search="armijo", max_iterations=40),
+    scf_tol=scf_tol,
+    filling_tol=charge_tol,
 )
-mf_sol = result.mf
+mf_sol = {
+    key: value.toarray() if hasattr(value, "toarray") else np.asarray(value)
+    for key, value in result.mf.items()
+}
 ```
 
 We now verify that the mean-field solution results in a gapped phase.
 
 ```{code-cell} ipython3
-mf_ham = meanfi.add_tb(h0, mf_sol)
+mf_ham = meanfi.add_tb(h0_dense, mf_sol)
 hk_mf = meanfi.tb_to_kfunc(mf_ham)
 plot_bands(hk_mf, k_path)
 ```

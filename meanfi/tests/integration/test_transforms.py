@@ -3,19 +3,21 @@ import itertools as it
 import numpy as np
 import pytest
 
-from meanfi.integrate.density_support import bdg_top_half_support, normal_density_entry_support
-from meanfi.params.rparams import (
+from meanfi.state.support import bdg_top_half_support, normal_density_entry_support
+from meanfi.state.bdg import (
     bdg_density_to_rparams,
     bdg_tb_to_rparams,
-    canonical_tb_keys,
     rparams_to_bdg_density,
     rparams_to_bdg_tb,
+)
+from meanfi.state.keys import canonical_tb_keys
+from meanfi.state.normal import (
     rparams_to_tb,
     tb_to_rparams,
 )
-from meanfi.superconducting.bdg import assemble_bdg_correction
-from meanfi.superconducting.bdg import validate_bdg_tb
-from meanfi.tb.tb import compare_dicts
+from meanfi.physics.bdg import assemble_bdg_correction
+from meanfi.physics.bdg import validate_bdg_tb
+from meanfi.tb.ops import compare_dicts
 from meanfi.tb.transforms import ifftn_to_tb, tb_to_kfunc, tb_to_kgrid
 from meanfi.tb.utils import generate_tb_keys, guess_tb
 from meanfi.tests.helpers import qiwuzhang, spinful_chain

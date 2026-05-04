@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
-from meanfi.tb.tb import _tb_type
+from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
+from meanfi.tb.ops import _tb_type
 
 from .backend import (
     AdaptiveIntegrator,

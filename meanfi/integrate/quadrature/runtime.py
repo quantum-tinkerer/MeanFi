@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import numpy as np
 
-from meanfi.core.filling import charge_integral_tolerance
-from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
+from meanfi.integrate.filling import charge_integral_tolerance
+from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.ops import _tb_type
 
 if TYPE_CHECKING:
     from stateful_quadrature import StatefulIntegrator

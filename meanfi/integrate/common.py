@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.core.results import (
+from meanfi.results import (
     AdaptiveQuadratureInfo,
     AdaptiveSimplexInfo,
     DensityIntegrationInfo,
@@ -10,15 +10,15 @@ from meanfi.core.results import (
     FixedFillingInfo,
     UniformGridInfo,
 )
-from meanfi.core.validation import (
+from meanfi.tb.validate import (
     normalize_keys,
     tb_dimension,
     tb_orbital_count,
     zero_key,
 )
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.ops import _tb_type
 
-from .density_support import require_supported_workspace_precision
+from meanfi.state.support import require_supported_workspace_precision
 from .methods import AdaptiveQuadrature, AdaptiveSimplex, IntegrationMethod, UniformGrid
 
 

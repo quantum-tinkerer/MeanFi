@@ -4,12 +4,11 @@ from . import pauli
 from kwant.linalg import lll
 import scipy
 import matplotlib.pyplot as plt
-from scipy.sparse.linalg import eigsh
 
 # Create a 10 x 10 supercell of strained graphene following Antonio L R Manesco and Jose L Lado 2021 2D Mater. 8 035057
 
 
-def high_symmetry_line(bz_vertices, nk=50):
+def high_symmetry_line(bz_vertices, nk=12):
     GammaK = np.linspace([0, 0], bz_vertices[0], nk, endpoint=False)
     KKprime = np.linspace(bz_vertices[0], bz_vertices[1], nk, endpoint=False)
     KprimeGamma = np.linspace(bz_vertices[1], [0, 0], nk, endpoint=True)
@@ -79,10 +78,10 @@ def create_system(n=16, nk=15):
 
 
 def plot_bands(hk, k_path):
-    eks = []
+    energies = []
     for k in k_path:
-        energies = np.sort(np.linalg.eigvalsh(hk(k)))
-        eks.append(energies)
+        energies.append(np.linalg.eigvalsh(np.asarray(hk(k), dtype=complex)))
+    eks = np.asarray(energies, dtype=float)
 
     nk = len(k_path)
     plt.plot(eks, c="k", lw=1)

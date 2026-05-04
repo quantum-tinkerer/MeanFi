@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from meanfi.core.validation import (
+from meanfi.tb.validate import (
     tb_dimension,
     tb_orbital_count,
     validate_hermiticity,
     validate_tb_dict,
     zero_key,
 )
-from meanfi.normal.meanfield import meanfield
-from meanfi.superconducting.bdg import electron_to_bdg_tb, validate_bdg_tb
-from meanfi.tb.tb import add_tb, _tb_type
+from meanfi.physics.meanfield import meanfield
+from meanfi.physics.bdg import electron_to_bdg_tb, validate_bdg_tb
+from meanfi.tb.ops import add_tb, _tb_type
 
 
 class Model:
@@ -21,7 +21,7 @@ class Model:
         h_int: _tb_type,
         filling: float,
         *,
-        kT: float,
+        kT: float = 0.0,
         superconducting: bool = False,
     ) -> None:
         validate_tb_dict(h_0)

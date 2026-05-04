@@ -8,15 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2024-05-31
 
 ### Fixed
-- Ensure {autolink}`~meanfi.params.rparams.tb_to_rparams` and {autolink}`~meanfi.params.rparams.rparams_to_tb` use minimal parametrisation of the tight-binding dictionary.
+- Ensure {autolink}`~meanfi.state.normal.tb_to_rparams` and {autolink}`~meanfi.state.normal.rparams_to_tb` use minimal parametrisation of the tight-binding dictionary.
 
 ### Added
 - Density matrix cost for the mean-field solver.
-- Functionality {autolink}`~meanfi.kwant_helper.utils.tb_to_builder` to create `kwant` systems with the tight-binding dictionaries.
-- Functionality {autolink}`~meanfi.kwant_helper.utils.tb_to_kfunc` to create k-dependent function from tight-binding format.
+- Functionality {autolink}`~meanfi.interop.kwant.tb_to_builder` to create `kwant` systems with the tight-binding dictionaries.
+- Functionality {autolink}`~meanfi.interop.kwant.tb_to_kfunc` to create k-dependent function from tight-binding format.
 
 ### Changed
-- Rewrote {autolink}`~meanfi.kwant_helper.utils.builder_to_tb` to avoid potential bugs and remove the use of `copy`.
+- Rewrote {autolink}`~meanfi.interop.kwant.builder_to_tb` to avoid potential bugs and remove the use of `copy`.
 
 ## [1.0.0] - 2024-05-09
 

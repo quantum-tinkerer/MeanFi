@@ -8,7 +8,7 @@ except ImportError:
     __version__ = "unknown"
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
-from .core.results import (
+from .results import (
     AdaptiveQuadratureInfo,
     AdaptiveSimplexInfo,
     DensityMatrixResult,
@@ -20,6 +20,7 @@ from .integrate.dispatch import (
     solve_density_matrix_at_mu as _solve_density_matrix_at_mu,
     solve_density_matrix_fixed_filling as _solve_density_matrix_fixed_filling,
 )
+from .integrate.defaults import DEFAULT_KT
 from .integrate.methods import (
     AdaptiveQuadrature,
     AdaptiveSimplex,
@@ -33,13 +34,13 @@ from .integrate.matrix_functions import (
 )
 from .integrate.occupations import fermi_dirac
 from .model import Model
-from .normal.meanfield import meanfield
+from .physics.meanfield import meanfield
 from .observables import expectation_value
 from .scf.engine import NoConvergence
 from .scf.methods import AndersonMixing, LinearMixing, SCFMethod
 from .solvers import solver
-from .tb._backend import tb_to_tight_binding_model, tb_to_vertex_cache
-from .tb.tb import add_tb, scale_tb
+from .tb.backend import tb_to_tight_binding_model, tb_to_vertex_cache
+from .tb.ops import add_tb, scale_tb
 from .tb.transforms import ifftn_to_tb, kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
 from .tb.utils import fermi_energy, generate_tb_keys, guess_tb
 
@@ -47,13 +48,15 @@ from .tb.utils import fermi_energy, generate_tb_keys, guess_tb
 def density_matrix_at_mu(
     h,
     mu: float,
-    kT: float,
-    keys: list[tuple[int, ...]],
+    kT: float = DEFAULT_KT,
+    keys: list[tuple[int, ...]] | None = None,
     *,
-    integration: IntegrationMethod,
+    integration: IntegrationMethod | None = None,
 ) -> DensityMatrixResult:
     """Compute the real-space density matrix at a fixed chemical potential."""
 
+    if keys is None:
+        raise ValueError("keys must be provided")
     return _solve_density_matrix_at_mu(
         h,
         mu=mu,
@@ -66,16 +69,18 @@ def density_matrix_at_mu(
 def density_matrix(
     h,
     filling: float,
-    kT: float,
-    keys: list[tuple[int, ...]],
+    kT: float = DEFAULT_KT,
+    keys: list[tuple[int, ...]] | None = None,
     *,
-    integration: IntegrationMethod,
+    integration: IntegrationMethod | None = None,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
     max_mu_iterations: int | None = None,
 ) -> DensityMatrixResult:
     """Compute the fixed-filling real-space density matrix."""
 
+    if keys is None:
+        raise ValueError("keys must be provided")
     return _solve_density_matrix_fixed_filling(
         h,
         filling=filling,

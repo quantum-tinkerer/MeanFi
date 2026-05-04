@@ -6,7 +6,7 @@ import warnings
 
 import numpy as np
 
-from meanfi.core.matrix import hermitian_spectral_bound, is_sparse_like, sparse_module
+from meanfi.tb.ops import hermitian_spectral_bound, is_sparse_like, sparse_module
 _DN_DMU_ABS_FLOOR = 1e-6
 
 

@@ -3,10 +3,10 @@ import pytest
 
 import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
 from meanfi import AdaptiveQuadrature, DirectDiagonalization, Model, RationalFOE, UniformGrid, tb_to_kfunc
-from meanfi.integrate.density_support import bdg_top_half_support
-from meanfi.params.rparams import bdg_density_to_rparams
-from meanfi.superconducting.bdg import charge_diagonal
-from meanfi.superconducting.density import solve_bdg_density_fixed_filling
+from meanfi.state.support import bdg_top_half_support
+from meanfi.state.bdg import bdg_density_to_rparams
+from meanfi.physics.bdg import charge_diagonal
+from meanfi.integrate.engines.bdg import solve_bdg_density_fixed_filling
 
 
 pytestmark = [pytest.mark.numerics, pytest.mark.perf_slow]

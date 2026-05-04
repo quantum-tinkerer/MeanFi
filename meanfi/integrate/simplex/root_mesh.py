@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from meanfi.core.filling import mu_bracket
+from meanfi.integrate.filling import mu_bracket
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.ops import _tb_type
 
 from .backend import AdaptiveIntegrator, _GEOM_TOL, build_extension_runtime
 from .solve import _density_integration_info, _fixed_filling_info, _nan_density_error_like, _vector_to_density

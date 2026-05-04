@@ -15,10 +15,10 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.integrate.density_support import normal_density_entry_support
+from meanfi.state.support import normal_density_entry_support
 import meanfi.integrate.matrix_functions.rational as rational_matrix_functions
 import meanfi.integrate.quadrature.runtime as quadrature_runtime
-from meanfi.params.rparams import tb_to_rparams
+from meanfi.state.normal import tb_to_rparams
 from meanfi.solvers import _evaluate_density_for_hamiltonian
 from meanfi.tests.helpers import assert_estimator_covers_actual, max_density_error, spinful_chain
 

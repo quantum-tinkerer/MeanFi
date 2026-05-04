@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from meanfi.core.filling import expand_mu_bracket, solve_mu, solve_mu_charge_only
+from meanfi.integrate.filling import expand_mu_bracket, solve_mu, solve_mu_charge_only
 
 
 @dataclass(frozen=True)

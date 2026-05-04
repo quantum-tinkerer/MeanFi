@@ -2,8 +2,6 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveQuadrature,
-    AdaptiveSimplex,
     AndersonMixing,
     LinearMixing,
     Model,
@@ -14,7 +12,8 @@ from meanfi import (
     tb_to_kfunc,
     tb_to_tight_binding_model,
 )
-from meanfi.kwant_helper import kwant_examples, utils
+from meanfi.interop import kwant as utils
+from meanfi.tests.fixtures import kwant_examples
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.helpers import qiwuzhang, spinful_chain
 
@@ -32,14 +31,12 @@ def test_graphene_kwant_end_to_end_regression():
     h_int = utils.builder_to_tb(int_builder, {"U": 1.0, "V": 0.0})
     np.random.seed(0)
     guess = guess_tb(frozenset(h_int), len(next(iter(h_0.values()))))
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-6)
 
     model = Model(h_0, h_int, filling=2.0, kT=0.05)
     with pytest.warns(UserWarning, match="structurally allowed SCF support"):
         result = solver(
             model,
             guess,
-            integration=integration,
             scf=AndersonMixing(M=0, max_iterations=40),
             scf_tol=5e-4,
         )
@@ -48,7 +45,6 @@ def test_graphene_kwant_end_to_end_regression():
         filling=2.0,
         kT=model.kT,
         keys=list(h_int),
-        integration=integration,
     )
 
     assert result.info.residual_norm <= 2.0 * 5e-4
@@ -68,7 +64,6 @@ def test_solver_supports_anderson_mixing():
     result = solver(
         model,
         guess,
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
         scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=8),
         scf_tol=1e-8,
     )
@@ -87,12 +82,11 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
     h_0 = spinful_chain()
     h_int = {(0,): np.zeros((2, 2))}
     guess = {(0,): np.zeros((2, 2))}
-    model = Model(h_0, h_int, filling=1.0, kT=0.0)
+    model = Model(h_0, h_int, filling=1.0)
 
     result = solver(
         model,
         guess,
-        integration=AdaptiveSimplex(density_matrix_tol=1e-3),
         scf=LinearMixing(),
         scf_tol=1e-3,
     )

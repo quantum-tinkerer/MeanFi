@@ -1,6 +1,6 @@
 import numpy as np
 
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.ops import _tb_type
 
 
 def expectation_value(density_matrix: _tb_type, observable: _tb_type) -> complex:

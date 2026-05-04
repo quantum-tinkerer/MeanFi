@@ -5,7 +5,8 @@ from typing import Callable
 
 import numpy as np
 
-from meanfi.core.results import DensityMatrixResult, SCFInfo
+from meanfi.results import DensityMatrixResult, SCFInfo, SolverResult
+from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like, to_dense
 
 from .methods import AndersonMixing, LinearMixing, SCFMethod
 
@@ -16,6 +17,14 @@ class NoConvergence(Exception):
     def __init__(self, last_iterate: np.ndarray):
         self.last_iterate = np.array(last_iterate, copy=True)
         super().__init__(self.last_iterate)
+
+
+@dataclass(frozen=True)
+class SolverRuntime:
+    integration: object
+    filling_tol: float | None
+    mu_tol: float
+    max_mu_iterations: int | None
 
 
 @dataclass
@@ -37,6 +46,39 @@ class SCFRunResult:
     final_density_result: DensityMatrixResult
     state: SCFRunState
     residual_norm: float
+
+
+def _prefer_sparse(*tb_dicts: _tb_type) -> bool:
+    return any(
+        is_sparse_like(matrix)
+        for tb in tb_dicts
+        if tb is not None
+        for matrix in tb.values()
+    )
+
+
+def restore_tb_type(tb: _tb_type, *, prefer_sparse: bool) -> _tb_type:
+    if not prefer_sparse:
+        return tb
+    return {key: as_sparse(value) for key, value in tb.items()}
+
+
+def warn_on_projection(original: _tb_type, projected: _tb_type, *, label: str) -> None:
+    import warnings
+
+    for key in frozenset(original) | frozenset(projected):
+        before = to_dense(original.get(key, np.zeros((0, 0), dtype=complex)))
+        after = to_dense(projected.get(key, np.zeros((0, 0), dtype=complex)))
+        if before.shape != after.shape:
+            continue
+        if np.any(np.abs(before - after) > 0.0):
+            warnings.warn(
+                f"{label} contains entries outside the structurally allowed SCF support; "
+                "those entries were projected away before the first iteration",
+                UserWarning,
+                stacklevel=3,
+            )
+            return
 
 
 def max_norm(values: np.ndarray) -> float:
@@ -269,4 +311,65 @@ def run_scf_problem(
         final_density_result=final_density_result,
         state=run_state,
         residual_norm=residual_norm,
+    )
+
+
+def solve_with_family_adapter(
+    model,
+    guess: _tb_type,
+    *,
+    scf: SCFMethod,
+    scf_tol: float,
+    runtime: SolverRuntime,
+    adapter,
+) -> SolverResult:
+    del model
+    if scf_tol <= 0:
+        raise ValueError("scf_tol must be positive")
+
+    projected_guess = adapter.project_guess(guess)
+    initial_density_result = adapter.evaluate_projected_guess(projected_guess)
+    params0 = np.asarray(
+        adapter.params_from_density_result(initial_density_result),
+        dtype=float,
+    )
+
+    state = SCFRunState()
+    record_density_result(state, initial_density_result)
+
+    def evaluate_density(params: np.ndarray, mu_guess: float) -> DensityMatrixResult:
+        return adapter.evaluate_params(params, mu_guess=mu_guess)
+
+    def residual_from_density(
+        params: np.ndarray,
+        density_result: DensityMatrixResult,
+    ) -> np.ndarray:
+        updated = np.asarray(
+            adapter.params_from_density_result(density_result),
+            dtype=float,
+        )
+        return updated - np.asarray(params, dtype=float)
+
+    run = run_scf_problem(
+        params0,
+        evaluate_density=evaluate_density,
+        residual_from_density=residual_from_density,
+        scf=scf,
+        scf_tol=scf_tol,
+        state=state,
+    )
+
+    density_matrix_result = run.final_density_result
+    info = build_scf_info(
+        run.state,
+        final_result=density_matrix_result,
+        scf=scf,
+        residual_norm=run.residual_norm,
+    )
+    return SolverResult(
+        mf=adapter.finalize_meanfield(density_matrix_result),
+        density_matrix_result=density_matrix_result,
+        integration=runtime.integration,
+        scf=scf,
+        info=info,
     )

@@ -77,7 +77,7 @@
 ## Tight-binding dictionary utilities
 
 ```{eval-rst}
-.. automodule:: meanfi.tb.tb
+.. automodule:: meanfi.tb.ops
    :members: add_tb, scale_tb
    :show-inheritance:
 ```
@@ -88,9 +88,11 @@
    :show-inheritance:
 ```
 
+## Developer internals
+
 ```{eval-rst}
-.. automodule:: meanfi.params.rparams
-   :members:
+.. automodule:: meanfi.state.normal
+   :members: tb_to_rparams, rparams_to_tb
    :show-inheritance:
 ```
 
@@ -103,7 +105,7 @@
 ## `kwant` interface
 
 ```{eval-rst}
-.. automodule:: meanfi.kwant_helper.utils
+.. automodule:: meanfi.interop.kwant
    :members:
    :show-inheritance:
 ```

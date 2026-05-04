@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.tb._backend import tb_to_vertex_cache
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.backend import tb_to_vertex_cache
+from meanfi.tb.ops import _tb_type
 
 try:
     from meanfi._zero_temp_ext import (

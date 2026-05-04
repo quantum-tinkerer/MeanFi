@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from meanfi.core.matrix import as_sparse, sparse_module
+from meanfi.tb.ops import as_sparse, sparse_module
 
 
 def _import_mumps():

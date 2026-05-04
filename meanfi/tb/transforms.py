@@ -3,7 +3,7 @@ from typing import Callable
 
 import numpy as np
 
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.ops import _tb_type
 
 
 def tb_to_kgrid(tb: _tb_type, nk: int) -> np.ndarray:

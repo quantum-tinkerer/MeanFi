@@ -30,21 +30,10 @@ import kwant
 import matplotlib.pyplot as plt
 import meanfi
 import numpy as np
-from meanfi.kwant_helper import utils
-from scripts.zero_temp_validation import GRAPHENE_TUTORIAL_MODEL_KWARGS
+from meanfi.interop import kwant as utils
 
-tutorial_model_kwargs = dict(GRAPHENE_TUTORIAL_MODEL_KWARGS)
-integration = meanfi.AdaptiveSimplex(
-    density_matrix_tol=tutorial_model_kwargs["density_atol"],
-    max_refinements=tutorial_model_kwargs["max_subdivisions"],
-)
-tutorial_density_kwargs = dict(
-    filling=2,
-    kT=tutorial_model_kwargs["kT"],
-    keys=[(0, 0)],
-    integration=integration,
-    filling_tol=tutorial_model_kwargs["charge_tol"],
-)
+density_atol = 1e-2
+charge_tol = 1e-2
 np.random.seed(0)
 
 s0 = np.identity(2)
@@ -68,7 +57,7 @@ bulk_graphene[graphene.neighbors(1)] = s0
 ```
 
 The `bulk_graphene` object is a `kwant.Builder` object that represents the non-interacting graphene system.
-To convert it to a tight-binding dictionary, we use the {autolink}`~meanfi.kwant_helper.utils.builder_to_tb` function:
+To convert it to a tight-binding dictionary, we use the {autolink}`~meanfi.interop.kwant.builder_to_tb` function:
 
 ```{code-cell} ipython3
 h_0 = utils.builder_to_tb(bulk_graphene)
@@ -81,8 +70,8 @@ To define the interactions, we need to specify two functions:
 * `onsite_int(site)`: returns the onsite interaction matrix.
 * `nn_int(site1, site2)`: returns the interaction matrix between `site1` and `site2`.
 
-We feed these functions to the {autolink}`~meanfi.kwant_helper.utils.build_interacting_syst` function, which constructs the `kwant.Builder` object encoding the interactions.
-All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~meanfi.kwant_helper.utils.builder_to_tb` function.
+We feed these functions to the {autolink}`~meanfi.interop.kwant.build_interacting_syst` function, which constructs the `kwant.Builder` object encoding the interactions.
+All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~meanfi.interop.kwant.builder_to_tb` function.
 
 ```{code-cell} ipython3
 def onsite_int(site, U):
@@ -108,22 +97,20 @@ Because `nn_int` function returns the same interaction matrix for all site pairs
 
 As before, we construct {autolink}`~meanfi.model.Model` object to represent the full system to be solved via the mean-field approximation.
 We then generate a random guess for the mean-field solution and solve the system.
-To keep the full `main` phase-diagram sampling while switching to `kT=0`, we only relax solver-side settings through `tutorial_model_kwargs`.
-During tuning, `max_subdivisions=16384` was the smallest finite zero-temperature cap that stayed stable on the metal, CDW, and SDW reference points from fresh random guesses.
+To keep the full `main` phase-diagram sampling while switching to the zero-temperature defaults, we only relax the solver-side settings slightly.
 
 ```{code-cell} ipython3
 filling = 2
-model = meanfi.Model(h_0, h_int, filling=2, kT=tutorial_model_kwargs["kT"])
+model = meanfi.Model(h_0, h_int, filling=2)
 int_keys = frozenset(h_int)
 ndof = len(list(h_0.values())[0])
 guess = meanfi.guess_tb(int_keys, ndof)
 result = meanfi.solver(
     model,
     guess,
-    integration=integration,
-    scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
-    scf_tol=tutorial_model_kwargs["scf_tol"],
-    filling_tol=tutorial_model_kwargs["charge_tol"],
+    integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
+    scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
+    filling_tol=charge_tol,
 )
 h_full = meanfi.add_tb(h_0, result.mf)
 ```
@@ -138,8 +125,20 @@ In this case, we compute the CDW order parameter by measuring the expectation va
 ```{code-cell} ipython3
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
-rho_result = meanfi.density_matrix(h_full, **tutorial_density_kwargs)
-rho_0_result = meanfi.density_matrix(h_0, **tutorial_density_kwargs)
+rho_result = meanfi.density_matrix(
+    h_full,
+    filling=2,
+    keys=[(0, 0)],
+    integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
+    filling_tol=charge_tol,
+)
+rho_0_result = meanfi.density_matrix(
+    h_0,
+    filling=2,
+    keys=[(0, 0)],
+    integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
+    filling_tol=charge_tol,
+)
 rho = rho_result.density_matrix
 rho_0 = rho_0_result.density_matrix
 
@@ -186,15 +185,14 @@ for U in Us:
         params = dict(U=U, V=V)
         h_int = utils.builder_to_tb(builder_int, params)
 
-        model = meanfi.Model(h_0, h_int, filling=filling, kT=tutorial_model_kwargs["kT"])
-        guess = meanfi.guess_tb(int_keys, ndof)
+        model = meanfi.Model(h_0, h_int, filling=filling)
+        guess = mf_sols[-1] if mf_sols else meanfi.guess_tb(int_keys, ndof)
         result = meanfi.solver(
             model,
             guess,
-            integration=integration,
-            scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
-            scf_tol=tutorial_model_kwargs["scf_tol"],
-            filling_tol=tutorial_model_kwargs["charge_tol"],
+            integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
+            scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
+            filling_tol=charge_tol,
         )
         mf_sols.append(result.mf)
 
@@ -224,7 +222,10 @@ sdw_list = []
 for mf_sol in mf_sols.flatten():
     rho = meanfi.density_matrix(
         meanfi.add_tb(h_0, mf_sol),
-        **tutorial_density_kwargs,
+        filling=2,
+        keys=[(0, 0)],
+        integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
+        filling_tol=charge_tol,
     ).density_matrix
 
     # Compute CDW order parameter

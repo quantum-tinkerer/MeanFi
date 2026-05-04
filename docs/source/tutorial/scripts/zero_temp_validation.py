@@ -5,33 +5,10 @@ import json
 from typing import Iterable
 
 import numpy as np
+from scipy import sparse
 from scipy.optimize import brentq
 
 import meanfi
-
-HUBBARD_TUTORIAL_MODEL_KWARGS = {
-    "kT": 0.0,
-    "charge_tol": 1e-3,
-    "density_atol": 1e-3,
-    "scf_tol": 2e-3,
-    "max_subdivisions": 128,
-}
-
-GRAPHENE_TUTORIAL_MODEL_KWARGS = {
-    "kT": 0.0,
-    "charge_tol": 1e-2,
-    "density_atol": 1e-2,
-    "scf_tol": 2e-2,
-    "max_subdivisions": 16384,
-}
-
-STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS = {
-    "kT": 0.0,
-    "charge_tol": 5e-2,
-    "density_atol": 5.0,
-    "scf_tol": 5e-2,
-    "max_subdivisions": 0,
-}
 
 GRAPHENE_REFERENCE_POINTS = {
     "metal": {"U": 0.2, "V": 0.2},
@@ -40,13 +17,6 @@ GRAPHENE_REFERENCE_POINTS = {
 }
 
 STRAINED_GRAPHENE_REFERENCE = {"U": 0.8}
-
-
-def _tutorial_integration(tutorial_model_kwargs):
-    return meanfi.AdaptiveSimplex(
-        density_matrix_tol=float(tutorial_model_kwargs["density_atol"]),
-        max_refinements=tutorial_model_kwargs["max_subdivisions"],
-    )
 
 
 def staggered_magnetization(local_density: np.ndarray) -> float:
@@ -175,7 +145,7 @@ def hubbard_reference_gap(U: float, *, nk: int = 400_000) -> float:
 
 def _build_graphene_inputs():
     import kwant
-    from meanfi.kwant_helper import utils
+    from meanfi.interop import kwant as utils
 
     s0 = np.identity(2)
     graphene = kwant.lattice.general(
@@ -210,26 +180,13 @@ def _build_graphene_inputs():
 
 
 def graphene_reference_suite(
-    *,
-    tutorial_model_kwargs: dict[str, float | int | None] | None = None,
 ) -> dict[str, dict[str, float]]:
     """Run the graphene tutorial reference points with the zero-temperature settings."""
 
-    from meanfi.kwant_helper import utils
-
-    if tutorial_model_kwargs is None:
-        tutorial_model_kwargs = dict(GRAPHENE_TUTORIAL_MODEL_KWARGS)
+    from meanfi.interop import kwant as utils
 
     np.random.seed(0)
     h_0, builder_int, int_keys, ndof = _build_graphene_inputs()
-    integration = _tutorial_integration(tutorial_model_kwargs)
-    tutorial_density_kwargs = dict(
-        filling=2,
-        kT=float(tutorial_model_kwargs["kT"]),
-        keys=[(0, 0)],
-        integration=integration,
-        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
-    )
     sz = np.diag([1, -1])
     s_list = [
         np.array([[0, 1], [1, 0]]),
@@ -241,18 +198,22 @@ def graphene_reference_suite(
     results = {}
     for label, params in GRAPHENE_REFERENCE_POINTS.items():
         h_int = utils.builder_to_tb(builder_int, params)
-        model = meanfi.Model(h_0, h_int, filling=2, kT=float(tutorial_model_kwargs["kT"]))
+        model = meanfi.Model(h_0, h_int, filling=2)
         guess = meanfi.guess_tb(int_keys, ndof)
         solver_result = meanfi.solver(
             model,
             guess,
-            integration=integration,
             scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
-            scf_tol=float(tutorial_model_kwargs["scf_tol"]),
-            filling_tol=float(tutorial_model_kwargs["charge_tol"]),
+            scf_tol=2e-2,
+            filling_tol=1e-2,
         )
         h_full = meanfi.add_tb(h_0, solver_result.mf)
-        density_result = meanfi.density_matrix(h_full, **tutorial_density_kwargs)
+        density_result = meanfi.density_matrix(
+            h_full,
+            filling=2,
+            keys=[(0, 0)],
+            filling_tol=1e-2,
+        )
         rho = density_result.density_matrix
 
         cdw = abs(meanfi.expectation_value(rho, cdw_operator))
@@ -276,7 +237,7 @@ def graphene_reference_suite(
 
 
 def _build_strained_graphene_inputs():
-    from meanfi.kwant_helper import utils
+    from meanfi.interop import kwant as utils
 
     try:
         from .strained_graphene_kwant import create_system
@@ -296,9 +257,11 @@ def _build_strained_graphene_inputs():
     int_builder = utils.build_interacting_syst(
         h0_builder, lat, interaction_onsite, interaction_hop, max_neighbor=0
     )
-    h0, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
-    h_int = utils.builder_to_tb(int_builder, STRAINED_GRAPHENE_REFERENCE)
-    filling = len(list(h0.values())[0]) // 2
+    h0_dense, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
+    h_int_dense = utils.builder_to_tb(int_builder, STRAINED_GRAPHENE_REFERENCE)
+    h0 = {key: sparse.csr_matrix(value) for key, value in h0_dense.items()}
+    h_int = {key: sparse.csr_matrix(value) for key, value in h_int_dense.items()}
+    filling = int(next(iter(h0.values())).shape[0]) // 2
 
     def guess_onsite(site):
         if site.family == lat.sublattices[0]:
@@ -308,23 +271,20 @@ def _build_strained_graphene_inputs():
     guess_builder = utils.build_interacting_syst(
         h0_builder, lat, guess_onsite, interaction_hop, max_neighbor=0
     )
-    guess = utils.builder_to_tb(guess_builder)
+    guess_dense = utils.builder_to_tb(guess_builder)
+    guess = {key: sparse.csr_matrix(value) for key, value in guess_dense.items()}
     return h0, h_int, guess, filling, data, k_path
 
 
 def solve_strained_graphene_reference(
     *,
-    tutorial_model_kwargs: dict[str, float | int | None] | None = None,
     max_scf_steps: int = 100,
 ) -> dict[str, float]:
     """Run the strained-graphene tutorial reference point."""
 
-    if tutorial_model_kwargs is None:
-        tutorial_model_kwargs = dict(STRAINED_GRAPHENE_TUTORIAL_MODEL_KWARGS)
-
     h0, h_int, guess, filling, _, _ = _build_strained_graphene_inputs()
-    integration = _tutorial_integration(tutorial_model_kwargs)
-    model = meanfi.Model(h0, h_int, filling=filling, kT=float(tutorial_model_kwargs["kT"]))
+    integration = meanfi.UniformGrid(nk=2, density_matrix_tol=1e-1)
+    model = meanfi.Model(h0, h_int, filling=filling, kT=0.01)
     solver_result = meanfi.solver(
         model,
         guess,
@@ -334,8 +294,8 @@ def solve_strained_graphene_reference(
             line_search="armijo",
             max_iterations=max_scf_steps,
         ),
-        scf_tol=float(tutorial_model_kwargs["scf_tol"]),
-        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
+        scf_tol=2e-2,
+        filling_tol=2.0,
     )
     mf_ham = meanfi.add_tb(h0, solver_result.mf)
     return {
@@ -356,33 +316,25 @@ def _build_hubbard_inputs(U: float):
 def solve_hubbard_reference(
     *,
     U: float = 4.0 / 29.0,
-    tutorial_model_kwargs: dict[str, float | int | None] | None = None,
 ) -> dict[str, object]:
     """Run the 1D Hubbard zero-temperature reference point used by the regression tests."""
 
-    if tutorial_model_kwargs is None:
-        tutorial_model_kwargs = dict(HUBBARD_TUTORIAL_MODEL_KWARGS)
-
     np.random.seed(0)
     h_0, h_int, guess = _build_hubbard_inputs(U)
-    integration = _tutorial_integration(tutorial_model_kwargs)
-    model = meanfi.Model(h_0, h_int, filling=2.0, kT=float(tutorial_model_kwargs["kT"]))
+    model = meanfi.Model(h_0, h_int, filling=2.0)
     solver_result = meanfi.solver(
         model,
         guess,
-        integration=integration,
         scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
-        scf_tol=float(tutorial_model_kwargs["scf_tol"]),
-        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
+        scf_tol=2e-3,
+        filling_tol=1e-3,
     )
     h_full = meanfi.add_tb(h_0, solver_result.mf)
     density_result = meanfi.density_matrix(
         h_full,
         filling=2.0,
-        kT=float(tutorial_model_kwargs["kT"]),
         keys=[(0,)],
-        integration=integration,
-        filling_tol=float(tutorial_model_kwargs["charge_tol"]),
+        filling_tol=1e-3,
     )
     resolved_gap, gap_info = resolved_hubbard_gap(
         h_full,
@@ -392,7 +344,9 @@ def solve_hubbard_reference(
     return {
         "residual_norm": float(solver_result.info.residual_norm),
         "charge_error": float(abs(density_result.filling - 2.0)),
-        "staggered_magnetization": staggered_magnetization(rho[(0,)]),
+        "staggered_magnetization": staggered_magnetization(
+            density_result.density_matrix[(0,)]
+        ),
         "resolved_gap": float(resolved_gap),
         "reference_gap": float(hubbard_reference_gap(U)),
         "gap_info": gap_info,

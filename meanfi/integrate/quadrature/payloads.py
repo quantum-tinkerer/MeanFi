@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.core.matrix import as_sparse, is_sparse_like, matrix_shape, sparse_module
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.ops import as_sparse, is_sparse_like, matrix_shape, sparse_module
+from meanfi.tb.ops import _tb_type
 
 
 def tb_k_matrix(hamiltonian: _tb_type, point: np.ndarray):

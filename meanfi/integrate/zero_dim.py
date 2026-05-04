@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.core.filling import (
+from meanfi.integrate.filling import (
     charge_integral_tolerance,
     mu_bracket,
 )
@@ -15,9 +15,9 @@ from meanfi.integrate.matrix_functions import (
 )
 from meanfi.integrate.matrix_functions.rational import PreparedRationalNode
 from meanfi.integrate.occupations import fermi_dirac
-from meanfi.core.results import DensityIntegrationInfo, FixedFillingInfo
-from meanfi.tb.tb import _tb_type
-from .density_support import DensityEntrySupport
+from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
+from meanfi.tb.ops import _tb_type
+from meanfi.state.support import DensityEntrySupport
 
 
 def density_from_matrix(
@@ -53,10 +53,6 @@ def density_matrix_at_mu_zero_dim(
 
     resolved_matrix_function = resolve_matrix_function(matrix_function)
     if isinstance(resolved_matrix_function, RationalFOE):
-        if resolved_matrix_function.rational_scheme == "aaa":
-            raise ValueError(
-                "rational_scheme='aaa' is currently supported only on the sparse MUMPS RationalFOE path"
-            )
         q_diag = np.ones(matrix.shape[0], dtype=float)
         density_basis = (
             density_entry_support.basis_block(dtype=workspace_dtype)
@@ -192,6 +188,7 @@ def density_matrix_zero_dim(
             filling_tol=charge_tol,
             mu_tol=mu_xtol,
             max_mu_iterations=max_mu_iterations,
+            use_derivative=resolved_matrix_function.rational_scheme != "aaa",
         )
 
         density_result = prepared.density_columns_from_charge_order(root.mu, density_basis)

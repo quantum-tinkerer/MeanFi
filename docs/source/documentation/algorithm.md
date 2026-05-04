@@ -53,8 +53,8 @@ $$
 f : \rho_{mn}(R) \;\longmapsto\; f(\rho_{mn}(R)) \in \mathbb{R}^N.
 $$
 
-In the code, $f$ is represented by {autolink}`~meanfi.params.rparams.tb_to_rparams`, and its inverse is
-{autolink}`~meanfi.params.rparams.rparams_to_tb`. Currently, $f$ takes only the upper-triangular elements of the
+In the code, $f$ is represented by {autolink}`~meanfi.state.normal.tb_to_rparams`, and its inverse is
+{autolink}`~meanfi.state.normal.rparams_to_tb`. Currently, $f$ takes only the upper-triangular elements of the
 density matrix and separates them into real and imaginary parts, creating a real-valued vector.
 
 ### Fixed-Point Formulation
@@ -103,7 +103,7 @@ $$
 \mathcal{G}(\boldsymbol{\theta}) - \boldsymbol{\theta} = 0.
 $$
 
-This is the residual evaluated by {autolink}`~meanfi.solvers.solver`.
+This is the residual evaluated by {autolink}`~meanfi.solver`.
 
 ### Numerical Methods
 
@@ -114,7 +114,7 @@ $$
 $$
 
 with a convergence test on the residual norm. For harder problems, the public
-{autolink}`~meanfi.solvers.solver` interface switches to an explicit SCF method such as
+{autolink}`~meanfi.solver` interface switches to an explicit SCF method such as
 {autolink}`~meanfi.scf.AndersonMixing`.
 
 Because the filling constraint is already handled inside each density update, such SCF methods only see the

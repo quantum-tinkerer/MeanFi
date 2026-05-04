@@ -1,8 +1,8 @@
 from itertools import product
 import numpy as np
 
-from meanfi.superconducting.bdg import validate_bdg_tb
-from meanfi.tb.tb import _tb_type
+from meanfi.physics.bdg import validate_bdg_tb
+from meanfi.tb.ops import _tb_type
 from meanfi.tb.transforms import tb_to_kgrid
 
 

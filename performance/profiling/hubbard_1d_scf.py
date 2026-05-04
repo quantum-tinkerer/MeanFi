@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from meanfi import AdaptiveQuadrature, AndersonMixing, solver
-from meanfi.tests.helpers import benchmark
+from performance._shared.fixtures import benchmark
 from performance._shared.common import print_summary, scf_record, write_records
 from performance._shared.scenarios import hubbard_chain_scf_problem
 

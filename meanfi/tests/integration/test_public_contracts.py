@@ -23,11 +23,11 @@ from meanfi import (
     guess_tb,
     solver,
 )
-from meanfi.core.matrix import matrix_bound
-from meanfi.core.filling import mu_bracket
+from meanfi.tb.ops import matrix_bound
+from meanfi.integrate.filling import mu_bracket
 from meanfi.integrate.fixed_filling import solve_fixed_filling_root
-from meanfi.integrate.quadrature.normal_backend import resolve_normal_matrix_function
-from meanfi.integrate.uniform_grid import resolve_uniform_grid_matrix_function
+from meanfi.integrate.quadrature.normal import resolve_normal_matrix_function
+from meanfi.integrate.uniform import resolve_uniform_grid_matrix_function
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.solvers import NoConvergence
 from meanfi.tests.helpers import spinful_chain
@@ -49,6 +49,7 @@ def _base_model_kwargs():
 def test_public_signatures_expose_documented_keyword_only_controls():
     model_params = inspect.signature(Model).parameters
     assert model_params["kT"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert model_params["kT"].default == 0.0
     for name in ("charge_tol", "density_atol", "scf_tol", "max_subdivisions"):
         assert name not in model_params
     assert model_params["superconducting"].kind is inspect.Parameter.KEYWORD_ONLY
@@ -64,17 +65,22 @@ def test_public_signatures_expose_documented_keyword_only_controls():
         "max_mu_iterations",
     ):
         assert solver_params[name].kind is inspect.Parameter.KEYWORD_ONLY
+    assert solver_params["integration"].default is None
     assert "optimizer" not in solver_params
     assert "optimizer_kwargs" not in solver_params
 
     density_params = inspect.signature(density_matrix).parameters
+    assert density_params["kT"].default == 0.0
     assert density_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert density_params["integration"].default is None
     assert density_params["filling_tol"].default is None
     assert density_params["mu_tol"].default == 1e-10
     assert density_params["max_mu_iterations"].default is None
 
     density_at_mu_params = inspect.signature(density_matrix_at_mu).parameters
+    assert density_at_mu_params["kT"].default == 0.0
     assert density_at_mu_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert density_at_mu_params["integration"].default is None
     assert "filling_tol" not in density_at_mu_params
 
 
@@ -145,6 +151,43 @@ def test_dense_normal_backend_defaults_to_direct_diagonalization():
 def test_dense_uniform_grid_defaults_to_direct_diagonalization():
     resolved = resolve_uniform_grid_matrix_function(None, spinful_chain(), kT=0.15)
     assert isinstance(resolved, DirectDiagonalization)
+
+
+def test_dense_finite_temperature_defaults_to_adaptive_quadrature_with_exact_diagonalization():
+    result = density_matrix(
+        spinful_chain(),
+        filling=1.0,
+        kT=0.15,
+        keys=[(0,)],
+    )
+
+    assert isinstance(result.integration, AdaptiveQuadrature)
+    assert isinstance(result.integration.matrix_function, DirectDiagonalization)
+
+
+def test_sparse_finite_temperature_defaults_to_adaptive_quadrature_with_sparse_rational():
+    sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
+    result = density_matrix(
+        sparse_tb,
+        filling=1.0,
+        kT=0.15,
+        keys=[(0,)],
+    )
+
+    assert isinstance(result.integration, AdaptiveQuadrature)
+    assert isinstance(result.integration.matrix_function, RationalFOE)
+    assert result.integration.matrix_function.rational_scheme == "aaa"
+
+
+@requires_ext
+def test_zero_temperature_defaults_to_adaptive_simplex():
+    result = density_matrix(
+        spinful_chain(),
+        filling=1.0,
+        keys=[(0,)],
+    )
+
+    assert isinstance(result.integration, AdaptiveSimplex)
 
 
 def test_sparse_mu_bracket_uses_tighter_spectral_probe_than_row_sum_bound():
@@ -337,7 +380,7 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
 
 @pytest.mark.perf_slow
 def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
-    from meanfi.integrate.density_support import full_density_entry_support
+    from meanfi.state.support import full_density_entry_support
     from meanfi.integrate.matrix_functions.rational import (
         PreparedMumpsRationalNode,
         PreparedRationalNode,
@@ -507,6 +550,41 @@ def test_bdg_solver_supports_anderson_mixing():
     assert result.info.iterations >= 1
 
 
+def test_zero_temperature_bdg_requires_explicit_uniform_grid_default_override():
+    model = Model(
+        {(0,): np.array([[0.0]], dtype=complex)},
+        {(0,): np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        superconducting=True,
+    )
+
+    with pytest.raises(NotImplementedError, match="UniformGrid"):
+        solver(
+            model,
+            {(0,): np.zeros((2, 2), dtype=complex)},
+        )
+
+
+def test_zero_temperature_bdg_supports_explicit_uniform_grid():
+    model = Model(
+        {(0,): np.array([[0.0]], dtype=complex)},
+        {(0,): np.array([[0.0]], dtype=complex)},
+        filling=0.5,
+        superconducting=True,
+    )
+
+    result = solver(
+        model,
+        {(0,): np.zeros((2, 2), dtype=complex)},
+        integration=UniformGrid(nk=1),
+        scf=LinearMixing(max_iterations=2),
+        scf_tol=1e-6,
+    )
+
+    assert isinstance(result.integration, UniformGrid)
+    assert np.isfinite(result.density_matrix_result.mu)
+
+
 def test_normal_solver_warns_when_guess_is_projected_to_structural_support():
     model = Model(
         spinful_chain(),
@@ -568,7 +646,7 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
 
 
 def test_adaptive_methods_default_filling_tol_from_density_matrix_tol(monkeypatch):
-    import meanfi.integrate.families as families
+    import meanfi.integrate.engines.normal as families
 
     captured = {}
     original = families.density_matrix_zero_dim
@@ -651,7 +729,7 @@ def test_root_mesh_only_zero_temperature_mode_reports_no_error_estimate(mode):
 def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.integrate.families as families
+    import meanfi.integrate.engines.normal as families
 
     def fail(*args, **kwargs):  # pragma: no cover - executed only on regression
         raise AssertionError(
@@ -679,7 +757,7 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
 def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.integrate.families as families
+    import meanfi.integrate.engines.normal as families
 
     called = {}
 

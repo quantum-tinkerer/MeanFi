@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import NamedTuple
 
 from meanfi import AdaptiveSimplex, UniformGrid, density_matrix_at_mu
-from meanfi.tests.helpers import (
+from performance._shared.fixtures import (
     benchmark,
     converged_dense_reference,
     max_density_error,

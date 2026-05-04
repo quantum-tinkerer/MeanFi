@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from meanfi.core.matrix import to_dense
+from meanfi.tb.ops import to_dense
 from meanfi.integrate.occupations import fermi_dirac
 
 from .base import _BlockResult

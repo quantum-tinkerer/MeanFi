@@ -4,8 +4,8 @@ import kwant
 import numpy as np
 import pytest
 
-from meanfi.kwant_helper.utils import builder_to_tb, tb_to_builder
-from meanfi.tb.tb import compare_dicts
+from meanfi.interop.kwant import builder_to_tb, tb_to_builder
+from meanfi.tb.ops import compare_dicts
 from meanfi.tb.utils import generate_tb_keys, guess_tb
 
 

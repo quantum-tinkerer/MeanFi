@@ -4,9 +4,11 @@ from typing import Any
 
 import numpy as np
 
+from meanfi.tb.ops import is_sparse_like
+
 from .base import BdGMatrixFunction, DirectDiagonalization, RationalFOE, _BlockResult
 from .direct import _exact_density_block
-from .rational import _rational_density_block
+from .rational.common import _rational_density_block
 
 
 def resolve_matrix_function(selected: object | None) -> BdGMatrixFunction:
@@ -23,6 +25,20 @@ def matrix_function_label(matrix_function: BdGMatrixFunction) -> str:
     if isinstance(matrix_function, DirectDiagonalization):
         return "direct diagonalization"
     return matrix_function.__class__.__name__
+
+
+def resolve_sparse_default_matrix_function(
+    selected: object | None,
+    hamiltonian,
+    *,
+    parameter_name: str,
+) -> DirectDiagonalization | RationalFOE:
+    if selected is None and any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
+        return RationalFOE(rational_scheme="aaa")
+    resolved = resolve_matrix_function(selected)
+    if not isinstance(resolved, (DirectDiagonalization, RationalFOE)):
+        raise TypeError(f"{parameter_name} must be DirectDiagonalization or RationalFOE")
+    return resolved
 
 
 def density_block(

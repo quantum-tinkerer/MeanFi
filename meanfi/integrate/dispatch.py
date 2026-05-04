@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from meanfi.tb.tb import _tb_type
+from meanfi.tb.ops import _tb_type
 
 from .common import prepare_keys, validate_integration_method
-from .density_support import DensityEntrySupport
-from .families import DispatchContext, integration_handler
+from .defaults import select_default_integration
+from meanfi.state.support import DensityEntrySupport
+from .engines.normal import DispatchContext, integration_handler
 from .methods import IntegrationMethod
 
 
@@ -14,9 +15,14 @@ def solve_density_matrix_at_mu(
     mu: float,
     kT: float,
     keys: list[tuple[int, ...]],
-    integration: IntegrationMethod,
+    integration: IntegrationMethod | None,
     density_entry_support: DensityEntrySupport | None = None,
 ):
+    integration = (
+        integration
+        if integration is not None
+        else select_default_integration(hamiltonian, kT=kT)
+    )
     validate_integration_method(integration, kT=kT)
     requested_keys, working_keys, _local_key = prepare_keys(hamiltonian, keys)
     context = DispatchContext(
@@ -36,13 +42,18 @@ def solve_density_matrix_fixed_filling(
     filling: float,
     kT: float,
     keys: list[tuple[int, ...]],
-    integration: IntegrationMethod,
+    integration: IntegrationMethod | None,
     filling_tol: float | None,
     mu_tol: float,
     max_mu_iterations: int | None,
     mu_guess: float = 0.0,
     density_entry_support: DensityEntrySupport | None = None,
 ):
+    integration = (
+        integration
+        if integration is not None
+        else select_default_integration(hamiltonian, kT=kT)
+    )
     validate_integration_method(integration, kT=kT)
     if mu_tol <= 0:
         raise ValueError("mu_tol must be positive")

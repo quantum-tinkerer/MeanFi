@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from meanfi import Model
-from meanfi.tests.helpers import (
+from performance._shared.fixtures import (
     antiferromagnetic_guess,
     bipartite_hubbard_1d,
     local_dense_model,

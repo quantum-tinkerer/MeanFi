@@ -5,8 +5,8 @@ import argparse
 import numpy as np
 
 from meanfi import AdaptiveQuadrature, DirectDiagonalization, Model, RationalFOE
-from meanfi.superconducting.density import solve_bdg_density_fixed_filling
-from meanfi.tests.helpers import benchmark
+from meanfi.integrate.engines.bdg import solve_bdg_density_fixed_filling
+from performance._shared.fixtures import benchmark
 from performance._shared.common import density_record, print_summary, write_records
 
 

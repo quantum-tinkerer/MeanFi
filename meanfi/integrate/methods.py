@@ -12,7 +12,7 @@ class IntegrationMethod:
 class AdaptiveSimplex(IntegrationMethod):
     """Adaptive zero-temperature simplicial integration."""
 
-    density_matrix_tol: float = 1e-6
+    density_matrix_tol: float = 1e-3
     max_refinements: int | None = None
     workspace_precision: int = 128
 
@@ -29,7 +29,7 @@ class AdaptiveSimplex(IntegrationMethod):
 class AdaptiveQuadrature(IntegrationMethod):
     """Adaptive finite-temperature quadrature."""
 
-    density_matrix_tol: float = 1e-6
+    density_matrix_tol: float = 1e-3
     max_refinements: int | None = None
     rule: str = "auto"
     batch_size: int | None = None
@@ -52,7 +52,7 @@ class UniformGrid(IntegrationMethod):
     """Uniform k-grid point sampling."""
 
     nk: int
-    density_matrix_tol: float = 1e-6
+    density_matrix_tol: float = 1e-3
     matrix_function: object | None = None
     workspace_precision: int = 128
 
