@@ -38,7 +38,7 @@ public:
         std::int64_t simplex_id,
         std::int64_t levels
     );
-    nb::tuple refine(Int1D marked_ids);
+    nb::tuple refine(Int1D marked_ids, std::int64_t levels = 1);
 
     const std::vector<std::int64_t> &active_simplex_ids_vector() const noexcept {
         return active_simplex_ids_;
@@ -47,7 +47,10 @@ public:
     std::vector<double> simplex_points_flat(std::int64_t simplex_id) const;
     const std::vector<std::int64_t> &ensure_children_vector(std::int64_t simplex_id);
 
-    RefinementBatch refine_marked(const std::vector<std::int64_t> &marked_ids);
+    RefinementBatch refine_marked(
+        const std::vector<std::int64_t> &marked_ids,
+        std::int64_t levels = 1
+    );
 
 private:
     friend class VertexCache;

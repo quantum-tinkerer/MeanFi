@@ -32,8 +32,6 @@ import meanfi
 import numpy as np
 from meanfi.interop import kwant as utils
 
-density_atol = 1e-2
-charge_tol = 1e-2
 np.random.seed(0)
 
 s0 = np.identity(2)
@@ -108,9 +106,7 @@ guess = meanfi.guess_tb(int_keys, ndof)
 result = meanfi.solver(
     model,
     guess,
-    integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
     scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
-    filling_tol=charge_tol,
 )
 h_full = meanfi.add_tb(h_0, result.mf)
 ```
@@ -129,15 +125,11 @@ rho_result = meanfi.density_matrix(
     h_full,
     filling=2,
     keys=[(0, 0)],
-    integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
-    filling_tol=charge_tol,
 )
 rho_0_result = meanfi.density_matrix(
     h_0,
     filling=2,
     keys=[(0, 0)],
-    integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
-    filling_tol=charge_tol,
 )
 rho = rho_result.density_matrix
 rho_0 = rho_0_result.density_matrix
@@ -186,13 +178,11 @@ for U in Us:
         h_int = utils.builder_to_tb(builder_int, params)
 
         model = meanfi.Model(h_0, h_int, filling=filling)
-        guess = mf_sols[-1] if mf_sols else meanfi.guess_tb(int_keys, ndof)
+        guess = meanfi.guess_tb(int_keys, ndof)
         result = meanfi.solver(
             model,
             guess,
-            integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
             scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
-            filling_tol=charge_tol,
         )
         mf_sols.append(result.mf)
 
@@ -224,8 +214,6 @@ for mf_sol in mf_sols.flatten():
         meanfi.add_tb(h_0, mf_sol),
         filling=2,
         keys=[(0, 0)],
-        integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
-        filling_tol=charge_tol,
     ).density_matrix
 
     # Compute CDW order parameter

@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 
+import numpy as np
 import pytest
 
 from meanfi import AdaptiveSimplex, UniformGrid, density_matrix, density_matrix_at_mu
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi._zero_temp_ext import Geometry
 from meanfi.tests.helpers import (
     assert_estimator_covers_actual,
     converged_dense_reference,
@@ -203,3 +205,27 @@ def test_uniform_grid_density_at_mu_converges_against_dense_reference(case):
 
     assert records[0][0] < records[1][0] < records[2][0]
     assert records[0][1] > records[1][1] > records[2][1]
+
+
+def test_adaptive_simplex_rejects_negative_refinement_depth():
+    with pytest.raises(ValueError, match="refinement_depth must be non-negative"):
+        AdaptiveSimplex(refinement_depth=-1)
+
+
+@requires_ext
+@pytest.mark.parametrize(
+    ("depth", "expected_descendants"),
+    [
+        (0, 2),
+        (1, 4),
+        (2, 8),
+    ],
+)
+def test_zero_temp_geometry_refine_uses_power_of_two_descendants(depth, expected_descendants):
+    geometry = Geometry.root(2)
+    refinement = geometry.refine(np.array([0], dtype=np.int64), depth + 1)
+    child_offsets = refinement[2]
+    child_ids = refinement[3]
+
+    assert child_offsets.tolist() == [0, expected_descendants]
+    assert child_ids.shape == (expected_descendants,)

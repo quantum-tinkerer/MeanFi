@@ -11,6 +11,7 @@ AdaptiveIntegrator::AdaptiveIntegrator(
     Geometry &geometry,
     VertexCache &vertex_cache,
     Float2D keys,
+    std::int64_t preview_depth,
     double tol
 )
     : geometry_(&geometry),
@@ -19,7 +20,8 @@ AdaptiveIntegrator::AdaptiveIntegrator(
       n_keys_(keys.shape(0)),
       ndim_(geometry.ndim()),
       ndof_(vertex_cache.ndof()),
-      ncomp_(vertex_cache.ndof() * vertex_cache.ndof() * keys.shape(0)) {
+      ncomp_(vertex_cache.ndof() * vertex_cache.ndof() * keys.shape(0)),
+      preview_depth_(std::max<std::int64_t>(preview_depth, 1)) {
     if (keys.shape(1) != ndim_) {
         throw std::runtime_error("AdaptiveIntegrator: key dimension mismatch");
     }
@@ -316,8 +318,18 @@ AdaptiveIntegrator::RootSolveResult AdaptiveIntegrator::solve_mu_on_preview(
     std::int64_t &integration_calls,
     std::int64_t &evaluator_evals
 ) {
-    auto lower_eval = evaluate_charge_counted(lower, 1, integration_calls, evaluator_evals);
-    auto upper_eval = evaluate_charge_counted(upper, 1, integration_calls, evaluator_evals);
+    auto lower_eval = evaluate_charge_counted(
+        lower,
+        preview_depth_,
+        integration_calls,
+        evaluator_evals
+    );
+    auto upper_eval = evaluate_charge_counted(
+        upper,
+        preview_depth_,
+        integration_calls,
+        evaluator_evals
+    );
     double lower_charge = lower_eval.total_charge;
     double upper_charge = upper_eval.total_charge;
     double mu = std::clamp(mu_guess, lower, upper);
@@ -329,7 +341,12 @@ AdaptiveIntegrator::RootSolveResult AdaptiveIntegrator::solve_mu_on_preview(
     RootSolveResult result;
 
     for (std::int64_t iteration = 1; iteration <= options.max_mu_iterations; ++iteration) {
-        const auto summary = evaluate_charge_counted(mu, 1, integration_calls, evaluator_evals);
+        const auto summary = evaluate_charge_counted(
+            mu,
+            preview_depth_,
+            integration_calls,
+            evaluator_evals
+        );
         const double residual = summary.total_charge - filling;
         if (std::abs(residual) <= options.charge_tol) {
             result.mu = mu;
@@ -376,7 +393,12 @@ AdaptiveIntegrator::RootSolveResult AdaptiveIntegrator::solve_mu_on_preview(
     }
 
     const double midpoint = 0.5 * (lower + upper);
-    const auto summary = evaluate_charge_counted(midpoint, 1, integration_calls, evaluator_evals);
+    const auto summary = evaluate_charge_counted(
+        midpoint,
+        preview_depth_,
+        integration_calls,
+        evaluator_evals
+    );
     double slope = last_derivative;
     if (!std::isfinite(slope) || slope <= 0.0) {
         slope = (upper_charge - lower_charge) / (upper - lower);
@@ -395,15 +417,35 @@ void AdaptiveIntegrator::expand_mu_bracket(
     std::int64_t &integration_calls,
     std::int64_t &evaluator_evals
 ) {
-    auto lower_eval = evaluate_charge_counted(lower, 1, integration_calls, evaluator_evals);
-    auto upper_eval = evaluate_charge_counted(upper, 1, integration_calls, evaluator_evals);
+    auto lower_eval = evaluate_charge_counted(
+        lower,
+        preview_depth_,
+        integration_calls,
+        evaluator_evals
+    );
+    auto upper_eval = evaluate_charge_counted(
+        upper,
+        preview_depth_,
+        integration_calls,
+        evaluator_evals
+    );
     double lower_charge = lower_eval.total_charge;
     double upper_charge = upper_eval.total_charge;
     while (lower_charge > filling || upper_charge < filling) {
         lower *= 2.0;
         upper *= 2.0;
-        lower_eval = evaluate_charge_counted(lower, 1, integration_calls, evaluator_evals);
-        upper_eval = evaluate_charge_counted(upper, 1, integration_calls, evaluator_evals);
+        lower_eval = evaluate_charge_counted(
+            lower,
+            preview_depth_,
+            integration_calls,
+            evaluator_evals
+        );
+        upper_eval = evaluate_charge_counted(
+            upper,
+            preview_depth_,
+            integration_calls,
+            evaluator_evals
+        );
         lower_charge = lower_eval.total_charge;
         upper_charge = upper_eval.total_charge;
     }
@@ -479,7 +521,12 @@ ChargeSolveResult AdaptiveIntegrator::solve_mu_and_refine(
         result.dcharge_dmu = root.derivative;
 
         const auto coarse = evaluate_charge_counted(mu, 0, integration_calls, evaluator_evals);
-        const auto preview = evaluate_charge_counted(mu, 1, integration_calls, evaluator_evals);
+        const auto preview = evaluate_charge_counted(
+            mu,
+            preview_depth_,
+            integration_calls,
+            evaluator_evals
+        );
         if (coarse.owner_ids != preview.owner_ids) {
             throw std::runtime_error("AdaptiveIntegrator: coarse/preview owner mismatch");
         }
@@ -607,7 +654,8 @@ const AdaptiveIntegrator::LeafDensityContribution &AdaptiveIntegrator::leaf_cont
     leaf.error_vector.assign(ncomp_, 0.0);
     leaf.evaluator_evals = coarse.evaluator_evals;
 
-    const auto &preview_ids = geometry_->ensure_children_vector(simplex_id);
+    std::vector<std::int64_t> preview_ids;
+    collect_simplex_ids(simplex_id, preview_depth_, preview_ids);
     for (const auto preview_id : preview_ids) {
         const auto &preview_value = cached_simplex_value(preview_id);
         for (size_t comp = 0; comp < ncomp_; ++comp) {
@@ -780,7 +828,7 @@ DensityIntegrateResult AdaptiveIntegrator::integrate_density(
             break;
         }
 
-        const auto batch = geometry_->refine_marked(marked);
+        const auto batch = geometry_->refine_marked(marked, preview_depth_);
         result.subdivisions += batch.refinements;
         if (remaining > 0) {
             remaining -= batch.refinements;

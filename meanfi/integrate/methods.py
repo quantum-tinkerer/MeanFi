@@ -12,8 +12,9 @@ class IntegrationMethod:
 class AdaptiveSimplex(IntegrationMethod):
     """Adaptive zero-temperature simplicial integration."""
 
-    density_matrix_tol: float = 1e-3
+    density_matrix_tol: float = 1e-2
     max_refinements: int | None = None
+    refinement_depth: int = 2
     workspace_precision: int = 128
 
     def __post_init__(self) -> None:
@@ -21,6 +22,8 @@ class AdaptiveSimplex(IntegrationMethod):
             raise ValueError("density_matrix_tol must be positive")
         if self.max_refinements is not None and self.max_refinements < 0:
             raise ValueError("max_refinements must be non-negative or None")
+        if self.refinement_depth < 0:
+            raise ValueError("refinement_depth must be non-negative")
         if self.workspace_precision not in (64, 128):
             raise ValueError("workspace_precision must be 64 or 128")
 
@@ -29,7 +32,7 @@ class AdaptiveSimplex(IntegrationMethod):
 class AdaptiveQuadrature(IntegrationMethod):
     """Adaptive finite-temperature quadrature."""
 
-    density_matrix_tol: float = 1e-3
+    density_matrix_tol: float = 1e-2
     max_refinements: int | None = None
     rule: str = "auto"
     batch_size: int | None = None
@@ -52,7 +55,7 @@ class UniformGrid(IntegrationMethod):
     """Uniform k-grid point sampling."""
 
     nk: int
-    density_matrix_tol: float = 1e-3
+    density_matrix_tol: float = 1e-2
     matrix_function: object | None = None
     workspace_precision: int = 128
 

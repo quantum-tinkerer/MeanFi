@@ -50,7 +50,7 @@ def effective_bdg_filling_tol(
         if filling_tol <= 0:
             raise ValueError("filling_tol must be positive when provided")
         return float(filling_tol)
-    return float(np.sum(np.abs(filling_weights)) * density_matrix_tol)
+    return float(0.1 * np.sum(np.abs(filling_weights)) * density_matrix_tol)
 
 
 def resolve_bdg_matrix_function(

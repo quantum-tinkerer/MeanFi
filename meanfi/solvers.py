@@ -49,7 +49,7 @@ def solver(
     *,
     integration: IntegrationMethod | None = None,
     scf: SCFMethod = LinearMixing(),
-    scf_tol: float = 1e-5,
+    scf_tol: float = 1e-3,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
     max_mu_iterations: int | None = None,

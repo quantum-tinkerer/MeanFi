@@ -15,11 +15,12 @@ public:
         Geometry &geometry,
         VertexCache &vertex_cache,
         Float2D keys,
+        std::int64_t preview_depth = 1,
         double tol = 1e-14
     );
 
     void clear();
-    std::int64_t preview_depth() const noexcept { return 1; }
+    std::int64_t preview_depth() const noexcept { return preview_depth_; }
 
     nb::tuple evaluate_charge(double mu, std::int64_t levels = 0);
     nb::tuple evaluate_density(double mu, std::int64_t levels = 0);
@@ -182,6 +183,7 @@ private:
     size_t ndof_ = 0;
     size_t ncomp_ = 0;
     std::vector<double> keys_;
+    std::int64_t preview_depth_ = 1;
     size_t phase_layout_id_ = std::numeric_limits<size_t>::max();
     double current_mu_ = std::numeric_limits<double>::quiet_NaN();
 

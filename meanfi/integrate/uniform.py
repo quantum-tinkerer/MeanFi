@@ -551,14 +551,16 @@ def solve_uniform_grid_fixed_filling(
         q_diag=np.ones(tb_orbital_count(hamiltonian), dtype=float),
         trace_weights_diag=np.ones(tb_orbital_count(hamiltonian), dtype=float),
         charge_tolerance=(
-            integration.density_matrix_tol if filling_tol is None else float(filling_tol)
+            0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol
+            if filling_tol is None
+            else float(filling_tol)
         ),
         density_tolerance=integration.density_matrix_tol,
         density_entry_support=density_entry_support,
         workspace_dtype=workspace_dtype,
     )
     resolved_filling_tol = (
-        float(tb_orbital_count(hamiltonian) * integration.density_matrix_tol)
+        float(0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol)
         if filling_tol is None
         else float(filling_tol)
     )

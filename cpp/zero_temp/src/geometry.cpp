@@ -96,9 +96,9 @@ nb::ndarray<nb::numpy, std::int64_t> Geometry::descendant_leaves(
     return make_array(std::move(leaves), {leaves.size()});
 }
 
-nb::tuple Geometry::refine(Int1D marked_ids) {
+nb::tuple Geometry::refine(Int1D marked_ids, std::int64_t levels) {
     std::vector<std::int64_t> marked(marked_ids.data(), marked_ids.data() + marked_ids.shape(0));
-    const auto batch = refine_marked(marked);
+    const auto batch = refine_marked(marked, levels);
     return batch.as_tuple(ndim_);
 }
 
@@ -293,12 +293,16 @@ void Geometry::descendant_leaves_impl(
     }
 }
 
-RefinementBatch Geometry::refine_marked(const std::vector<std::int64_t> &marked_ids) {
+RefinementBatch Geometry::refine_marked(
+    const std::vector<std::int64_t> &marked_ids,
+    std::int64_t levels
+) {
     std::unordered_set<std::int64_t> marked(marked_ids.begin(), marked_ids.end());
     RefinementBatch batch;
     if (marked.empty()) {
         return batch;
     }
+    const std::int64_t descendant_levels = std::max<std::int64_t>(levels, 1);
 
     std::vector<std::int64_t> refined_active;
     refined_active.reserve(active_simplex_ids_.size() * 2);
@@ -311,7 +315,8 @@ RefinementBatch Geometry::refine_marked(const std::vector<std::int64_t> &marked_
 
         ++batch.refinements;
         simplex_records_[static_cast<size_t>(simplex_id)].active = false;
-        const auto &children = ensure_children_impl(simplex_id);
+        std::vector<std::int64_t> children;
+        descendant_leaves_impl(simplex_id, descendant_levels, children);
         const auto &parent = simplex_records_[static_cast<size_t>(simplex_id)];
         for (const auto child_id : children) {
             simplex_records_[static_cast<size_t>(child_id)].active = true;

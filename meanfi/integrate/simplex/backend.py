@@ -32,6 +32,10 @@ def _root_subcells_per_axis(ndim: int) -> int:
     return 4 if ndim == 1 else _ROOT_SUBCELLS_PER_AXIS
 
 
+def _preview_depth(refinement_depth: int) -> int:
+    return int(refinement_depth) + 1
+
+
 def _require_zero_temp_extension() -> None:
     if not _ZERO_TEMP_EXT_AVAILABLE or Geometry is None:
         raise RuntimeError(
@@ -43,7 +47,7 @@ def _extension_subdivision_limit(max_subdivisions: int | None) -> int:
     return -1 if max_subdivisions is None else int(max_subdivisions)
 
 
-def build_extension_runtime(hamiltonian: _tb_type):
+def build_extension_runtime(hamiltonian: _tb_type, *, refinement_depth: int = 0):
     _require_zero_temp_extension()
     ndim = len(next(iter(hamiltonian)))
     geometry = Geometry.root(
@@ -52,7 +56,7 @@ def build_extension_runtime(hamiltonian: _tb_type):
         tol=float(_GEOM_TOL),
     )
     vertex_cache = tb_to_vertex_cache(hamiltonian, tol=float(_GEOM_TOL))
-    return geometry, vertex_cache
+    return geometry, vertex_cache, _preview_depth(refinement_depth)
 
 
 def build_charge_options(

@@ -6,11 +6,10 @@ import numpy as np
 
 from meanfi.interop import kwant as utils
 
-
 # %% Tuning knobs
-density_atol = 1e-4
-charge_tol = 1e-3
-scf_tol = 1e-7
+density_atol = 1e-2
+charge_tol = 1e-2
+scf_tol = 1e-3
 max_iterations = 1000
 
 filling = 2
@@ -71,7 +70,7 @@ h_int = utils.builder_to_tb(builder_int, params)
 
 int_keys = frozenset(h_int)
 ndof = len(next(iter(h_0.values())))
-integration = meanfi.AdaptiveSimplex(density_matrix_tol=density_atol)
+integration = meanfi.AdaptiveSimplex(density_matrix_tol=density_atol, refinement_depth=2)
 
 
 # %% Single solve
@@ -215,5 +214,4 @@ plt.xlabel("V")
 plt.ylabel("U")
 plt.title("CDW vs SDW")
 plt.show()
-
 # %%

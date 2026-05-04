@@ -645,7 +645,7 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
         )
 
 
-def test_adaptive_methods_default_filling_tol_from_density_matrix_tol(monkeypatch):
+def test_adaptive_methods_default_filling_tol_scales_with_density_matrix_tol(monkeypatch):
     import meanfi.integrate.engines.normal as families
 
     captured = {}
@@ -664,7 +664,7 @@ def test_adaptive_methods_default_filling_tol_from_density_matrix_tol(monkeypatc
         integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
     )
 
-    assert captured["charge_tol"] == 2e-8
+    assert captured["charge_tol"] == 2e-9
 
 
 def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():

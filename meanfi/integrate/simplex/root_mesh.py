@@ -23,6 +23,7 @@ def _coarse_density_summary(
         geometry,
         vertex_cache,
         np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
+        1,
         tol=float(_GEOM_TOL),
     )
     estimate, _owner_ids, _owner_estimates, evaluator_evals = integrator.evaluate_density(
@@ -41,7 +42,7 @@ def root_mesh_density_at_mu_zero_temp(
     mu: float,
     keys: list[tuple[int, ...]],
 ):
-    geometry, vertex_cache = build_extension_runtime(h)
+    geometry, vertex_cache, preview_depth = build_extension_runtime(h)
     rho, error, evaluator_evals = _coarse_density_summary(
         geometry=geometry,
         vertex_cache=vertex_cache,
@@ -71,11 +72,12 @@ def root_mesh_fixed_filling_zero_temp(
     mu_xtol: float,
     max_mu_iterations: int | None,
 ):
-    geometry, vertex_cache = build_extension_runtime(h)
+    geometry, vertex_cache, preview_depth = build_extension_runtime(h)
     integrator = AdaptiveIntegrator(
         geometry,
         vertex_cache,
         np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
+        preview_depth,
         tol=float(_GEOM_TOL),
     )
     charge_integration_calls = 0

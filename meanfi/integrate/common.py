@@ -102,7 +102,7 @@ def effective_filling_tol(
         return float(filling_tol)
 
     if isinstance(integration, (AdaptiveSimplex, AdaptiveQuadrature, UniformGrid)):
-        return float(tb_orbital_count(hamiltonian) * integration.density_matrix_tol)
+        return float(0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol)
 
     raise ValueError("UniformGrid requires an implicit grid-resolved filling target")
 

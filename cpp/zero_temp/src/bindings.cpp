@@ -91,7 +91,7 @@ NB_MODULE(_zero_temp_ext, m) {
         .def("simplex_volume", &Geometry::simplex_volume, "simplex_id"_a)
         .def("ensure_children", &Geometry::ensure_children, "simplex_id"_a)
         .def("descendant_leaves", &Geometry::descendant_leaves, "simplex_id"_a, "levels"_a)
-        .def("refine", &Geometry::refine, "marked_ids"_a);
+        .def("refine", &Geometry::refine, "marked_ids"_a, "levels"_a = 1);
 
     nb::class_<TightBindingModel>(m, "TightBindingModel")
         .def(nb::init<Int2D, Complex3D>(), "keys"_a, "matrices"_a)
@@ -115,7 +115,14 @@ NB_MODULE(_zero_temp_ext, m) {
         .def_prop_ro("n_kernel_evals", &VertexCache::n_kernel_evals);
 
     nb::class_<AdaptiveIntegrator>(m, "AdaptiveIntegrator")
-        .def(nb::init<Geometry &, VertexCache &, Float2D, double>(), "geometry"_a, "vertex_cache"_a, "keys"_a, "tol"_a = 1e-14)
+        .def(
+            nb::init<Geometry &, VertexCache &, Float2D, std::int64_t, double>(),
+            "geometry"_a,
+            "vertex_cache"_a,
+            "keys"_a,
+            "preview_depth"_a = 1,
+            "tol"_a = 1e-14
+        )
         .def("clear", &AdaptiveIntegrator::clear)
         .def_prop_ro("preview_depth", &AdaptiveIntegrator::preview_depth)
         .def_prop_ro("phase_cache_size", &AdaptiveIntegrator::phase_cache_size)

@@ -50,8 +50,6 @@ import matplotlib.pyplot as plt
 import meanfi
 from scripts.zero_temp_validation import resolved_hubbard_gap
 
-density_atol = 1e-2
-charge_tol = 1e-3
 np.random.seed(0)
 ```
 
@@ -135,7 +133,6 @@ guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
 result = meanfi.solver(
     full_model,
     guess,
-    integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
 )
 mf_sol = result.mf
 ```
@@ -171,17 +168,13 @@ def compute_sol(U, h_0, filling=2):
     result = meanfi.solver(
         full_model,
         guess,
-        integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
         scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
-        filling_tol=charge_tol,
     )
     full_sol = meanfi.add_tb(h_0, result.mf)
     rho_result = meanfi.density_matrix(
         full_sol,
         filling=filling,
         keys=[(0,)],
-        integration=meanfi.AdaptiveSimplex(density_matrix_tol=density_atol),
-        filling_tol=charge_tol,
     )
     return full_sol, rho_result.density_matrix[(0,)]
 

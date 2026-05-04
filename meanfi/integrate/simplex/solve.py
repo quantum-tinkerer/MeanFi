@@ -101,6 +101,7 @@ def density_matrix_zero_temp(
     mu_xtol: float,
     max_mu_iterations: int | None,
     max_subdivisions: int | None = None,
+    refinement_depth: int = 0,
 ):
     """Evaluate the zero-temperature fixed-filling density matrix with the compiled backend."""
 
@@ -119,11 +120,15 @@ def density_matrix_zero_temp(
             max_mu_iterations=max_mu_iterations,
         )
 
-    geometry, vertex_cache = build_extension_runtime(h)
+    geometry, vertex_cache, preview_depth = build_extension_runtime(
+        h,
+        refinement_depth=refinement_depth,
+    )
     integrator = AdaptiveIntegrator(
         geometry,
         vertex_cache,
         np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
+        preview_depth,
         tol=float(_GEOM_TOL),
     )
 
@@ -183,6 +188,7 @@ def density_matrix_at_mu_zero_temp(
     density_atol: float,
     density_rtol: float,
     max_subdivisions: int | None = None,
+    refinement_depth: int = 0,
 ):
     """Evaluate the zero-temperature density matrix at an explicit chemical potential."""
 
@@ -191,11 +197,15 @@ def density_matrix_at_mu_zero_temp(
 
         return root_mesh_density_at_mu_zero_temp(h, mu=mu, keys=keys)
 
-    geometry, vertex_cache = build_extension_runtime(h)
+    geometry, vertex_cache, preview_depth = build_extension_runtime(
+        h,
+        refinement_depth=refinement_depth,
+    )
     integrator = AdaptiveIntegrator(
         geometry,
         vertex_cache,
         np.ascontiguousarray(np.asarray(keys, dtype=np.float64)),
+        preview_depth,
         tol=float(_GEOM_TOL),
     )
     try:
