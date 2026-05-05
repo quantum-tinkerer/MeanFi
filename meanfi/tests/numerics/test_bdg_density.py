@@ -1,7 +1,9 @@
 import numpy as np
 import pytest
+import warnings
 
 import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
+import meanfi.integrate.quadrature.bdg as bdg_quadrature
 from meanfi import AdaptiveQuadrature, DirectDiagonalization, Model, RationalFOE, UniformGrid, tb_to_kfunc
 from meanfi.state.support import bdg_top_half_support
 from meanfi.state.bdg import bdg_density_to_rparams
@@ -74,6 +76,75 @@ def _bdg_reference(model: Model, meanfield, keys, *, nk: int):
 
 def _max_density_error(lhs, rhs) -> float:
     return max(float(np.max(np.abs(lhs[key] - rhs[key]))) for key in rhs)
+
+
+def test_bdg_charge_evaluator_allows_negative_local_derivative_contributions(monkeypatch):
+    def fake_density_block(*args, **kwargs):
+        del args, kwargs
+        return type(
+            "DensityBlockResult",
+            (),
+            {
+                "block": np.array([[0.25 + 0.0j]], dtype=complex),
+                "derivative_block": np.array([[-0.5 + 0.0j]], dtype=complex),
+            },
+        )()
+
+    monkeypatch.setattr(bdg_quadrature, "density_block", fake_density_block)
+    evaluator = bdg_quadrature._charge_evaluator(
+        ndim=1,
+        kT=0.2,
+        q_diag=np.array([1.0]),
+        matrix_function=DirectDiagonalization(),
+        tolerance=1e-3,
+        filling_indices=[0],
+        filling_weights=np.array([1.0]),
+        matrix_from_payload=lambda payload: np.asarray([[payload[0]]], dtype=complex),
+        workspace_dtype=np.dtype(np.complex128),
+    )
+
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        values = evaluator(
+            np.array([[0.0], [np.pi]], dtype=float),
+            np.array([[0.0], [0.0]], dtype=float),
+            0.1,
+        )
+
+    assert len(record) == 0
+    assert np.all(values[:, 1] < 0.0)
+
+
+def test_bdg_split_charge_warns_only_for_nonpositive_integrated_derivative():
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        charge, charge_error, derivative = bdg_quadrature._split_charge(
+            np.array([0.4, 0.25]),
+            np.array([1e-3, 2e-3]),
+        )
+
+    assert len(record) == 0
+    assert charge == pytest.approx(0.4)
+    assert charge_error == pytest.approx(1e-3)
+    assert derivative == pytest.approx(0.25)
+
+    with pytest.warns(RuntimeWarning, match="integrated dN/dmu was non-positive"):
+        charge, charge_error, derivative = bdg_quadrature._split_charge(
+            np.array([0.4, -0.25]),
+            np.array([1e-3, 2e-3]),
+        )
+
+    assert charge == pytest.approx(0.4)
+    assert charge_error == pytest.approx(1e-3)
+    assert derivative == 0.0
+
+    with pytest.warns(RuntimeWarning, match="integrated dN/dmu was non-positive"):
+        _charge, _charge_error, derivative = bdg_quadrature._split_charge(
+            np.array([0.4, np.nan]),
+            np.array([1e-3, 2e-3]),
+        )
+
+    assert derivative == 0.0
 
 
 def test_bdg_exact_density_matches_dense_2d_reference():

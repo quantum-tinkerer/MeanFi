@@ -90,15 +90,6 @@ def _charge_evaluator(
                 if derivative_block is None
                 else _local_filling(derivative_block, filling_indices, filling_weights)
             )
-            if derivative < 0.0:
-                warnings.warn(
-                    "BdG local dn/dmu was negative after "
-                    + matrix_function_label(matrix_function)
-                    + " convergence"
-                    + f" (k={tuple(np.asarray(point, dtype=float))}, mu={float(mu):.12g})",
-                    RuntimeWarning,
-                )
-                derivative = 0.0
             values[index, 0] = _local_filling(
                 result.block,
                 filling_indices,
@@ -180,6 +171,13 @@ def _split_charge(
     estimate = np.asarray(estimate)
     error = np.asarray(error)
     derivative = float(np.real(estimate[1])) if estimate.size > 1 else None
+    if derivative is not None and (not np.isfinite(derivative) or derivative <= 0.0):
+        warnings.warn(
+            "BdG integrated dN/dmu was non-positive after adaptive quadrature; "
+            "disabling derivative-based chemical-potential updates",
+            RuntimeWarning,
+        )
+        derivative = 0.0
     return float(np.real(estimate[0])), float(abs(error[0])), derivative
 
 

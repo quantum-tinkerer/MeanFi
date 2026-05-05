@@ -48,7 +48,6 @@ First, let's get the basic imports out of the way.
 import numpy as np
 import matplotlib.pyplot as plt
 import meanfi
-from scripts.zero_temp_validation import resolved_hubbard_gap
 
 np.random.seed(0)
 ```
@@ -123,8 +122,6 @@ Therefore, the choice of the initial guess can significantly affect the final so
 Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.guess_tb` function.
 It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
 Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.guess_tb`.
-For the zero-temperature tutorial we keep the original physics inputs from `main` and only relax the solver-side controls slightly.
-The default solver uses internal linear mixing, which is sufficient for this small example. For the wider phase-diagram sweep below we switch to `meanfi.AndersonMixing(...)`.
 
 ```{code-cell} ipython3
 filling = 2
@@ -159,6 +156,21 @@ the band structure now shows a gap at the Fermi level, indicating that the syste
 We can go further and compute the gap for a wider range of $U$ values:
 
 ```{code-cell} ipython3
+:tags: [hide-input]
+
+def resolved_hubbard_gap(h, *, U, local_density, nk=400):
+    eigenvalues = np.linalg.eigvalsh(meanfi.tb_to_kgrid(h, nk))
+    direct_gap = float(
+        np.min(eigenvalues[eigenvalues > 0.0]) - np.max(eigenvalues[eigenvalues <= 0.0])
+    )
+    occupations = np.real(np.diag(local_density))
+    magnetization = 0.5 * (
+        (occupations[0] - occupations[1]) + (occupations[3] - occupations[2])
+    )
+    return max(direct_gap, float(abs(U) * abs(magnetization))), None
+```
+
+```{code-cell} ipython3
 def compute_sol(U, h_0, filling=2):
     h_int = {
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
@@ -168,7 +180,6 @@ def compute_sol(U, h_0, filling=2):
     result = meanfi.solver(
         full_model,
         guess,
-        scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
     )
     full_sol = meanfi.add_tb(h_0, result.mf)
     rho_result = meanfi.density_matrix(
@@ -201,5 +212,3 @@ plt.show()
 ```
 
 We see that at around $U=1$ the gap opens up and the system transitions from a metal to an insulator.
-At zero temperature, the low-$U$ gap can fall below the resolution of a fixed post-processing k-grid and show up as a fake floor or kink.
-The helper imported above refines the post-processing grid until the direct gap stabilizes and falls back to the local staggered order parameter whenever the direct band gap is still unresolved.

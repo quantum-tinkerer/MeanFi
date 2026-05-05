@@ -17,6 +17,7 @@ kernelspec:
 
 tutorial/hubbard_1d.md
 tutorial/graphene_example.md
+tutorial/pwave_superconductivity.md
 tutorial/strained_graphene.md
 ```
 
@@ -25,8 +26,8 @@ tutorial/strained_graphene.md
 :maxdepth: 1
 :caption: Documentation
 
-documentation/mf_notes.md
-documentation/algorithm.md
+documentation/theory/index.md
+documentation/algorithms/index.md
 documentation/meanfi.md
 CHANGELOG.md
 AUTHORS.md
@@ -34,4 +35,11 @@ AUTHORS.md
 
 ```{include} ../../README.md
 :relative-docs: docs/source/
+```
+
+```{toctree}
+:hidden:
+
+documentation/mf_notes.md
+documentation/algorithm.md
 ```

@@ -1,82 +1,73 @@
 # `MeanFi`
 
-`MeanFi` is a Hartree-Fock solver for tight-binding models with density-density interactions.
-It exposes physics through `Model`, Brillouin-zone integration through explicit `integration=` methods, and outer fixed-point updates through explicit `scf=` methods.
+## What is `MeanFi`?
 
-## Workflow
+`MeanFi` is a Python package for self-consistent mean-field calculations on tight-binding models with density-density interactions.
+It starts from a Hamiltonian
 
-`MeanFi` follows a simple three-step workflow:
+$$
+\hat{H} = \hat{H_0} + \hat{V}
+$$
 
-1. Define the interacting problem with `Model`.
-2. Build a mean-field guess on the interaction keys.
-3. Run `solver(...)` with an explicit integration method to obtain a self-consistent mean-field Hamiltonian.
+and computes a self-consistent mean-field correction that approximates the interaction term.
+
+For more details, see the [theory section](https://meanfi.readthedocs.io/en/latest/documentation/theory/index.html) and the [algorithm section](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/index.html).
+
+## How to use `MeanFi`
+
+The basic workflow has three steps:
+
+1. **Define** the non-interacting Hamiltonian, interaction, and filling.
+2. **Guess** a starting mean-field correction.
+3. **Solve** for the self-consistent correction.
 
 ```python
 import meanfi
 
+# Define
 h_0 = {(0,): onsite, (1,): hopping, (-1,): hopping.T.conj()}
 h_int = {(0,): onsite_interaction}
+model = meanfi.Model(h_0, h_int, filling=2)
 
-model = meanfi.Model(h_0, h_int, filling=2, kT=0.05)
-integration = meanfi.AdaptiveQuadrature(density_matrix_tol=1e-4)
-scf = meanfi.LinearMixing(max_iterations=80, alpha=0.5)
-
+# Guess
 guess = meanfi.guess_tb(frozenset(h_int), onsite.shape[0])
-result = meanfi.solver(
-    model,
-    guess,
-    integration=integration,
-    scf=scf,
-    scf_tol=1e-4,
-)
+
+# Solve
+result = meanfi.solver(model, guess)
 h_mf = meanfi.add_tb(h_0, result.mf)
-density_matrix = result.density_matrix_result.density_matrix
 ```
 
-## Density APIs
+For examples, see the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).
 
-- `meanfi.density_matrix(...)`
-  Computes the fixed-filling density matrix and returns a `DensityMatrixResult`.
-- `meanfi.density_matrix_at_mu(...)`
-  Computes the density matrix at an explicit chemical potential and returns a `DensityMatrixResult`.
+## Why `MeanFi`?
 
-Both APIs require an explicit integration method:
+- **Simple**
 
-- `meanfi.AdaptiveQuadrature(density_matrix_tol=...)` for `kT > 0`
-- `meanfi.AdaptiveSimplex(density_matrix_tol=..., max_refinements=...)` for `kT = 0`
-- `meanfi.UniformGrid(nk=...)` for the zero-temperature fixed-grid path
+  The workflow is compact and close to the physics problem.
 
-The main public numerical knobs are:
+- **Extensible**
 
-- `density_matrix_tol` on adaptive integration methods
-- `scf_tol` on `meanfi.solver(...)`
+  The code is structured to be easy to read, debug, and extend.
 
-Advanced fixed-filling controls remain available on `density_matrix(...)` and `solver(...)`:
+- **Numerically focused**
 
-- `filling_tol`
-- `mu_tol`
-- `max_mu_iterations`
+  The package provides adaptive and fixed-grid Brillouin-zone integration methods for self-consistent calculations.
 
-`DensityMatrixResult` exposes fully explicit public names such as `density_matrix`, `density_matrix_error`, `filling`, `target_filling`, `filling_residual`, and `info`.
+## Current scope
 
-## SCF Methods
+`MeanFi` currently supports:
 
-`meanfi.solver(...)` separates SCF method selection from integration method selection.
-Built-in SCF methods are `meanfi.LinearMixing(...)` and `meanfi.AndersonMixing(...)`.
-For harder self-consistent problems, switch the explicit SCF method instead of passing an external optimizer hook:
+- density-density interactions,
+- zero- and finite-temperature mean-field calculations,
+- superconducting BdG mean-field calculations at finite temperature,
+- tight-binding dictionary workflows,
+- optional `kwant` conversion helpers.
 
-```python
-result = meanfi.solver(
-    model,
-    guess,
-    integration=integration,
-    scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
-)
-```
+Zero-temperature BdG calculations are not part of the main package workflow.
 
 ## Installation
 
-Until the next packaged release, install from a checkout so the Git-backed quadrature dependency is available:
+Until the next packaged release, install from a checkout:
 
 ```bash
 python -m pip install "stateful-quadrature @ git+https://github.com/Kostusas/stateful_quadrature.git"
@@ -89,25 +80,22 @@ For local development with Pixi:
 pixi install
 ```
 
-If you want the `kwant` conversion helpers as well:
+If you also want the `kwant` helpers:
 
 ```bash
 python -m pip install ".[kwant]"
 ```
 
-## Scope
+## Citing `MeanFi`
 
-Current support includes:
+If you use `MeanFi` in scientific work, please cite:
 
-- density-density interactions,
-- finite- and zero-temperature mean-field calculations,
-- experimental finite-temperature BdG superconducting mean-field calculations derived internally from electron-block `h_int`,
-- adaptive and fixed-grid Brillouin-zone integration methods,
-- tight-binding dictionary workflows,
-- optional `kwant` conversion helpers.
-
-Not supported in the main package:
-
-- zero-temperature BdG superconducting calculations.
-
-For `kT = 0`, the Brillouin zone is treated as a torus mathematically. The simplicial backend keeps duplicated seam vertices rather than identifying opposite faces in the cache, but it starts from a seam-safe `2^d` partition of the fundamental cell so no root simplex spans opposite faces. Setting `AdaptiveSimplex(max_refinements=0)` keeps only that root mesh, which is the closest analogue to a very coarse fixed `k` grid and does not provide a density-matrix error indicator.
+```bibtex
+@misc{meanfi,
+  author = {Vilkelis, Kostas and Zijderveld, R. Johanna and Akhmerov, Anton R. and Manesco, Antonio L.R.},
+  doi = {10.5281/zenodo.11149850},
+  month = {5},
+  title = {MeanFi},
+  year = {2024}
+}
+```

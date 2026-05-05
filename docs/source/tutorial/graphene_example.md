@@ -95,7 +95,6 @@ Because `nn_int` function returns the same interaction matrix for all site pairs
 
 As before, we construct {autolink}`~meanfi.model.Model` object to represent the full system to be solved via the mean-field approximation.
 We then generate a random guess for the mean-field solution and solve the system.
-To keep the full `main` phase-diagram sampling while switching to the zero-temperature defaults, we only relax the solver-side settings slightly.
 
 ```{code-cell} ipython3
 filling = 2
@@ -106,7 +105,6 @@ guess = meanfi.guess_tb(int_keys, ndof)
 result = meanfi.solver(
     model,
     guess,
-    scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
 )
 h_full = meanfi.add_tb(h_0, result.mf)
 ```
@@ -182,7 +180,6 @@ for U in Us:
         result = meanfi.solver(
             model,
             guess,
-            scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
         )
         mf_sols.append(result.mf)
 

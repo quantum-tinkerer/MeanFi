@@ -9,7 +9,7 @@ from meanfi.physics.meanfield import meanfield
 from meanfi.scf.bdg import BdGFamilyAdapter
 from meanfi.scf.engine import NoConvergence, SolverRuntime, solve_with_family_adapter
 from meanfi.scf.normal import NormalFamilyAdapter
-from meanfi.scf.methods import LinearMixing, SCFMethod
+from meanfi.scf.methods import AndersonMixing, SCFMethod
 from meanfi.state.normal import rparams_to_tb, tb_to_rparams
 from meanfi.tb.ops import _tb_type
 
@@ -48,7 +48,7 @@ def solver(
     guess: _tb_type,
     *,
     integration: IntegrationMethod | None = None,
-    scf: SCFMethod = LinearMixing(),
+    scf: SCFMethod = AndersonMixing(),
     scf_tol: float = 1e-3,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,

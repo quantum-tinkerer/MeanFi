@@ -263,6 +263,27 @@ def test_derivative_free_fixed_filling_root_solves_monotone_charge():
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
 
 
+def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
+    def evaluate_charge(mu: float) -> tuple[float, float, float]:
+        charge = 1.0 / (1.0 + np.exp(-mu))
+        return charge, 0.0, -1.0
+
+    root = solve_fixed_filling_root(
+        evaluate_charge=evaluate_charge,
+        mu_bracket=lambda: (-4.0, 4.0),
+        filling=0.7,
+        mu_guess=0.0,
+        filling_tol=1e-6,
+        mu_tol=1e-8,
+        max_mu_iterations=200,
+        use_derivative=True,
+    )
+
+    assert root.derivative == -1.0
+    assert abs(root.charge - 0.7) <= 1e-6
+    assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
+
+
 def test_dense_rational_rejects_aaa_scheme():
     with pytest.raises(ValueError, match="supported only on the sparse MUMPS"):
         density_matrix_at_mu(
