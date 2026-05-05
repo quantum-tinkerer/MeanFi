@@ -68,6 +68,7 @@ skip = "*.ipynb, *.cls,*.bst,*.bib,*.lock"
 ignore-words-list = "multline, ket, bra, braket, nwo"
 
 [tool.pixi.workspace]
+requires-pixi = ">=0.62.0"
 channels = ["https://prefix.dev/conda-forge"]
 platforms = ["linux-64", "osx-64", "win-64", "osx-arm64"]
 

@@ -1,4 +1,4 @@
-image: ghcr.io/prefix-dev/pixi:0.40.1
+image: ghcr.io/prefix-dev/pixi:0.62.0
 
 variables:
   OPENBLAS_NUM_THREADS : 1
