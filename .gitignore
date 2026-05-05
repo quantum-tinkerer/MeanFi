@@ -1,7 +1,22 @@
 ### OS and IDE temporaries
 *.DS_Store
+Thumbs.db
 .*~
 .*.swp
+.vscode/
+.vsocde/
+.idea/
+*.code-workspace
+
+### Local environments and secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+.direnv/
+.python-version
 
 ## Latex temporaries
 *.aux
