@@ -56,7 +56,9 @@ def build_tb_payload_helpers(hamiltonian: _tb_type):
         term_payloads.append(
             (
                 key,
-                np.stack([coo_matrix.row, coo_matrix.col], axis=1).astype(int, copy=False),
+                np.stack([coo_matrix.row, coo_matrix.col], axis=1).astype(
+                    int, copy=False
+                ),
                 np.array(coo_matrix.data, dtype=complex, copy=True),
             )
         )

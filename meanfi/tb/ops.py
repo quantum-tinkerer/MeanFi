@@ -15,7 +15,9 @@ def sparse_module():
     try:
         import scipy.sparse as sparse
     except ImportError as exc:  # pragma: no cover - depends on optional scipy
-        raise ImportError("Sparse mean-field inputs require scipy to be installed") from exc
+        raise ImportError(
+            "Sparse mean-field inputs require scipy to be installed"
+        ) from exc
     return sparse
 
 
@@ -23,7 +25,9 @@ def sparse_linalg_module():
     try:
         import scipy.sparse.linalg as sparse_linalg
     except ImportError as exc:  # pragma: no cover - depends on optional scipy
-        raise ImportError("Sparse mean-field inputs require scipy to be installed") from exc
+        raise ImportError(
+            "Sparse mean-field inputs require scipy to be installed"
+        ) from exc
     return sparse_linalg
 
 
@@ -134,7 +138,10 @@ def hermitian_spectral_bound(matrix: Any) -> float:
 
 
 def add_tb(tb1: _tb_type, tb2: _tb_type) -> _tb_type:
-    return {key: tb1.get(key, 0) + tb2.get(key, 0) for key in frozenset(tb1) | frozenset(tb2)}
+    return {
+        key: tb1.get(key, 0) + tb2.get(key, 0)
+        for key in frozenset(tb1) | frozenset(tb2)
+    }
 
 
 def scale_tb(tb: _tb_type, scale: float) -> _tb_type:

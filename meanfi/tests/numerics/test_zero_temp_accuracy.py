@@ -221,7 +221,9 @@ def test_adaptive_simplex_rejects_negative_refinement_depth():
         (2, 8),
     ],
 )
-def test_zero_temp_geometry_refine_uses_power_of_two_descendants(depth, expected_descendants):
+def test_zero_temp_geometry_refine_uses_power_of_two_descendants(
+    depth, expected_descendants
+):
     geometry = Geometry.root(2)
     refinement = geometry.refine(np.array([0], dtype=np.int64), depth + 1)
     child_offsets = refinement[2]

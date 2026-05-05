@@ -191,7 +191,9 @@ def density_matrix_zero_dim(
             use_derivative=resolved_matrix_function.rational_scheme != "aaa",
         )
 
-        density_result = prepared.density_columns_from_charge_order(root.mu, density_basis)
+        density_result = prepared.density_columns_from_charge_order(
+            root.mu, density_basis
+        )
         rho, error = density_from_matrix(
             density_result,
             keys,

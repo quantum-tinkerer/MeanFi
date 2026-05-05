@@ -107,8 +107,8 @@ def integration_counters(result: DensityMatrixResult) -> tuple[int, int, int, in
 
 
 def record_density_result(state: SCFRunState, result: DensityMatrixResult) -> None:
-    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = integration_counters(
-        result
+    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = (
+        integration_counters(result)
     )
     state.density_matrix_result = result
     state.mu = result.mu
@@ -134,15 +134,17 @@ def build_scf_info(
     scf: SCFMethod,
     residual_norm: float,
 ) -> SCFInfo:
-    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = integration_counters(
-        final_result
+    charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = (
+        integration_counters(final_result)
     )
     return SCFInfo(
         method=scf_method_name(scf),
         iterations=max(1, state.iterations),
         residual_norm=residual_norm,
-        total_charge_integration_calls=state.total_charge_integration_calls + charge_calls,
-        total_density_integration_calls=state.total_density_integration_calls + density_calls,
+        total_charge_integration_calls=state.total_charge_integration_calls
+        + charge_calls,
+        total_density_integration_calls=state.total_density_integration_calls
+        + density_calls,
         total_kernel_evals=state.total_kernel_evals + kernel_evals,
         total_unique_evals=state.total_unique_evals + unique_evals,
         total_evaluator_evals=state.total_evaluator_evals + evaluator_evals,
@@ -284,7 +286,9 @@ def run_scf_problem(
     def residual_fn(params: np.ndarray) -> np.ndarray:
         density_result = evaluate_density(params, run_state.mu)
         record_density_result(run_state, density_result)
-        residual = np.asarray(residual_from_density(params, density_result), dtype=float)
+        residual = np.asarray(
+            residual_from_density(params, density_result), dtype=float
+        )
         run_state.residual_norm = max_norm(residual)
         return residual
 

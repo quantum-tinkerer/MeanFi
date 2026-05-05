@@ -11,14 +11,18 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     """Compute the mean-field correction from a density matrix."""
 
     onsite_key = zero_key(tb_dimension(density_matrix))
-    diagonal_density = np.real(np.diag(np.asarray(density_matrix[onsite_key], dtype=complex)))
+    diagonal_density = np.real(
+        np.diag(np.asarray(density_matrix[onsite_key], dtype=complex))
+    )
     onsite_diagonal = np.zeros_like(diagonal_density, dtype=complex)
     sparse_present = any(is_sparse_like(matrix) for matrix in h_int.values())
     sparse = sparse_module() if sparse_present else None
     for vector in frozenset(h_int):
         interaction = h_int[vector]
         if is_sparse_like(interaction):
-            onsite_diagonal += np.asarray(diagonal_density @ interaction, dtype=complex).ravel()
+            onsite_diagonal += np.asarray(
+                diagonal_density @ interaction, dtype=complex
+            ).ravel()
         else:
             onsite_diagonal += diagonal_density @ np.asarray(interaction, dtype=complex)
     direct = {

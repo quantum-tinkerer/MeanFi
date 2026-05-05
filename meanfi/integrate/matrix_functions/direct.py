@@ -34,9 +34,9 @@ def _exact_density_block(
         loewner = np.empty_like(delta, dtype=float)
         separated = np.abs(delta) > 1e-12
         loewner[separated] = numerator[separated] / delta[separated]
-        loewner[~separated] = np.broadcast_to(
-            fprime[:, np.newaxis], delta.shape
-        )[~separated]
+        loewner[~separated] = np.broadcast_to(fprime[:, np.newaxis], delta.shape)[
+            ~separated
+        ]
 
         d_h = -(q_diag[:, np.newaxis] * eigenvectors)
         projected_dh = eigenvectors.conj().T @ d_h

@@ -9,7 +9,12 @@ from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.tb.ops import _tb_type
 
 from .backend import AdaptiveIntegrator, _GEOM_TOL, build_extension_runtime
-from .solve import _density_integration_info, _fixed_filling_info, _nan_density_error_like, _vector_to_density
+from .solve import (
+    _density_integration_info,
+    _fixed_filling_info,
+    _nan_density_error_like,
+    _vector_to_density,
+)
 
 
 def _coarse_density_summary(
@@ -26,9 +31,11 @@ def _coarse_density_summary(
         1,
         tol=float(_GEOM_TOL),
     )
-    estimate, _owner_ids, _owner_estimates, evaluator_evals = integrator.evaluate_density(
-        float(mu),
-        0,
+    estimate, _owner_ids, _owner_estimates, evaluator_evals = (
+        integrator.evaluate_density(
+            float(mu),
+            0,
+        )
     )
     estimate = np.asarray(estimate, dtype=complex)
     zero_error = np.zeros(estimate.shape, dtype=float)
@@ -96,7 +103,9 @@ def root_mesh_fixed_filling_zero_temp(
         charge_integration_calls += 1
         charge_evaluator_evals += int(evaluator_evals)
         resolved_derivative = (
-            float(derivative) if bool(derivative_exact) and np.isfinite(derivative) else float("nan")
+            float(derivative)
+            if bool(derivative_exact) and np.isfinite(derivative)
+            else float("nan")
         )
         return float(charge), 0.0, resolved_derivative
 

@@ -48,7 +48,9 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
 
     assert result.info.residual_norm <= scf_tol
     assert abs(density_result.filling - model.filling) <= 1e-6
-    assert abs(staggered_magnetization(density_result.density_matrix[(0,)]) - m_ref) < 5e-4
+    assert (
+        abs(staggered_magnetization(density_result.density_matrix[(0,)]) - m_ref) < 5e-4
+    )
 
 
 def test_solver_matches_antiferromagnetic_gap_equation_in_2d():

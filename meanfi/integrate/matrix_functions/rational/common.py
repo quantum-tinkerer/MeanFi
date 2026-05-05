@@ -11,13 +11,15 @@ from meanfi.tb.ops import as_sparse, is_sparse_like, sparse_linalg_module
 from ..base import RationalFOE, _BlockResult
 from ..common import (
     _derivative_convergence,
-    scalar_derivative_converged,
     spectral_interval,
     workspace_matrix,
 )
 from ..mumps_backend import MumpsSelectedEntryPattern, build_selected_entry_pattern
 
-def _support_requested_pairs(density_support: DensityEntrySupport) -> tuple[np.ndarray, np.ndarray]:
+
+def _support_requested_pairs(
+    density_support: DensityEntrySupport,
+) -> tuple[np.ndarray, np.ndarray]:
     rows: list[np.ndarray] = []
     cols: list[np.ndarray] = []
     for block_rows, block_cols in zip(
@@ -51,7 +53,9 @@ class SparseChargePattern:
         shifts: np.ndarray,
         residues: np.ndarray,
     ) -> float:
-        diagonal = np.full(self.diagonal_positions.size, complex(constant), dtype=np.complex128)
+        diagonal = np.full(
+            self.diagonal_positions.size, complex(constant), dtype=np.complex128
+        )
         for shift, residue in zip(shifts, residues, strict=True):
             pole_entries = inverse_entries[complex(shift)]
             diagonal += residue * pole_entries[self.diagonal_positions]
@@ -102,7 +106,9 @@ class SparseDensityPattern:
 def build_sparse_charge_pattern(trace_weights_diag: np.ndarray) -> SparseChargePattern:
     weights = np.asarray(trace_weights_diag, dtype=float)
     diagonal = np.flatnonzero(np.abs(weights) > 0.0).astype(int, copy=False)
-    pattern = build_selected_entry_pattern(size=weights.size, rows=diagonal, cols=diagonal)
+    pattern = build_selected_entry_pattern(
+        size=weights.size, rows=diagonal, cols=diagonal
+    )
     diagonal_positions = np.asarray(
         [pattern.lookup[(int(index), int(index))] for index in diagonal],
         dtype=int,
@@ -128,9 +134,11 @@ def build_sparse_density_pattern(
         cols=np.concatenate([requested_cols, reverse_cols]),
     )
     selected_lookup = np.full(size, -1, dtype=int)
-    selected_lookup[np.asarray(density_support.selected_columns, dtype=int)] = np.arange(
-        density_support.selected_columns.size,
-        dtype=int,
+    selected_lookup[np.asarray(density_support.selected_columns, dtype=int)] = (
+        np.arange(
+            density_support.selected_columns.size,
+            dtype=int,
+        )
     )
     requested_positions = np.asarray(
         [
@@ -244,17 +252,19 @@ def _evaluate_rational_terms(
                 lu.solve(np.asarray(block, dtype=workspace_dtype), trans="H"),
                 dtype=complex,
             )
-            density_result = density_result + residue * y + np.conjugate(residue) * y_adj
+            density_result = (
+                density_result + residue * y + np.conjugate(residue) * y_adj
+            )
 
             if derivative:
                 rhs = np.asarray(q_diag[:, np.newaxis] * y, dtype=workspace_dtype)
-                rhs_adj = np.asarray(q_diag[:, np.newaxis] * y_adj, dtype=workspace_dtype)
+                rhs_adj = np.asarray(
+                    q_diag[:, np.newaxis] * y_adj, dtype=workspace_dtype
+                )
                 z = np.asarray(lu.solve(rhs), dtype=complex)
                 z_adj = np.asarray(lu.solve(rhs_adj, trans="H"), dtype=complex)
                 derivative_block = (
-                    derivative_block
-                    + residue * z
-                    + np.conjugate(residue) * z_adj
+                    derivative_block + residue * z + np.conjugate(residue) * z_adj
                 )
         return density_result, derivative_block, active_cache
 
@@ -271,7 +281,9 @@ def _evaluate_rational_terms(
             rhs_adj = q_diag[:, np.newaxis] * y_adj
             z = np.linalg.solve(shifted, rhs)
             z_adj = np.linalg.solve(shifted_adjoint, rhs_adj)
-            derivative_block = derivative_block + residue * z + np.conjugate(residue) * z_adj
+            derivative_block = (
+                derivative_block + residue * z + np.conjugate(residue) * z_adj
+            )
 
     return density_result, derivative_block, lu_cache
 

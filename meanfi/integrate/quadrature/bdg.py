@@ -14,7 +14,6 @@ from meanfi.integrate.matrix_functions import (
     DirectDiagonalization,
     RationalFOE,
     density_block,
-    matrix_function_label,
     shift_by_mu,
 )
 from meanfi.integrate.matrix_functions.rational import (
@@ -38,7 +37,9 @@ from .payloads import build_tb_payload_helpers
 from .runtime import QuadratureBackend
 
 
-def _local_filling(block: np.ndarray, indices: Sequence[int], weights: np.ndarray) -> float:
+def _local_filling(
+    block: np.ndarray, indices: Sequence[int], weights: np.ndarray
+) -> float:
     values = block[np.asarray(indices, dtype=int), np.arange(len(indices))]
     return float(np.real(np.sum(weights * values)))
 
@@ -265,7 +266,9 @@ def build_bdg_backend(
     )
 
     def density_info_builder(result) -> DensityIntegrationInfo:
-        cached_nodes = getattr(result, "n_cached_nodes", getattr(result, "n_leaf_nodes", 0))
+        cached_nodes = getattr(
+            result, "n_cached_nodes", getattr(result, "n_leaf_nodes", 0)
+        )
         return DensityIntegrationInfo(
             n_kernel_evals=int(result.n_kernel_evals),
             unique_evals=int(result.n_kernel_evals),
@@ -307,13 +310,19 @@ def build_bdg_backend(
             unique_evals=charge_kernel_evals + int(density_result.n_kernel_evals),
             charge_n_evaluator_evals=charge_evaluator_evals,
             density_n_evaluator_evals=int(density_result.n_evaluator_evals),
-            n_evaluator_evals=charge_evaluator_evals + int(density_result.n_evaluator_evals),
+            n_evaluator_evals=charge_evaluator_evals
+            + int(density_result.n_evaluator_evals),
             n_cached_nodes=int(
-                getattr(density_result, "n_cached_nodes", getattr(density_result, "n_leaf_nodes", 0))
+                getattr(
+                    density_result,
+                    "n_cached_nodes",
+                    getattr(density_result, "n_leaf_nodes", 0),
+                )
             ),
             n_leaves=int(getattr(density_result, "n_leaves", 0)),
             n_leaf_nodes=int(getattr(density_result, "n_leaf_nodes", 0)),
-            subdivisions=charge_subdivisions + int(getattr(density_result, "subdivisions", 0)),
+            subdivisions=charge_subdivisions
+            + int(getattr(density_result, "subdivisions", 0)),
             charge_integral_atol=charge_integral_atol,
             density_atol=density_atol,
             density_rtol=density_rtol,
@@ -341,7 +350,9 @@ def build_bdg_backend(
         keys=keys,
         matrix_from_payload=matrix_from_payload,
         density_support=(
-            None if isinstance(matrix_function, DirectDiagonalization) else density_entry_support
+            None
+            if isinstance(matrix_function, DirectDiagonalization)
+            else density_entry_support
         ),
         workspace_dtype=workspace_dtype,
     )
@@ -379,7 +390,8 @@ def build_bdg_backend(
                 mumps_density_support if use_sparse_mumps else density_entry_support,
                 workspace_dtype=workspace_dtype,
             )
-            if (mumps_density_support if use_sparse_mumps else density_entry_support) is not None
+            if (mumps_density_support if use_sparse_mumps else density_entry_support)
+            is not None
             else prepared_frozen_density_evaluator(ndim, keys)
         )
         freeze_density_mesh = True
@@ -398,7 +410,8 @@ def build_bdg_backend(
                     mumps_density_support if use_sparse_mumps else density_entry_support
                 ).expand_entries(estimate, error)
             )
-            if (mumps_density_support if use_sparse_mumps else density_entry_support) is not None
+            if (mumps_density_support if use_sparse_mumps else density_entry_support)
+            is not None
             and not isinstance(matrix_function, DirectDiagonalization)
             else lambda estimate, error: split_density_result(
                 estimate,

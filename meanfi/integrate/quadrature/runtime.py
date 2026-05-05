@@ -24,7 +24,9 @@ class QuadratureBackend:
     payload_builder: Callable[[np.ndarray, np.ndarray], Any] | None
     charge_evaluator: Callable[[np.ndarray, Any, float], np.ndarray]
     density_evaluator: Callable[[np.ndarray, Any, float], np.ndarray]
-    split_charge_result: Callable[[np.ndarray, np.ndarray], tuple[float, float, float | None]]
+    split_charge_result: Callable[
+        [np.ndarray, np.ndarray], tuple[float, float, float | None]
+    ]
     split_density_result: Callable[[np.ndarray, np.ndarray], tuple[_tb_type, _tb_type]]
     density_info_builder: Callable[[Any], DensityIntegrationInfo]
     fixed_filling_info_builder: Callable[..., FixedFillingInfo]
@@ -154,7 +156,11 @@ def solve_quadrature_fixed_filling(
     charge_subdivisions = 0
 
     def evaluate_charge(candidate_mu: float) -> tuple[float, float, float | None]:
-        nonlocal charge_integration_calls, charge_kernel_evals, charge_evaluator_evals, charge_subdivisions
+        nonlocal \
+            charge_integration_calls, \
+            charge_kernel_evals, \
+            charge_evaluator_evals, \
+            charge_subdivisions
         result = run_integrator(
             charge_integrator,
             candidate_mu,

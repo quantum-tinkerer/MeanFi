@@ -41,7 +41,9 @@ def _density_integration_info(*, result, spectral_cache) -> DensityIntegrationIn
         n_leaves=int(result.n_leaves),
         n_leaf_nodes=int(result.n_leaf_nodes),
         subdivisions=int(result.subdivisions),
-        error_estimate_available=bool(getattr(result, "error_estimate_available", True)),
+        error_estimate_available=bool(
+            getattr(result, "error_estimate_available", True)
+        ),
     )
 
 
@@ -70,7 +72,9 @@ def _fixed_filling_info(
         unique_evals=int(spectral_cache.n_kernel_evals),
         charge_n_evaluator_evals=int(charge_result.evaluator_evals),
         density_n_evaluator_evals=int(density_result.evaluator_evals),
-        n_evaluator_evals=int(charge_result.evaluator_evals + density_result.evaluator_evals),
+        n_evaluator_evals=int(
+            charge_result.evaluator_evals + density_result.evaluator_evals
+        ),
         n_cached_nodes=int(spectral_cache.size),
         n_leaves=int(density_result.n_leaves),
         n_leaf_nodes=int(density_result.n_leaf_nodes),
@@ -86,7 +90,9 @@ def _fixed_filling_info(
 
 
 def _nan_density_error_like(rho: _tb_type) -> _tb_type:
-    return {key: np.full(matrix.shape, np.nan, dtype=float) for key, matrix in rho.items()}
+    return {
+        key: np.full(matrix.shape, np.nan, dtype=float) for key, matrix in rho.items()
+    }
 
 
 def density_matrix_zero_temp(

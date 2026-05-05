@@ -4,7 +4,14 @@ import warnings
 
 import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
 import meanfi.integrate.quadrature.bdg as bdg_quadrature
-from meanfi import AdaptiveQuadrature, DirectDiagonalization, Model, RationalFOE, UniformGrid, tb_to_kfunc
+from meanfi import (
+    AdaptiveQuadrature,
+    DirectDiagonalization,
+    Model,
+    RationalFOE,
+    UniformGrid,
+    tb_to_kfunc,
+)
 from meanfi.state.support import bdg_top_half_support
 from meanfi.state.bdg import bdg_density_to_rparams
 from meanfi.physics.bdg import charge_diagonal
@@ -32,7 +39,10 @@ def _pairing(delta: float, *, sparse=None):
 
 
 def _sparsify_tb(tb, sparse):
-    return {key: sparse.csr_matrix(np.asarray(matrix, dtype=complex)) for key, matrix in tb.items()}
+    return {
+        key: sparse.csr_matrix(np.asarray(matrix, dtype=complex))
+        for key, matrix in tb.items()
+    }
 
 
 def _bdg_reference(model: Model, meanfield, keys, *, nk: int):
@@ -78,7 +88,9 @@ def _max_density_error(lhs, rhs) -> float:
     return max(float(np.max(np.abs(lhs[key] - rhs[key]))) for key in rhs)
 
 
-def test_bdg_charge_evaluator_allows_negative_local_derivative_contributions(monkeypatch):
+def test_bdg_charge_evaluator_allows_negative_local_derivative_contributions(
+    monkeypatch,
+):
     def fake_density_block(*args, **kwargs):
         del args, kwargs
         return type(
@@ -338,7 +350,9 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
     )
 
     def fail_if_exact(*args, **kwargs):
-        raise AssertionError("Sparse Rational path should not call exact diagonalization")
+        raise AssertionError(
+            "Sparse Rational path should not call exact diagonalization"
+        )
 
     monkeypatch.setattr(bdg_matrix_direct, "_exact_density_block", fail_if_exact)
     result = solve_bdg_density_fixed_filling(
@@ -436,7 +450,9 @@ def test_bdg_zero_dimensional_rational_density_matches_exact():
 
     assert abs(rational.mu - exact.mu) <= 1e-10
     assert abs(rational.filling - exact.filling) <= 1e-8
-    assert np.allclose(rational.density_matrix[local], exact.density_matrix[local], atol=1e-8)
+    assert np.allclose(
+        rational.density_matrix[local], exact.density_matrix[local], atol=1e-8
+    )
 
 
 def test_bdg_sparse_supported_density_matches_dense_reference():
@@ -498,7 +514,9 @@ def test_bdg_sparse_supported_density_matches_dense_reference():
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
-def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(matrix_function):
+def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(
+    matrix_function,
+):
     sparse = pytest.importorskip("scipy.sparse")
     local = (0, 0)
     dense_h0 = {local: np.array([[0.0]], dtype=complex)}
@@ -509,7 +527,9 @@ def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(matri
     sparse_meanfield = _pairing(0.05, sparse=sparse)
 
     dense_model = Model(dense_h0, dense_hint, filling=0.5, kT=0.2, superconducting=True)
-    sparse_model = Model(sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True)
+    sparse_model = Model(
+        sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True
+    )
     support = bdg_top_half_support(
         keys=[local],
         local_key=local,

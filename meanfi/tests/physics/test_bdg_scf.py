@@ -178,7 +178,8 @@ def _dense_bdg_scf_reference(
             return mu, updated
         meanfield = {
             key: np.asarray(
-                meanfield.get(key, 0.0) + alpha * (updated.get(key, 0.0) - meanfield.get(key, 0.0)),
+                meanfield.get(key, 0.0)
+                + alpha * (updated.get(key, 0.0) - meanfield.get(key, 0.0)),
                 dtype=complex,
             )
             for key in frozenset(updated) | frozenset(meanfield)
@@ -211,7 +212,12 @@ def test_bdg_solver_matches_2d_local_gap_equation():
 
     assert result.info.residual_norm <= 1e-6
     assert abs(result.density_matrix_result.filling - model.filling) <= 1e-6
-    assert abs(result.mf[local][0, 1].real - _local_gap_reference(coupling=coupling, kT=kT)) <= 5e-5
+    assert (
+        abs(
+            result.mf[local][0, 1].real - _local_gap_reference(coupling=coupling, kT=kT)
+        )
+        <= 5e-5
+    )
 
 
 def test_bdg_solver_matches_1d_dispersive_gap_and_number_equations():
@@ -359,8 +365,12 @@ def test_bdg_solver_matches_1d_nonlocal_odd_parity_reference():
     assert result.info.residual_norm <= 2e-4
     assert abs(result.density_matrix_result.filling - filling) <= 2e-4
     assert result.mf[(1,)][0, 1].real * result.mf[(-1,)][0, 1].real < 0.0
-    assert abs(result.mf[(1,)][0, 1].real - reference_meanfield[(1,)][0, 1].real) <= 3e-3
-    assert abs(result.mf[(-1,)][0, 1].real - reference_meanfield[(-1,)][0, 1].real) <= 3e-3
+    assert (
+        abs(result.mf[(1,)][0, 1].real - reference_meanfield[(1,)][0, 1].real) <= 3e-3
+    )
+    assert (
+        abs(result.mf[(-1,)][0, 1].real - reference_meanfield[(-1,)][0, 1].real) <= 3e-3
+    )
     assert abs(result.density_matrix_result.mu - reference_mu) <= 2e-3
 
 
@@ -420,8 +430,14 @@ def test_bdg_solver_matches_2d_d_wave_reference():
     assert result.info.residual_norm <= 2e-4
     assert abs(result.density_matrix_result.filling - filling) <= 2e-4
     assert result.mf[(1, 0)][0, 1].real * result.mf[(0, 1)][0, 1].real < 0.0
-    assert abs(result.mf[(1, 0)][0, 1].real - reference_meanfield[(1, 0)][0, 1].real) <= 3e-3
-    assert abs(result.mf[(0, 1)][0, 1].real - reference_meanfield[(0, 1)][0, 1].real) <= 3e-3
+    assert (
+        abs(result.mf[(1, 0)][0, 1].real - reference_meanfield[(1, 0)][0, 1].real)
+        <= 3e-3
+    )
+    assert (
+        abs(result.mf[(0, 1)][0, 1].real - reference_meanfield[(0, 1)][0, 1].real)
+        <= 3e-3
+    )
     assert abs(result.mf[(-1, 0)][0, 1].real - result.mf[(1, 0)][0, 1].real) <= 2e-3
     assert abs(result.mf[(0, -1)][0, 1].real - result.mf[(0, 1)][0, 1].real) <= 2e-3
     assert abs(result.density_matrix_result.mu - reference_mu) <= 4e-3
@@ -439,8 +455,14 @@ def test_bdg_solver_matches_multi_orbital_onsite_pairing_reference():
     guess = {
         (0,): np.block(
             [
-                [np.zeros((2, 2), dtype=complex), np.array([[0.25, 0.08], [0.08, 0.18]], dtype=complex)],
-                [np.array([[0.25, 0.08], [0.08, 0.18]], dtype=complex), np.zeros((2, 2), dtype=complex)],
+                [
+                    np.zeros((2, 2), dtype=complex),
+                    np.array([[0.25, 0.08], [0.08, 0.18]], dtype=complex),
+                ],
+                [
+                    np.array([[0.25, 0.08], [0.08, 0.18]], dtype=complex),
+                    np.zeros((2, 2), dtype=complex),
+                ],
             ]
         )
     }
@@ -474,9 +496,10 @@ def test_bdg_solver_matches_multi_orbital_onsite_pairing_reference():
 
     assert result.info.residual_norm <= 3e-4
     assert abs(result.density_matrix_result.filling - filling) <= 3e-4
-    assert np.max(
-        np.abs(result.mf[(0,)][:2, 2:] - reference_meanfield[(0,)][:2, 2:])
-    ) <= 3e-3
+    assert (
+        np.max(np.abs(result.mf[(0,)][:2, 2:] - reference_meanfield[(0,)][:2, 2:]))
+        <= 3e-3
+    )
     assert abs(result.density_matrix_result.mu - reference_mu) <= 2e-3
 
 
@@ -497,7 +520,9 @@ def test_bdg_solver_matches_frustrated_triangular_pairing_reference():
         h_0[opposite] = -hopping * np.eye(1, dtype=complex)
         h_int[bond] = coupling * np.ones((1, 1), dtype=complex)
         h_int[opposite] = coupling * np.ones((1, 1), dtype=complex)
-        guess[bond] = np.array([[0.0, 0.12 * amplitude], [0.12 * amplitude, 0.0]], dtype=complex)
+        guess[bond] = np.array(
+            [[0.0, 0.12 * amplitude], [0.12 * amplitude, 0.0]], dtype=complex
+        )
         guess[opposite] = np.array(
             [[0.0, 0.12 * amplitude], [0.12 * amplitude, 0.0]],
             dtype=complex,
@@ -537,6 +562,12 @@ def test_bdg_solver_matches_frustrated_triangular_pairing_reference():
     assert result.mf[(0, 1)][0, 1].real < 0.0
     assert result.mf[(-1, 1)][0, 1].real < 0.0
     assert abs(result.mf[(0, 1)][0, 1].real - result.mf[(-1, 1)][0, 1].real) <= 2e-3
-    assert abs(result.mf[(1, 0)][0, 1].real - reference_meanfield[(1, 0)][0, 1].real) <= 8e-3
-    assert abs(result.mf[(0, 1)][0, 1].real - reference_meanfield[(0, 1)][0, 1].real) <= 4e-3
+    assert (
+        abs(result.mf[(1, 0)][0, 1].real - reference_meanfield[(1, 0)][0, 1].real)
+        <= 8e-3
+    )
+    assert (
+        abs(result.mf[(0, 1)][0, 1].real - reference_meanfield[(0, 1)][0, 1].real)
+        <= 4e-3
+    )
     assert abs(result.density_matrix_result.mu - reference_mu) <= 8e-3

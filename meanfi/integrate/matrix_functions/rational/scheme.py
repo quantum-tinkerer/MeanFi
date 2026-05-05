@@ -10,6 +10,7 @@ from ..base import RationalFOE
 from ...occupations import fermi_dirac
 from .common import SparseRationalTerms
 
+
 @dataclass
 class _AAABuilderState:
     training_x: np.ndarray
@@ -99,7 +100,9 @@ def _aaa_dense_zero_points(lower: float, upper: float, kT: float) -> np.ndarray:
     return np.linspace(lo, hi, 64, dtype=float)
 
 
-def _aaa_sample_grid(lower: float, upper: float, *, count: int, kT: float) -> np.ndarray:
+def _aaa_sample_grid(
+    lower: float, upper: float, *, count: int, kT: float
+) -> np.ndarray:
     points = np.concatenate(
         [
             _lobatto_grid(lower, upper, count),
@@ -206,7 +209,9 @@ def _initialize_aaa_builder(
     state = _fit_barycentric_weights(training_x, training_y, [initial_index])
     state.validation_x = np.asarray(validation_x, dtype=float)
     state.validation_y = np.asarray(validation_y, dtype=complex)
-    state.approx_validation = np.full(validation_x.shape, state.support_y[0], dtype=complex)
+    state.approx_validation = np.full(
+        validation_x.shape, state.support_y[0], dtype=complex
+    )
     return state
 
 
@@ -241,7 +246,11 @@ def _extract_aaa_poles_arrowhead(
     support_y = np.asarray(support_y, dtype=complex)
     weights = np.asarray(weights, dtype=complex)
     if support_x.size <= 1:
-        return complex(support_y[0]), np.empty(0, dtype=complex), np.empty(0, dtype=complex)
+        return (
+            complex(support_y[0]),
+            np.empty(0, dtype=complex),
+            np.empty(0, dtype=complex),
+        )
 
     size = support_x.size
     arrowhead = np.zeros((size + 1, size + 1), dtype=complex)
@@ -270,22 +279,20 @@ def _extract_aaa_poles_arrowhead(
         return constant, poles, np.empty(0, dtype=complex)
 
     numerator = np.array(
-        [
-            np.sum(weights * support_y / (pole - support_x))
-            for pole in poles
-        ],
+        [np.sum(weights * support_y / (pole - support_x)) for pole in poles],
         dtype=complex,
     )
     denominator_derivative = -np.array(
-        [
-            np.sum(weights / np.square(pole - support_x))
-            for pole in poles
-        ],
+        [np.sum(weights / np.square(pole - support_x)) for pole in poles],
         dtype=complex,
     )
     residues = numerator / denominator_derivative
     constant = complex(np.sum(weights * support_y) / np.sum(weights))
-    return constant, np.asarray(poles, dtype=complex), np.asarray(residues, dtype=complex)
+    return (
+        constant,
+        np.asarray(poles, dtype=complex),
+        np.asarray(residues, dtype=complex),
+    )
 
 
 def _canonicalize_conjugate_terms(
@@ -319,8 +326,7 @@ def _canonicalize_conjugate_terms(
             candidates = [
                 candidate
                 for candidate in range(poles.size)
-                if not used[candidate]
-                and abs(poles[candidate] - target) <= pair_tol
+                if not used[candidate] and abs(poles[candidate] - target) <= pair_tol
             ]
             if candidates:
                 continue
@@ -337,7 +343,9 @@ def _canonicalize_conjugate_terms(
                 partner_error = error
         if partner_index is None:
             canonical_pole = pole if np.imag(pole) > 0.0 else np.conjugate(pole)
-            canonical_residue = residue if np.imag(pole) > 0.0 else np.conjugate(residue)
+            canonical_residue = (
+                residue if np.imag(pole) > 0.0 else np.conjugate(residue)
+            )
             canonical_poles.append(complex(canonical_pole))
             canonical_residues.append(complex(canonical_residue))
             used[index] = True
@@ -349,9 +357,7 @@ def _canonicalize_conjugate_terms(
         upper_residue = residue if np.imag(pole) > 0.0 else partner_residue
         lower_pole = partner_pole if np.imag(pole) > 0.0 else pole
         lower_residue = partner_residue if np.imag(pole) > 0.0 else residue
-        canonical_poles.append(
-            complex(0.5 * (upper_pole + np.conjugate(lower_pole)))
-        )
+        canonical_poles.append(complex(0.5 * (upper_pole + np.conjugate(lower_pole))))
         canonical_residues.append(
             complex(0.5 * (upper_residue + np.conjugate(lower_residue)))
         )
@@ -410,7 +416,9 @@ def _cleanup_froissart_doublets(
 
         removed_any = False
         for pole_index in tiny:
-            nearest_support = int(np.argmin(np.abs(state.support_x - poles[pole_index])))
+            nearest_support = int(
+                np.argmin(np.abs(state.support_x - poles[pole_index]))
+            )
             reduced_support = [
                 index
                 for local_index, index in enumerate(state.support_indices)
@@ -431,15 +439,19 @@ def _cleanup_froissart_doublets(
                 candidate.support_y,
                 candidate.weights,
             )
-            candidate_constant, candidate_poles, candidate_residues = _extract_aaa_poles_arrowhead(
-                candidate.support_x,
-                candidate.support_y,
-                candidate.weights,
+            candidate_constant, candidate_poles, candidate_residues = (
+                _extract_aaa_poles_arrowhead(
+                    candidate.support_x,
+                    candidate.support_y,
+                    candidate.weights,
+                )
             )
-            candidate_constant, candidate_shifts, candidate_residues = _canonicalize_conjugate_terms(
-                candidate_constant,
-                candidate_poles,
-                candidate_residues,
+            candidate_constant, candidate_shifts, candidate_residues = (
+                _canonicalize_conjugate_terms(
+                    candidate_constant,
+                    candidate_poles,
+                    candidate_residues,
+                )
             )
             pole_values = _evaluate_canonical_rational(
                 candidate.validation_x,
@@ -455,7 +467,10 @@ def _cleanup_froissart_doublets(
             barycentric_gap = float(
                 np.max(np.abs(pole_values - candidate.approx_validation), initial=0.0)
             )
-            if scalar_error <= scalar_tolerance and barycentric_gap <= 0.1 * scalar_tolerance:
+            if (
+                scalar_error <= scalar_tolerance
+                and barycentric_gap <= 0.1 * scalar_tolerance
+            ):
                 state = candidate
                 removed_any = True
                 break
@@ -570,7 +585,9 @@ def _aaa_terms_for_interval(
         count=max(1024, 64 * int(pole_cap)),
         kT=kT,
     )
-    certification_target = np.asarray(fermi_dirac(certification_grid, kT, 0.0), dtype=complex)
+    certification_target = np.asarray(
+        fermi_dirac(certification_grid, kT, 0.0), dtype=complex
+    )
     sample_target = np.asarray(target, dtype=complex)
     builder = _initialize_aaa_builder(
         training_grid,
@@ -593,14 +610,16 @@ def _aaa_terms_for_interval(
                 tail_lower_bound=tail_lower_bound,
                 tail_upper_bound=tail_upper_bound,
             )
-            if (
-                scalar_error < best_error
-                or (np.isclose(scalar_error, best_error) and barycentric_gap < best_gap)
+            if scalar_error < best_error or (
+                np.isclose(scalar_error, best_error) and barycentric_gap < best_gap
             ):
                 best_error = scalar_error
                 best_gap = barycentric_gap
                 best_terms = terms
-            if scalar_error <= scalar_tolerance and barycentric_gap <= 0.1 * scalar_tolerance:
+            if (
+                scalar_error <= scalar_tolerance
+                and barycentric_gap <= 0.1 * scalar_tolerance
+            ):
                 return terms, builder
         if len(builder.support_indices) >= int(pole_cap):
             break
@@ -633,4 +652,3 @@ def _scheme_terms(
             "rational_scheme='aaa' is currently supported only on the sparse MUMPS RationalFOE path"
         )
     raise ValueError(f"Unsupported RationalFOE scheme: {options.rational_scheme}")
-

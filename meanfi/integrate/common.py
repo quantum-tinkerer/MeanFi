@@ -61,10 +61,7 @@ def trim_density_matrix(
 ) -> _tb_type:
     sample = next(iter(density_matrix.values()))
     zeros = np.zeros_like(sample)
-    return {
-        key: np.array(density_matrix.get(key, zeros), copy=True)
-        for key in keys
-    }
+    return {key: np.array(density_matrix.get(key, zeros), copy=True) for key in keys}
 
 
 def trim_density_matrix_error(
@@ -77,8 +74,7 @@ def trim_density_matrix_error(
     sample = next(iter(density_matrix_error.values()))
     zeros = np.zeros_like(sample)
     return {
-        key: np.array(density_matrix_error.get(key, zeros), copy=True)
-        for key in keys
+        key: np.array(density_matrix_error.get(key, zeros), copy=True) for key in keys
     }
 
 
@@ -102,7 +98,9 @@ def effective_filling_tol(
         return float(filling_tol)
 
     if isinstance(integration, (AdaptiveSimplex, AdaptiveQuadrature, UniformGrid)):
-        return float(0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol)
+        return float(
+            0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol
+        )
 
     raise ValueError("UniformGrid requires an implicit grid-resolved filling target")
 
@@ -112,7 +110,9 @@ def translate_adaptive_info(
     raw_info: DensityIntegrationInfo | FixedFillingInfo,
 ):
     info_type = (
-        AdaptiveSimplexInfo if isinstance(integration, AdaptiveSimplex) else AdaptiveQuadratureInfo
+        AdaptiveSimplexInfo
+        if isinstance(integration, AdaptiveSimplex)
+        else AdaptiveQuadratureInfo
     )
     return info_type(
         n_kernel_evals=int(raw_info.n_kernel_evals),
@@ -155,7 +155,9 @@ def uniform_grid_info(
             None if charge_integration_calls is None else int(charge_integration_calls)
         ),
         density_integration_calls=(
-            None if density_integration_calls is None else int(density_integration_calls)
+            None
+            if density_integration_calls is None
+            else int(density_integration_calls)
         ),
         error_estimate_available=bool(error_estimate_available),
     )

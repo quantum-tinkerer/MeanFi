@@ -1,7 +1,17 @@
 import numpy as np
 import pytest
 
-from meanfi import AdaptiveSimplex, AndersonMixing, Model, UniformGrid, add_tb, density_matrix, expectation_value, guess_tb, solver
+from meanfi import (
+    AdaptiveSimplex,
+    AndersonMixing,
+    Model,
+    UniformGrid,
+    add_tb,
+    density_matrix,
+    expectation_value,
+    guess_tb,
+    solver,
+)
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.interop import kwant as utils
 

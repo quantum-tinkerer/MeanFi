@@ -14,7 +14,9 @@ try:
     )
 
     _ZERO_TEMP_EXT_AVAILABLE = True
-except ImportError:  # pragma: no cover - exercised only when the extension is unavailable
+except (
+    ImportError
+):  # pragma: no cover - exercised only when the extension is unavailable
     AdaptiveIntegrator = None
     ChargeSolveOptions = None
     DensityIntegrateOptions = None
@@ -72,7 +74,9 @@ def build_charge_options(
     options.charge_tol = float(charge_tol)
     options.mu_xtol = float(mu_xtol)
     options.max_mu_iterations = (
-        _UNLIMITED_MU_ITERATIONS if max_mu_iterations is None else int(max_mu_iterations)
+        _UNLIMITED_MU_ITERATIONS
+        if max_mu_iterations is None
+        else int(max_mu_iterations)
     )
     options.max_subdivisions = _extension_subdivision_limit(max_subdivisions)
     options.bulk_theta = float(_BULK_THETA)
@@ -92,7 +96,9 @@ def build_density_options(
     if max_subdivisions is None:
         options.max_subdivisions = -1
     else:
-        options.max_subdivisions = max(int(max_subdivisions) - int(consumed_subdivisions), 0)
+        options.max_subdivisions = max(
+            int(max_subdivisions) - int(consumed_subdivisions), 0
+        )
     options.bulk_theta = float(_BULK_THETA)
     return options
 

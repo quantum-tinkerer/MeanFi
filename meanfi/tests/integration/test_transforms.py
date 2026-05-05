@@ -130,8 +130,12 @@ def test_support_aware_normal_parametrization_roundtrip():
     assert params.size < tb_to_rparams(tb).size
     recovered = rparams_to_tb(params, list(tb), ndof=2, support=support)
 
-    np.testing.assert_allclose(recovered[(0,)], np.array([[0.3, 0.0], [0.0, 1.7]], dtype=complex))
-    np.testing.assert_allclose(recovered[(1,)], np.array([[0.0, 0.0], [0.6, 0.0]], dtype=complex))
+    np.testing.assert_allclose(
+        recovered[(0,)], np.array([[0.3, 0.0], [0.0, 1.7]], dtype=complex)
+    )
+    np.testing.assert_allclose(
+        recovered[(1,)], np.array([[0.0, 0.0], [0.6, 0.0]], dtype=complex)
+    )
     np.testing.assert_allclose(recovered[(-1,)], recovered[(1,)].conj().T)
 
 
@@ -140,7 +144,9 @@ def test_bdg_parametrization_roundtrip_on_representative_states(bdg_tb, ndof):
     params = bdg_tb_to_rparams(bdg_tb, ndof)
     recovered = rparams_to_bdg_tb(params, list(bdg_tb), ndof)
 
-    validate_bdg_tb(recovered, ndof=ndof, ndim=len(next(iter(bdg_tb))), name="BdG correction")
+    validate_bdg_tb(
+        recovered, ndof=ndof, ndim=len(next(iter(bdg_tb))), name="BdG correction"
+    )
     compare_dicts(bdg_tb, recovered)
 
 
@@ -167,7 +173,9 @@ def test_support_aware_bdg_parametrization_and_density_roundtrip():
         (1,): np.array([[0.8, 0.9], [1.0, 1.1]], dtype=complex),
         (-1,): np.array([[1.1, 1.0], [0.9, 0.8]], dtype=complex),
     }
-    bdg_tb = assemble_bdg_correction(normal_block, anomalous_block, type("M", (), {"_ndof": 2})())
+    bdg_tb = assemble_bdg_correction(
+        normal_block, anomalous_block, type("M", (), {"_ndof": 2})()
+    )
 
     params = bdg_tb_to_rparams(bdg_tb, 2, support=support)
     assert params.size < bdg_tb_to_rparams(bdg_tb, 2).size
@@ -180,10 +188,7 @@ def test_support_aware_bdg_parametrization_and_density_roundtrip():
     assert recovered[(1,)][0, 2] == pytest.approx(0.0)
     assert recovered[(1,)][0, 3] == pytest.approx(0.9)
 
-    density = {
-        key: np.array(value, copy=True)
-        for key, value in recovered.items()
-    }
+    density = {key: np.array(value, copy=True) for key, value in recovered.items()}
     density_params = bdg_density_to_rparams(density, support=support, ndof=2)
     density_recovered = rparams_to_bdg_density(density_params, support=support, ndof=2)
     np.testing.assert_allclose(density_recovered[(0,)][:2, :2], recovered[(0,)][:2, :2])

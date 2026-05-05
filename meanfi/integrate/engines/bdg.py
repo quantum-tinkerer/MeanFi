@@ -139,7 +139,11 @@ def _solve_bdg_zero_dim(
             if derivative_block is None
             else _local_filling(derivative_block, filling_indices, filling_weights)
         )
-        return _local_filling(result.block, filling_indices, filling_weights), 0.0, derivative
+        return (
+            _local_filling(result.block, filling_indices, filling_weights),
+            0.0,
+            derivative,
+        )
 
     root = solve_fixed_filling_root(
         evaluate_charge=evaluate_charge,
@@ -171,11 +175,17 @@ def _solve_bdg_zero_dim(
             tolerance=integration.density_matrix_tol,
             workspace_dtype=workspace_dtype,
         ).block
-        density_matrix = {key: density if key == tuple() else np.zeros_like(density) for key in keys}
-        density_matrix_error = {key: np.zeros_like(density, dtype=float) for key in keys}
+        density_matrix = {
+            key: density if key == tuple() else np.zeros_like(density) for key in keys
+        }
+        density_matrix_error = {
+            key: np.zeros_like(density, dtype=float) for key in keys
+        }
     else:
         assert prepared_node is not None
-        density = prepared_node.density_columns_from_charge_order(root.mu, density_basis)
+        density = prepared_node.density_columns_from_charge_order(
+            root.mu, density_basis
+        )
         density_matrix, density_matrix_error = density_entry_support.expand_entries(
             density_entry_support.pack_columns(density),
             np.zeros(density_entry_support.output_size, dtype=float),
@@ -254,7 +264,9 @@ class BdGFixedFillingContext:
 
 
 def _resolve_integration_handler(
-    registry: dict[type[IntegrationMethod], Callable[[BdGFixedFillingContext], DensityMatrixResult]],
+    registry: dict[
+        type[IntegrationMethod], Callable[[BdGFixedFillingContext], DensityMatrixResult]
+    ],
     integration: IntegrationMethod,
     *,
     error_type: type[Exception],
@@ -266,7 +278,9 @@ def _resolve_integration_handler(
     raise error_type(message)
 
 
-def _solve_bdg_uniform_grid_fixed_filling(context: BdGFixedFillingContext) -> DensityMatrixResult:
+def _solve_bdg_uniform_grid_fixed_filling(
+    context: BdGFixedFillingContext,
+) -> DensityMatrixResult:
     integration = context.integration
     assert isinstance(integration, UniformGrid)
     model = context.model

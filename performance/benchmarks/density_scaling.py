@@ -11,7 +11,11 @@ from performance._shared.fixtures import (
     max_density_error,
     peak_rss_bytes,
 )
-from performance._shared.common import canonical_method_name, unique_eval_count, write_records
+from performance._shared.common import (
+    canonical_method_name,
+    unique_eval_count,
+    write_records,
+)
 from performance._shared.plots import (
     _cost_curves,
     _frontier_curves,
@@ -72,7 +76,9 @@ def _integration_expr(integration: AdaptiveSimplex | UniformGrid) -> str:
         )
     if isinstance(integration, UniformGrid):
         return f"UniformGrid(nk={integration.nk!r})"
-    raise TypeError(f"Unsupported integration method for RSS measurement: {type(integration)!r}")
+    raise TypeError(
+        f"Unsupported integration method for RSS measurement: {type(integration)!r}"
+    )
 
 
 def _peak_density_rss_bytes(
@@ -200,9 +206,11 @@ def _density_record(
         "control_name": control_name,
         "control_value": control_value,
         "wall_s": float(benchmark_result.median_s),
-        "peak_rss_bytes": None
-        if benchmark_result.peak_traced_bytes is None
-        else int(benchmark_result.peak_traced_bytes),
+        "peak_rss_bytes": (
+            None
+            if benchmark_result.peak_traced_bytes is None
+            else int(benchmark_result.peak_traced_bytes)
+        ),
         "unique_evals": unique_eval_count(density_result.info),
         "density_matrix_error": float(density_matrix_error),
         "filling_error": float(filling_error),
@@ -256,7 +264,9 @@ def _zero_temperature_records(
                     control_value=density_matrix_tol,
                     benchmark_result=measurement,
                     density_result=result,
-                    density_matrix_error=max_density_error(result.density_matrix, reference.rho),
+                    density_matrix_error=max_density_error(
+                        result.density_matrix, reference.rho
+                    ),
                     filling_error=abs(result.filling - reference.charge),
                     **reference_meta,
                 )
@@ -281,7 +291,9 @@ def _zero_temperature_records(
                     control_value=nk,
                     benchmark_result=measurement,
                     density_result=result,
-                    density_matrix_error=max_density_error(result.density_matrix, reference.rho),
+                    density_matrix_error=max_density_error(
+                        result.density_matrix, reference.rho
+                    ),
                     filling_error=abs(result.filling - reference.charge),
                     **reference_meta,
                 )

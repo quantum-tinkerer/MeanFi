@@ -26,7 +26,9 @@ def test_kwant_conversion_roundtrip_on_representative_builder():
 
     np.random.seed(0)
     tb = guess_tb(generate_tb_keys(1, 2), 3)
-    builder = tb_to_builder(tb, list(dummy_builder.sites()), dummy_builder.symmetry.periods)
+    builder = tb_to_builder(
+        tb, list(dummy_builder.sites()), dummy_builder.symmetry.periods
+    )
     compare_dicts(tb, builder_to_tb(builder))
 
 
@@ -88,7 +90,9 @@ def test_kwant_supercell_callable_roundtrip():
 
     for site1, site2 in it.product(data["sites"], repeat=2):
         if site1 == site2:
-            expected = builder[site1](site=site1, alpha=params["alpha"], beta=params["beta"])
+            expected = builder[site1](
+                site=site1, alpha=params["alpha"], beta=params["beta"]
+            )
             assert np.allclose(expected, rebuilt[site1])
             continue
 
@@ -102,4 +106,3 @@ def test_kwant_supercell_callable_roundtrip():
         except KeyError:
             continue
         assert np.allclose(expected, rebuilt[site1, site2])
-

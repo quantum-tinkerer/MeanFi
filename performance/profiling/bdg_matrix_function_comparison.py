@@ -66,8 +66,14 @@ def main() -> None:
 
     configurations = (
         ("direct_diagonalization", DirectDiagonalization()),
-        ("rational_aaa", RationalFOE(initial_poles=4, max_poles=256, rational_scheme="aaa")),
-        ("rational_ozaki", RationalFOE(initial_poles=4, max_poles=256, rational_scheme="ozaki")),
+        (
+            "rational_aaa",
+            RationalFOE(initial_poles=4, max_poles=256, rational_scheme="aaa"),
+        ),
+        (
+            "rational_ozaki",
+            RationalFOE(initial_poles=4, max_poles=256, rational_scheme="ozaki"),
+        ),
     )
 
     records = []

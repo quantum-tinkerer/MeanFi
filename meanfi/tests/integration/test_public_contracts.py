@@ -128,7 +128,9 @@ def test_rational_foe_defaults_to_ozaki():
 
 
 def test_sparse_normal_backend_defaults_to_aaa():
-    resolved = resolve_normal_matrix_function(None, {key: sp.csr_matrix(value) for key, value in spinful_chain().items()})
+    resolved = resolve_normal_matrix_function(
+        None, {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
+    )
     assert isinstance(resolved, RationalFOE)
     assert resolved.rational_scheme == "aaa"
 
@@ -364,7 +366,11 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
     assert abs(sparse_result.filling - dense_result.filling) <= 1e-8
     for key in keys:
         assert (
-            np.max(np.abs(sparse_result.density_matrix[key] - dense_result.density_matrix[key]))
+            np.max(
+                np.abs(
+                    sparse_result.density_matrix[key] - dense_result.density_matrix[key]
+                )
+            )
             <= 5e-4
         )
 
@@ -396,7 +402,14 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
         ),
     )
     for key in keys:
-        assert np.max(np.abs(sparse_result.density_matrix[key] - dense_result.density_matrix[key])) <= 1e-8
+        assert (
+            np.max(
+                np.abs(
+                    sparse_result.density_matrix[key] - dense_result.density_matrix[key]
+                )
+            )
+            <= 1e-8
+        )
 
 
 @pytest.mark.perf_slow
@@ -666,7 +679,9 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
         )
 
 
-def test_adaptive_methods_default_filling_tol_scales_with_density_matrix_tol(monkeypatch):
+def test_adaptive_methods_default_filling_tol_scales_with_density_matrix_tol(
+    monkeypatch,
+):
     import meanfi.integrate.engines.normal as families
 
     captured = {}
@@ -804,7 +819,9 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
             ),
         )
 
-    monkeypatch.setattr(families, "density_matrix_zero_temp", fake_density_matrix_zero_temp)
+    monkeypatch.setattr(
+        families, "density_matrix_zero_temp", fake_density_matrix_zero_temp
+    )
     result = density_matrix(
         {(0,): np.zeros((1, 1)), (1,): np.zeros((1, 1)), (-1,): np.zeros((1, 1))},
         filling=1.0,
@@ -971,7 +988,15 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
             return rho
 
     def fake_density_for_hamiltonian(
-        model, hamiltonian, *, keys, integration, filling_tol, mu_tol, max_mu_iterations, mu_guess
+        model,
+        hamiltonian,
+        *,
+        keys,
+        integration,
+        filling_tol,
+        mu_tol,
+        max_mu_iterations,
+        mu_guess,
     ):
         del keys, integration, filling_tol, mu_tol, max_mu_iterations, mu_guess
         return fake_result(hamiltonian, model.step)
@@ -979,7 +1004,9 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
     monkeypatch.setattr(solvers, "tb_to_rparams", fake_tb_to_rparams)
     monkeypatch.setattr(solvers, "rparams_to_tb", fake_rparams_to_tb)
     monkeypatch.setattr(solvers, "meanfield", fake_meanfield)
-    monkeypatch.setattr(solvers, "_density_for_hamiltonian", fake_density_for_hamiltonian)
+    monkeypatch.setattr(
+        solvers, "_density_for_hamiltonian", fake_density_for_hamiltonian
+    )
 
     info_short = solvers.solver(
         FakeModel([0.1, -0.02]),
@@ -1016,5 +1043,7 @@ def test_solver_info_exposes_total_unique_evals():
         scf_tol=1e-5,
     )
 
-    assert result.info.total_unique_evals >= result.density_matrix_result.info.unique_evals
+    assert (
+        result.info.total_unique_evals >= result.density_matrix_result.info.unique_evals
+    )
     assert result.info.total_unique_evals > 0

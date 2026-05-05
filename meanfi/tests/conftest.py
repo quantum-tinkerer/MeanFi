@@ -18,15 +18,5 @@ def scalar_tolerance_ladder():
 
 
 @pytest.fixture(scope="session")
-def perf_smoke_benchmark_config():
-    return {"repeat": 5, "warmup": 2}
-
-
-@pytest.fixture(scope="session")
-def perf_slow_benchmark_config():
-    return {"repeat": 3, "warmup": 1}
-
-
-@pytest.fixture(scope="session")
 def zero_temp_ext_available():
     return _ZERO_TEMP_EXT_AVAILABLE

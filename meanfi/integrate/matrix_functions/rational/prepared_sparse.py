@@ -31,6 +31,7 @@ from .scheme import (
     _scheme_terms,
 )
 
+
 class PreparedMumpsRationalNode:
     def __init__(
         self,
@@ -47,7 +48,9 @@ class PreparedMumpsRationalNode:
         shared_aaa_interval_cache: list[_AAAIntervalCacheEntry] | None = None,
     ) -> None:
         if options.rational_scheme not in {"ozaki", "aaa"}:
-            raise ValueError("Sparse RationalFOE currently requires rational_scheme='ozaki' or 'aaa'")
+            raise ValueError(
+                "Sparse RationalFOE currently requires rational_scheme='ozaki' or 'aaa'"
+            )
         if not is_sparse_like(matrix):
             raise ValueError("Sparse MUMPS-backed RationalFOE requires sparse matrices")
         require_mumps()
@@ -88,14 +91,24 @@ class PreparedMumpsRationalNode:
             rows=self._density_pattern.pattern.rows[density_extra_positions],
             cols=self._density_pattern.pattern.cols[density_extra_positions],
         )
-        self._charge_to_density_source_positions, self._charge_to_density_target_positions = (
-            _pattern_subset_mappings(self._charge_pattern.pattern, self._density_pattern.pattern)
+        (
+            self._charge_to_density_source_positions,
+            self._charge_to_density_target_positions,
+        ) = _pattern_subset_mappings(
+            self._charge_pattern.pattern, self._density_pattern.pattern
         )
-        self._extra_to_density_source_positions, self._extra_to_density_target_positions = (
-            _pattern_subset_mappings(self._density_extra_pattern, self._density_pattern.pattern)
+        (
+            self._extra_to_density_source_positions,
+            self._extra_to_density_target_positions,
+        ) = _pattern_subset_mappings(
+            self._density_extra_pattern, self._density_pattern.pattern
         )
-        self._charge_cache: dict[float, tuple[float, int, complex, np.ndarray, np.ndarray]] = {}
-        self._sparse_terms_cache: dict[tuple[float, int, float], SparseRationalTerms] = {}
+        self._charge_cache: dict[
+            float, tuple[float, int, complex, np.ndarray, np.ndarray]
+        ] = {}
+        self._sparse_terms_cache: dict[
+            tuple[float, int, float], SparseRationalTerms
+        ] = {}
         self._aaa_interval_cache: list[_AAAIntervalCacheEntry] = (
             shared_aaa_interval_cache if shared_aaa_interval_cache is not None else []
         )
@@ -118,7 +131,10 @@ class PreparedMumpsRationalNode:
         # shrink with the total trace weight to keep the filling solve stable.
         return max(
             np.finfo(float).eps,
-            min(self._density_scalar_tolerance(), float(self.charge_tolerance) / weight_sum),
+            min(
+                self._density_scalar_tolerance(),
+                float(self.charge_tolerance) / weight_sum,
+            ),
         )
 
     def _aaa_cached_terms_for_interval(
@@ -134,7 +150,10 @@ class PreparedMumpsRationalNode:
                 continue
             if lower < entry.lower or upper > entry.upper:
                 continue
-            if entry.terms.support_count is not None and entry.terms.support_count > pole_cap:
+            if (
+                entry.terms.support_count is not None
+                and entry.terms.support_count > pole_cap
+            ):
                 continue
             certification_grid = _aaa_sample_grid(
                 lower,
@@ -142,7 +161,9 @@ class PreparedMumpsRationalNode:
                 count=max(1024, 64 * int(pole_cap)),
                 kT=self.kT,
             )
-            exact = np.asarray(fermi_dirac(certification_grid, self.kT, 0.0), dtype=complex)
+            exact = np.asarray(
+                fermi_dirac(certification_grid, self.kT, 0.0), dtype=complex
+            )
             barycentric = _barycentric_evaluate(
                 certification_grid,
                 entry.support_x,
@@ -158,8 +179,13 @@ class PreparedMumpsRationalNode:
                 tail_upper_bound=entry.terms.tail_upper_bound,
             )
             scalar_error = float(np.max(np.abs(exact - pole_values), initial=0.0))
-            barycentric_gap = float(np.max(np.abs(pole_values - barycentric), initial=0.0))
-            if scalar_error <= scalar_tolerance and barycentric_gap <= 0.1 * scalar_tolerance:
+            barycentric_gap = float(
+                np.max(np.abs(pole_values - barycentric), initial=0.0)
+            )
+            if (
+                scalar_error <= scalar_tolerance
+                and barycentric_gap <= 0.1 * scalar_tolerance
+            ):
                 return entry.terms
         return None
 
@@ -251,7 +277,9 @@ class PreparedMumpsRationalNode:
             except ValueError as exc:
                 if "AAA scalar certification failed" not in str(exc):
                     raise
-                raise ValueError("Rational FOE did not converge within max_poles") from exc
+                raise ValueError(
+                    "Rational FOE did not converge within max_poles"
+                ) from exc
         pole_count = int(self.options.initial_poles)
         while True:
             try:
@@ -262,7 +290,9 @@ class PreparedMumpsRationalNode:
                 )
             except ValueError as exc:
                 if pole_count == int(self.options.max_poles):
-                    raise ValueError("Rational FOE did not converge within max_poles") from exc
+                    raise ValueError(
+                        "Rational FOE did not converge within max_poles"
+                    ) from exc
                 pole_count = min(int(self.options.max_poles), 2 * pole_count)
 
     def _evaluate_charge_for_pole_count(
@@ -291,7 +321,9 @@ class PreparedMumpsRationalNode:
         constant = terms.constant
         shifts = terms.shifts
         residues = terms.residues
-        active_factorizations = {} if factorization_cache is None else dict(factorization_cache)
+        active_factorizations = (
+            {} if factorization_cache is None else dict(factorization_cache)
+        )
         charge_entries: dict[complex, np.ndarray] = {}
         for shift in shifts:
             key = complex(shift)
@@ -300,7 +332,9 @@ class PreparedMumpsRationalNode:
                 factorization = SelectedInverseFactorization()
                 active_factorizations[key] = factorization
             factorization.factor(_sparse_shifted_matrix(shifted, key))
-            charge_entries[key] = factorization.selected_inverse(self._charge_pattern.pattern)
+            charge_entries[key] = factorization.selected_inverse(
+                self._charge_pattern.pattern
+            )
         charge = self._charge_pattern.charge_from_inverse_entries(
             charge_entries,
             constant=constant,
@@ -319,13 +353,18 @@ class PreparedMumpsRationalNode:
                 mu,
                 scalar_tolerance=self._charge_scalar_tolerance(),
             )
-            charge, _constant, _shifts, _residues, factorization_cache, charge_entries = (
-                self._evaluate_charge_for_pole_count(
-                    mu,
-                    pole_count=terms.pole_count,
-                    terms=terms,
-                    factorization_cache=None,
-                )
+            (
+                charge,
+                _constant,
+                _shifts,
+                _residues,
+                factorization_cache,
+                charge_entries,
+            ) = self._evaluate_charge_for_pole_count(
+                mu,
+                pole_count=terms.pole_count,
+                terms=terms,
+                factorization_cache=None,
             )
             self._charge_cache[mu] = (
                 charge,
@@ -344,7 +383,14 @@ class PreparedMumpsRationalNode:
             return charge, float("nan")
 
         half_poles = int(self.options.initial_poles)
-        half_charge, _constant, _shifts, _residues, factorization_cache, _charge_entries = self._evaluate_charge_for_pole_count(
+        (
+            half_charge,
+            _constant,
+            _shifts,
+            _residues,
+            factorization_cache,
+            _charge_entries,
+        ) = self._evaluate_charge_for_pole_count(
             mu,
             pole_count=half_poles,
             factorization_cache=None,
@@ -352,7 +398,14 @@ class PreparedMumpsRationalNode:
 
         while True:
             pole_count = min(int(self.options.max_poles), 2 * half_poles)
-            full_charge, constant, shifts, residues, factorization_cache, charge_entries = self._evaluate_charge_for_pole_count(
+            (
+                full_charge,
+                constant,
+                shifts,
+                residues,
+                factorization_cache,
+                charge_entries,
+            ) = self._evaluate_charge_for_pole_count(
                 mu,
                 pole_count=pole_count,
                 factorization_cache=factorization_cache,
@@ -415,11 +468,17 @@ class PreparedMumpsRationalNode:
             self.q_diag,
             dtype=self.workspace_dtype,
         )
-        resolved_terms = terms if terms is not None else self._sparse_terms(mu, pole_count=pole_count)
+        resolved_terms = (
+            terms
+            if terms is not None
+            else self._sparse_terms(mu, pole_count=pole_count)
+        )
         constant = resolved_terms.constant
         shifts = resolved_terms.shifts
         residues = resolved_terms.residues
-        factorizations = {} if factorization_cache is None else dict(factorization_cache)
+        factorizations = (
+            {} if factorization_cache is None else dict(factorization_cache)
+        )
         inverse_entries: dict[complex, np.ndarray] = {}
         for shift in shifts:
             key = complex(shift)
@@ -428,7 +487,9 @@ class PreparedMumpsRationalNode:
                 factorization = SelectedInverseFactorization()
                 factorizations[key] = factorization
             factorization.factor(_sparse_shifted_matrix(shifted, key))
-            inverse_entries[key] = factorization.selected_inverse(self._density_pattern.pattern)
+            inverse_entries[key] = factorization.selected_inverse(
+                self._density_pattern.pattern
+            )
         return constant, shifts, residues, factorizations, inverse_entries
 
     def _request_extra_density_entries_from_cached_factorizations(
@@ -437,7 +498,9 @@ class PreparedMumpsRationalNode:
         shifts: np.ndarray,
     ) -> dict[complex, np.ndarray]:
         if self._density_extra_pattern.nnz == 0:
-            return {complex(shift): np.empty(0, dtype=np.complex128) for shift in shifts}
+            return {
+                complex(shift): np.empty(0, dtype=np.complex128) for shift in shifts
+            }
         return {
             complex(shift): self._last_factorizations[complex(shift)].selected_inverse(
                 self._density_extra_pattern
@@ -455,15 +518,17 @@ class PreparedMumpsRationalNode:
         merged: dict[complex, np.ndarray] = {}
         for shift in shifts:
             key = complex(shift)
-            full_entries = np.zeros(self._density_pattern.pattern.nnz, dtype=np.complex128)
+            full_entries = np.zeros(
+                self._density_pattern.pattern.nnz, dtype=np.complex128
+            )
             if self._charge_to_density_source_positions.size:
-                full_entries[self._charge_to_density_target_positions] = charge_entries[key][
-                    self._charge_to_density_source_positions
-                ]
+                full_entries[self._charge_to_density_target_positions] = charge_entries[
+                    key
+                ][self._charge_to_density_source_positions]
             if self._extra_to_density_source_positions.size:
-                full_entries[self._extra_to_density_target_positions] = extra_entries[key][
-                    self._extra_to_density_source_positions
-                ]
+                full_entries[self._extra_to_density_target_positions] = extra_entries[
+                    key
+                ][self._extra_to_density_source_positions]
             merged[key] = full_entries
         return merged
 
@@ -509,12 +574,16 @@ class PreparedMumpsRationalNode:
 
         while True:
             pole_count = min(int(self.options.max_poles), 2 * half_poles)
-            full_constant, full_shifts, full_residues, factorization_cache, full_entries = (
-                self._request_density_inverse_entries(
-                    mu,
-                    pole_count=pole_count,
-                    factorization_cache=factorization_cache,
-                )
+            (
+                full_constant,
+                full_shifts,
+                full_residues,
+                factorization_cache,
+                full_entries,
+            ) = self._request_density_inverse_entries(
+                mu,
+                pole_count=pole_count,
+                factorization_cache=factorization_cache,
             )
             full_columns = self._density_columns_from_inverse_entries(
                 constant=full_constant,
@@ -522,7 +591,10 @@ class PreparedMumpsRationalNode:
                 residues=full_residues,
                 inverse_entries=full_entries,
             )
-            if float(np.max(np.abs(full_columns - half_columns), initial=0.0)) <= tolerance:
+            if (
+                float(np.max(np.abs(full_columns - half_columns), initial=0.0))
+                <= tolerance
+            ):
                 self._last_mu = float(mu)
                 self._last_pole_count = pole_count
                 self._last_constant = full_constant
@@ -538,10 +610,14 @@ class PreparedMumpsRationalNode:
             half_poles = pole_count
             half_columns = full_columns
 
-    def density_columns_from_charge_order(self, mu: float, basis: np.ndarray | None = None) -> np.ndarray:
+    def density_columns_from_charge_order(
+        self, mu: float, basis: np.ndarray | None = None
+    ) -> np.ndarray:
         charge_cache = self._charge_cache.get(mu)
         if charge_cache is None:
-            raise ValueError("Charge pole count is unavailable for the requested chemical potential")
+            raise ValueError(
+                "Charge pole count is unavailable for the requested chemical potential"
+            )
         pole_count = charge_cache[1]
         cached_constant = charge_cache[2]
         cached_shifts = np.asarray(charge_cache[3], dtype=np.complex128)
@@ -551,8 +627,10 @@ class PreparedMumpsRationalNode:
             and self._last_pole_count == pole_count
             and self._last_charge_entries
         ):
-            extra_entries = self._request_extra_density_entries_from_cached_factorizations(
-                shifts=self._last_shifts,
+            extra_entries = (
+                self._request_extra_density_entries_from_cached_factorizations(
+                    shifts=self._last_shifts,
+                )
             )
             inverse_entries = self._merge_charge_and_extra_entries(
                 self._last_charge_entries,
@@ -565,15 +643,17 @@ class PreparedMumpsRationalNode:
                 residues=self._last_residues,
                 inverse_entries=inverse_entries,
             )
-        constant, shifts, residues, factorizations, inverse_entries = self._request_density_inverse_entries(
-            mu,
-            pole_count=pole_count,
-            terms=SparseRationalTerms(
-                constant=cached_constant,
-                shifts=cached_shifts,
-                residues=cached_residues,
+        constant, shifts, residues, factorizations, inverse_entries = (
+            self._request_density_inverse_entries(
+                mu,
                 pole_count=pole_count,
-            ),
+                terms=SparseRationalTerms(
+                    constant=cached_constant,
+                    shifts=cached_shifts,
+                    residues=cached_residues,
+                    pole_count=pole_count,
+                ),
+            )
         )
         self._last_mu = float(mu)
         self._last_pole_count = pole_count

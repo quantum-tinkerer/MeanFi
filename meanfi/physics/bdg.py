@@ -57,7 +57,9 @@ def split_bdg_matrix(matrix: Any, ndof: int) -> tuple[Any, Any, Any, Any]:
     )
 
 
-def validate_bdg_tb(tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG correction") -> None:
+def validate_bdg_tb(
+    tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG correction"
+) -> None:
     expected_shape = (2 * ndof, 2 * ndof)
     zero = np.zeros(expected_shape, dtype=complex)
 
@@ -73,7 +75,9 @@ def validate_bdg_tb(tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG corr
             raise ValueError(f"{name} must include opposite keys for Hermiticity")
         opposite_matrix = tb[opposite]
         if not matrix_allclose(matrix, conjugate_transpose(opposite_matrix)):
-            raise ValueError(f"{name} must be Hermitian in real-space tight-binding form")
+            raise ValueError(
+                f"{name} must be Hermitian in real-space tight-binding form"
+            )
 
     keys = frozenset(tb) | {tuple(-np.asarray(key, dtype=int)) for key in tb}
     for key in keys:
@@ -81,7 +85,9 @@ def validate_bdg_tb(tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG corr
         matrix = tb.get(key, zero)
         opposite_matrix = tb.get(opposite, zero)
         normal, anomalous, lower, hole = split_bdg_matrix(matrix, ndof)
-        opposite_normal, opposite_anomalous, _, _ = split_bdg_matrix(opposite_matrix, ndof)
+        opposite_normal, opposite_anomalous, _, _ = split_bdg_matrix(
+            opposite_matrix, ndof
+        )
 
         if not matrix_allclose(hole, -transpose(opposite_normal)):
             raise ValueError(
@@ -150,7 +156,10 @@ def assemble_bdg_correction(
         else:
             assembled[key] = np.block(
                 [
-                    [np.asarray(normal, dtype=complex), np.asarray(anomalous, dtype=complex)],
+                    [
+                        np.asarray(normal, dtype=complex),
+                        np.asarray(anomalous, dtype=complex),
+                    ],
                     [np.asarray(lower, dtype=complex), np.asarray(hole, dtype=complex)],
                 ]
             )

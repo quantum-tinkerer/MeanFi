@@ -9,7 +9,12 @@ from meanfi.integrate.methods import IntegrationMethod
 from meanfi.model import Model
 from meanfi.physics.meanfield import meanfield
 from meanfi.results import DensityMatrixResult
-from meanfi.scf.engine import SolverRuntime, _prefer_sparse, restore_tb_type, warn_on_projection
+from meanfi.scf.engine import (
+    SolverRuntime,
+    _prefer_sparse,
+    restore_tb_type,
+    warn_on_projection,
+)
 from meanfi.state.normal import rparams_to_tb, tb_to_rparams
 from meanfi.state.support import normal_density_entry_support
 from meanfi.tb.ops import _tb_type, is_sparse_like
@@ -56,7 +61,9 @@ class NormalFamilyAdapter:
         self.runtime = runtime
         self.keys = list(model.h_int)
         support_keys = (
-            self.keys if model._local_key in self.keys else [*self.keys, model._local_key]
+            self.keys
+            if model._local_key in self.keys
+            else [*self.keys, model._local_key]
         )
         self.param_support = normal_density_entry_support(
             keys=support_keys,
@@ -111,19 +118,24 @@ class NormalFamilyAdapter:
             max_mu_iterations=self.runtime.max_mu_iterations,
             mu_guess=mu_guess,
         )
-        if "density_entry_support" in inspect.signature(
-            self._density_for_hamiltonian
-        ).parameters:
+        if (
+            "density_entry_support"
+            in inspect.signature(self._density_for_hamiltonian).parameters
+        ):
             kwargs["density_entry_support"] = self._density_entry_support(hamiltonian)
         return self._density_for_hamiltonian(self.model, hamiltonian, **kwargs)
 
-    def evaluate_projected_guess(self, projected_guess: _tb_type) -> DensityMatrixResult:
+    def evaluate_projected_guess(
+        self, projected_guess: _tb_type
+    ) -> DensityMatrixResult:
         return self._evaluate_hamiltonian(
             self.model.hamiltonian_from_meanfield(projected_guess),
             mu_guess=0.0,
         )
 
-    def params_from_density_result(self, density_result: DensityMatrixResult) -> np.ndarray:
+    def params_from_density_result(
+        self, density_result: DensityMatrixResult
+    ) -> np.ndarray:
         density_guess = {key: density_result.density_matrix[key] for key in self.keys}
         return np.asarray(
             self._tb_to_rparams(density_guess, support=self.param_support),

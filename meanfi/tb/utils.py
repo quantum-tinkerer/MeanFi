@@ -105,8 +105,10 @@ def _guess_bdg_tb(
 
         opposite = tuple(-np.asarray(vector, dtype=int))
 
-        A = scale * np.random.rand(ndof, ndof) * np.exp(
-            2j * np.pi * np.random.rand(ndof, ndof)
+        A = (
+            scale
+            * np.random.rand(ndof, ndof)
+            * np.exp(2j * np.pi * np.random.rand(ndof, ndof))
         )
 
         if vector == opposite:

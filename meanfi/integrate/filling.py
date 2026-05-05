@@ -45,7 +45,9 @@ def _initial_spectral_bound(hamiltonian: _tb_type) -> float:
     ndim = len(next(iter(hamiltonian)))
     estimate = 0.0
     for point in _spectral_probe_points(ndim):
-        estimate = max(estimate, hermitian_spectral_bound(_tb_k_matrix(hamiltonian, point)))
+        estimate = max(
+            estimate, hermitian_spectral_bound(_tb_k_matrix(hamiltonian, point))
+        )
     if estimate == 0.0:
         return fallback
     return float(min(fallback, estimate + 1e-3 * max(1.0, estimate)))
@@ -100,7 +102,9 @@ def solve_mu_charge_only(
     lower_charge, _lower_error, _ = evaluate_charge(lower)
     upper_charge, _upper_error, _ = evaluate_charge(upper)
     if lower_charge > filling or upper_charge < filling:
-        raise ValueError("Chemical-potential bracket does not enclose the requested filling")
+        raise ValueError(
+            "Chemical-potential bracket does not enclose the requested filling"
+        )
 
     mu = float(np.clip(mu_guess, lower, upper))
     last_charge = float("nan")
@@ -142,7 +146,13 @@ def solve_mu_charge_only(
             upper_charge = last_charge
 
         if upper - lower <= mu_xtol:
-            return 0.5 * (lower + upper), last_charge, last_charge_error, None, iteration
+            return (
+                0.5 * (lower + upper),
+                last_charge,
+                last_charge_error,
+                None,
+                iteration,
+            )
 
         if max_mu_iterations is not None and iteration >= max_mu_iterations:
             return mu, last_charge, last_charge_error, None, iteration

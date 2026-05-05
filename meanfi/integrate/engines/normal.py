@@ -6,9 +6,19 @@ from typing import Callable
 from meanfi.tb.validate import require_zero_dim_local_key_only, tb_dimension, zero_key
 from meanfi.tb.ops import _tb_type
 
-from ..common import effective_filling_tol, local_density_filling, retarget_result_keys, wrap_adaptive_result
+from ..common import (
+    effective_filling_tol,
+    local_density_filling,
+    retarget_result_keys,
+    wrap_adaptive_result,
+)
 from meanfi.state.support import DensityEntrySupport, workspace_complex_dtype
-from ..methods import AdaptiveQuadrature, AdaptiveSimplex, IntegrationMethod, UniformGrid
+from ..methods import (
+    AdaptiveQuadrature,
+    AdaptiveSimplex,
+    IntegrationMethod,
+    UniformGrid,
+)
 from ..quadrature.normal import build_normal_backend, resolve_normal_matrix_function
 from ..quadrature.runtime import solve_quadrature_at_mu, solve_quadrature_fixed_filling
 from ..simplex import density_matrix_at_mu_zero_temp, density_matrix_zero_temp
@@ -49,7 +59,9 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
     hamiltonian = context.hamiltonian
     integration = context.integration
     assert isinstance(integration, AdaptiveQuadrature)
-    resolve_normal_matrix_function(getattr(integration, "matrix_function", None), hamiltonian)
+    resolve_normal_matrix_function(
+        getattr(integration, "matrix_function", None), hamiltonian
+    )
 
     if tb_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
@@ -114,7 +126,9 @@ def _adaptive_quadrature_fixed_filling(
         hamiltonian=hamiltonian,
         filling_tol=filling_tol,
     )
-    resolve_normal_matrix_function(getattr(integration, "matrix_function", None), hamiltonian)
+    resolve_normal_matrix_function(
+        getattr(integration, "matrix_function", None), hamiltonian
+    )
     if tb_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
         density_matrix, density_matrix_error, _mu, raw_info = density_matrix_zero_dim(

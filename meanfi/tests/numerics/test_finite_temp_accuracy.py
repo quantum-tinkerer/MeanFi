@@ -20,7 +20,11 @@ import meanfi.integrate.matrix_functions.rational as rational_matrix_functions
 import meanfi.integrate.quadrature.runtime as quadrature_runtime
 from meanfi.state.normal import tb_to_rparams
 from meanfi.solvers import _evaluate_density_for_hamiltonian
-from meanfi.tests.helpers import assert_estimator_covers_actual, max_density_error, spinful_chain
+from meanfi.tests.helpers import (
+    assert_estimator_covers_actual,
+    max_density_error,
+    spinful_chain,
+)
 
 
 pytestmark = [pytest.mark.numerics, pytest.mark.perf_slow]
@@ -71,7 +75,10 @@ def test_zero_dimensional_normal_rational_matches_direct_reference():
         ),
     )
 
-    assert max_density_error(result_at_mu.density_matrix, reference_at_mu.density_matrix) <= 1e-2
+    assert (
+        max_density_error(result_at_mu.density_matrix, reference_at_mu.density_matrix)
+        <= 1e-2
+    )
 
     reference_fixed = density_matrix(
         tb_zero_dim,
@@ -98,7 +105,10 @@ def test_zero_dimensional_normal_rational_matches_direct_reference():
         mu_tol=1e-8,
     )
 
-    assert max_density_error(result_fixed.density_matrix, reference_fixed.density_matrix) <= 1e-2
+    assert (
+        max_density_error(result_fixed.density_matrix, reference_fixed.density_matrix)
+        <= 1e-2
+    )
     assert abs(result_fixed.filling - 0.9) <= 1e-2
 
 
@@ -136,12 +146,17 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
         ),
     )
 
-    actual_density_error = max_density_error(result.density_matrix, reference.density_matrix)
+    actual_density_error = max_density_error(
+        result.density_matrix, reference.density_matrix
+    )
     assert abs(result.mu) <= 1e-12
     assert actual_density_error <= atol
     assert_estimator_covers_actual(
         actual_density_error,
-        max(float(np.max(np.abs(block))) for block in result.density_matrix_error.values()),
+        max(
+            float(np.max(np.abs(block)))
+            for block in result.density_matrix_error.values()
+        ),
     )
 
 
@@ -357,7 +372,10 @@ def test_quadrature_workspace_precision_64_matches_128():
     )
 
     assert abs(low_precision.mu - high_precision.mu) <= 5e-3
-    assert max_density_error(low_precision.density_matrix, high_precision.density_matrix) <= 2e-2
+    assert (
+        max_density_error(low_precision.density_matrix, high_precision.density_matrix)
+        <= 2e-2
+    )
 
 
 @requires_prepared_payloads
@@ -465,7 +483,10 @@ def test_sparse_aaa_terms_certify_scalar_error_on_local_interval():
 def test_sparse_aaa_arrowhead_poles_match_barycentric_form():
     builder = rational_matrix_functions._fit_barycentric_weights(
         np.linspace(-2.0, 2.0, 33, dtype=float),
-        np.asarray(1.0 / (1.0 + np.exp(np.linspace(-2.0, 2.0, 33, dtype=float) / 0.2)), dtype=complex),
+        np.asarray(
+            1.0 / (1.0 + np.exp(np.linspace(-2.0, 2.0, 33, dtype=float) / 0.2)),
+            dtype=complex,
+        ),
         [0, 8, 16, 24, 32],
     )
     probe = np.linspace(-2.0, 2.0, 513, dtype=float)
@@ -528,7 +549,9 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
 
 def test_strained_graphene_single_shot_sparse_aaa_is_stable():
     pytest.importorskip("kwant")
-    from docs.source.tutorial.scripts.zero_temp_validation import _build_strained_graphene_inputs
+    from docs.source.tutorial.scripts.zero_temp_validation import (
+        _build_strained_graphene_inputs,
+    )
 
     h0, _h_int, guess, filling, _data, _k_path = _build_strained_graphene_inputs()
     result = density_matrix(
@@ -539,7 +562,9 @@ def test_strained_graphene_single_shot_sparse_aaa_is_stable():
         integration=AdaptiveQuadrature(
             density_matrix_tol=1e-1,
             max_refinements=20,
-            matrix_function=RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"),
+            matrix_function=RationalFOE(
+                initial_poles=4, max_poles=128, rational_scheme="aaa"
+            ),
         ),
         filling_tol=1e-1,
         mu_tol=1e-8,

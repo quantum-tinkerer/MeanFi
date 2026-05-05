@@ -58,7 +58,9 @@ class Model:
         """Return the unshifted electron-first BdG Hamiltonian for a mean-field correction."""
 
         if not self.superconducting:
-            raise ValueError("bdg_hamiltonian_from_meanfield requires superconducting=True")
+            raise ValueError(
+                "bdg_hamiltonian_from_meanfield requires superconducting=True"
+            )
         validate_bdg_tb(
             mf,
             ndof=self._ndof,

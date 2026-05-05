@@ -5,7 +5,12 @@ import argparse
 import numpy as np
 
 from meanfi import AdaptiveQuadrature, add_tb, density_matrix, meanfield
-from performance._shared.fixtures import benchmark, bipartite_hubbard_1d, converged_dense_reference, max_density_error
+from performance._shared.fixtures import (
+    benchmark,
+    bipartite_hubbard_1d,
+    converged_dense_reference,
+    max_density_error,
+)
 from performance._shared.common import density_record, print_summary, write_records
 
 

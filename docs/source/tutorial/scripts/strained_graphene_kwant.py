@@ -5,7 +5,8 @@ from kwant.linalg import lll
 import scipy
 import matplotlib.pyplot as plt
 
-# Create a 10 x 10 supercell of strained graphene following Antonio L R Manesco and Jose L Lado 2021 2D Mater. 8 035057
+# Create a 10 x 10 supercell of strained graphene following Antonio L R
+# Manesco and Jose L Lado 2021 2D Matter 8 035057
 
 
 def high_symmetry_line(bz_vertices, nk=12):

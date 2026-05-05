@@ -49,7 +49,7 @@ sdist.include = [
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.regex"
 input = "meanfi/_version.py"
-regex = "__version__ = version = '(?P<value>[^']+)'"
+regex = "__version__ = version = [\"'](?P<value>[^\"']+)[\"']"
 
 [project.urls]
 "Documentation" = "https://meanfi.readthedocs.io/en/latest/"
@@ -65,7 +65,7 @@ cache-dir = "build/test-reports/.ruff_cache"
 
 [tool.codespell]
 skip = "*.ipynb, *.cls,*.bst,*.bib,*.lock"
-ignore-words-list = "multline, ket, bra, braket, nwo, mater"
+ignore-words-list = "multline, ket, bra, braket, nwo"
 
 [tool.pixi.workspace]
 channels = ["https://prefix.dev/conda-forge"]
@@ -87,7 +87,6 @@ pytest = ">=8.3.4,<9"
 pytest-cov = ">=6.0.0,<7"
 pytest-randomly = ">=3.15.0,<4"
 pytest-regressions = "*"
-pytest-repeat = ">=0.9.3,<0.10"
 ruff = ">=0.9.6,<0.10"
 
 [tool.pixi.feature.test.pypi-dependencies]
@@ -159,7 +158,7 @@ empty = { features = ["empty"], no-default-feature = true }
 zip = { features = ["zip"], no-default-feature = true }
 
 [tool.pixi.feature.test.tasks]
-tests = { cmd = "pytest -m \"not perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
+tests = { cmd = "pytest -m \"not performance and not perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 tests-perf-slow = { cmd = "pytest -m \"perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 
 

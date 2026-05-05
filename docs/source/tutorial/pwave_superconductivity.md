@@ -21,7 +21,7 @@ The main difference is that we now ask MeanFi to search for anomalous pairing te
 ## Model definition
 
 We consider a spinless square lattice with nearest-neighbor hopping and nearest-neighbor attraction.
-The key API change is `superconducting=True` in {autolink}`~meanfi.Model`.
+The key API change is `superconducting=True` in {py:class}`meanfi.model.Model`.
 That tells MeanFi to lift the problem to electron-first BdG space and solve for anomalous pairing together with the normal correction.
 Even though the normal-state Hamiltonian has only one orbital per unit cell, every mean-field correction matrix is now `2 x 2`.
 This is also what makes the calculation heavier than the normal-state tutorials.

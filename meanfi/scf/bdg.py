@@ -48,7 +48,9 @@ class BdGFamilyAdapter:
         use_sparse = any(is_sparse_like(value) for value in tb.values())
         if use_sparse:
             zero_sparse = as_sparse(zero)
-            return {key: as_sparse(tb.get(key, zero_sparse)) for key in self.support_keys}
+            return {
+                key: as_sparse(tb.get(key, zero_sparse)) for key in self.support_keys
+            }
         return {
             key: np.asarray(tb.get(key, zero), dtype=complex)
             for key in self.support_keys
@@ -109,10 +111,14 @@ class BdGFamilyAdapter:
             density_entry_support=self._sparse_density_support(meanfield_guess),
         )
 
-    def evaluate_projected_guess(self, projected_guess: _tb_type) -> DensityMatrixResult:
+    def evaluate_projected_guess(
+        self, projected_guess: _tb_type
+    ) -> DensityMatrixResult:
         return self._evaluate_meanfield(projected_guess, mu_guess=0.0)
 
-    def params_from_density_result(self, density_result: DensityMatrixResult) -> np.ndarray:
+    def params_from_density_result(
+        self, density_result: DensityMatrixResult
+    ) -> np.ndarray:
         return np.asarray(
             bdg_density_to_rparams(
                 density_result.density_matrix,

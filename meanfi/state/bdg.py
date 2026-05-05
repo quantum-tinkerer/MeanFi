@@ -34,7 +34,9 @@ def bdg_tb_to_rparams(
     _validate_bdg(tb, ndof)
     if support is not None:
         normal_block = {
-            key: _split_bdg_matrix(tb.get(key, np.zeros((2 * ndof, 2 * ndof), dtype=complex)), ndof)[0]
+            key: _split_bdg_matrix(
+                tb.get(key, np.zeros((2 * ndof, 2 * ndof), dtype=complex)), ndof
+            )[0]
             for key in support.keys
         }
         normal_params = tb_to_rparams(normal_block, support=support.normal_support)
@@ -49,7 +51,9 @@ def bdg_tb_to_rparams(
                 tb.get(key, np.zeros((2 * ndof, 2 * ndof), dtype=complex)),
                 ndof,
             )[1]
-            anomalous_parts.append(complex_to_real(np.asarray(anomalous, dtype=complex)[rows, cols]))
+            anomalous_parts.append(
+                complex_to_real(np.asarray(anomalous, dtype=complex)[rows, cols])
+            )
         if not anomalous_parts:
             return normal_params
         return np.concatenate((normal_params, *anomalous_parts))
@@ -74,7 +78,10 @@ def rparams_to_bdg_tb(
 ) -> _tb_type:
     if support is not None:
         normal_size = tb_to_rparams(
-            {key: np.zeros((ndof, ndof), dtype=complex) for key in support.normal_support.keys},
+            {
+                key: np.zeros((ndof, ndof), dtype=complex)
+                for key in support.normal_support.keys
+            },
             support=support.normal_support,
         ).size
         params = np.asarray(tb_params, dtype=float).reshape(-1)
@@ -86,7 +93,9 @@ def rparams_to_bdg_tb(
         )
 
         offset = normal_size
-        anomalous_block = {key: np.zeros((ndof, ndof), dtype=complex) for key in support.keys}
+        anomalous_block = {
+            key: np.zeros((ndof, ndof), dtype=complex) for key in support.keys
+        }
         for key, rows, cols in zip(
             support.keys,
             support.anomalous_rows,
@@ -99,7 +108,9 @@ def rparams_to_bdg_tb(
                 anomalous_block[key][rows, cols] = values
                 offset += 2 * count
         if offset != len(params):
-            raise ValueError("tb_params has the wrong length for the requested BdG support")
+            raise ValueError(
+                "tb_params has the wrong length for the requested BdG support"
+            )
 
         tb = assemble_bdg_correction(
             normal_block,
@@ -121,7 +132,9 @@ def rparams_to_bdg_tb(
     offset = normal_size
     anomalous_block = {}
     for key in ordered_keys:
-        anomalous = real_to_complex(params[offset : offset + block_size]).reshape(ndof, ndof)
+        anomalous = real_to_complex(params[offset : offset + block_size]).reshape(
+            ndof, ndof
+        )
         anomalous_block[key] = anomalous
         offset += block_size
 
@@ -144,7 +157,9 @@ def bdg_density_to_rparams(
     ndof: int,
 ) -> np.ndarray:
     electron_density = {
-        key: np.asarray(density_matrix.get(key, np.zeros((2 * ndof, 2 * ndof), dtype=complex)))[:ndof, :ndof]
+        key: np.asarray(
+            density_matrix.get(key, np.zeros((2 * ndof, 2 * ndof), dtype=complex))
+        )[:ndof, :ndof]
         for key in support.keys
     }
     normal_params = tb_to_rparams(electron_density, support=support.normal_support)
@@ -172,7 +187,10 @@ def rparams_to_bdg_density(
     ndof: int,
 ) -> _tb_type:
     normal_size = tb_to_rparams(
-        {key: np.zeros((ndof, ndof), dtype=complex) for key in support.normal_support.keys},
+        {
+            key: np.zeros((ndof, ndof), dtype=complex)
+            for key in support.normal_support.keys
+        },
         support=support.normal_support,
     ).size
     electron_density = rparams_to_tb(
@@ -185,7 +203,9 @@ def rparams_to_bdg_density(
     density: _tb_type = {}
     for key in support.keys:
         density[key] = np.zeros((2 * ndof, 2 * ndof), dtype=complex)
-        density[key][:ndof, :ndof] = electron_density.get(key, np.zeros((ndof, ndof), dtype=complex))
+        density[key][:ndof, :ndof] = electron_density.get(
+            key, np.zeros((ndof, ndof), dtype=complex)
+        )
 
     params = np.asarray(params, dtype=float).reshape(-1)
     for key, rows, cols in zip(
@@ -201,5 +221,7 @@ def rparams_to_bdg_density(
             offset += 2 * count
 
     if offset != len(params):
-        raise ValueError("tb_params has the wrong length for the requested BdG density support")
+        raise ValueError(
+            "tb_params has the wrong length for the requested BdG density support"
+        )
     return density

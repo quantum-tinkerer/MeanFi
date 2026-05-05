@@ -5,9 +5,15 @@ from typing import Any
 import numpy as np
 
 from ..base import RationalFOE
-from ..common import scalar_derivative_converged, spectral_interval, workspace_matrix, shift_by_mu
+from ..common import (
+    scalar_derivative_converged,
+    spectral_interval,
+    workspace_matrix,
+    shift_by_mu,
+)
 from .common import _evaluate_rational_terms
 from .scheme import _aaa_terms_for_interval, _scheme_terms
+
 
 class PreparedRationalNode:
     def __init__(
@@ -38,7 +44,9 @@ class PreparedRationalNode:
             copy=False,
         )
         if self._trace_columns.size == 0:
-            raise ValueError("Exact weighted trace requires at least one nonzero trace weight")
+            raise ValueError(
+                "Exact weighted trace requires at least one nonzero trace weight"
+            )
         self._trace_basis = np.zeros(
             (self.size, self._trace_columns.size),
             dtype=self.workspace_dtype,
@@ -96,7 +104,9 @@ class PreparedRationalNode:
             lu_cache=lu_cache,
         )
 
-    def _certified_aaa_terms(self, mu: float) -> tuple[complex, np.ndarray, np.ndarray, int]:
+    def _certified_aaa_terms(
+        self, mu: float
+    ) -> tuple[complex, np.ndarray, np.ndarray, int]:
         shifted = shift_by_mu(
             self.matrix,
             mu,
@@ -199,30 +209,35 @@ class PreparedRationalNode:
         )
         half_charge = self._trace_scalar(half_block)
         half_derivative = (
-            0.0 if half_derivative_block is None else self._trace_scalar(half_derivative_block)
+            0.0
+            if half_derivative_block is None
+            else self._trace_scalar(half_derivative_block)
         )
 
         while True:
             pole_count = min(int(self.options.max_poles), 2 * half_poles)
-            full_block, full_derivative_block, lu_cache = self._evaluate_terms_for_basis(
-                mu,
-                self._trace_basis,
-                pole_count=pole_count,
-                derivative=True,
-                lu_cache=lu_cache,
+            full_block, full_derivative_block, lu_cache = (
+                self._evaluate_terms_for_basis(
+                    mu,
+                    self._trace_basis,
+                    pole_count=pole_count,
+                    derivative=True,
+                    lu_cache=lu_cache,
+                )
             )
             full_charge = self._trace_scalar(full_block)
             full_derivative = (
-                0.0 if full_derivative_block is None else self._trace_scalar(full_derivative_block)
+                0.0
+                if full_derivative_block is None
+                else self._trace_scalar(full_derivative_block)
             )
 
-            if (
-                abs(full_charge - half_charge) <= self.charge_tolerance
-                and scalar_derivative_converged(
-                    full_derivative,
-                    half_derivative,
-                    rtol=self.options.dn_dmu_rtol,
-                )
+            if abs(
+                full_charge - half_charge
+            ) <= self.charge_tolerance and scalar_derivative_converged(
+                full_derivative,
+                half_derivative,
+                rtol=self.options.dn_dmu_rtol,
             ):
                 self._charge_cache[mu] = (full_charge, full_derivative, pole_count)
                 self._last_mu = float(mu)
@@ -239,13 +254,19 @@ class PreparedRationalNode:
             half_charge = full_charge
             half_derivative = full_derivative
 
-    def density_columns_from_charge_order(self, mu: float, basis: np.ndarray) -> np.ndarray:
+    def density_columns_from_charge_order(
+        self, mu: float, basis: np.ndarray
+    ) -> np.ndarray:
         charge_cache = self._charge_cache.get(mu)
         if charge_cache is None:
-            raise ValueError("Charge pole count is unavailable for the requested chemical potential")
+            raise ValueError(
+                "Charge pole count is unavailable for the requested chemical potential"
+            )
         if self.options.rational_scheme == "aaa":
             if self._last_mu != float(mu):
-                raise ValueError("Charge pole data is unavailable for the requested chemical potential")
+                raise ValueError(
+                    "Charge pole data is unavailable for the requested chemical potential"
+                )
             block, _derivative_block, lu_cache = self._evaluate_known_terms_for_basis(
                 mu,
                 basis,
@@ -277,4 +298,3 @@ class PreparedRationalNode:
             np.eye(self.size, dtype=self.workspace_dtype),
         )
         return 0.5 * (block + block.conj().T)
-

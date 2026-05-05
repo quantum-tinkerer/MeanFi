@@ -5,8 +5,13 @@ from typing import Any
 
 import numpy as np
 
+from meanfi.integrate.methods import (
+    AdaptiveQuadrature,
+    AdaptiveSimplex,
+    IntegrationMethod,
+    UniformGrid,
+)
 from meanfi.tb.ops import _tb_type, is_sparse_like
-from meanfi.integrate.methods import AdaptiveQuadrature, AdaptiveSimplex, IntegrationMethod, UniformGrid
 
 
 def workspace_complex_dtype(integration: IntegrationMethod) -> np.dtype:
@@ -20,11 +25,16 @@ def workspace_complex_dtype(integration: IntegrationMethod) -> np.dtype:
 
 def workspace_real_dtype(integration: IntegrationMethod) -> np.dtype:
     complex_dtype = workspace_complex_dtype(integration)
-    return np.dtype(np.float32 if complex_dtype == np.dtype(np.complex64) else np.float64)
+    return np.dtype(
+        np.float32 if complex_dtype == np.dtype(np.complex64) else np.float64
+    )
 
 
 def require_supported_workspace_precision(integration: IntegrationMethod) -> None:
-    if isinstance(integration, AdaptiveSimplex) and int(integration.workspace_precision) != 128:
+    if (
+        isinstance(integration, AdaptiveSimplex)
+        and int(integration.workspace_precision) != 128
+    ):
         raise ValueError(
             "AdaptiveSimplex currently supports only workspace_precision=128 because the "
             "compiled zero-temperature backend does not yet implement complex64 workspaces"
@@ -36,8 +46,10 @@ def require_supported_workspace_precision(integration: IntegrationMethod) -> Non
 
 def _structural_entry_indices(matrix: Any) -> tuple[np.ndarray, np.ndarray]:
     if is_sparse_like(matrix):
-        coo = matrix.tocoo()
-        return np.asarray(coo.row, dtype=int), np.asarray(coo.col, dtype=int)
+        sparse_coo = matrix.tocoo()
+        return np.asarray(sparse_coo.row, dtype=int), np.asarray(
+            sparse_coo.col, dtype=int
+        )
     rows, cols = np.nonzero(np.asarray(matrix))
     return np.asarray(rows, dtype=int), np.asarray(cols, dtype=int)
 
@@ -114,7 +126,9 @@ class DensityEntrySupport:
             if stop > start:
                 rows = self.row_indices[index]
                 cols = self.col_indices[index]
-                block[rows, cols] = np.asarray(entry_grid[key], dtype=complex)[start:stop]
+                block[rows, cols] = np.asarray(entry_grid[key], dtype=complex)[
+                    start:stop
+                ]
             rho[key] = block
         return rho
 
@@ -169,7 +183,9 @@ def _build_support_allowing_empty(
         )
 
     lookup = np.full(size, -1, dtype=int)
-    lookup[np.asarray(selected_columns, dtype=int)] = np.arange(len(selected_columns), dtype=int)
+    lookup[np.asarray(selected_columns, dtype=int)] = np.arange(
+        len(selected_columns), dtype=int
+    )
     row_indices: list[np.ndarray] = []
     col_indices: list[np.ndarray] = []
     column_positions: list[np.ndarray] = []
@@ -197,7 +213,9 @@ def _build_support_allowing_empty(
     )
 
 
-def _deduplicate_pairs(rows: np.ndarray, cols: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _deduplicate_pairs(
+    rows: np.ndarray, cols: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
     rows = np.asarray(rows, dtype=int)
     cols = np.asarray(cols, dtype=int)
     if rows.size == 0:
@@ -299,7 +317,9 @@ def bdg_top_half_support(
         local_key=local_key,
         allow_empty=True,
     )
-    if normal_support is None:  # pragma: no cover - allow_empty=True guarantees a descriptor
+    if (
+        normal_support is None
+    ):  # pragma: no cover - allow_empty=True guarantees a descriptor
         raise ValueError("Normal support unexpectedly missing")
 
     anomalous_rows: list[np.ndarray] = []
@@ -338,8 +358,12 @@ def bdg_density_entry_support(
         local_key=local_key,
     )
     for index, key in enumerate(keys):
-        electron_rows = np.asarray(top_half.normal_support.row_indices[index], dtype=int)
-        electron_cols = np.asarray(top_half.normal_support.col_indices[index], dtype=int)
+        electron_rows = np.asarray(
+            top_half.normal_support.row_indices[index], dtype=int
+        )
+        electron_cols = np.asarray(
+            top_half.normal_support.col_indices[index], dtype=int
+        )
         anomalous_rows = np.asarray(top_half.anomalous_rows[index], dtype=int)
         anomalous_cols = np.asarray(top_half.anomalous_cols[index], dtype=int) + ndof
         stacked_rows = np.concatenate([electron_rows, anomalous_rows])

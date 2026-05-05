@@ -73,7 +73,9 @@ def _pack_supported_onsite(
     )
     if upper_params.size == 0:
         return diagonal_params.astype(float, copy=False)
-    return np.concatenate([diagonal_params.astype(float, copy=False), complex_to_real(upper_params)])
+    return np.concatenate(
+        [diagonal_params.astype(float, copy=False), complex_to_real(upper_params)]
+    )
 
 
 def _unpack_supported_onsite(
@@ -192,7 +194,9 @@ def tb_to_rparams(
             hopping_params.append(
                 _pack_supported_hopping(
                     to_dense(
-                        tb.get(key, np.zeros((support.size, support.size), dtype=complex))
+                        tb.get(
+                            key, np.zeros((support.size, support.size), dtype=complex)
+                        )
                     ),
                     rows,
                     cols,
@@ -265,7 +269,9 @@ def rparams_to_tb(
     matrices = {local_key: onsite}
     block_size = 2 * ndof * ndof
     for key in independent_hopping_keys(ordered_keys):
-        block = real_to_complex(params[offset : offset + block_size]).reshape(ndof, ndof)
+        block = real_to_complex(params[offset : offset + block_size]).reshape(
+            ndof, ndof
+        )
         offset += block_size
         matrices[key] = block
         matrices[opposite_key(key)] = block.conj().T

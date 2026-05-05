@@ -1,18 +1,19 @@
 # %%
 from __future__ import annotations
 
-import argparse
-from pathlib import Path
-import warnings
-import matplotlib
 import numpy as np
-from pyparsing.warnings import PyparsingDeprecationWarning
 
-#%%
+# %%
 from matplotlib import pyplot as plt
-from meanfi import AdaptiveQuadrature, LinearMixing, Model, solver, guess_tb, ChebyshevFOE, RationalFOE
+from meanfi import (
+    AdaptiveQuadrature,
+    LinearMixing,
+    Model,
+    solver,
+)
 
 # %%%
+
 
 def chiral_square_problem():
     hopping = 0.5
@@ -37,8 +38,12 @@ def chiral_square_problem():
     guess = {
         (1, 0): np.array([[0.0, guess_scale], [-guess_scale, 0.0]], dtype=complex),
         (-1, 0): np.array([[0.0, -guess_scale], [guess_scale, 0.0]], dtype=complex),
-        (0, 1): np.array([[0.0, 1j * guess_scale], [1j * guess_scale, 0.0]], dtype=complex),
-        (0, -1): np.array([[0.0, -1j * guess_scale], [-1j * guess_scale, 0.0]], dtype=complex),
+        (0, 1): np.array(
+            [[0.0, 1j * guess_scale], [1j * guess_scale, 0.0]], dtype=complex
+        ),
+        (0, -1): np.array(
+            [[0.0, -1j * guess_scale], [-1j * guess_scale, 0.0]], dtype=complex
+        ),
     }
     model = Model(
         h_0,
@@ -73,20 +78,30 @@ def _electron_and_pairing_symbols(model: Model, result, *, nk: int):
     kx, ky = np.meshgrid(axis, axis, indexing="ij")
     phase_grid = np.stack([kx, ky], axis=-1)
 
-    electron_tb = {key: np.array(value, dtype=complex) for key, value in model.h_0.items()}
+    electron_tb = {
+        key: np.array(value, dtype=complex) for key, value in model.h_0.items()
+    }
     pairing_tb = {}
     for key, matrix in result.mf.items():
         array = np.asarray(matrix, dtype=complex)
-        electron_tb[key] = electron_tb.get(key, np.zeros((1, 1), dtype=complex)) + array[:1, :1]
+        electron_tb[key] = (
+            electron_tb.get(key, np.zeros((1, 1), dtype=complex)) + array[:1, :1]
+        )
         pairing_tb[key] = array[:1, 1:]
 
     dispersion = np.zeros_like(kx, dtype=complex)
     gap = np.zeros_like(kx, dtype=complex)
     for key, matrix in electron_tb.items():
-        phase = np.exp(-1j * np.tensordot(phase_grid, np.asarray(key, dtype=float), axes=([-1], [0])))
+        phase = np.exp(
+            -1j
+            * np.tensordot(phase_grid, np.asarray(key, dtype=float), axes=([-1], [0]))
+        )
         dispersion += matrix[0, 0] * phase
     for key, matrix in pairing_tb.items():
-        phase = np.exp(-1j * np.tensordot(phase_grid, np.asarray(key, dtype=float), axes=([-1], [0])))
+        phase = np.exp(
+            -1j
+            * np.tensordot(phase_grid, np.asarray(key, dtype=float), axes=([-1], [0]))
+        )
         gap += matrix[0, 0] * phase
 
     xi = dispersion.real - result.density_matrix_result.mu
@@ -95,7 +110,9 @@ def _electron_and_pairing_symbols(model: Model, result, *, nk: int):
     return axis, xi, gap, gap_abs, quasiparticle
 
 
-def _phase_winding(gap_function: np.ndarray, radius: float = 0.45, n_points: int = 361) -> float:
+def _phase_winding(
+    gap_function: np.ndarray, radius: float = 0.45, n_points: int = 361
+) -> float:
     theta = np.linspace(0.0, 2.0 * np.pi, n_points)
     kx = radius * np.cos(theta)
     ky = radius * np.sin(theta)
@@ -109,6 +126,8 @@ def _phase_winding(gap_function: np.ndarray, radius: float = 0.45, n_points: int
 
     phase = np.unwrap(np.angle(sample))
     return float((phase[-1] - phase[0]) / (2.0 * np.pi))
+
+
 # %%
 
 
@@ -148,7 +167,9 @@ with plt.style.context("dark_background"):
         cmap="magma",
         interpolation="bicubic",
     )
-    axes[0, 1].contour(axis, axis, xi.T, levels=[0.0], colors="cyan", linewidths=1.0, alpha=0.9)
+    axes[0, 1].contour(
+        axis, axis, xi.T, levels=[0.0], colors="cyan", linewidths=1.0, alpha=0.9
+    )
     axes[0, 1].set_title("BdG Quasiparticle Energy $E(\\mathbf{k})$")
     axes[0, 1].set_xlabel("$k_x$")
     axes[0, 1].set_ylabel("$k_y$")
@@ -161,7 +182,9 @@ with plt.style.context("dark_background"):
         cmap="viridis",
         interpolation="bicubic",
     )
-    axes[1, 0].contour(axis, axis, xi.T, levels=[0.0], colors="white", linewidths=1.0, alpha=0.9)
+    axes[1, 0].contour(
+        axis, axis, xi.T, levels=[0.0], colors="white", linewidths=1.0, alpha=0.9
+    )
     axes[1, 0].set_title("Gap Magnitude $|\\Delta(\\mathbf{k})|$")
     axes[1, 0].set_xlabel("$k_x$")
     axes[1, 0].set_ylabel("$k_y$")
@@ -178,7 +201,9 @@ with plt.style.context("dark_background"):
         vmax=np.pi,
         alpha=np.clip(gap_abs.T / np.max(gap_abs), 0.15, 1.0),
     )
-    axes[1, 1].contour(axis, axis, xi.T, levels=[0.0], colors="white", linewidths=1.0, alpha=0.9)
+    axes[1, 1].contour(
+        axis, axis, xi.T, levels=[0.0], colors="white", linewidths=1.0, alpha=0.9
+    )
     axes[1, 1].set_title("Phase Texture $\\arg\\,\\Delta(\\mathbf{k})$")
     axes[1, 1].set_xlabel("$k_x$")
     axes[1, 1].set_ylabel("$k_y$")

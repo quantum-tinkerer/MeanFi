@@ -59,9 +59,13 @@ def canonical_tb_keys(tb_keys: Iterable[tuple[int, ...]]) -> list[tuple[int, ...
     return ordered
 
 
-def independent_hopping_keys(tb_keys: Iterable[tuple[int, ...]]) -> list[tuple[int, ...]]:
+def independent_hopping_keys(
+    tb_keys: Iterable[tuple[int, ...]],
+) -> list[tuple[int, ...]]:
     ordered = canonical_tb_keys(tb_keys)
     local_key = onsite_key(len(ordered[0]))
     return [
-        key for key in ordered if key != local_key and key == canonical_pair_representative(key)
+        key
+        for key in ordered
+        if key != local_key and key == canonical_pair_representative(key)
     ]

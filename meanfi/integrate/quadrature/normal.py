@@ -392,7 +392,9 @@ def rational_charge_evaluator(
             )
             values[index, 0] = _local_trace(result.block)
             derivative_block = result.derivative_block
-            values[index, 1] = 0.0 if derivative_block is None else _local_trace(derivative_block)
+            values[index, 1] = (
+                0.0 if derivative_block is None else _local_trace(derivative_block)
+            )
         return prefactor * values
 
     return evaluator
@@ -468,11 +470,7 @@ def split_charge_result(
 
     estimate = np.asarray(estimate)
     error = np.asarray(error)
-    derivative = (
-        float(np.real(estimate[1]))
-        if estimate.size > 1
-        else None
-    )
+    derivative = float(np.real(estimate[1])) if estimate.size > 1 else None
     return (
         float(np.real(estimate[0])),
         float(np.abs(error[0])),
@@ -560,7 +558,8 @@ def build_normal_backend(
             unique_evals=charge_kernel_evals + int(density_result.n_kernel_evals),
             charge_n_evaluator_evals=charge_evaluator_evals,
             density_n_evaluator_evals=int(density_result.n_evaluator_evals),
-            n_evaluator_evals=charge_evaluator_evals + int(density_result.n_evaluator_evals),
+            n_evaluator_evals=charge_evaluator_evals
+            + int(density_result.n_evaluator_evals),
             n_cached_nodes=density_stats.n_cached_nodes,
             n_leaves=density_stats.n_leaves,
             n_leaf_nodes=density_stats.n_leaf_nodes,
@@ -582,7 +581,9 @@ def build_normal_backend(
         kernel, matrix_from_payload = build_tb_payload_helpers(hamiltonian)
         if use_sparse_mumps:
             if mumps_density_support is None:  # pragma: no cover - guarded above
-                raise ValueError("Sparse MUMPS-backed RationalFOE requires a density support descriptor")
+                raise ValueError(
+                    "Sparse MUMPS-backed RationalFOE requires a density support descriptor"
+                )
             payload_builder = prepared_mumps_rational_payload_builder(
                 matrix_function=matrix_function,
                 matrix_from_payload=matrix_from_payload,
@@ -662,7 +663,9 @@ def build_normal_backend(
             )
             freeze_density_mesh = True
     else:  # pragma: no cover - guarded by resolve_normal_matrix_function
-        raise TypeError("AdaptiveQuadrature.matrix_function must be DirectDiagonalization or RationalFOE")
+        raise TypeError(
+            "AdaptiveQuadrature.matrix_function must be DirectDiagonalization or RationalFOE"
+        )
 
     return QuadratureBackend(
         bounds=integration_bounds(ndim),
@@ -676,9 +679,11 @@ def build_normal_backend(
             error,
             ndof,
             keys,
-            None
-            if isinstance(matrix_function, DirectDiagonalization)
-            else (mumps_density_support if use_sparse_mumps else density_support),
+            (
+                None
+                if isinstance(matrix_function, DirectDiagonalization)
+                else (mumps_density_support if use_sparse_mumps else density_support)
+            ),
         ),
         density_info_builder=integration_stats,
         fixed_filling_info_builder=fixed_filling_info_builder,

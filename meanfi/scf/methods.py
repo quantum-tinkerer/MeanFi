@@ -37,4 +37,3 @@ class AndersonMixing(SCFMethod):
         super().__post_init__()
         if self.M < 0:
             raise ValueError("M must be non-negative")
-

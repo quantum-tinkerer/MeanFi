@@ -15,7 +15,9 @@ def resolve_matrix_function(selected: object | None) -> BdGMatrixFunction:
     if selected is None:
         return DirectDiagonalization()
     if not isinstance(selected, BdGMatrixFunction):
-        raise TypeError("AdaptiveQuadrature.matrix_function must be a BdGMatrixFunction")
+        raise TypeError(
+            "AdaptiveQuadrature.matrix_function must be a BdGMatrixFunction"
+        )
     return selected
 
 
@@ -33,11 +35,15 @@ def resolve_sparse_default_matrix_function(
     *,
     parameter_name: str,
 ) -> DirectDiagonalization | RationalFOE:
-    if selected is None and any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
+    if selected is None and any(
+        is_sparse_like(matrix) for matrix in hamiltonian.values()
+    ):
         return RationalFOE(rational_scheme="aaa")
     resolved = resolve_matrix_function(selected)
     if not isinstance(resolved, (DirectDiagonalization, RationalFOE)):
-        raise TypeError(f"{parameter_name} must be DirectDiagonalization or RationalFOE")
+        raise TypeError(
+            f"{parameter_name} must be DirectDiagonalization or RationalFOE"
+        )
     return resolved
 
 

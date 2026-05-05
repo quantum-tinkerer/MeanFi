@@ -10,13 +10,13 @@ from pyparsing.warnings import PyparsingDeprecationWarning
 
 
 warnings.filterwarnings("ignore", category=PyparsingDeprecationWarning)
-import matplotlib
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
 
-from matplotlib import pyplot as plt
-from matplotlib.colors import Normalize
-from matplotlib.lines import Line2D
+from matplotlib import pyplot as plt  # noqa: E402
+from matplotlib.colors import Normalize  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 
 
 _LEGACY_DENSITY_SCALING_PLOTS = (
@@ -149,7 +149,9 @@ def _cost_curves(
     return curves
 
 
-def _frontier_curves(records: list[dict[str, Any]]) -> list[tuple[dict[str, Any], np.ndarray, np.ndarray]]:
+def _frontier_curves(
+    records: list[dict[str, Any]],
+) -> list[tuple[dict[str, Any], np.ndarray, np.ndarray]]:
     curves: list[tuple[dict[str, Any], np.ndarray, np.ndarray]] = []
     for sample_record, xs, ys in _cost_curves(records, y_key="wall_s"):
         frontier_x, frontier_y = _pareto_frontier(xs, ys)
@@ -204,8 +206,12 @@ def _write_error_cost_plot(
             [0],
             [0],
             color="black",
-            linestyle=_METHOD_STYLES.get(method, {"linestyle": "-", "marker": "o"})["linestyle"],
-            marker=_METHOD_STYLES.get(method, {"linestyle": "-", "marker": "o"})["marker"],
+            linestyle=_METHOD_STYLES.get(method, {"linestyle": "-", "marker": "o"})[
+                "linestyle"
+            ],
+            marker=_METHOD_STYLES.get(method, {"linestyle": "-", "marker": "o"})[
+                "marker"
+            ],
             linewidth=1.8,
             label=_METHOD_LABELS.get(method, method),
         )
@@ -277,7 +283,9 @@ def write_density_comparison_plots(
             )
             if wall is None:
                 continue
-            by_method[str(sample_record["method"])].append((int(sample_record["ndof"]), wall))
+            by_method[str(sample_record["method"])].append(
+                (int(sample_record["ndof"]), wall)
+            )
 
         if not by_method:
             continue
@@ -307,7 +315,9 @@ def write_density_comparison_plots(
         ax.grid(True, which="both", alpha=0.25)
         ax.legend(fontsize="small")
 
-        path = output_path / f"wall_vs_ndof_at_fixed_error_{fixed_density_error:.0e}.png"
+        path = (
+            output_path / f"wall_vs_ndof_at_fixed_error_{fixed_density_error:.0e}.png"
+        )
         fig.savefig(path, dpi=180)
         plt.close(fig)
         written.append(path)

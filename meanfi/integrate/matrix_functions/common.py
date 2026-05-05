@@ -7,10 +7,13 @@ import warnings
 import numpy as np
 
 from meanfi.tb.ops import hermitian_spectral_bound, is_sparse_like, sparse_module
+
 _DN_DMU_ABS_FLOOR = 1e-6
 
 
-def basis_block(size: int, columns: Sequence[int], *, dtype: np.dtype = np.dtype(complex)) -> np.ndarray:
+def basis_block(
+    size: int, columns: Sequence[int], *, dtype: np.dtype = np.dtype(complex)
+) -> np.ndarray:
     block = np.zeros((size, len(columns)), dtype=dtype)
     block[np.asarray(columns, dtype=int), np.arange(len(columns))] = 1.0
     return block
@@ -26,12 +29,16 @@ def workspace_matrix(matrix: Any, dtype: np.dtype):
     return np.asarray(matrix, dtype=dtype)
 
 
-def shift_by_mu(matrix: Any, mu: float, q_diag: np.ndarray, *, dtype: np.dtype | None = None):
+def shift_by_mu(
+    matrix: Any, mu: float, q_diag: np.ndarray, *, dtype: np.dtype | None = None
+):
     resolved_dtype = np.dtype(complex) if dtype is None else np.dtype(dtype)
     if is_sparse_like(matrix):
         sparse = sparse_module()
         shifted = matrix.astype(resolved_dtype, copy=False)
-        return shifted - float(mu) * sparse.diags(q_diag.astype(resolved_dtype), format="csr")
+        return shifted - float(mu) * sparse.diags(
+            q_diag.astype(resolved_dtype), format="csr"
+        )
     return np.asarray(matrix, dtype=resolved_dtype) - float(mu) * np.diag(
         q_diag.astype(resolved_dtype)
     )
@@ -93,7 +100,10 @@ def _derivative_convergence(
             float(np.max(np.abs(derivative_half))),
             1e-15,
         )
-        return derivative_error <= float(dn_dmu_rtol) * derivative_scale, derivative_error
+        return (
+            derivative_error <= float(dn_dmu_rtol) * derivative_scale,
+            derivative_error,
+        )
 
     derivative_full_trace = float(derivative_trace_monitor(derivative_full))
     derivative_half_trace = float(derivative_trace_monitor(derivative_half))

@@ -63,7 +63,9 @@ def uniform_grid_density_terms(
         density_matrix = kgrid_to_tb(density_matrix_k)
         return density_matrix, filling
 
-    selected_rows = np.take(eigenvectors.conj(), density_entry_support.selected_columns, axis=-2)
+    selected_rows = np.take(
+        eigenvectors.conj(), density_entry_support.selected_columns, axis=-2
+    )
     density_columns = eigenvectors @ np.swapaxes(
         occupation[..., np.newaxis, :] * selected_rows,
         -1,
@@ -74,7 +76,11 @@ def uniform_grid_density_terms(
         dtype=complex,
     )
     for index, (rows, positions) in enumerate(
-        zip(density_entry_support.row_indices, density_entry_support.column_positions, strict=True)
+        zip(
+            density_entry_support.row_indices,
+            density_entry_support.column_positions,
+            strict=True,
+        )
     ):
         start = density_entry_support.offsets[index]
         stop = density_entry_support.offsets[index + 1]
@@ -111,7 +117,9 @@ def resolve_uniform_grid_matrix_function(
         return DirectDiagonalization()
     resolved = resolve_matrix_function(selected)
     if not isinstance(resolved, (DirectDiagonalization, RationalFOE)):
-        raise TypeError("UniformGrid.matrix_function must be DirectDiagonalization or RationalFOE")
+        raise TypeError(
+            "UniformGrid.matrix_function must be DirectDiagonalization or RationalFOE"
+        )
     if isinstance(resolved, RationalFOE) and kT <= 0:
         raise ValueError("UniformGrid RationalFOE requires kT > 0")
     return resolved
@@ -141,7 +149,11 @@ def _tb_point_evaluator(
 
     key_array = np.asarray(list(hamiltonian.keys()), dtype=float)
     matrices = [
-        as_sparse(value.astype(workspace_dtype, copy=False) if hasattr(value, "astype") else value).tocsr()
+        as_sparse(
+            value.astype(workspace_dtype, copy=False)
+            if hasattr(value, "astype")
+            else value
+        ).tocsr()
         for value in hamiltonian.values()
     ]
 
@@ -174,7 +186,9 @@ class _PreparedDirectNode:
         self._last_occupation: np.ndarray | None = None
         self._last_derivative_occupation: np.ndarray | None = None
 
-    def _eigensystem(self, mu: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _eigensystem(
+        self, mu: float
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         if self._last_mu == float(mu):
             assert self._last_eigenvalues is not None
             assert self._last_eigenvectors is not None
@@ -208,16 +222,24 @@ class _PreparedDirectNode:
         return eigenvalues, eigenvectors, occupation, derivative_occupation
 
     def charge_and_derivative(self, mu: float) -> tuple[float, float]:
-        _eigenvalues, eigenvectors, occupation, derivative_occupation = self._eigensystem(mu)
+        _eigenvalues, eigenvectors, occupation, derivative_occupation = (
+            self._eigensystem(mu)
+        )
         weights = np.abs(eigenvectors) ** 2
         diagonal = weights @ occupation
         derivative_diagonal = weights @ derivative_occupation
         charge = float(np.real(np.dot(self.trace_weights_diag, diagonal)))
-        derivative = float(np.real(np.dot(self.trace_weights_diag, derivative_diagonal)))
+        derivative = float(
+            np.real(np.dot(self.trace_weights_diag, derivative_diagonal))
+        )
         return charge, derivative
 
-    def density_columns_from_charge_order(self, mu: float, basis: np.ndarray) -> np.ndarray:
-        _eigenvalues, eigenvectors, occupation, _derivative_occupation = self._eigensystem(mu)
+    def density_columns_from_charge_order(
+        self, mu: float, basis: np.ndarray
+    ) -> np.ndarray:
+        _eigenvalues, eigenvectors, occupation, _derivative_occupation = (
+            self._eigensystem(mu)
+        )
         overlap = eigenvectors.conj().T @ np.asarray(basis, dtype=self.workspace_dtype)
         return (eigenvectors * occupation[np.newaxis, :]) @ overlap
 
@@ -344,7 +366,9 @@ def uniform_grid_density_from_nodes(
             np.zeros(bundle.density_support.output_size, dtype=float),
         )[0]
     else:
-        grid = entry_grid.reshape(bundle.grid_shape + (bundle.density_support.output_size,))
+        grid = entry_grid.reshape(
+            bundle.grid_shape + (bundle.density_support.output_size,)
+        )
         density_matrix = bundle.density_support.expand_ifft_entries(
             np.fft.ifftn(grid, axes=np.arange(len(bundle.grid_shape)))
         )
@@ -390,7 +414,9 @@ def uniform_grid_fixed_filling_from_nodes(
         max_mu_iterations=max_mu_iterations,
         use_derivative=bundle.use_derivative,
     )
-    density_matrix, resolved_filling = uniform_grid_density_from_nodes(bundle, mu=root.mu)
+    density_matrix, resolved_filling = uniform_grid_density_from_nodes(
+        bundle, mu=root.mu
+    )
     info = uniform_grid_info(
         integration=integration,
         hamiltonian=hamiltonian,
@@ -487,11 +513,19 @@ def solve_uniform_grid_fixed_filling(
     )
     if kT == 0 and isinstance(matrix_function, DirectDiagonalization):
         if any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
-            point_matrix = _tb_point_evaluator(hamiltonian, workspace_dtype=workspace_dtype)
+            point_matrix = _tb_point_evaluator(
+                hamiltonian, workspace_dtype=workspace_dtype
+            )
             eigenvalues = np.stack(
                 [
-                    np.linalg.eigvalsh(np.asarray(to_dense(point_matrix(kpoint)), dtype=workspace_dtype))
-                    for kpoint in uniform_grid_kpoints(tb_dimension(hamiltonian), integration.nk)
+                    np.linalg.eigvalsh(
+                        np.asarray(
+                            to_dense(point_matrix(kpoint)), dtype=workspace_dtype
+                        )
+                    )
+                    for kpoint in uniform_grid_kpoints(
+                        tb_dimension(hamiltonian), integration.nk
+                    )
                 ],
                 axis=0,
             )
@@ -513,7 +547,9 @@ def solve_uniform_grid_fixed_filling(
                 density_entry_support=density_entry_support,
                 workspace_dtype=workspace_dtype,
             )
-            density_matrix, resolved_filling = uniform_grid_density_from_nodes(bundle, mu=mu)
+            density_matrix, resolved_filling = uniform_grid_density_from_nodes(
+                bundle, mu=mu
+            )
         else:
             density_matrix, resolved_filling = uniform_grid_density_terms(
                 hamiltonian,

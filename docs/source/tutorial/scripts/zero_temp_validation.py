@@ -179,8 +179,7 @@ def _build_graphene_inputs():
     return h_0, builder_int, frozenset(h_int), len(list(h_0.values())[0])
 
 
-def graphene_reference_suite(
-) -> dict[str, dict[str, float]]:
+def graphene_reference_suite() -> dict[str, dict[str, float]]:
     """Run the graphene tutorial reference points with the zero-temperature settings."""
 
     from meanfi.interop import kwant as utils
@@ -219,9 +218,9 @@ def graphene_reference_suite(
         cdw = abs(meanfi.expectation_value(rho, cdw_operator))
         sdw_sq = 0.0
         for s_i in s_list:
-            sdw_sq += abs(
-                meanfi.expectation_value(rho, {(0, 0): np.kron(sz, s_i)})
-            ) ** 2
+            sdw_sq += (
+                abs(meanfi.expectation_value(rho, {(0, 0): np.kron(sz, s_i)})) ** 2
+            )
 
         results[label] = {
             "U": float(params["U"]),

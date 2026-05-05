@@ -60,7 +60,9 @@ def normalize_keys(
     ndim = tb_dimension(hamiltonian)
     for key in normalized:
         if len(key) != ndim:
-            raise ValueError("Requested density-matrix keys must match the Hamiltonian dimension")
+            raise ValueError(
+                "Requested density-matrix keys must match the Hamiltonian dimension"
+            )
     if len(set(normalized)) != len(normalized):
         raise ValueError("Requested density-matrix keys must be unique")
     return normalized
@@ -70,4 +72,6 @@ def require_zero_dim_local_key_only(hamiltonian: _tb_type) -> None:
     if tb_dimension(hamiltonian) != 0:
         raise ValueError("This helper expects a zero-dimensional tight-binding input")
     if tuple() not in hamiltonian or len(hamiltonian) != 1:
-        raise ValueError("Zero-dimensional Hamiltonians must contain only the local key")
+        raise ValueError(
+            "Zero-dimensional Hamiltonians must contain only the local key"
+        )

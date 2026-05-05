@@ -3,7 +3,12 @@ from __future__ import annotations
 import argparse
 
 from meanfi import AdaptiveQuadrature, density_matrix
-from performance._shared.fixtures import benchmark, converged_dense_reference, max_density_error, qiwuzhang
+from performance._shared.fixtures import (
+    benchmark,
+    converged_dense_reference,
+    max_density_error,
+    qiwuzhang,
+)
 from performance._shared.common import density_record, print_summary, write_records
 
 

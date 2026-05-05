@@ -53,11 +53,13 @@ def _base_record(
         "control_value": None,
         "reference_kind": None,
         "wall_s": float(wall_s),
-        "peak_memory_bytes": None if peak_memory_bytes is None else int(peak_memory_bytes),
+        "peak_memory_bytes": (
+            None if peak_memory_bytes is None else int(peak_memory_bytes)
+        ),
         "unique_evals": int(unique_evals),
-        "wall_per_unique_eval_s": None
-        if unique_evals <= 0
-        else float(wall_s / unique_evals),
+        "wall_per_unique_eval_s": (
+            None if unique_evals <= 0 else float(wall_s / unique_evals)
+        ),
     }
 
 
@@ -93,9 +95,9 @@ def density_record(
             "scf_iterations": None,
             "n_kpoints": getattr(info, "n_kpoints", None),
             "total_unique_evals": None,
-            "density_matrix_error": None
-            if density_matrix_error is None
-            else float(density_matrix_error),
+            "density_matrix_error": (
+                None if density_matrix_error is None else float(density_matrix_error)
+            ),
             "filling_error": None if filling_error is None else float(filling_error),
             "scf_residual": None,
         }
@@ -177,10 +179,9 @@ def print_summary(records: list[dict[str, Any]]) -> None:
         ]
         if record.get("sweep_axis") is not None:
             parts.append(f"{record['sweep_axis']}={record['sweep_value']}")
-        if (
-            record.get("control_parameter") is not None
-            and record.get("control_parameter") != record.get("sweep_axis")
-        ):
+        if record.get("control_parameter") is not None and record.get(
+            "control_parameter"
+        ) != record.get("sweep_axis"):
             parts.append(f"{record['control_parameter']}={record['control_value']}")
         if per_unique is not None:
             parts.append(f"wall/unique={per_unique:.6e}s")
