@@ -25,7 +25,7 @@ classifiers = [
 dependencies = [
     "numpy>=2.0",
     "packaging>=22.0",  # For version parsing
-    "stateful-quadrature @ git+https://github.com/Kostusas/stateful_quadrature.git",
+    "stateful-quadrature>=0.2.1",
 ]
 [tool.scikit-build]
 minimum-version = "0.11"
@@ -142,7 +142,7 @@ memray = "*"
 
 [tool.pixi.pypi-dependencies]
 meanfi = { path = ".", editable = true }
-stateful-quadrature = { git = "https://github.com/Kostusas/stateful_quadrature.git" }
+stateful-quadrature = ">=0.2.1"
 
 
 [tool.pixi.environments]
