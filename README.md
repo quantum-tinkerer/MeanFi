@@ -71,12 +71,13 @@ Until the next packaged release, install from a checkout:
 
 ```bash
 python -m pip install "stateful-quadrature @ git+https://github.com/Kostusas/stateful_quadrature.git"
+python -m pip install "adaptivesimplex @ git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git@main"
 python -m pip install -e .
 ```
 
-Source builds of the native zero-temperature extension require Eigen 3.4+ to be
-installed and discoverable by CMake, for example via `find_package(Eigen3)`.
-The Pixi environment already provides this dependency.
+The zero-temperature `AdaptiveSimplex` backend now lives in the separate
+`adaptivesimplex` package. MeanFi keeps the public `meanfi.AdaptiveSimplex`
+API, but the native extension is no longer built from this repository.
 
 For local development with Pixi:
 

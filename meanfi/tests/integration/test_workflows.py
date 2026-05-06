@@ -9,15 +9,13 @@ from meanfi import (
     density_matrix,
     guess_tb,
     solver,
-    tb_to_kfunc,
-    tb_to_tight_binding_model,
 )
 from meanfi.interop import kwant as utils
 from meanfi.integrate.common import effective_filling_tol
 from meanfi.integrate.defaults import select_default_integration
 from meanfi.tests.fixtures import kwant_examples
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.tests.helpers import qiwuzhang, spinful_chain
+from meanfi.tests.helpers import spinful_chain
 
 
 pytestmark = pytest.mark.integration
@@ -104,24 +102,3 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
         -result.density_matrix_result.mu * np.eye(2),
         atol=1e-3,
     )
-
-
-@requires_ext
-def test_public_compiled_tight_binding_model_matches_python_kfunc():
-    tb = qiwuzhang()
-    compiled_model = tb_to_tight_binding_model(tb)
-    hkfunc = tb_to_kfunc(tb)
-    points = np.array(
-        [
-            [0.0, 0.0],
-            [0.3, -0.7],
-            [-np.pi / 2.0, np.pi / 3.0],
-        ],
-        dtype=float,
-    )
-
-    assert compiled_model.ndim == 2
-    assert compiled_model.ndof == 2
-    assert compiled_model.nterms == len(tb)
-    assert np.allclose(compiled_model.evaluate_point(points[0]), hkfunc(points[0]))
-    assert np.allclose(compiled_model.evaluate_many(points), hkfunc(points))

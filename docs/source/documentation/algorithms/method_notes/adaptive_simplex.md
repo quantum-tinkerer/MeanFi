@@ -13,6 +13,8 @@ kernelspec:
 # `AdaptiveSimplex`
 
 `AdaptiveSimplex` is the dedicated zero-temperature adaptive integration backend for normal-state calculations.
+Its native implementation now lives in the separate `adaptivesimplex` package,
+while MeanFi keeps the public integration API and dispatch logic.
 
 At zero temperature, the occupation becomes discontinuous, so the finite-temperature quadrature machinery is no longer the natural default.
 Instead, `AdaptiveSimplex` refines a simplicial partition of the Brillouin zone and estimates the integral from local simplex contributions.

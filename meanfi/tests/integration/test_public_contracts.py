@@ -838,14 +838,14 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
 
 
 def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):
-    import meanfi.integrate.simplex.backend as simplex_backend
+    import adaptivesimplex.backend as simplex_backend
 
-    monkeypatch.setattr(simplex_backend, "_ZERO_TEMP_EXT_AVAILABLE", False)
+    monkeypatch.setattr(simplex_backend, "NATIVE_AVAILABLE", False)
     monkeypatch.setattr(simplex_backend, "Geometry", None)
 
     with pytest.raises(
         RuntimeError,
-        match="requires the compiled meanfi._zero_temp_ext extension",
+        match="requires the compiled adaptivesimplex._native extension",
     ):
         density_matrix(
             spinful_chain(),
