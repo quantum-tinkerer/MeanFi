@@ -29,7 +29,12 @@ F_{mn}(R) = \langle c_{m,0} c_{n,R}\rangle,
 so the quadratic mean-field Hamiltonian contains both normal bilinears and pairing terms.
 This does not change the conceptual role of mean field: the interacting problem is still replaced by a quadratic Hamiltonian whose coefficients are determined by the state.
 What changes is that the state now carries both normal and anomalous information.
-Numerically, this leads to a larger self-consistent state and a heavier fixed-filling density evaluation; see {ref}`Algorithm overview: build the self-consistent quadratic Hamiltonian <algo-build>` and {ref}`Algorithm overview: solve the filling constraint <algo-filling>`.
+
+:::{note}
+Numerical task:
+extend the self-consistent state to include anomalous densities and solve the corresponding fixed-filling problem.
+See {ref}`Algorithm overview: build the self-consistent quadratic Hamiltonian <algo-build>` and {ref}`Algorithm overview: solve the filling constraint <algo-filling>`.
+:::
 
 (theory-finite-temperature)=
 ## Finite temperature
@@ -42,7 +47,12 @@ f(\varepsilon) = \frac{1}{e^{\varepsilon / kT} + 1}.
 
 Instead of a sharp occupation of states, the density becomes a smooth spectral function of the effective quadratic Hamiltonian.
 This changes both the physics near the Fermi level and the numerical character of the density evaluation.
-Numerically, it affects both the conditioning of the filling solve and the matrix-function strategy used at sampled momentum points; see {ref}`Algorithm overview: solve the filling constraint <algo-filling>` and {ref}`Algorithm overview: evaluate the density at one sampled $k$ <algo-single-k>`.
+
+:::{note}
+Numerical task:
+evaluate a temperature-smeared density, which changes both the filling solve and the single-$k$ matrix-function step.
+See {ref}`Algorithm overview: solve the filling constraint <algo-filling>` and {ref}`Algorithm overview: evaluate the density at one sampled $k$ <algo-single-k>`.
+:::
 
 ## Combined viewpoint
 
