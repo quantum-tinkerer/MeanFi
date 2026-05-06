@@ -27,8 +27,8 @@ tutorial/strained_graphene.md
 :caption: Documentation
 
 documentation/theory/index.md
-documentation/meanfi.md
 documentation/algorithms/index.md
+documentation/meanfi.md
 CHANGELOG.md
 AUTHORS.md
 ```
