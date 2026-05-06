@@ -74,6 +74,10 @@ python -m pip install "stateful-quadrature @ git+https://github.com/Kostusas/sta
 python -m pip install -e .
 ```
 
+Source builds of the native zero-temperature extension require Eigen 3.4+ to be
+installed and discoverable by CMake, for example via `find_package(Eigen3)`.
+The Pixi environment already provides this dependency.
+
 For local development with Pixi:
 
 ```bash

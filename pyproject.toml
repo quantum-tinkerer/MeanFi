@@ -37,7 +37,6 @@ sdist.include = [
   "cpp",
   "examples",
   "performance",
-  "third_party",
   "CMakeLists.txt",
   "CMakePresets.json",
   "README.md",

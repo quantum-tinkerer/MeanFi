@@ -9564,7 +9564,7 @@ packages:
 - pypi: ./
   name: meanfi
   version: 0.0.dev0
-  sha256: fbf2f9b841faf6d6f7606b9f3f9cc9fbef189660114f881f74b5fa5f8f8c7c7b
+  sha256: 44651433c860b44f943cd54c66a57b676cab35bdf06e743ccc591a5929da1f6d
   requires_dist:
   - numpy>=2.0
   - packaging>=22.0
