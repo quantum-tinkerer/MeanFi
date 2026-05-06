@@ -15,12 +15,23 @@ kernelspec:
 The Brillouin-zone integral and the single-$k$ density evaluation are two different choices in `MeanFi`.
 This page focuses only on the **k-space integration family**.
 
+```{toctree}
+:hidden:
+:maxdepth: 1
+
+method_notes/adaptive_quadrature.md
+method_notes/uniform_grid.md
+method_notes/adaptive_simplex.md
+```
+
 ## The three families
 
 ### `AdaptiveQuadrature`
 
 This is the finite-temperature adaptive cubature path.
 It chooses evaluation nodes in the Brillouin zone adaptively and is the default family for `kT > 0`.
+For implementation details, see the
+[stateful_quadrature package](https://github.com/Kostusas/stateful_quadrature).
 
 ### `UniformGrid`
 
@@ -31,6 +42,8 @@ It is simple, predictable, and useful for explicit coarse-grid workflows and for
 
 This is the dedicated zero-temperature adaptive simplicial backend.
 It refines a simplicial partition of the Brillouin zone and is the default normal-state family for `kT = 0`.
+For implementation details, see the
+[adaptivesimplex package](https://gitlab.kwant-project.org/qt/adaptivesimplex).
 
 ## What the family controls
 
@@ -50,3 +63,24 @@ That is the job of the matrix-function backend.
 | `AdaptiveQuadrature` | Efficient finite-temperature adaptivity | Requires `kT > 0` |
 | `UniformGrid` | Simple and explicit | No adaptive error control |
 | `AdaptiveSimplex` | Native zero-temperature adaptive path | Normal-state only by default |
+
+## Cost versus error scaling
+
+The generic pattern is
+
+:::{math}
+\text{cost} \sim N_k \times C_k,
+:::
+
+where $N_k$ is the number of sampled momentum points or effective adaptive cells, and $C_k$ is the cost of one single-$k$ matrix-function evaluation.
+The family-specific pages below make that more explicit as cost-versus-error relations of the form
+
+:::{math}
+\text{cost} \sim \varepsilon^{-\gamma} C_k
+:::
+
+when an algebraic convergence law is available.
+
+- [Adaptive quadrature](./method_notes/adaptive_quadrature.md): adaptive cubature, typically with algebraic work-vs-tolerance scaling for smooth finite-temperature integrands
+- [Uniform grid](./method_notes/uniform_grid.md): fixed-grid sampling with work determined directly by the chosen grid size
+- [Adaptive simplex](./method_notes/adaptive_simplex.md): adaptive simplicial refinement with problem-dependent algebraic work-vs-error behavior

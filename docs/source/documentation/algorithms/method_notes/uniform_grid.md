@@ -44,15 +44,28 @@ There is no adaptive refinement and no k-space error estimator beyond changing t
 - easy to compare against reference calculations,
 - currently the explicit path for zero-temperature BdG calculations.
 
-## Cost and scaling
+## Cost versus error scaling
 
 Its cost is directly proportional to the number of sampled points:
 
 :::{math}
-\text{cost} \sim nk^d \times \text{cost of one matrix-function evaluation}.
+\text{cost} \sim nk^d \times C_k.
 :::
 
 This becomes expensive quickly with dimension, but the method has the advantage that the sampling pattern is fully transparent.
+For a plain fixed-grid Riemann sum on a smooth integrand, the generic algebraic behavior is
+
+:::{math}
+\varepsilon \sim nk^{-1},
+:::
+
+then
+
+:::{math}
+\;nk \sim \varepsilon^{-1},
+\qquad
+\text{cost} \sim \varepsilon^{-d} C_k.
+:::
 
 ## Backend pairing
 

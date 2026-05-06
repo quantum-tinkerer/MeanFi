@@ -20,6 +20,20 @@ N(\mu) = \nu
 :::
 
 for the chemical potential before it can return the density matrix.
+Here $\nu$ is the target filling per unit cell, while the computed filling is obtained from a Brillouin-zone integral of the local-in-$k$ charge density,
+
+:::{math}
+N(\mu) = \int_{\mathrm{BZ}} n(\mu,k)\, dk,
+:::
+
+with
+
+:::{math}
+n(\mu,k) = \operatorname{tr}\!\bigl(W\,\rho(k,\mu)\bigr),
+:::
+
+where $W$ selects the local orbitals and weights that define the filling convention.
+So the root solve is nested inside the same single-$k$ evaluation and Brillouin-zone integration machinery used for the density matrix itself.
 
 ## Bracketing and root solve
 
@@ -27,9 +41,83 @@ The inner fixed-filling solver:
 
 1. builds an initial bracket for $\mu$ from a spectral bound,
 2. expands the bracket until the target filling is enclosed,
-3. solves for $\mu$ with safeguarded Newton steps and midpoint fallback.
+3. solves for $\mu$ with safeguarded Newton steps when derivative information is available, and otherwise with safeguarded bracketed interpolation plus midpoint fallback.
 
 If derivative information is unavailable or unusable, the solve falls back to bracketed updates only.
+When the derivative can be computed, Newton uses
+
+:::{math}
+\mu_{j+1}
+=
+\mu_j - \frac{N(\mu_j)-\nu}{N'(\mu_j)},
+\qquad
+N'(\mu) = \int_{\mathrm{BZ}} \partial_\mu n(\mu,k)\, dk.
+:::
+
+So the same local-in-$k$ machinery that evaluates $n(\mu,k)$ may also supply the derivative information needed for faster root updates.
+The derivative-aware path is safeguarded Newton, while the derivative-free path is a bracketed interpolation/bisection-type solver.
+
+## Which paths use which root update?
+
+The root solver depends on whether the underlying density-evaluation stack can provide $N'(\mu)$.
+
+- `AdaptiveQuadrature` with `DirectDiagonalization`: safeguarded Newton
+- `AdaptiveQuadrature` with derivative-aware rational evaluation: safeguarded Newton
+- `AdaptiveQuadrature` with `RationalFOE(rational_scheme="aaa")`: bracketed interpolation/bisection
+- `UniformGrid` at finite temperature with `DirectDiagonalization`: safeguarded Newton
+- `UniformGrid` at finite temperature with derivative-aware rational evaluation: safeguarded Newton
+- `UniformGrid` with `RationalFOE(rational_scheme="aaa")`: bracketed interpolation/bisection
+- zero-temperature `AdaptiveSimplex`: bracketed interpolation/bisection
+- zero-temperature `UniformGrid`: bracketed interpolation/bisection
+
+So the practical distinction is not the integrator alone.
+It is whether the full stack can evaluate both $N(\mu)$ and $N'(\mu)$, or only $N(\mu)$.
+
+## Cost versus error scaling
+
+If one charge evaluation has work $W_N$, then one root iteration costs roughly
+
+:::{math}
+\text{cost per root step} \sim C_N.
+:::
+
+For safeguarded Newton, once the iteration is in its local regime,
+
+:::{math}
+| \mu_{j+1} - \mu_\ast | \approx C |\mu_j - \mu_\ast|^2,
+:::
+
+so the error contracts quadratically in the ideal derivative-aware regime.
+
+For pure bisection on a bracket $[\mu_-,\mu_+]$,
+
+:::{math}
+|\mu_j-\mu_\ast|
+\le
+\frac{\mu_+ - \mu_-}{2^{j+1}},
+\qquad
+j \sim \log_2\!\frac{\mu_+ - \mu_-}{\varepsilon_\mu}.
+:::
+
+So the total bisection cost scales like
+
+:::{math}
+\text{cost} \sim C_N \log\!\frac{1}{\varepsilon_\mu}.
+:::
+
+The derivative-free branch used in `MeanFi` is usually better than raw bisection when interpolation helps, but it retains the same logarithmic worst-case bracket-shrinking behavior.
+So, at the level of asymptotic work versus root accuracy,
+
+:::{math}
+\text{Newton:}\quad \text{cost} \sim C_N \log\log\!\frac{1}{\varepsilon_\mu}
+\qquad\text{(local ideal regime)},
+:::
+
+while
+
+:::{math}
+\text{bisection-type:}\quad \text{cost} \sim C_N \log\!\frac{1}{\varepsilon_\mu}.
+:::
 
 ## Why this is coupled to the integrator
 

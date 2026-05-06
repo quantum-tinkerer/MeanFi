@@ -37,7 +37,7 @@ It does not mean the full Brillouin-zone integral is exact, because that still d
 
 In derivative-aware fixed-filling paths, the same eigendecomposition also gives access to exact matrix-function derivatives through the Fréchet derivative of the occupation function.
 
-## Cost and scaling
+## Cost versus error scaling
 
 For an $n \times n$ dense matrix, the dominant cost is dense diagonalization, which scales roughly like
 
@@ -46,5 +46,7 @@ For an $n \times n$ dense matrix, the dominant cost is dense diagonalization, wh
 :::
 
 That is why direct diagonalization is simple and robust, but becomes expensive for large sparse problems.
+At fixed matrix size, this path is not an adjustable approximation scheme in the same sense as rational FOE:
+the main error is the numerical eigensolver error rather than a tunable approximation tolerance.
 
 It is the default finite-temperature backend for dense calculations.

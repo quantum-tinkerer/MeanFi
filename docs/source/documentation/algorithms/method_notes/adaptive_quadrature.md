@@ -13,6 +13,8 @@ kernelspec:
 # `AdaptiveQuadrature`
 
 `AdaptiveQuadrature` is the adaptive finite-temperature Brillouin-zone integrator.
+Its implementation is based on the
+[stateful_quadrature package](https://github.com/Kostusas/stateful_quadrature).
 
 It approximates Brillouin-zone integrals of the form
 
@@ -52,15 +54,22 @@ At each sampled $k$ point it still delegates to a matrix-function backend:
 - exact diagonalization,
 - or rational FOE.
 
-## Cost and scaling
+## Cost versus error scaling
 
 If the adaptive tree ends up using $N_k$ effective sample points, then the total cost is roughly
 
 :::{math}
-\text{cost} \sim N_k \times \text{cost of one matrix-function evaluation},
+\text{cost} \sim N_k \times C_k,
 :::
 
 multiplied again by however many charge evaluations are needed while solving for $\mu$.
+If the cubature rule has effective algebraic order $q$ on a smooth $d$-dimensional integrand, then one expects a relation of the form
+
+:::{math}
+\varepsilon \sim N_k^{-q/d},
+\qquad
+\text{cost} \sim \varepsilon^{-d/q} C_k.
+:::
 
 So the method is attractive when:
 

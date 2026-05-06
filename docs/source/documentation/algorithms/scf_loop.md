@@ -13,9 +13,19 @@ kernelspec:
 # SCF loop
 
 The outer solve in `MeanFi` is a fixed-point problem for the self-consistent state.
-That state may be represented directly as a density object or through a reduced real parametrization described in [Parametrization and symmetry reduction](./parametrization.md).
+That state may be represented directly as a density object or through a reduced real parametrization.
 
 ## Fixed-point map
+
+Let $P$ denote the map from a density state to its reduced real parametrization,
+
+:::{math}
+\theta = P(\rho),
+\qquad
+\rho = P^{-1}(\theta).
+:::
+
+The construction of $P$ is described in [Parametrization and symmetry reduction](./parametrization.md).
 
 One SCF iteration has the structure
 
@@ -28,19 +38,39 @@ One SCF iteration has the structure
 :::
 
 where the density update already includes the fixed-filling solve and the Brillouin-zone density evaluation.
+If $D$ denotes that full density-evaluation map, then
+
+:::{math}
+\rho_{n+1} = D\!\left(\hat H_{\mathrm{MF}}[\rho_n]\right).
+:::
+
+In reduced coordinates, this defines the map
+
+:::{math}
+G(\theta)
+=
+P\!\left(
+D\!\left(\hat H_{\mathrm{MF}}[P^{-1}(\theta)]\right)
+\right).
+:::
+
 So the SCF problem is the fixed-point equation
 
 :::{math}
-\rho = \mathcal{G}(\rho).
+\theta = G(\theta),
 :::
 
-If the state is represented internally by a reduced real parametrization $\theta$, the same structure becomes
+or equivalently $\rho = D(\hat H_{\mathrm{MF}}[\rho])$ in the unreduced density representation.
+
+With a history-dependent SCF update, the next iterate may depend on several previous states,
 
 :::{math}
-\theta_{n+1} = \mathcal{G}(\theta_n),
-\qquad
-\theta = \mathcal{G}(\theta).
+\theta_{n+1}
+=
+G_n(\theta_n, \theta_{n-1}, \dots, \theta_0),
 :::
+
+where the basic fixed-point map $G$ supplies the raw update and the chosen SCF scheme determines how that update is mixed with earlier iterates.
 
 ## SCF methods
 

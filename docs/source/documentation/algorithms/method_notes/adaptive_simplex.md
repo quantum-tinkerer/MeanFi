@@ -15,6 +15,8 @@ kernelspec:
 `AdaptiveSimplex` is the dedicated zero-temperature adaptive integration backend for normal-state calculations.
 Its native implementation now lives in the separate `adaptivesimplex` package,
 while MeanFi keeps the public integration API and dispatch logic.
+For implementation details, see the
+[adaptivesimplex package](https://gitlab.kwant-project.org/qt/adaptivesimplex).
 
 At zero temperature, the occupation becomes discontinuous, so the finite-temperature quadrature machinery is no longer the natural default.
 Instead, `AdaptiveSimplex` refines a simplicial partition of the Brillouin zone and estimates the integral from local simplex contributions.
@@ -39,16 +41,21 @@ At zero temperature the backend uses the same geometric infrastructure for both:
 
 The density stage starts from the charge-converged refined mesh rather than rebuilding from scratch.
 
-## Cost and scaling
+## Cost versus error scaling
 
 The exact cost depends on how many simplices are activated by refinement.
 Very roughly,
 
 :::{math}
-\text{cost} \sim N_{\sigma} \times \text{cost of spectral data on one simplex vertex set},
+\text{cost} \sim N_{\sigma} \times C_{\sigma},
 :::
 
 where $N_{\sigma}$ is the number of active simplices visited by the adaptive controller.
+For the linear tetrahedron type behavior that this method is designed around, a useful rule of thumb is
+
+:::{math}
+\text{cost} \sim \varepsilon^{-d/2} C_{\sigma}.
+:::
 
 This method is specialized but efficient when the zero-temperature integrand is difficult enough that a fixed grid would need many points.
 

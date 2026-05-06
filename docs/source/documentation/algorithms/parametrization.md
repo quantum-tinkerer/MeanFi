@@ -23,13 +23,14 @@ The reduced parameter vector has two goals:
 - avoid iterating over entries that can never affect the self-consistent mean field because the interaction is structurally zero there.
 
 This reduction is implemented in the `meanfi.state.*` layer.
+It provides the map $P$ used in the SCF fixed-point equation $\theta = P(\rho)$ from [SCF loop](./scf_loop.md).
 
 ## Normal-state reduction
 
-For a normal-state tight-binding object $X(R)$, Hermiticity implies
+For the normal density matrix $\rho(R)$, Hermiticity implies
 
 :::{math}
-X(R) = X^\dagger(-R).
+\rho(R) = \rho^\dagger(-R).
 :::
 
 So the parametrization keeps only one representative of each Hermitian pair.
@@ -39,7 +40,17 @@ This is the logic behind `tb_to_rparams(...)` and `rparams_to_tb(...)`.
 
 ## BdG reduction
 
-For BdG, the same idea is applied to the normal block, while the anomalous sector is reduced using the built-in BdG redundancy and the interaction support.
+For BdG, the same idea is applied to the normal block, while the anomalous sector is reduced using particle-hole symmetry together with the interaction support.
+
+At the BdG level, the quadratic Hamiltonian satisfies a particle-hole constraint of the form
+
+:::{math}
+\mathcal{H}_{\mathrm{BdG}}(k)
+=
+-\tau_x \mathcal{H}_{\mathrm{BdG}}(-k)^\ast \tau_x,
+:::
+
+so the lower particle-hole block is not independent of the upper one.
 
 So the parametrization:
 
@@ -57,19 +68,13 @@ The support logic uses the structural nonzero pattern of `h_int`:
 - dense inputs use exact structural zeros,
 - sparse inputs use the sparse pattern directly.
 
-This is how `MeanFi` avoids iterating over entries that cannot contribute to the mean-field update.
+For density-density mean field, this works because the self-consistent correction is built only from matrix elements that are multiplied by the corresponding interaction entries.
+Schematically, in the normal channel,
 
-## Parameter reduction versus density evaluation
+:::{math}
+V_{\mathrm{MF},mn}(R) \propto v_{mn}(R)\,\rho_{mn}(R)
+:::
 
-The reduced parameter vector and the actual density evaluation are related but not identical concerns.
-The SCF state is reduced aggressively, but some numerical density-evaluation paths still compute denser intermediate objects internally, especially on dense backends.
-
-| Aspect | Normal | BdG |
-| --- | --- | --- |
-| Hermitian/BdG symmetry reduction | Yes | Yes |
-| Support restriction from `h_int` | Yes | Yes |
-| Lower-half redundancy removed | Not applicable | Yes |
-| Fully minimal anomalous basis | Not applicable | Not completely |
-| Numerical density work always reduced to the same support | Not on every backend | Not on every backend |
-
-The reduction therefore applies most strongly to the SCF state representation, and only partially to every numerical backend.
+away from the purely onsite Hartree accumulation.
+So if the interaction structure enforces $v_{mn}(R)=0$, then the corresponding offsite or exchange contribution to the mean-field map vanishes identically for every iterate.
+Those entries can therefore be removed from the SCF parametrization without changing the fixed-point problem.
