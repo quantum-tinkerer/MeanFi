@@ -27,6 +27,7 @@ tutorial/strained_graphene.md
 :caption: Documentation
 
 documentation/theory/index.md
+documentation/algorithm.md
 documentation/algorithms/index.md
 documentation/meanfi.md
 CHANGELOG.md
@@ -35,11 +36,4 @@ AUTHORS.md
 
 ```{include} ../../README.md
 :relative-docs: docs/source/
-```
-
-```{toctree}
-:hidden:
-
-documentation/mf_notes.md
-documentation/algorithm.md
 ```

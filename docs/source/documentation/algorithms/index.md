@@ -10,9 +10,12 @@ kernelspec:
   language: python
   name: python3
 ---
-# Algorithms
+# Algorithm reference
 
-`MeanFi` solves a self-consistent mean-field problem by combining several numerical layers:
+This section is the method-oriented reference for the numerical machinery behind `MeanFi`.
+If you want the short map from theoretical task to numerical step, start with the [Algorithm overview](../algorithm.md).
+
+The reference pages are organized by numerical layer:
 
 1. an outer SCF update on a reduced real parameter vector,
 2. an inner fixed-filling solve for the chemical potential,
@@ -36,7 +39,7 @@ method_notes/rational_foe.md
 method_notes/direct_diagonalization.md
 ```
 
-The pages are grouped by conceptual layer rather than by every possible method combination.
+The pages below document each layer and each concrete method without repeating the theory narrative.
 
 ## Outer solve
 
