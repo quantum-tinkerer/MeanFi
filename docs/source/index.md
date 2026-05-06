@@ -28,7 +28,6 @@ tutorial/strained_graphene.md
 
 documentation/theory/index.md
 documentation/algorithm.md
-documentation/algorithms/index.md
 documentation/meanfi.md
 CHANGELOG.md
 AUTHORS.md

@@ -26,24 +26,29 @@ This reduction is implemented in the `meanfi.state.*` layer.
 
 ## Normal-state reduction
 
-For the normal state:
+For a normal-state tight-binding object $X(R)$, Hermiticity implies
 
-- onsite blocks keep only the real diagonal and the complex upper triangle,
-- offsite Hermitian partners are not parametrized twice,
-- only entries supported by `h_int` are retained when support-aware parametrization is used.
+:::{math}
+X(R) = X^\dagger(-R).
+:::
+
+So the parametrization keeps only one representative of each Hermitian pair.
+Onsite blocks keep the real diagonal and one complex triangle, offsite Hermitian partners are not parametrized twice, and support-aware parametrization retains only entries supported by `h_int`.
 
 This is the logic behind `tb_to_rparams(...)` and `rparams_to_tb(...)`.
 
 ## BdG reduction
 
-For BdG:
+For BdG, the same idea is applied to the normal block, while the anomalous sector is reduced using the built-in BdG redundancy and the interaction support.
 
-- the normal block uses the same Hermitian reduction as the normal state,
-- the lower half of the BdG matrix is not independently parametrized,
-- the anomalous block is restricted by the interaction support,
-- the top-half BdG support is converted into a real parameter vector.
+So the parametrization:
 
-The current implementation reduces the BdG state substantially, but it is not the mathematically smallest possible anomalous basis in every case.
+- keeps the normal Hermitian reduction,
+- does not parametrize the lower BdG half independently,
+- restricts the anomalous block by the interaction support,
+- converts the retained complex data into a real parameter vector.
+
+The current implementation is substantially reduced, although not mathematically minimal in every anomalous case.
 
 ## Support induced by `h_int`
 
@@ -57,11 +62,7 @@ This is how `MeanFi` avoids iterating over entries that cannot contribute to the
 ## Parameter reduction versus density evaluation
 
 The reduced parameter vector and the actual density evaluation are related but not identical concerns.
-
-- The SCF vector is reduced aggressively.
-- Some numerical density-evaluation paths still compute denser intermediate objects internally, especially on dense backends.
-
-So it is useful to distinguish:
+The SCF state is reduced aggressively, but some numerical density-evaluation paths still compute denser intermediate objects internally, especially on dense backends.
 
 | Aspect | Normal | BdG |
 | --- | --- | --- |

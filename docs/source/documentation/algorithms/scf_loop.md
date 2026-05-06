@@ -12,35 +12,35 @@ kernelspec:
 ---
 # SCF loop
 
-The outer solve in `MeanFi` is a fixed-point problem for the density matrix, or equivalently for a reduced real parameter vector derived from it.
+The outer solve in `MeanFi` is a fixed-point problem for the self-consistent state.
+That state may be represented directly as a density object or through a reduced real parametrization described in [Parametrization and symmetry reduction](./parametrization.md).
 
 ## Fixed-point map
 
-Let $\theta$ denote the reduced real parametrization of the current density state.
-One SCF iteration does the following:
-
-1. reconstruct the density matrix or BdG density state from $\theta$,
-2. build the corresponding mean-field correction,
-3. solve the fixed-filling density problem for that Hamiltonian,
-4. convert the new density result back to reduced parameters.
-
-This defines a map
+One SCF iteration has the structure
 
 :::{math}
-\mathcal{G}(\theta) = \theta_{\mathrm{new}},
+\rho_n
+\;\longrightarrow\;
+\hat H_{\mathrm{MF}}[\rho_n]
+\;\longrightarrow\;
+\rho_{n+1},
 :::
 
-and the SCF solve seeks
+where the density update already includes the fixed-filling solve and the Brillouin-zone density evaluation.
+So the SCF problem is the fixed-point equation
 
 :::{math}
-\mathcal{F}(\theta) = \mathcal{G}(\theta) - \theta = 0.
+\rho = \mathcal{G}(\rho).
 :::
 
-## Separation of responsibilities
+If the state is represented internally by a reduced real parametrization $\theta$, the same structure becomes
 
-The outer SCF method does **not** solve for the chemical potential directly.
-That work is delegated to the inner fixed-filling density evaluation.
-This separation keeps the outer solver focused on the mean-field fixed point rather than mixing it with the filling constraint.
+:::{math}
+\theta_{n+1} = \mathcal{G}(\theta_n),
+\qquad
+\theta = \mathcal{G}(\theta).
+:::
 
 ## SCF methods
 

@@ -42,12 +42,6 @@ c_i^\dagger c_j^\dagger c_l c_k.
 This is the broad theoretical setting: the Hamiltonian is quadratic plus quartic, and the quartic term is the source of the many-body complexity.
 Numerically, one must replace that many-body object by something that can be evaluated in an effective single-particle language.
 
-:::{note}
-Numerical task:
-build the self-consistent quadratic Hamiltonian from the current state.
-See {ref}`Algorithm overview: build the self-consistent quadratic Hamiltonian <algo-build>`.
-:::
-
 `MeanFi` currently focuses on density-density interactions,
 
 :::{math}
@@ -60,12 +54,6 @@ n_i = c_i^\dagger c_i.
 
 This simplifies the coefficient structure from a four-index tensor to a two-index coupling matrix $v_{ij}$, but the operator is still quartic in the fermion fields.
 The modeling restriction is therefore in how the interaction is represented, not in whether the problem remains genuinely interacting.
-
-:::{note}
-Numerical task:
-use the restricted interaction structure to determine which matrix entries contribute to the mean-field update.
-See {ref}`Algorithm overview: build the self-consistent quadratic Hamiltonian <algo-build>`.
-:::
 
 (theory-tight-binding)=
 ## Tight-binding and real-space notation
@@ -81,14 +69,10 @@ h_{mn}(R)\,
 c_{m,0}^\dagger c_{n,R}.
 :::
 
+Here $R$ labels translation along a direction that is treated as infinite.
+Finite systems are represented instead by enlarging the set of internal degrees of freedom inside the matrix at a given key, rather than by introducing a translation label along a finite direction.
 This is the notation that connects directly to how models are specified in `MeanFi`: each lattice vector $R$ carries a matrix over the internal degrees of freedom.
 Once the model is in this form, the main numerical task is no longer building the operator, but evaluating the state it defines.
-
-:::{note}
-Numerical task:
-evaluate the density by combining Brillouin-zone integration with single-$k$ density evaluation.
-See {ref}`Algorithm overview: integrate the density over the Brillouin zone <algo-bz>`.
-:::
 
 (theory-mean-field)=
 ## Mean-field approximation
@@ -123,14 +107,15 @@ V_{ijkl}
 :::
 
 The contractions $\langle c_i^\dagger c_j \rangle$ define the normal density matrix, and the contractions $\langle c_i^\dagger c_j^\dagger \rangle$ or $\langle c_i c_j \rangle$ define anomalous pairing densities when superconductivity is allowed.
-Even when superconductivity is allowed structurally, the central idea is the same: the interacting problem is replaced by a quadratic Hamiltonian whose coefficients depend on expectation values of the state itself.
-That makes the main numerical question a self-consistent one rather than an exact many-body diagonalization.
+When `superconducting=True`, those anomalous contractions are included together with the normal density matrix in the self-consistent state.
+The resulting effective quadratic Hamiltonian is
 
-:::{note}
-Numerical task:
-iterate the map from expectation values to a quadratic Hamiltonian and back again until it becomes self-consistent.
-See {ref}`Algorithm overview: build the self-consistent quadratic Hamiltonian <algo-build>`.
+:::{math}
+\hat H_{\mathrm{MF}} = \hat H_0 + \hat V_{\mathrm{MF}}.
 :::
+
+The interacting problem is replaced by a quadratic Hamiltonian whose coefficients depend on expectation values of the state itself.
+That makes the main numerical question a self-consistent one rather than an exact many-body diagonalization.
 
 (theory-density-matrix)=
 ## Density matrix
@@ -147,13 +132,14 @@ The natural object for those expectation values is the density matrix,
 
 For density-density Hartree-Fock problems, this object is enough to build the normal mean-field correction.
 More generally, it is the single-particle summary of the state from which observables and self-consistent updates are assembled.
-Numerically, this is the object that has to be evaluated from the effective quadratic Hamiltonian.
+At finite temperature, this density is determined by the Fermi-Dirac occupation function
 
-:::{note}
-Numerical task:
-compute the density matrix from the effective quadratic Hamiltonian, using Brillouin-zone integration and a single-$k$ density evaluator.
-See {ref}`Algorithm overview: integrate the density over the Brillouin zone <algo-bz>` and {ref}`Algorithm overview: evaluate the density at one sampled $k$ <algo-single-k>`.
+:::{math}
+f(\varepsilon) = \frac{1}{e^{\varepsilon / kT} + 1},
 :::
+
+so the density matrix becomes a smooth spectral function of the effective quadratic Hamiltonian rather than a sharp occupied-state projector.
+Numerically, this is the object that has to be evaluated from the effective quadratic Hamiltonian.
 
 (theory-filling)=
 ## Self-consistency and filling
@@ -175,24 +161,7 @@ In the fixed-filling setting used by default in `MeanFi`, the density must satis
 N(\mu) = \nu,
 :::
 
+where $\nu$ is the target filling per unit cell.
+
 so the chemical potential is part of the self-consistent density-evaluation problem rather than an external input.
 In translationally invariant systems, evaluating $\rho$ therefore requires both solving the filling constraint and integrating the occupied single-particle states over momentum space or, at finite temperature, applying the corresponding occupation function to the spectrum.
-
-:::{note}
-Numerical task:
-solve the filling constraint together with the density evaluation.
-See {ref}`Algorithm overview: solve the filling constraint <algo-filling>`, {ref}`Algorithm overview: integrate the density over the Brillouin zone <algo-bz>`, and {ref}`Algorithm overview: evaluate the density at one sampled $k$ <algo-single-k>`.
-:::
-
-```{toctree}
-:hidden:
-:maxdepth: 1
-
-extensions.md
-```
-
-The theory section is intentionally short:
-
-- [Theory extensions](./extensions.md): superconductivity and finite temperature as extensions of the same density-evaluation problem
-
-For the numerical side of each theoretical step, continue with the [Algorithm overview](../algorithm.md).
