@@ -5,8 +5,8 @@ import numpy as np
 from meanfi.integrate.filling import (
     charge_integral_tolerance,
     mu_bracket,
+    solve_mu,
 )
-from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.integrate.matrix_functions import (
     RationalFOE,
     density_block,
@@ -101,7 +101,7 @@ def density_matrix_zero_dim(
     mu_guess: float,
     charge_tol: float,
     mu_xtol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     density_atol: float,
     density_rtol: float,
     density_entry_support: DensityEntrySupport | None = None,
@@ -130,7 +130,7 @@ def density_matrix_zero_dim(
             charge=charge,
             charge_error=abs(charge - filling),
             dcharge_dmu=0.0,
-            root_iterations=1,
+            charge_evaluations=1,
             charge_integration_calls=1,
             density_integration_calls=1,
             charge_n_kernel_evals=1,
@@ -180,14 +180,14 @@ def density_matrix_zero_dim(
             charge, derivative = prepared.charge_and_derivative(mu)
             return charge, 0.0, derivative
 
-        root = solve_fixed_filling_root(
+        root = solve_mu(
             evaluate_charge=evaluate_charge,
-            mu_bracket=lambda: mu_bracket({tuple(): matrix}, kT),
+            initial_bracket=lambda: mu_bracket({tuple(): matrix}, kT),
             filling=filling,
             mu_guess=mu_guess,
             filling_tol=charge_tol,
             mu_tol=mu_xtol,
-            max_mu_iterations=max_mu_iterations,
+            max_charge_evaluations=max_charge_evaluations,
             use_derivative=resolved_matrix_function.rational_scheme != "aaa",
         )
 
@@ -205,7 +205,7 @@ def density_matrix_zero_dim(
             charge=root.charge,
             charge_error=root.charge_error,
             dcharge_dmu=float("nan") if root.derivative is None else root.derivative,
-            root_iterations=root.root_iterations,
+            charge_evaluations=root.charge_evaluations,
             charge_integration_calls=charge_calls,
             density_integration_calls=1,
             charge_n_kernel_evals=charge_calls,
@@ -238,14 +238,14 @@ def density_matrix_zero_dim(
         derivative = float(np.sum(occupation * (1.0 - occupation) / kT))
         return charge, 0.0, derivative
 
-    root = solve_fixed_filling_root(
+    root = solve_mu(
         evaluate_charge=evaluate_charge,
-        mu_bracket=lambda: mu_bracket({tuple(): matrix}, kT),
+        initial_bracket=lambda: mu_bracket({tuple(): matrix}, kT),
         filling=filling,
         mu_guess=mu_guess,
         filling_tol=charge_tol,
         mu_tol=mu_xtol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
     )
 
     occupation = fermi_dirac(eigenvalues, kT, root.mu)
@@ -257,7 +257,7 @@ def density_matrix_zero_dim(
         charge=root.charge,
         charge_error=root.charge_error,
         dcharge_dmu=float("nan") if root.derivative is None else root.derivative,
-        root_iterations=root.root_iterations,
+        charge_evaluations=root.charge_evaluations,
         charge_integration_calls=charge_calls,
         density_integration_calls=1,
         charge_n_kernel_evals=1,

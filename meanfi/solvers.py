@@ -22,7 +22,7 @@ def _density_for_hamiltonian(
     integration: IntegrationMethod,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float,
     density_entry_support=None,
 ):
@@ -34,7 +34,7 @@ def _density_for_hamiltonian(
         integration=integration,
         filling_tol=filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
         density_entry_support=density_entry_support,
     )
@@ -52,7 +52,7 @@ def solver(
     scf_tol: float = 1e-3,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
-    max_mu_iterations: int | None = None,
+    max_charge_evaluations: int | None = None,
 ) -> SolverResult:
     """Solve for the self-consistent mean-field correction."""
 
@@ -69,7 +69,7 @@ def solver(
         integration=resolved_integration,
         filling_tol=filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
     )
     if getattr(model, "superconducting", False):
         adapter = BdGFamilyAdapter(model, runtime)

@@ -17,7 +17,7 @@ from meanfi.state.support import (
     full_density_entry_support,
     workspace_complex_dtype,
 )
-from meanfi.integrate.fixed_filling import solve_fixed_filling_root
+from meanfi.integrate.filling import solve_mu
 from meanfi.integrate.matrix_functions import (
     BdGMatrixFunction,
     DirectDiagonalization,
@@ -83,7 +83,7 @@ def _solve_bdg_zero_dim(
     integration: IntegrationMethod,
     filling_tol: float,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float,
     q_diag: np.ndarray,
     selected_matrix_function: BdGMatrixFunction,
@@ -145,14 +145,14 @@ def _solve_bdg_zero_dim(
             derivative,
         )
 
-    root = solve_fixed_filling_root(
+    root = solve_mu(
         evaluate_charge=evaluate_charge,
-        mu_bracket=lambda: mu_bracket_for_bdg(hamiltonian, kT),
+        initial_bracket=lambda: mu_bracket_for_bdg(hamiltonian, kT),
         filling=filling,
         mu_guess=mu_guess,
         filling_tol=filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
         use_derivative=(
             kT > 0
             and not (
@@ -195,16 +195,16 @@ def _solve_bdg_zero_dim(
         charge=root.charge,
         charge_error=root.charge_error,
         dcharge_dmu=float("nan") if root.derivative is None else root.derivative,
-        root_iterations=root.root_iterations,
-        charge_integration_calls=root.root_iterations,
+        charge_evaluations=root.charge_evaluations,
+        charge_integration_calls=root.charge_evaluations,
         density_integration_calls=1,
         charge_n_kernel_evals=1,
         density_n_kernel_evals=1,
         n_kernel_evals=1,
         unique_evals=1,
-        charge_n_evaluator_evals=root.root_iterations,
+        charge_n_evaluator_evals=root.charge_evaluations,
         density_n_evaluator_evals=1,
-        n_evaluator_evals=root.root_iterations + 1,
+        n_evaluator_evals=root.charge_evaluations + 1,
         n_cached_nodes=1,
         n_leaves=1,
         n_leaf_nodes=1,
@@ -227,7 +227,7 @@ def _solve_bdg_zero_dim(
                 hamiltonian=hamiltonian,
                 n_kernel_evals=raw_info.n_kernel_evals,
                 n_evaluator_evals=raw_info.n_evaluator_evals,
-                root_iterations=raw_info.root_iterations,
+                charge_evaluations=raw_info.charge_evaluations,
                 charge_integration_calls=raw_info.charge_integration_calls,
                 density_integration_calls=raw_info.density_integration_calls,
                 error_estimate_available=False,
@@ -254,7 +254,7 @@ class BdGFixedFillingContext:
     integration: IntegrationMethod
     filling_tol: float
     mu_tol: float
-    max_mu_iterations: int | None
+    max_charge_evaluations: int | None
     mu_guess: float
     density_support: DensityEntrySupport | None
     q_diag: np.ndarray
@@ -313,7 +313,7 @@ def _solve_bdg_uniform_grid_fixed_filling(
         mu_guess=context.mu_guess,
         filling_tol=context.filling_tol,
         mu_tol=context.mu_tol,
-        max_mu_iterations=context.max_mu_iterations,
+        max_charge_evaluations=context.max_charge_evaluations,
         mu_bracket_builder=lambda: mu_bracket_for_bdg(context.hamiltonian, model.kT),
     )
     return wrap_density_result(
@@ -328,7 +328,7 @@ def _solve_bdg_uniform_grid_fixed_filling(
             hamiltonian=context.hamiltonian,
             n_kernel_evals=info.n_kernel_evals,
             n_evaluator_evals=info.n_evaluator_evals,
-            root_iterations=info.root_iterations,
+            charge_evaluations=info.charge_evaluations,
             charge_integration_calls=info.charge_integration_calls,
             density_integration_calls=info.density_integration_calls,
             error_estimate_available=False,
@@ -363,7 +363,7 @@ def _solve_bdg_adaptive_quadrature_fixed_filling(
         batch_size=integration.batch_size,
         filling_tol=context.filling_tol,
         mu_tol=context.mu_tol,
-        max_mu_iterations=context.max_mu_iterations,
+        max_charge_evaluations=context.max_charge_evaluations,
         density_atol=integration.density_matrix_tol,
         max_subdivisions=integration.max_refinements,
         root_error_message=(
@@ -400,15 +400,15 @@ def solve_bdg_density_fixed_filling(
     integration: IntegrationMethod,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float,
     density_entry_support: DensityEntrySupport | None = None,
 ) -> DensityMatrixResult:
     validate_integration_method(integration, kT=model.kT)
     if mu_tol <= 0:
         raise ValueError("mu_tol must be positive")
-    if max_mu_iterations is not None and max_mu_iterations <= 0:
-        raise ValueError("max_mu_iterations must be positive")
+    if max_charge_evaluations is not None and max_charge_evaluations <= 0:
+        raise ValueError("max_charge_evaluations must be positive")
 
     hamiltonian = model.bdg_hamiltonian_from_meanfield(meanfield)
     selected_matrix_function = resolve_bdg_matrix_function(
@@ -435,7 +435,7 @@ def solve_bdg_density_fixed_filling(
             integration=integration,
             filling_tol=resolved_filling_tol,
             mu_tol=mu_tol,
-            max_mu_iterations=max_mu_iterations,
+            max_charge_evaluations=max_charge_evaluations,
             mu_guess=mu_guess,
             q_diag=q_diag,
             selected_matrix_function=selected_matrix_function,
@@ -451,7 +451,7 @@ def solve_bdg_density_fixed_filling(
         integration=integration,
         filling_tol=resolved_filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
         density_support=density_support,
         q_diag=q_diag,

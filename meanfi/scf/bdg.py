@@ -106,7 +106,7 @@ class BdGFamilyAdapter:
             integration=self.runtime.integration,
             filling_tol=self.runtime.filling_tol,
             mu_tol=self.runtime.mu_tol,
-            max_mu_iterations=self.runtime.max_mu_iterations,
+            max_charge_evaluations=self.runtime.max_charge_evaluations,
             mu_guess=mu_guess,
             density_entry_support=self._sparse_density_support(meanfield_guess),
         )

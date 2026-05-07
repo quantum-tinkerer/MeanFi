@@ -45,7 +45,7 @@ def solve_density_matrix_fixed_filling(
     integration: IntegrationMethod | None,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float = 0.0,
     density_entry_support: DensityEntrySupport | None = None,
 ):
@@ -57,8 +57,8 @@ def solve_density_matrix_fixed_filling(
     validate_integration_method(integration, kT=kT)
     if mu_tol <= 0:
         raise ValueError("mu_tol must be positive")
-    if max_mu_iterations is not None and max_mu_iterations <= 0:
-        raise ValueError("max_mu_iterations must be positive")
+    if max_charge_evaluations is not None and max_charge_evaluations <= 0:
+        raise ValueError("max_charge_evaluations must be positive")
 
     requested_keys, working_keys, _local_key = prepare_keys(hamiltonian, keys)
     context = DispatchContext(
@@ -74,6 +74,6 @@ def solve_density_matrix_fixed_filling(
         filling,
         filling_tol,
         mu_tol,
-        max_mu_iterations,
+        max_charge_evaluations,
         mu_guess,
     )

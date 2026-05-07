@@ -3,32 +3,15 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+import scipy.sparse as sparse
+import scipy.sparse.linalg as sparse_linalg
+from scipy.linalg import block_diag as scipy_block_diag
 
 _tb_type = dict[tuple[int, ...], np.ndarray]
 
 
 def is_sparse_like(matrix: Any) -> bool:
-    return hasattr(matrix, "toarray") and hasattr(matrix, "tocsr")
-
-
-def sparse_module():
-    try:
-        import scipy.sparse as sparse
-    except ImportError as exc:  # pragma: no cover - depends on optional scipy
-        raise ImportError(
-            "Sparse mean-field inputs require scipy to be installed"
-        ) from exc
-    return sparse
-
-
-def sparse_linalg_module():
-    try:
-        import scipy.sparse.linalg as sparse_linalg
-    except ImportError as exc:  # pragma: no cover - depends on optional scipy
-        raise ImportError(
-            "Sparse mean-field inputs require scipy to be installed"
-        ) from exc
-    return sparse_linalg
+    return sparse.issparse(matrix)
 
 
 def to_dense(matrix: Any) -> np.ndarray:
@@ -38,7 +21,6 @@ def to_dense(matrix: Any) -> np.ndarray:
 
 
 def as_sparse(matrix: Any):
-    sparse = sparse_module()
     if is_sparse_like(matrix):
         return matrix.tocsr()
     return sparse.csr_matrix(np.asarray(matrix, dtype=complex))
@@ -69,17 +51,12 @@ def elementwise_product(lhs: Any, rhs: Any):
 
 def block_diag(top: Any, bottom: Any):
     if is_sparse_like(top) or is_sparse_like(bottom):
-        sparse = sparse_module()
-        return sparse.bmat(
-            [[as_sparse(top), None], [None, as_sparse(bottom)]],
-            format="csr",
-        )
+        return sparse.block_diag((as_sparse(top), as_sparse(bottom)), format="csr")
 
-    top = np.asarray(top, dtype=complex)
-    bottom = np.asarray(bottom, dtype=complex)
-    zero_top = np.zeros((top.shape[0], bottom.shape[1]), dtype=complex)
-    zero_bottom = np.zeros((bottom.shape[0], top.shape[1]), dtype=complex)
-    return np.block([[top, zero_top], [zero_bottom, bottom]])
+    return scipy_block_diag(
+        np.asarray(top, dtype=complex),
+        np.asarray(bottom, dtype=complex),
+    )
 
 
 def matrix_bound(matrix: Any) -> float:
@@ -104,7 +81,6 @@ def hermitian_spectral_bound(matrix: Any) -> float:
             eigenvalues = np.linalg.eigvalsh(to_dense(csr))
             return float(np.max(np.abs(eigenvalues))) if eigenvalues.size else 0.0
         try:
-            sparse_linalg = sparse_linalg_module()
             largest = sparse_linalg.eigsh(
                 csr,
                 k=1,

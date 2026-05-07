@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import scipy.sparse as sparse
 import warnings
 
 import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
@@ -187,7 +188,7 @@ def test_bdg_exact_density_matches_dense_2d_reference():
         ),
         filling_tol=5e-4,
         mu_tol=5e-4,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
         mu_guess=0.0,
     )
 
@@ -225,7 +226,7 @@ def test_bdg_dense_rational_matches_exact_density_in_2d(matrix_function):
         ),
         filling_tol=1e-3,
         mu_tol=1e-3,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
         mu_guess=0.0,
     )
     rational = solve_bdg_density_fixed_filling(
@@ -239,7 +240,7 @@ def test_bdg_dense_rational_matches_exact_density_in_2d(matrix_function):
         ),
         filling_tol=1e-3,
         mu_tol=1e-3,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
         mu_guess=0.0,
     )
 
@@ -258,7 +259,6 @@ def test_bdg_dense_rational_matches_exact_density_in_2d(matrix_function):
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
 def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
-    sparse = pytest.importorskip("scipy.sparse")
     keys = [(0, 0), (1, 0)]
     meanfield = _pairing(0.25, sparse=sparse)
     model = Model(
@@ -279,7 +279,7 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
         ),
         filling_tol=1e-3,
         mu_tol=1e-3,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
         mu_guess=0.0,
     )
     rational = solve_bdg_density_fixed_filling(
@@ -293,7 +293,7 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
         ),
         filling_tol=1e-3,
         mu_tol=1e-3,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
         mu_guess=0.0,
     )
 
@@ -303,7 +303,6 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
 
 
 def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
-    sparse = pytest.importorskip("scipy.sparse")
     local = (0, 0)
     h_0 = {local: sparse.csr_matrix([[0.0]])}
     h_int = {local: sparse.csr_matrix([[0.0]])}
@@ -326,7 +325,7 @@ def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
         ),
         filling_tol=1e-6,
         mu_tol=1e-8,
-        max_mu_iterations=40,
+        max_charge_evaluations=40,
         mu_guess=0.0,
     )
 
@@ -336,7 +335,6 @@ def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
 
 
 def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypatch):
-    sparse = pytest.importorskip("scipy.sparse")
     local = (0, 0)
     h_0 = {local: sparse.csr_matrix([[0.0]])}
     h_int = {local: sparse.csr_matrix([[0.0]])}
@@ -365,7 +363,7 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
         ),
         filling_tol=1e-6,
         mu_tol=1e-8,
-        max_mu_iterations=40,
+        max_charge_evaluations=40,
         mu_guess=0.0,
     )
 
@@ -374,7 +372,6 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
 
 
 def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
-    sparse = pytest.importorskip("scipy.sparse")
     local = (0, 0)
     h_0 = {local: sparse.csr_matrix([[0.0]])}
     h_int = {local: sparse.csr_matrix([[0.0]])}
@@ -401,7 +398,7 @@ def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
         ),
         filling_tol=1e-6,
         mu_tol=1e-8,
-        max_mu_iterations=40,
+        max_charge_evaluations=40,
         mu_guess=0.0,
     )
 
@@ -430,7 +427,7 @@ def test_bdg_zero_dimensional_rational_density_matches_exact():
         ),
         filling_tol=1e-8,
         mu_tol=1e-10,
-        max_mu_iterations=40,
+        max_charge_evaluations=40,
         mu_guess=0.0,
     )
     rational = solve_bdg_density_fixed_filling(
@@ -444,7 +441,7 @@ def test_bdg_zero_dimensional_rational_density_matches_exact():
         ),
         filling_tol=1e-8,
         mu_tol=1e-10,
-        max_mu_iterations=40,
+        max_charge_evaluations=40,
         mu_guess=0.0,
     )
 
@@ -456,7 +453,6 @@ def test_bdg_zero_dimensional_rational_density_matches_exact():
 
 
 def test_bdg_sparse_supported_density_matches_dense_reference():
-    sparse = pytest.importorskip("scipy.sparse")
     local = (0, 0)
     dense_h0 = {local: np.array([[0.0]], dtype=complex)}
     dense_hint = {local: np.array([[1.0]], dtype=complex)}
@@ -475,7 +471,7 @@ def test_bdg_sparse_supported_density_matches_dense_reference():
         ),
         filling_tol=1e-3,
         mu_tol=1e-8,
-        max_mu_iterations=40,
+        max_charge_evaluations=40,
         mu_guess=0.0,
     )
     sparse_result = solve_bdg_density_fixed_filling(
@@ -488,7 +484,7 @@ def test_bdg_sparse_supported_density_matches_dense_reference():
         ),
         filling_tol=1e-3,
         mu_tol=1e-8,
-        max_mu_iterations=40,
+        max_charge_evaluations=40,
         mu_guess=0.0,
     )
 
@@ -517,7 +513,6 @@ def test_bdg_sparse_supported_density_matches_dense_reference():
 def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(
     matrix_function,
 ):
-    sparse = pytest.importorskip("scipy.sparse")
     local = (0, 0)
     dense_h0 = {local: np.array([[0.0]], dtype=complex)}
     dense_hint = {local: np.array([[1.0]], dtype=complex)}
@@ -548,7 +543,7 @@ def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(
         ),
         filling_tol=1e-8,
         mu_tol=1e-10,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
         mu_guess=0.0,
     )
     sparse_result = solve_bdg_density_fixed_filling(
@@ -562,7 +557,7 @@ def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(
         ),
         filling_tol=1e-3,
         mu_tol=1e-8,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
         mu_guess=0.0,
         density_entry_support=None,
     )

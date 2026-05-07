@@ -26,7 +26,7 @@ class FixedFillingInfo:
     charge: float
     charge_error: float
     dcharge_dmu: float
-    root_iterations: int
+    charge_evaluations: int
     charge_integration_calls: int
     density_integration_calls: int
     charge_n_kernel_evals: int
@@ -58,7 +58,7 @@ class AdaptiveSimplexInfo:
     n_leaf_nodes: int
     refinements: int
     error_estimate_available: bool
-    root_iterations: int | None = None
+    charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
 
@@ -75,7 +75,7 @@ class AdaptiveQuadratureInfo:
     n_leaf_nodes: int
     refinements: int
     error_estimate_available: bool
-    root_iterations: int | None = None
+    charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
 
@@ -89,7 +89,7 @@ class UniformGridInfo:
     unique_evals: int
     n_kernel_evals: int | None = None
     n_evaluator_evals: int | None = None
-    root_iterations: int | None = None
+    charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
     error_estimate_available: bool = False

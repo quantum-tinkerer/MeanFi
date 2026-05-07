@@ -123,7 +123,7 @@ def translate_adaptive_info(
         n_leaf_nodes=int(raw_info.n_leaf_nodes),
         refinements=int(raw_info.subdivisions),
         error_estimate_available=bool(raw_info.error_estimate_available),
-        root_iterations=getattr(raw_info, "root_iterations", None),
+        charge_evaluations=getattr(raw_info, "charge_evaluations", None),
         charge_integration_calls=getattr(raw_info, "charge_integration_calls", None),
         density_integration_calls=getattr(raw_info, "density_integration_calls", None),
     )
@@ -135,7 +135,7 @@ def uniform_grid_info(
     hamiltonian: _tb_type,
     n_kernel_evals: int | None = None,
     n_evaluator_evals: int | None = None,
-    root_iterations: int | None = None,
+    charge_evaluations: int | None = None,
     charge_integration_calls: int | None = None,
     density_integration_calls: int | None = None,
     error_estimate_available: bool = False,
@@ -150,7 +150,9 @@ def uniform_grid_info(
         n_evaluator_evals=(
             n_kpoints if n_evaluator_evals is None else int(n_evaluator_evals)
         ),
-        root_iterations=None if root_iterations is None else int(root_iterations),
+        charge_evaluations=(
+            None if charge_evaluations is None else int(charge_evaluations)
+        ),
         charge_integration_calls=(
             None if charge_integration_calls is None else int(charge_integration_calls)
         ),

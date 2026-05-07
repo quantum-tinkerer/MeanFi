@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from meanfi.integrate.filling import mu_bracket
+from meanfi.integrate.filling import mu_bracket, solve_mu
 from meanfi.tb.ops import as_sparse, is_sparse_like, to_dense
 from meanfi.tb.validate import tb_dimension, tb_orbital_count
 from meanfi.tb.ops import _tb_type
@@ -17,7 +17,6 @@ from meanfi.state.support import (
     full_density_entry_support,
     workspace_complex_dtype,
 )
-from .fixed_filling import solve_fixed_filling_root
 from .matrix_functions import (
     DirectDiagonalization,
     RationalFOE,
@@ -384,7 +383,7 @@ def uniform_grid_fixed_filling_from_nodes(
     mu_guess: float,
     filling_tol: float,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_bracket_builder,
 ) -> tuple[_tb_type, float, float, Any]:
     charge_calls = 0
@@ -404,14 +403,14 @@ def uniform_grid_fixed_filling_from_nodes(
             total_derivative /= float(n_kpoints)
         return total_charge, 0.0, (total_derivative if bundle.use_derivative else None)
 
-    root = solve_fixed_filling_root(
+    root = solve_mu(
         evaluate_charge=evaluate_charge,
-        mu_bracket=mu_bracket_builder,
+        initial_bracket=mu_bracket_builder,
         filling=filling,
         mu_guess=mu_guess,
         filling_tol=filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
         use_derivative=bundle.use_derivative,
     )
     density_matrix, resolved_filling = uniform_grid_density_from_nodes(
@@ -422,7 +421,7 @@ def uniform_grid_fixed_filling_from_nodes(
         hamiltonian=hamiltonian,
         n_kernel_evals=(charge_calls + 1) * max(1, n_kpoints),
         n_evaluator_evals=(charge_calls + 1) * max(1, n_kpoints),
-        root_iterations=root.root_iterations,
+        charge_evaluations=root.charge_evaluations,
         charge_integration_calls=charge_calls,
         density_integration_calls=1,
         error_estimate_available=False,
@@ -501,7 +500,7 @@ def solve_uniform_grid_fixed_filling(
     integration: UniformGrid,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float = 0.0,
     density_entry_support: DensityEntrySupport | None = None,
 ):
@@ -564,7 +563,7 @@ def solve_uniform_grid_fixed_filling(
             hamiltonian=hamiltonian,
             charge_integration_calls=1,
             density_integration_calls=1,
-            root_iterations=1,
+            charge_evaluations=1,
             error_estimate_available=False,
         )
         return wrap_density_result(
@@ -608,7 +607,7 @@ def solve_uniform_grid_fixed_filling(
         mu_guess=mu_guess,
         filling_tol=resolved_filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
         mu_bracket_builder=lambda: mu_bracket(hamiltonian, kT),
     )
     return wrap_density_result(

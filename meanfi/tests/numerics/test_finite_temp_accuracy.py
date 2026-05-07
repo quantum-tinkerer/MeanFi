@@ -1,7 +1,6 @@
-import inspect
-
 import numpy as np
 import pytest
+import scipy.sparse as sparse
 
 from meanfi import (
     AdaptiveQuadrature,
@@ -30,22 +29,7 @@ from meanfi.tests.helpers import (
 pytestmark = [pytest.mark.numerics, pytest.mark.perf_slow]
 
 
-def _supports_prepared_payloads() -> bool:
-    try:
-        from stateful_quadrature import StatefulIntegrator
-    except ImportError:
-        return False
-    return "payload_builder" in inspect.signature(StatefulIntegrator).parameters
-
-
-requires_prepared_payloads = pytest.mark.skipif(
-    not _supports_prepared_payloads(),
-    reason="prepared-payload stateful_quadrature support is unavailable",
-)
-
-
 def _sparse_tb(tb):
-    sparse = pytest.importorskip("scipy.sparse")
     return {key: sparse.csr_matrix(value) for key, value in tb.items()}
 
 
@@ -259,7 +243,7 @@ def test_sparse_uniform_grid_fixed_filling_matches_dense_reference():
         ),
         filling_tol=1e-2,
         mu_tol=1e-8,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
     )
 
     assert abs(result.mu - reference.mu) <= 2e-2
@@ -267,9 +251,7 @@ def test_sparse_uniform_grid_fixed_filling_matches_dense_reference():
     assert max_density_error(result.density_matrix, reference.density_matrix) <= 2e-2
 
 
-@requires_prepared_payloads
 def test_normal_scf_sparse_minimal_support_matches_dense_reference():
-    sparse = pytest.importorskip("scipy.sparse")
     dense_h0 = spinful_chain()
     dense_hint = {(0,): np.diag([1.2, 0.0]).astype(complex)}
     sparse_h0 = _sparse_tb(dense_h0)
@@ -298,7 +280,7 @@ def test_normal_scf_sparse_minimal_support_matches_dense_reference():
         integration=integration,
         filling_tol=1e-2,
         mu_tol=1e-8,
-        max_mu_iterations=None,
+        max_charge_evaluations=None,
         mu_guess=0.0,
         density_entry_support=None,
     )
@@ -309,7 +291,7 @@ def test_normal_scf_sparse_minimal_support_matches_dense_reference():
         integration=integration,
         filling_tol=1e-2,
         mu_tol=1e-8,
-        max_mu_iterations=None,
+        max_charge_evaluations=None,
         mu_guess=0.0,
         density_entry_support=support,
     )
@@ -340,7 +322,6 @@ def test_workspace_precision_controls_are_validated():
         )
 
 
-@requires_prepared_payloads
 def test_quadrature_workspace_precision_64_matches_128():
     tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
@@ -378,9 +359,7 @@ def test_quadrature_workspace_precision_64_matches_128():
     )
 
 
-@requires_prepared_payloads
 def test_solver_density_result_zeroes_entries_outside_interaction_support():
-    sparse = pytest.importorskip("scipy.sparse")
     h0 = {(0,): sparse.csr_matrix(np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=complex))}
     h_int = {(0,): sparse.csr_matrix(np.diag([1.0, 1.0]).astype(complex))}
     model = Model(h0, h_int, filling=1.0, kT=0.15)
@@ -419,7 +398,6 @@ def test_dense_solver_density_result_keeps_full_dense_blocks():
     assert not np.allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
 
 
-@requires_prepared_payloads
 def test_fixed_filling_rational_density_pass_uses_frozen_charge_mesh(monkeypatch):
     calls = []
     original_run_integrator = quadrature_runtime.run_integrator
@@ -517,7 +495,6 @@ def test_sparse_aaa_arrowhead_poles_match_barycentric_form():
 
 def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
     shared_cache = []
-    sparse = pytest.importorskip("scipy.sparse")
     matrix = sparse.csr_matrix(np.array([[0.2, -1.0], [-1.0, -0.1]], dtype=complex))
     support = normal_density_entry_support(
         keys=[(0,)],

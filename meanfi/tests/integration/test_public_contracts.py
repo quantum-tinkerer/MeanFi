@@ -24,8 +24,7 @@ from meanfi import (
     solver,
 )
 from meanfi.tb.ops import matrix_bound
-from meanfi.integrate.filling import mu_bracket
-from meanfi.integrate.fixed_filling import solve_fixed_filling_root
+from meanfi.integrate.filling import mu_bracket, solve_mu
 from meanfi.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.integrate.uniform import resolve_uniform_grid_matrix_function
 from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
@@ -62,7 +61,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
         "scf_tol",
         "filling_tol",
         "mu_tol",
-        "max_mu_iterations",
+        "max_charge_evaluations",
     ):
         assert solver_params[name].kind is inspect.Parameter.KEYWORD_ONLY
     assert solver_params["integration"].default is None
@@ -75,7 +74,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_params["integration"].default is None
     assert density_params["filling_tol"].default is None
     assert density_params["mu_tol"].default == 1e-10
-    assert density_params["max_mu_iterations"].default is None
+    assert density_params["max_charge_evaluations"].default is None
 
     density_at_mu_params = inspect.signature(density_matrix_at_mu).parameters
     assert density_at_mu_params["kT"].default == 0.0
@@ -192,7 +191,7 @@ def test_zero_temperature_defaults_to_adaptive_simplex():
     assert isinstance(result.integration, AdaptiveSimplex)
 
 
-def test_sparse_mu_bracket_uses_tighter_spectral_probe_than_row_sum_bound():
+def test_sparse_mu_bracket_uses_conservative_row_sum_bound():
     size = 32
     offdiag = np.ones(size - 1, dtype=complex)
     path = sp.diags([offdiag, offdiag], offsets=[-1, 1], format="csr")
@@ -204,14 +203,11 @@ def test_sparse_mu_bracket_uses_tighter_spectral_probe_than_row_sum_bound():
     padding = max(1.0, 10.0 * 0.2)
 
     assert upper >= exact_bound + padding
-    assert upper < fallback + padding
+    assert upper == pytest.approx(fallback + padding)
     assert lower == -upper
 
 
-def test_sparse_rational_dense_input_uses_existing_dense_path(monkeypatch):
-    import meanfi.integrate.matrix_functions.mumps_backend as mumps_backend
-
-    monkeypatch.setattr(mumps_backend, "_import_mumps", lambda: None)
+def test_sparse_rational_dense_input_uses_existing_dense_path():
     tb = spinful_chain()
     result = density_matrix_at_mu(
         tb,
@@ -227,36 +223,35 @@ def test_sparse_rational_dense_input_uses_existing_dense_path(monkeypatch):
     assert result.info.error_estimate_available is True
 
 
-def test_sparse_rational_requires_python_mumps_on_sparse_input(monkeypatch):
-    import meanfi.integrate.matrix_functions.mumps_backend as mumps_backend
-
-    monkeypatch.setattr(mumps_backend, "_import_mumps", lambda: None)
+def test_sparse_rational_sparse_input_uses_required_mumps_path():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
-    with pytest.raises(RuntimeError, match="python-mumps"):
-        density_matrix_at_mu(
-            sparse_tb,
-            mu=0.0,
-            kT=0.15,
-            keys=[(0,), (1,), (-1,)],
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-2,
-                matrix_function=RationalFOE(),
-            ),
-        )
+    result = density_matrix_at_mu(
+        sparse_tb,
+        mu=0.0,
+        kT=0.15,
+        keys=[(0,), (1,), (-1,)],
+        integration=AdaptiveQuadrature(
+            density_matrix_tol=1e-2,
+            matrix_function=RationalFOE(),
+        ),
+    )
+
+    assert result.mu == 0.0
+    assert result.info.error_estimate_available is True
 
 
 def test_derivative_free_fixed_filling_root_solves_monotone_charge():
     def evaluate_charge(mu: float) -> tuple[float, float, None]:
         return 1.0 / (1.0 + np.exp(-mu)), 0.0, None
 
-    root = solve_fixed_filling_root(
+    root = solve_mu(
         evaluate_charge=evaluate_charge,
-        mu_bracket=lambda: (-4.0, 4.0),
+        initial_bracket=lambda: (-4.0, 4.0),
         filling=0.7,
         mu_guess=0.0,
         filling_tol=1e-6,
         mu_tol=1e-8,
-        max_mu_iterations=200,
+        max_charge_evaluations=200,
         use_derivative=False,
     )
 
@@ -270,14 +265,14 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
         charge = 1.0 / (1.0 + np.exp(-mu))
         return charge, 0.0, -1.0
 
-    root = solve_fixed_filling_root(
+    root = solve_mu(
         evaluate_charge=evaluate_charge,
-        mu_bracket=lambda: (-4.0, 4.0),
+        initial_bracket=lambda: (-4.0, 4.0),
         filling=0.7,
         mu_guess=0.0,
         filling_tol=1e-6,
         mu_tol=1e-8,
-        max_mu_iterations=200,
+        max_charge_evaluations=200,
         use_derivative=True,
     )
 
@@ -712,7 +707,7 @@ def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():
         integration=UniformGrid(nk=8),
         filling_tol=1e-2,
         mu_tol=1e-8,
-        max_mu_iterations=80,
+        max_charge_evaluations=80,
     )
 
     assert np.isfinite(result.mu)
@@ -995,10 +990,10 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
         integration,
         filling_tol,
         mu_tol,
-        max_mu_iterations,
+        max_charge_evaluations,
         mu_guess,
     ):
-        del keys, integration, filling_tol, mu_tol, max_mu_iterations, mu_guess
+        del keys, integration, filling_tol, mu_tol, max_charge_evaluations, mu_guess
         return fake_result(hamiltonian, model.step)
 
     monkeypatch.setattr(solvers, "tb_to_rparams", fake_tb_to_rparams)

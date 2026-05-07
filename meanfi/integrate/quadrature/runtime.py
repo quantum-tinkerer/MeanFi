@@ -1,20 +1,14 @@
 from __future__ import annotations
 
-import inspect
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable
 
 import numpy as np
+from stateful_quadrature import StatefulIntegrator
 
-from meanfi.integrate.filling import charge_integral_tolerance
+from meanfi.integrate.filling import charge_integral_tolerance, solve_mu
 from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
-from meanfi.integrate.fixed_filling import solve_fixed_filling_root
 from meanfi.tb.ops import _tb_type
-
-if TYPE_CHECKING:
-    from stateful_quadrature import StatefulIntegrator
-else:
-    StatefulIntegrator = Any
 
 
 @dataclass(frozen=True)
@@ -44,13 +38,6 @@ def build_integrator(
 ):
     """Construct a stateful quadrature integrator for a backend."""
 
-    try:
-        from stateful_quadrature import StatefulIntegrator
-    except ImportError as exc:  # pragma: no cover - depends on runtime environment
-        raise ImportError(
-            "Finite-temperature integration requires the optional stateful_quadrature dependency"
-        ) from exc
-
     a, b = backend.bounds
     kwargs = dict(
         a=a,
@@ -61,13 +48,6 @@ def build_integrator(
         batch_size=batch_size,
     )
     if backend.payload_builder is not None:
-        signature = inspect.signature(StatefulIntegrator)
-        if "payload_builder" not in signature.parameters:
-            raise RuntimeError(
-                "This MeanFi build requires a newer stateful_quadrature with "
-                "StatefulIntegrator(..., payload_builder=...). "
-                "Please upgrade stateful_quadrature."
-            )
         kwargs["payload_builder"] = backend.payload_builder
     return StatefulIntegrator(**kwargs)
 
@@ -136,7 +116,7 @@ def solve_quadrature_fixed_filling(
     batch_size: int | None,
     filling_tol: float,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     density_atol: float,
     max_subdivisions: int | None,
     root_error_message: str,
@@ -175,14 +155,14 @@ def solve_quadrature_fixed_filling(
         charge_subdivisions += int(getattr(result, "subdivisions", 0))
         return backend.split_charge_result(result.estimate, result.error)
 
-    root = solve_fixed_filling_root(
+    root = solve_mu(
         evaluate_charge=evaluate_charge,
-        mu_bracket=backend.mu_bracket,
+        initial_bracket=backend.mu_bracket,
         filling=filling,
         mu_guess=mu_guess,
         filling_tol=filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
         use_derivative=backend.charge_has_derivative,
     )
 
@@ -211,7 +191,7 @@ def solve_quadrature_fixed_filling(
         charge=root.charge,
         charge_error=root.charge_error,
         derivative=float("nan") if root.derivative is None else root.derivative,
-        root_iterations=root.root_iterations,
+        charge_evaluations=root.charge_evaluations,
         charge_integration_calls=charge_integration_calls,
         charge_kernel_evals=charge_kernel_evals,
         charge_evaluator_evals=charge_evaluator_evals,

@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+import scipy.sparse as sparse
 
-from meanfi.integrate.filling import _initial_spectral_bound
+from meanfi.integrate.filling import _conservative_spectral_bound
 from meanfi.tb.ops import (
     as_sparse,
     block_diag,
@@ -12,7 +13,6 @@ from meanfi.tb.ops import (
     elementwise_product,
     is_sparse_like,
     matrix_shape,
-    sparse_module,
     transpose,
 )
 from meanfi.tb.validate import matrix_allclose
@@ -42,7 +42,7 @@ def charge_diagonal(ndof: int) -> np.ndarray:
 
 
 def mu_bracket_for_bdg(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
-    bound = _initial_spectral_bound(hamiltonian)
+    bound = _conservative_spectral_bound(hamiltonian)
     padding = max(1.0, 10.0 * kT)
     return -float(bound + padding), float(bound + padding)
 
@@ -145,7 +145,6 @@ def assemble_bdg_correction(
         lower = conjugate_transpose(anomalous_block.get(opposite, zero_e))
         hole = hole_block.get(key, zero_e)
         if is_sparse_like(normal) or is_sparse_like(anomalous) or is_sparse_like(hole):
-            sparse = sparse_module()
             assembled[key] = sparse.bmat(
                 [
                     [as_sparse(normal), as_sparse(anomalous)],

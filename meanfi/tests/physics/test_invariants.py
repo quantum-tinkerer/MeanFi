@@ -112,7 +112,7 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
 
 
 @requires_ext
-def test_zero_temperature_fixed_filling_default_mu_iteration_limit_matches_explicit_limit():
+def test_zero_temperature_fixed_filling_default_charge_evaluation_limit_matches_explicit_limit():
     tb = spinful_chain()
 
     default_result = density_matrix(
@@ -136,7 +136,7 @@ def test_zero_temperature_fixed_filling_default_mu_iteration_limit_matches_expli
             max_refinements=600,
         ),
         filling_tol=5e-5,
-        max_mu_iterations=128,
+        max_charge_evaluations=128,
     )
 
     assert abs(default_result.mu - explicit_result.mu) <= 1e-12

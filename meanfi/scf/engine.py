@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
+from scipy.optimize import anderson
 
 from meanfi.results import DensityMatrixResult, SCFInfo, SolverResult
 from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like, to_dense
@@ -24,7 +25,7 @@ class SolverRuntime:
     integration: object
     filling_tol: float | None
     mu_tol: float
-    max_mu_iterations: int | None
+    max_charge_evaluations: int | None
 
 
 @dataclass
@@ -192,11 +193,6 @@ def _solve_anderson(
     scf_tol: float,
     on_iteration,
 ) -> np.ndarray:
-    try:
-        from scipy.optimize import anderson
-    except ImportError as exc:  # pragma: no cover - depends on runtime environment
-        raise ImportError("AndersonMixing requires scipy to be installed") from exc
-
     state = {"iterations": 0}
 
     def optimizer_callback(x: np.ndarray, f: np.ndarray) -> None:
@@ -216,27 +212,6 @@ def _solve_anderson(
                 f_tol=scf_tol,
                 tol_norm=max_norm,
             )
-    except TypeError as exc:
-        if "callback" not in str(exc):
-            raise
-        try:
-            with np.errstate(invalid="ignore"):
-                result = anderson(
-                    residual_fn,
-                    x0,
-                    M=int(scf.M),
-                    line_search=scf.line_search,
-                    maxiter=int(scf.max_iterations),
-                    f_tol=scf_tol,
-                    tol_norm=max_norm,
-                )
-        except Exception as inner_exc:  # pragma: no cover - exercised through scipy
-            translate_no_convergence(inner_exc, x0)
-            raise
-        residual = np.asarray(residual_fn(result), dtype=float)
-        iterations = max(1, state["iterations"])
-        on_iteration(iterations, max_norm(residual))
-        return np.asarray(result, dtype=float)
     except Exception as exc:  # pragma: no cover - exercised through scipy
         translate_no_convergence(exc, x0)
         raise

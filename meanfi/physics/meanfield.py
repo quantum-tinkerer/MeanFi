@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import numpy as np
+import scipy.sparse as sparse
 
-from meanfi.tb.ops import elementwise_product, is_sparse_like, sparse_module
+from meanfi.tb.ops import elementwise_product, is_sparse_like
 from meanfi.tb.validate import tb_dimension, zero_key
 from meanfi.tb.ops import add_tb, _tb_type
 
@@ -16,7 +17,6 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     )
     onsite_diagonal = np.zeros_like(diagonal_density, dtype=complex)
     sparse_present = any(is_sparse_like(matrix) for matrix in h_int.values())
-    sparse = sparse_module() if sparse_present else None
     for vector in frozenset(h_int):
         interaction = h_int[vector]
         if is_sparse_like(interaction):

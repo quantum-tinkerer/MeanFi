@@ -114,7 +114,7 @@ def _adaptive_quadrature_fixed_filling(
     filling: float,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float,
 ):
     hamiltonian = context.hamiltonian
@@ -139,7 +139,7 @@ def _adaptive_quadrature_fixed_filling(
             mu_guess=mu_guess,
             charge_tol=resolved_filling_tol,
             mu_xtol=mu_tol,
-            max_mu_iterations=max_mu_iterations,
+            max_charge_evaluations=max_charge_evaluations,
             density_atol=integration.density_matrix_tol,
             density_rtol=0.0,
             density_entry_support=None,
@@ -163,7 +163,7 @@ def _adaptive_quadrature_fixed_filling(
             batch_size=integration.batch_size,
             filling_tol=resolved_filling_tol,
             mu_tol=mu_tol,
-            max_mu_iterations=max_mu_iterations,
+            max_charge_evaluations=max_charge_evaluations,
             density_atol=integration.density_matrix_tol,
             max_subdivisions=integration.max_refinements,
             root_error_message=(
@@ -232,7 +232,7 @@ def _adaptive_simplex_fixed_filling(
     filling: float,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float,
 ):
     hamiltonian = context.hamiltonian
@@ -254,7 +254,7 @@ def _adaptive_simplex_fixed_filling(
             mu_guess=mu_guess,
             charge_tol=resolved_filling_tol,
             mu_xtol=mu_tol,
-            max_mu_iterations=max_mu_iterations,
+            max_charge_evaluations=max_charge_evaluations,
             density_atol=integration.density_matrix_tol,
             density_rtol=0.0,
         )
@@ -268,7 +268,7 @@ def _adaptive_simplex_fixed_filling(
             density_rtol=0.0,
             mu_guess=mu_guess,
             mu_xtol=mu_tol,
-            max_mu_iterations=max_mu_iterations,
+            max_charge_evaluations=max_charge_evaluations,
             max_subdivisions=integration.max_refinements,
             refinement_depth=integration.refinement_depth,
         )
@@ -307,7 +307,7 @@ def _uniform_grid_fixed_filling(
     filling: float,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float,
 ):
     del mu_guess
@@ -322,7 +322,7 @@ def _uniform_grid_fixed_filling(
             integration=integration,
             filling_tol=filling_tol,
             mu_tol=mu_tol,
-            max_mu_iterations=max_mu_iterations,
+            max_charge_evaluations=max_charge_evaluations,
             density_entry_support=context.density_entry_support,
         ),
         keys=context.requested_keys,

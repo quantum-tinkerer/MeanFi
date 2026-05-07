@@ -5,8 +5,9 @@ from typing import Any
 import warnings
 
 import numpy as np
+import scipy.sparse as sparse
 
-from meanfi.tb.ops import hermitian_spectral_bound, is_sparse_like, sparse_module
+from meanfi.tb.ops import hermitian_spectral_bound, is_sparse_like
 
 _DN_DMU_ABS_FLOOR = 1e-6
 
@@ -34,7 +35,6 @@ def shift_by_mu(
 ):
     resolved_dtype = np.dtype(complex) if dtype is None else np.dtype(dtype)
     if is_sparse_like(matrix):
-        sparse = sparse_module()
         shifted = matrix.astype(resolved_dtype, copy=False)
         return shifted - float(mu) * sparse.diags(
             q_diag.astype(resolved_dtype), format="csr"

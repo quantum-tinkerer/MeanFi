@@ -3,31 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import mumps
 import numpy as np
+import scipy.sparse as sparse
 
-from meanfi.tb.ops import as_sparse, sparse_module
-
-
-def _import_mumps():
-    try:  # pragma: no cover - import depends on runtime environment
-        import mumps
-    except ImportError:  # pragma: no cover - import depends on runtime environment
-        return None
-    return mumps
-
-
-def mumps_available() -> bool:
-    return _import_mumps() is not None
-
-
-def require_mumps():
-    module = _import_mumps()
-    if module is None:  # pragma: no cover - guarded in tests via monkeypatch
-        raise RuntimeError(
-            "Sparse RationalFOE requires the optional python-mumps package "
-            "for MUMPS selected inversion"
-        )
-    return module
+from meanfi.tb.ops import as_sparse
 
 
 @dataclass(frozen=True)
@@ -63,7 +43,6 @@ def build_selected_entry_pattern(
     if rows.size != cols.size:
         raise ValueError("rows and cols must have the same size")
 
-    sparse = sparse_module()
     if rows.size == 0:
         pattern_matrix = sparse.csc_matrix((size, size), dtype=np.complex128)
     else:
@@ -104,8 +83,7 @@ def build_selected_entry_pattern(
 
 class SelectedInverseFactorization:
     def __init__(self) -> None:
-        self._mumps = require_mumps()
-        self._context = self._mumps.Context(verbose=False)
+        self._context = mumps.Context(verbose=False)
         self._analysis_ready = False
 
     def factor(self, matrix: Any) -> None:

@@ -75,7 +75,7 @@ def density_matrix(
     integration: IntegrationMethod | None = None,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
-    max_mu_iterations: int | None = None,
+    max_charge_evaluations: int | None = None,
 ) -> DensityMatrixResult:
     """Compute the fixed-filling real-space density matrix."""
 
@@ -89,7 +89,7 @@ def density_matrix(
         integration=integration,
         filling_tol=filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
     )
 
 

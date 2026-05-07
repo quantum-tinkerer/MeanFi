@@ -28,7 +28,7 @@ def _default_density_for_hamiltonian(
     integration: IntegrationMethod,
     filling_tol: float | None,
     mu_tol: float,
-    max_mu_iterations: int | None,
+    max_charge_evaluations: int | None,
     mu_guess: float,
     density_entry_support=None,
 ) -> DensityMatrixResult:
@@ -40,7 +40,7 @@ def _default_density_for_hamiltonian(
         integration=integration,
         filling_tol=filling_tol,
         mu_tol=mu_tol,
-        max_mu_iterations=max_mu_iterations,
+        max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
         density_entry_support=density_entry_support,
     )
@@ -115,7 +115,7 @@ class NormalFamilyAdapter:
             integration=self.runtime.integration,
             filling_tol=self.runtime.filling_tol,
             mu_tol=self.runtime.mu_tol,
-            max_mu_iterations=self.runtime.max_mu_iterations,
+            max_charge_evaluations=self.runtime.max_charge_evaluations,
             mu_guess=mu_guess,
         )
         if (

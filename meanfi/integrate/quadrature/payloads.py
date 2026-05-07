@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import numpy as np
+import scipy.sparse as sparse
 
-from meanfi.tb.ops import as_sparse, is_sparse_like, matrix_shape, sparse_module
+from meanfi.tb.ops import as_sparse, is_sparse_like, matrix_shape
 from meanfi.tb.ops import _tb_type
 
 
@@ -39,7 +40,6 @@ def build_tb_payload_helpers(hamiltonian: _tb_type):
 
         return kernel, matrix_from_payload
 
-    sparse = sparse_module()
     structural = sparse.csr_matrix(shape, dtype=np.int8)
     term_payloads: list[tuple[tuple[int, ...], np.ndarray, np.ndarray]] = []
     for key, matrix in hamiltonian.items():

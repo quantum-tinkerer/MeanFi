@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+import scipy.sparse.linalg as sparse_linalg
 
 from meanfi.state.support import DensityEntrySupport
-from meanfi.tb.ops import as_sparse, is_sparse_like, sparse_linalg_module
+from meanfi.tb.ops import as_sparse, is_sparse_like
 
 from ..base import RationalFOE, _BlockResult
 from ..common import (
@@ -218,7 +219,7 @@ def _sparse_shifted_matrix(matrix: Any, shift: complex):
 
 
 def _sparse_shifted_lu(matrix: Any, shift: complex):
-    return sparse_linalg_module().splu(_sparse_shifted_matrix(matrix, shift))
+    return sparse_linalg.splu(_sparse_shifted_matrix(matrix, shift))
 
 
 def _evaluate_rational_terms(

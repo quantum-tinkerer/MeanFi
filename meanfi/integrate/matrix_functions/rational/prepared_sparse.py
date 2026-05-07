@@ -12,7 +12,6 @@ from ..common import spectral_interval, workspace_matrix, shift_by_mu
 from ..mumps_backend import (
     SelectedInverseFactorization,
     build_selected_entry_pattern,
-    require_mumps,
 )
 from ...occupations import fermi_dirac
 from .common import (
@@ -53,7 +52,6 @@ class PreparedMumpsRationalNode:
             )
         if not is_sparse_like(matrix):
             raise ValueError("Sparse MUMPS-backed RationalFOE requires sparse matrices")
-        require_mumps()
 
         self.workspace_dtype = np.dtype(workspace_dtype)
         self.matrix = as_sparse(workspace_matrix(matrix, self.workspace_dtype)).tocsr()
