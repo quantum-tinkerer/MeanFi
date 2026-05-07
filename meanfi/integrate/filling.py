@@ -86,9 +86,7 @@ def _evaluate_charge_sample(
             f"Charge evaluation returned invalid charge error at mu={mu}: {charge_error}"
         )
     if derivative_value is not None and not np.isfinite(derivative_value):
-        raise ValueError(
-            f"Charge evaluation returned non-finite derivative at mu={mu}"
-        )
+        raise ValueError(f"Charge evaluation returned non-finite derivative at mu={mu}")
     return _ChargeSample(
         mu=float(mu),
         charge=charge_value,
@@ -247,7 +245,9 @@ class _ChargeRootSolver:
         lower_value = float(lower)
         upper_value = float(upper)
         if not lower_value < upper_value:
-            raise ValueError("Expected lower < upper for the chemical-potential bracket")
+            raise ValueError(
+                "Expected lower < upper for the chemical-potential bracket"
+            )
         if max_expansions <= 0:
             raise ValueError("Bracket expansion limit must be positive")
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from adaptivesimplex import NATIVE_AVAILABLE as _ZERO_TEMP_EXT_AVAILABLE
-from adaptivesimplex import density_matrix_at_mu_zero_temp as _density_matrix_at_mu_zero_temp
+from adaptivesimplex import (
+    density_matrix_at_mu_zero_temp as _density_matrix_at_mu_zero_temp,
+)
 from adaptivesimplex import density_matrix_zero_temp as _density_matrix_zero_temp
 
 from meanfi.tb.ops import _tb_type
@@ -55,6 +57,7 @@ def density_matrix_zero_temp(
         max_subdivisions=max_subdivisions,
         refinement_depth=refinement_depth,
     )
+
 
 __all__ = [
     "_ZERO_TEMP_EXT_AVAILABLE",

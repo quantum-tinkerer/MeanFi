@@ -55,7 +55,7 @@ N'(\mu) = \int_{\mathrm{BZ}} \partial_\mu n(\mu,k)\, dk.
 :::
 
 So the same local-in-$k$ machinery that evaluates $n(\mu,k)$ may also supply the derivative information needed for faster root updates.
-The derivative-aware path is safeguarded Newton, while the derivative-free path is a bracketed interpolation/bisection-type solver.
+The derivative-aware path is safeguarded Newton, while the derivative-free path is a Brent-style bracketed solver with interpolation and midpoint fallback.
 
 ## Which paths use which root update?
 
@@ -63,12 +63,12 @@ The root solver depends on whether the underlying density-evaluation stack can p
 
 - `AdaptiveQuadrature` with `DirectDiagonalization`: safeguarded Newton
 - `AdaptiveQuadrature` with derivative-aware rational evaluation: safeguarded Newton
-- `AdaptiveQuadrature` with `RationalFOE(rational_scheme="aaa")`: bracketed interpolation/bisection
+- `AdaptiveQuadrature` with `RationalFOE(rational_scheme="aaa")`: Brent-style bracketed solve
 - `UniformGrid` at finite temperature with `DirectDiagonalization`: safeguarded Newton
 - `UniformGrid` at finite temperature with derivative-aware rational evaluation: safeguarded Newton
-- `UniformGrid` with `RationalFOE(rational_scheme="aaa")`: bracketed interpolation/bisection
-- zero-temperature `AdaptiveSimplex`: bracketed interpolation/bisection
-- zero-temperature `UniformGrid`: bracketed interpolation/bisection
+- `UniformGrid` with `RationalFOE(rational_scheme="aaa")`: Brent-style bracketed solve
+- zero-temperature `AdaptiveSimplex`: Brent-style bracketed solve
+- zero-temperature `UniformGrid`: Brent-style bracketed solve
 
 So the practical distinction is not the integrator alone.
 It is whether the full stack can evaluate both $N(\mu)$ and $N'(\mu)$, or only $N(\mu)$.
@@ -89,7 +89,7 @@ For safeguarded Newton, once the iteration is in its local regime,
 
 so the error contracts quadratically in the ideal derivative-aware regime.
 
-For pure bisection on a bracket $[\mu_-,\mu_+]$,
+For a bracketed root solve on $[\mu_-,\mu_+]$, the worst-case bracket shrinking remains logarithmic,
 
 :::{math}
 |\mu_j-\mu_\ast|
@@ -99,13 +99,13 @@ For pure bisection on a bracket $[\mu_-,\mu_+]$,
 j \sim \log_2\!\frac{\mu_+ - \mu_-}{\varepsilon_\mu}.
 :::
 
-So the total bisection cost scales like
+So the total derivative-free cost scales like
 
 :::{math}
 \text{cost} \sim C_N \log\!\frac{1}{\varepsilon_\mu}.
 :::
 
-The derivative-free branch used in `MeanFi` is usually better than raw bisection when interpolation helps, but it retains the same logarithmic worst-case bracket-shrinking behavior.
+The derivative-free branch used in `MeanFi` is usually better than midpoint-only shrinking when interpolation helps, but it retains the same logarithmic worst-case bracket-shrinking behavior.
 So, at the level of asymptotic work versus root accuracy,
 
 :::{math}
@@ -116,7 +116,7 @@ So, at the level of asymptotic work versus root accuracy,
 while
 
 :::{math}
-\text{bisection-type:}\quad \text{cost} \sim C_N \log\!\frac{1}{\varepsilon_\mu}.
+\text{Brent-style:}\quad \text{cost} \sim C_N \log\!\frac{1}{\varepsilon_\mu}.
 :::
 
 ## Why this is coupled to the integrator
