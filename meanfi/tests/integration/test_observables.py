@@ -55,12 +55,10 @@ def test_total_energy_matches_bdg_block_formula():
     electron_density = extract_electron_density(density, model)
     anomalous_density = extract_anomalous_density(density, model)
     normal_correction = {
-        key: matrix[: model._ndof, : model._ndof]
-        for key, matrix in correction.items()
+        key: matrix[: model._ndof, : model._ndof] for key, matrix in correction.items()
     }
     pairing_correction = {
-        key: matrix[: model._ndof, model._ndof :]
-        for key, matrix in correction.items()
+        key: matrix[: model._ndof, model._ndof :] for key, matrix in correction.items()
     }
     expected = expectation_value(electron_density, model.h_0)
     expected += 0.5 * expectation_value(electron_density, normal_correction)

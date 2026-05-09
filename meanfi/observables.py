@@ -69,12 +69,10 @@ def total_energy(model: Model, density_matrix: _tb_type) -> float:
     anomalous_density = extract_anomalous_density(density_matrix, model)
     correction = bdg_correction_from_density(density_matrix, model)
     normal_correction = {
-        key: matrix[: model._ndof, : model._ndof]
-        for key, matrix in correction.items()
+        key: matrix[: model._ndof, : model._ndof] for key, matrix in correction.items()
     }
     pairing_correction = {
-        key: matrix[: model._ndof, model._ndof :]
-        for key, matrix in correction.items()
+        key: matrix[: model._ndof, model._ndof :] for key, matrix in correction.items()
     }
 
     energy = expectation_value(electron_density, model.h_0)
