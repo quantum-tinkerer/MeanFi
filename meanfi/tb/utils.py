@@ -1,7 +1,7 @@
 from itertools import product
 import numpy as np
 
-from meanfi.physics.bdg import validate_bdg_tb
+from meanfi.tb.bdg import validate_bdg_tb
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.transforms import tb_to_kgrid
 
@@ -59,47 +59,19 @@ def _guess_electron_tb(
     return guess
 
 
-# def _guess_bdg_tb(
-#     tb_keys: list[tuple[None] | tuple[int, ...]], *, ndof: int, ndim: int, scale: float
-# ) -> _tb_type:
-#     support = set(tb_keys)
-#     support.update(tuple(-np.asarray(vector, dtype=int)) for vector in tb_keys)
-
-#     normal_block = _guess_electron_tb(sorted(support), ndof=ndof, scale=scale)
-#     anomalous_block = {
-#         vector: scale
-#         * np.random.rand(ndof, ndof)
-#         * np.exp(2j * np.pi * np.random.rand(ndof, ndof))
-#         for vector in support
-#     }
-
-#     zero = np.zeros((ndof, ndof), dtype=complex)
-#     guess = {}
-#     for vector in support:
-#         opposite = tuple(-np.asarray(vector, dtype=int))
-#         normal = normal_block.get(vector, zero)
-#         anomalous = anomalous_block.get(vector, zero)
-#         lower = anomalous_block.get(opposite, zero).conj().T
-#         hole = -normal_block.get(opposite, zero).T
-#         guess[vector] = np.block([[normal, anomalous], [lower, hole]])
-
-#     validate_bdg_tb(guess, ndof=ndof, ndim=ndim, name="BdG guess")
-#     return guess
-
-
 def _guess_bdg_tb(
     tb_keys: list[tuple[None] | tuple[int, ...]], *, ndof: int, ndim: int, scale: float
 ) -> _tb_type:
-    support = set(tb_keys)
-    support.update(tuple(-np.asarray(vector, dtype=int)) for vector in tb_keys)
+    active_keys = set(tb_keys)
+    active_keys.update(tuple(-np.asarray(vector, dtype=int)) for vector in tb_keys)
 
-    normal_block = _guess_electron_tb(sorted(support), ndof=ndof, scale=scale)
+    normal_block = _guess_electron_tb(sorted(active_keys), ndof=ndof, scale=scale)
 
     zero = np.zeros((ndof, ndof), dtype=complex)
 
     anomalous_block: dict[tuple[int, ...], np.ndarray] = {}
 
-    for vector in sorted(support):
+    for vector in sorted(active_keys):
         if vector in anomalous_block:
             continue
 
@@ -129,7 +101,7 @@ def _guess_bdg_tb(
 
     guess = {}
 
-    for vector in support:
+    for vector in active_keys:
         opposite = tuple(-np.asarray(vector, dtype=int))
 
         normal = normal_block.get(vector, zero)

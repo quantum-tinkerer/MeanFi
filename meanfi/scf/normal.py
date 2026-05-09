@@ -1,26 +1,21 @@
 from __future__ import annotations
 
-import inspect
-
 import numpy as np
 
-from meanfi.integrate.dispatch import solve_density_matrix_fixed_filling
-from meanfi.integrate.methods import IntegrationMethod
+from meanfi.density.density import solve_density_matrix_fixed_filling
+from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.model import Model
-from meanfi.physics.meanfield import meanfield
 from meanfi.results import DensityMatrixResult
 from meanfi.scf.engine import (
+    SCFProblem,
     SolverRuntime,
-    _prefer_sparse,
-    restore_tb_type,
     warn_on_projection,
 )
-from meanfi.state.normal import rparams_to_tb, tb_to_rparams
-from meanfi.state.support import normal_density_entry_support
-from meanfi.tb.ops import _tb_type, is_sparse_like
+from meanfi.space import MeanFieldDensitySpace
+from meanfi.tb.ops import _tb_type
 
 
-def _default_density_for_hamiltonian(
+def _density_update_for_normal_hamiltonian(
     model: Model,
     hamiltonian: _tb_type,
     *,
@@ -30,7 +25,7 @@ def _default_density_for_hamiltonian(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
-    density_entry_support=None,
+    density_selection=None,
 ) -> DensityMatrixResult:
     return solve_density_matrix_fixed_filling(
         hamiltonian,
@@ -42,129 +37,65 @@ def _default_density_for_hamiltonian(
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
-        density_entry_support=density_entry_support,
+        density_selection=density_selection,
     )
 
 
-class NormalFamilyAdapter:
-    def __init__(
-        self,
-        model: Model,
-        runtime: SolverRuntime,
-        *,
-        tb_to_rparams_fn=tb_to_rparams,
-        rparams_to_tb_fn=rparams_to_tb,
-        meanfield_fn=meanfield,
-        density_for_hamiltonian_fn=None,
-    ) -> None:
-        self.model = model
-        self.runtime = runtime
-        self.keys = list(model.h_int)
-        support_keys = (
-            self.keys
-            if model._local_key in self.keys
-            else [*self.keys, model._local_key]
-        )
-        self.param_support = normal_density_entry_support(
-            keys=support_keys,
-            interaction_support=model.h_int,
-            ndof=model._ndof,
-            local_key=model._local_key,
-            allow_empty=True,
-        )
-        self._tb_to_rparams = tb_to_rparams_fn
-        self._rparams_to_tb = rparams_to_tb_fn
-        self._meanfield = meanfield_fn
-        self._density_for_hamiltonian = (
-            _default_density_for_hamiltonian
-            if density_for_hamiltonian_fn is None
-            else density_for_hamiltonian_fn
-        )
-        self._prefer_sparse = False
+def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
+    """Build the normal-state map consumed by the generic SCF engine."""
 
-    def project_guess(self, guess: _tb_type) -> _tb_type:
-        self._prefer_sparse = _prefer_sparse(
-            getattr(self.model, "h_0", None),
-            self.model.h_int,
-            guess,
-        )
-        projected = self._rparams_to_tb(
-            self._tb_to_rparams(guess, support=self.param_support),
-            list(self.param_support.keys),
-            self.model._ndof,
-            support=self.param_support,
-        )
+    space = MeanFieldDensitySpace.normal(model)
+    keys = space.keys
+
+    def project_guess(guess: _tb_type) -> _tb_type:
+        projected = space.project_guess(guess)
         warn_on_projection(guess, projected, label="Normal SCF guess")
-        return restore_tb_type(projected, prefer_sparse=self._prefer_sparse)
+        return projected
 
-    def _density_entry_support(self, hamiltonian: _tb_type):
-        if self.param_support is None or self.param_support.output_size == 0:
-            return None
-        if any(is_sparse_like(matrix) for matrix in hamiltonian.values()):
-            return self.param_support
-        return None
-
-    def _evaluate_hamiltonian(
-        self,
+    def evaluate_hamiltonian(
         hamiltonian: _tb_type,
         *,
         mu_guess: float,
     ) -> DensityMatrixResult:
         kwargs = dict(
-            keys=self.keys,
-            integration=self.runtime.integration,
-            filling_tol=self.runtime.filling_tol,
-            mu_tol=self.runtime.mu_tol,
-            max_charge_evaluations=self.runtime.max_charge_evaluations,
+            keys=keys,
+            integration=runtime.integration,
+            filling_tol=runtime.filling_tol,
+            mu_tol=runtime.mu_tol,
+            max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
         )
-        if (
-            "density_entry_support"
-            in inspect.signature(self._density_for_hamiltonian).parameters
-        ):
-            kwargs["density_entry_support"] = self._density_entry_support(hamiltonian)
-        return self._density_for_hamiltonian(self.model, hamiltonian, **kwargs)
+        kwargs["density_selection"] = space.density_selection_for(hamiltonian)
+        return _density_update_for_normal_hamiltonian(model, hamiltonian, **kwargs)
 
-    def evaluate_projected_guess(
-        self, projected_guess: _tb_type
-    ) -> DensityMatrixResult:
-        return self._evaluate_hamiltonian(
-            self.model.hamiltonian_from_meanfield(projected_guess),
+    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityMatrixResult:
+        return evaluate_hamiltonian(
+            model.hamiltonian_from_meanfield(projected_guess),
             mu_guess=0.0,
         )
 
-    def params_from_density_result(
-        self, density_result: DensityMatrixResult
-    ) -> np.ndarray:
-        density_guess = {key: density_result.density_matrix[key] for key in self.keys}
-        return np.asarray(
-            self._tb_to_rparams(density_guess, support=self.param_support),
-            dtype=float,
-        )
+    def params_from_density_result(density_result: DensityMatrixResult) -> np.ndarray:
+        return space.params_from_density(density_result.density_matrix)
 
-    def evaluate_params(
-        self,
-        params: np.ndarray,
-        *,
-        mu_guess: float,
+    def density_result_from_params(
+        params: np.ndarray, mu_guess: float
     ) -> DensityMatrixResult:
-        rho = self._rparams_to_tb(
-            params,
-            self.keys,
-            self.model._ndof,
-            support=self.param_support,
-        )
-        return self._evaluate_hamiltonian(
-            self.model.hamiltonian_from_rho(rho),
+        return evaluate_hamiltonian(
+            model.hamiltonian_from_rho(space.density_from_params(params)),
             mu_guess=mu_guess,
         )
 
-    def finalize_meanfield(self, density_result: DensityMatrixResult) -> _tb_type:
-        density_reduced = {key: density_result.density_matrix[key] for key in self.keys}
-        mf_result = self._meanfield(density_reduced, self.model.h_int)
-        tb_result = dict(mf_result)
-        tb_result[self.model._local_key] = tb_result.get(
-            self.model._local_key,
-            np.zeros((self.model._ndof, self.model._ndof), dtype=complex),
-        ) - density_result.mu * np.eye(self.model._ndof)
-        return tb_result
+    def finalize_meanfield(density_result: DensityMatrixResult) -> _tb_type:
+        return space.meanfield_from_density(
+            density_result.density_matrix,
+            mu=density_result.mu,
+        )
+
+    return SCFProblem(
+        runtime=runtime,
+        project_guess=project_guess,
+        evaluate_projected_guess=evaluate_projected_guess,
+        params_from_density_result=params_from_density_result,
+        density_result_from_params=density_result_from_params,
+        finalize_meanfield=finalize_meanfield,
+    )

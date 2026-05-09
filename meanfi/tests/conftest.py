@@ -1,6 +1,6 @@
 import pytest
 
-from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 
 
 DENSITY_TOLERANCE_LADDER = (1e-2, 3e-3, 1e-3)

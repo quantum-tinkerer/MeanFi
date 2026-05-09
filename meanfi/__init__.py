@@ -16,33 +16,42 @@ from .results import (
     SolverResult,
     UniformGridInfo,
 )
-from .integrate.dispatch import (
+from .density.density import (
     solve_density_matrix_at_mu as _solve_density_matrix_at_mu,
     solve_density_matrix_fixed_filling as _solve_density_matrix_fixed_filling,
 )
-from .integrate.defaults import DEFAULT_KT
-from .integrate.methods import (
+from .density.integrate.defaults import DEFAULT_KT
+from .density.integrate.methods import (
     AdaptiveQuadrature,
     AdaptiveSimplex,
     IntegrationMethod,
     UniformGrid,
 )
-from .integrate.matrix_functions import (
+from .density.kpoint.matrix_functions import (
     BdGMatrixFunction,
     DirectDiagonalization,
     RationalFOE,
 )
-from .integrate.occupations import fermi_dirac
+from .density.kpoint.occupations import fermi_dirac
 from .model import Model
-from .physics.meanfield import meanfield
+from .meanfield import meanfield
 from .observables import expectation_value
 from .scf.engine import NoConvergence
 from .scf.methods import AndersonMixing, LinearMixing, SCFMethod
-from .solvers import solver
-from .tb.backend import tb_to_tight_binding_model, tb_to_vertex_cache
-from .tb.ops import add_tb, scale_tb
-from .tb.transforms import ifftn_to_tb, kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
-from .tb.utils import fermi_energy, generate_tb_keys, guess_tb
+from .scf.scf import solver
+from .tb.tb import (
+    add_tb,
+    fermi_energy,
+    generate_tb_keys,
+    guess_tb,
+    ifftn_to_tb,
+    kgrid_to_tb,
+    scale_tb,
+    tb_to_kfunc,
+    tb_to_kgrid,
+    tb_to_tight_binding_model,
+    tb_to_vertex_cache,
+)
 
 
 def density_matrix_at_mu(

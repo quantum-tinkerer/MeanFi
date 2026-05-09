@@ -12,7 +12,7 @@ from meanfi import (
     guess_tb,
     solver,
 )
-from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.interop import kwant as utils
 
 
@@ -94,17 +94,18 @@ def test_refinement_depth_improves_bad_graphene_point_diagnostic():
         values = []
         for seed in seeds:
             np.random.seed(seed)
-            result = solver(
-                Model(h0, h_int, filling=2),
-                guess_tb(int_keys, ndof),
-                integration=AdaptiveSimplex(
-                    density_matrix_tol=1e-4,
-                    refinement_depth=refinement_depth,
-                ),
-                scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=1000),
-                scf_tol=1e-7,
-                filling_tol=1e-3,
-            )
+            with pytest.warns(UserWarning, match="projected away"):
+                result = solver(
+                    Model(h0, h_int, filling=2),
+                    guess_tb(int_keys, ndof),
+                    integration=AdaptiveSimplex(
+                        density_matrix_tol=1e-4,
+                        refinement_depth=refinement_depth,
+                    ),
+                    scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=1000),
+                    scf_tol=1e-7,
+                    filling_tol=1e-3,
+                )
             values.append(_sdw_measure(h0, result.mf, sz))
         return values
 

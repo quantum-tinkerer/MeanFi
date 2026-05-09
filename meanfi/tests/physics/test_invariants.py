@@ -10,8 +10,8 @@ from meanfi import (
     density_matrix_at_mu,
     fermi_dirac,
 )
-from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.tests.helpers import (
+from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.tests.fixtures.models import (
     antiferromagnetic_guess,
     bipartite_hubbard_1d,
     duplicated_local_two_band_1d,

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import pytest
 
 from meanfi import AdaptiveSimplex, UniformGrid, density_matrix, density_matrix_at_mu
-from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.tests.helpers import (
+from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.tests.fixtures.models import (
     assert_estimator_covers_actual,
     converged_dense_reference,
     dimerized_chain,

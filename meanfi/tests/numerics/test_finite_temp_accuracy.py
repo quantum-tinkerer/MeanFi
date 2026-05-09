@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 import scipy.sparse as sparse
@@ -14,12 +16,15 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.state.support import normal_density_entry_support
-import meanfi.integrate.matrix_functions.rational as rational_matrix_functions
-import meanfi.integrate.quadrature.runtime as quadrature_runtime
-from meanfi.state.normal import tb_to_rparams
-from meanfi.solvers import _evaluate_density_for_hamiltonian
-from meanfi.tests.helpers import (
+from meanfi.space.hermitian import normal_density_selection
+import meanfi.density.kpoint.matrix_functions.rational as rational_matrix_functions
+import meanfi.density.integrate.normal as normal_integration
+import meanfi.density.integrate.quadrature.runtime as quadrature_runtime
+from meanfi.space.normal import tb_to_rparams
+from meanfi.scf.normal import (
+    _density_update_for_normal_hamiltonian as _evaluate_density_for_hamiltonian,
+)
+from meanfi.tests.fixtures.models import (
     assert_estimator_covers_actual,
     max_density_error,
     spinful_chain,
@@ -33,67 +38,36 @@ def _sparse_tb(tb):
     return {key: sparse.csr_matrix(value) for key, value in tb.items()}
 
 
-def test_zero_dimensional_normal_rational_matches_direct_reference():
+def test_zero_dimensional_normal_rational_rejects_dense_matrix():
     tb_zero_dim = {tuple(): np.diag([-1.0, 1.0]).astype(complex)}
     keys = [tuple()]
     matrix_function = RationalFOE(initial_poles=4, max_poles=256)
 
-    reference_at_mu = density_matrix_at_mu(
-        tb_zero_dim,
-        mu=0.1,
-        kT=0.15,
-        keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-8,
-            matrix_function=DirectDiagonalization(),
-        ),
-    )
-    result_at_mu = density_matrix_at_mu(
-        tb_zero_dim,
-        mu=0.1,
-        kT=0.15,
-        keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            matrix_function=matrix_function,
-        ),
-    )
+    with pytest.raises(ValueError, match="RationalFOE is supported only for sparse"):
+        density_matrix_at_mu(
+            tb_zero_dim,
+            mu=0.1,
+            kT=0.15,
+            keys=keys,
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-2,
+                matrix_function=matrix_function,
+            ),
+        )
 
-    assert (
-        max_density_error(result_at_mu.density_matrix, reference_at_mu.density_matrix)
-        <= 1e-2
-    )
-
-    reference_fixed = density_matrix(
-        tb_zero_dim,
-        filling=0.9,
-        kT=0.15,
-        keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-8,
-            matrix_function=DirectDiagonalization(),
-        ),
-        filling_tol=1e-8,
-        mu_tol=1e-10,
-    )
-    result_fixed = density_matrix(
-        tb_zero_dim,
-        filling=0.9,
-        kT=0.15,
-        keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            matrix_function=matrix_function,
-        ),
-        filling_tol=1e-2,
-        mu_tol=1e-8,
-    )
-
-    assert (
-        max_density_error(result_fixed.density_matrix, reference_fixed.density_matrix)
-        <= 1e-2
-    )
-    assert abs(result_fixed.filling - 0.9) <= 1e-2
+    with pytest.raises(ValueError, match="RationalFOE is supported only for sparse"):
+        density_matrix(
+            tb_zero_dim,
+            filling=0.9,
+            kT=0.15,
+            keys=keys,
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-2,
+                matrix_function=matrix_function,
+            ),
+            filling_tol=1e-2,
+            mu_tol=1e-8,
+        )
 
 
 @pytest.mark.parametrize(
@@ -251,7 +225,7 @@ def test_sparse_uniform_grid_fixed_filling_matches_dense_reference():
     assert max_density_error(result.density_matrix, reference.density_matrix) <= 2e-2
 
 
-def test_normal_scf_sparse_minimal_support_matches_dense_reference():
+def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     dense_h0 = spinful_chain()
     dense_hint = {(0,): np.diag([1.2, 0.0]).astype(complex)}
     sparse_h0 = _sparse_tb(dense_h0)
@@ -264,14 +238,14 @@ def test_normal_scf_sparse_minimal_support_matches_dense_reference():
     model_dense = Model(dense_h0, dense_hint, filling=1.0, kT=0.15)
     model_sparse = Model(sparse_h0, sparse_hint, filling=1.0, kT=0.15)
 
-    support = normal_density_entry_support(
+    selection = normal_density_selection(
         keys=[(0,)],
-        interaction_support=dense_hint,
+        interaction_tb=dense_hint,
         ndof=2,
         local_key=(0,),
         allow_empty=True,
     )
-    assert support is not None
+    assert selection is not None
 
     dense_result = _evaluate_density_for_hamiltonian(
         model_dense,
@@ -282,7 +256,7 @@ def test_normal_scf_sparse_minimal_support_matches_dense_reference():
         mu_tol=1e-8,
         max_charge_evaluations=None,
         mu_guess=0.0,
-        density_entry_support=None,
+        density_selection=None,
     )
     sparse_result = _evaluate_density_for_hamiltonian(
         model_sparse,
@@ -293,14 +267,14 @@ def test_normal_scf_sparse_minimal_support_matches_dense_reference():
         mu_tol=1e-8,
         max_charge_evaluations=None,
         mu_guess=0.0,
-        density_entry_support=support,
+        density_selection=selection,
     )
 
     assert abs(dense_result.mu - sparse_result.mu) <= 5e-4
     assert abs(dense_result.filling - sparse_result.filling) <= 5e-4
     np.testing.assert_allclose(
-        tb_to_rparams(dense_result.density_matrix, support=support),
-        tb_to_rparams(sparse_result.density_matrix, support=support),
+        tb_to_rparams(dense_result.density_matrix, selection=selection),
+        tb_to_rparams(sparse_result.density_matrix, selection=selection),
         atol=5e-4,
     )
 
@@ -359,7 +333,7 @@ def test_quadrature_workspace_precision_64_matches_128():
     )
 
 
-def test_solver_density_result_zeroes_entries_outside_interaction_support():
+def test_solver_density_result_zeroes_entries_outside_interaction_tb():
     h0 = {(0,): sparse.csr_matrix(np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=complex))}
     h_int = {(0,): sparse.csr_matrix(np.diag([1.0, 1.0]).astype(complex))}
     model = Model(h0, h_int, filling=1.0, kT=0.15)
@@ -415,6 +389,7 @@ def test_fixed_filling_rational_density_pass_uses_frozen_charge_mesh(monkeypatch
         return result
 
     monkeypatch.setattr(quadrature_runtime, "run_integrator", wrapped_run_integrator)
+    monkeypatch.setattr(normal_integration, "run_integrator", wrapped_run_integrator)
     result = density_matrix(
         _sparse_tb(spinful_chain()),
         filling=0.7,
@@ -496,21 +471,21 @@ def test_sparse_aaa_arrowhead_poles_match_barycentric_form():
 def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
     shared_cache = []
     matrix = sparse.csr_matrix(np.array([[0.2, -1.0], [-1.0, -0.1]], dtype=complex))
-    support = normal_density_entry_support(
+    selection = normal_density_selection(
         keys=[(0,)],
-        interaction_support={(0,): np.ones((2, 2), dtype=complex)},
+        interaction_tb={(0,): np.ones((2, 2), dtype=complex)},
         ndof=2,
         local_key=(0,),
         allow_empty=True,
     )
-    assert support is not None
+    assert selection is not None
     node = rational_matrix_functions.PreparedMumpsRationalNode(
         matrix,
         kT=0.15,
         q_diag=np.ones(2, dtype=float),
         options=RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"),
         charge_tolerance=1e-2,
-        density_support=support,
+        density_selection=selection,
         density_tolerance=1e-2,
         trace_weights_diag=np.ones(2, dtype=float),
         shared_aaa_interval_cache=shared_cache,
@@ -530,7 +505,9 @@ def test_strained_graphene_single_shot_sparse_aaa_is_stable():
         _build_strained_graphene_inputs,
     )
 
-    h0, _h_int, guess, filling, _data, _k_path = _build_strained_graphene_inputs()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=Warning)
+        h0, _h_int, guess, filling, _data, _k_path = _build_strained_graphene_inputs()
     result = density_matrix(
         {key: value for key, value in h0.items()},
         filling=filling,

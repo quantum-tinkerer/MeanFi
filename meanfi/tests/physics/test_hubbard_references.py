@@ -7,7 +7,7 @@ from meanfi import (
     density_matrix,
     solver,
 )
-from meanfi.tests.helpers import (
+from meanfi.tests.fixtures.models import (
     antiferromagnetic_guess,
     bipartite_hubbard_1d,
     bipartite_hubbard_2d,

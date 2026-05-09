@@ -7,8 +7,8 @@ from meanfi.tb.validate import (
     validate_tb_dict,
     zero_key,
 )
-from meanfi.physics.meanfield import meanfield
-from meanfi.physics.bdg import electron_to_bdg_tb, validate_bdg_tb
+from meanfi.meanfield import meanfield
+from meanfi.tb.bdg import electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import add_tb, _tb_type
 
 

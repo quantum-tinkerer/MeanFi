@@ -3,8 +3,8 @@ import pytest
 import scipy.sparse as sparse
 import warnings
 
-import meanfi.integrate.matrix_functions.direct as bdg_matrix_direct
-import meanfi.integrate.quadrature.bdg as bdg_quadrature
+import meanfi.density.kpoint.matrix_functions.direct as bdg_matrix_direct
+import meanfi.density.integrate.quadrature.bdg as bdg_quadrature
 from meanfi import (
     AdaptiveQuadrature,
     DirectDiagonalization,
@@ -13,10 +13,10 @@ from meanfi import (
     UniformGrid,
     tb_to_kfunc,
 )
-from meanfi.state.support import bdg_top_half_support
-from meanfi.state.bdg import bdg_density_to_rparams
-from meanfi.physics.bdg import charge_diagonal
-from meanfi.integrate.engines.bdg import solve_bdg_density_fixed_filling
+from meanfi.space.particlehole import bdg_top_half_selection
+from meanfi.space.bdg import bdg_density_to_rparams
+from meanfi.density.filling import charge_diagonal
+from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
 
 
 pytestmark = [pytest.mark.numerics, pytest.mark.perf_slow]
@@ -205,7 +205,7 @@ def test_bdg_exact_density_matches_dense_2d_reference():
     ],
     ids=["ozaki", "default-ozaki"],
 )
-def test_bdg_dense_rational_matches_exact_density_in_2d(matrix_function):
+def test_bdg_dense_rational_is_rejected(matrix_function):
     keys = [(0, 0), (1, 0)]
     meanfield = _pairing(0.25)
     model = Model(
@@ -215,38 +215,21 @@ def test_bdg_dense_rational_matches_exact_density_in_2d(matrix_function):
         kT=0.5,
         superconducting=True,
     )
-    exact = solve_bdg_density_fixed_filling(
-        model,
-        meanfield,
-        keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-3,
-            max_refinements=40,
-            matrix_function=DirectDiagonalization(),
-        ),
-        filling_tol=1e-3,
-        mu_tol=1e-3,
-        max_charge_evaluations=80,
-        mu_guess=0.0,
-    )
-    rational = solve_bdg_density_fixed_filling(
-        model,
-        meanfield,
-        keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-3,
-            max_refinements=40,
-            matrix_function=matrix_function,
-        ),
-        filling_tol=1e-3,
-        mu_tol=1e-3,
-        max_charge_evaluations=80,
-        mu_guess=0.0,
-    )
-
-    assert abs(rational.mu - exact.mu) <= 2e-3
-    assert abs(rational.filling - exact.filling) <= 2e-3
-    assert _max_density_error(rational.density_matrix, exact.density_matrix) <= 2e-3
+    with pytest.raises(ValueError, match="RationalFOE is supported only for sparse"):
+        solve_bdg_density_fixed_filling(
+            model,
+            meanfield,
+            keys=keys,
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-3,
+                max_refinements=40,
+                matrix_function=matrix_function,
+            ),
+            filling_tol=1e-3,
+            mu_tol=1e-3,
+            max_charge_evaluations=80,
+            mu_guess=0.0,
+        )
 
 
 @pytest.mark.parametrize(
@@ -406,7 +389,7 @@ def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
     assert abs(result.filling - 0.5) <= 1e-6
 
 
-def test_bdg_zero_dimensional_rational_density_matches_exact():
+def test_bdg_zero_dimensional_rational_density_rejects_dense_matrix():
     local = (0, 0)
     model = Model(
         {local: np.array([[0.0]], dtype=complex)},
@@ -416,43 +399,24 @@ def test_bdg_zero_dimensional_rational_density_matches_exact():
         superconducting=True,
     )
     meanfield = _pairing(0.0)
-    exact = solve_bdg_density_fixed_filling(
-        model,
-        meanfield,
-        keys=[local],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-8,
-            max_refinements=8,
-            matrix_function=DirectDiagonalization(),
-        ),
-        filling_tol=1e-8,
-        mu_tol=1e-10,
-        max_charge_evaluations=40,
-        mu_guess=0.0,
-    )
-    rational = solve_bdg_density_fixed_filling(
-        model,
-        meanfield,
-        keys=[local],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-8,
-            max_refinements=8,
-            matrix_function=RationalFOE(initial_poles=4, max_poles=256),
-        ),
-        filling_tol=1e-8,
-        mu_tol=1e-10,
-        max_charge_evaluations=40,
-        mu_guess=0.0,
-    )
-
-    assert abs(rational.mu - exact.mu) <= 1e-10
-    assert abs(rational.filling - exact.filling) <= 1e-8
-    assert np.allclose(
-        rational.density_matrix[local], exact.density_matrix[local], atol=1e-8
-    )
+    with pytest.raises(ValueError, match="RationalFOE is supported only for sparse"):
+        solve_bdg_density_fixed_filling(
+            model,
+            meanfield,
+            keys=[local],
+            integration=AdaptiveQuadrature(
+                density_matrix_tol=1e-8,
+                max_refinements=8,
+                matrix_function=RationalFOE(initial_poles=4, max_poles=256),
+            ),
+            filling_tol=1e-8,
+            mu_tol=1e-10,
+            max_charge_evaluations=40,
+            mu_guess=0.0,
+        )
 
 
-def test_bdg_sparse_supported_density_matches_dense_reference():
+def test_bdg_sparse_selected_density_matches_dense_reference():
     local = (0, 0)
     dense_h0 = {local: np.array([[0.0]], dtype=complex)}
     dense_hint = {local: np.array([[1.0]], dtype=complex)}
@@ -488,15 +452,15 @@ def test_bdg_sparse_supported_density_matches_dense_reference():
         mu_guess=0.0,
     )
 
-    support = bdg_top_half_support(
+    selection = bdg_top_half_selection(
         keys=[local],
         local_key=local,
-        interaction_support=dense_hint,
+        interaction_tb=dense_hint,
         ndof=1,
     )
     np.testing.assert_allclose(
-        bdg_density_to_rparams(dense_result.density_matrix, ndof=1, support=support),
-        bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, support=support),
+        bdg_density_to_rparams(dense_result.density_matrix, ndof=1, selection=selection),
+        bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, selection=selection),
         atol=1e-3,
     )
 
@@ -510,7 +474,7 @@ def test_bdg_sparse_supported_density_matches_dense_reference():
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
-def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(
+def test_bdg_sparse_uniform_grid_selected_density_matches_dense_reference(
     matrix_function,
 ):
     local = (0, 0)
@@ -525,10 +489,10 @@ def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(
     sparse_model = Model(
         sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True
     )
-    support = bdg_top_half_support(
+    selection = bdg_top_half_selection(
         keys=[local],
         local_key=local,
-        interaction_support=dense_hint,
+        interaction_tb=dense_hint,
         ndof=1,
     )
 
@@ -559,11 +523,11 @@ def test_bdg_sparse_uniform_grid_supported_density_matches_dense_reference(
         mu_tol=1e-8,
         max_charge_evaluations=80,
         mu_guess=0.0,
-        density_entry_support=None,
+        density_selection=None,
     )
 
     np.testing.assert_allclose(
-        bdg_density_to_rparams(dense_result.density_matrix, ndof=1, support=support),
-        bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, support=support),
+        bdg_density_to_rparams(dense_result.density_matrix, ndof=1, selection=selection),
+        bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, selection=selection),
         atol=2e-3,
     )

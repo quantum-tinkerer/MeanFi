@@ -11,11 +11,11 @@ from meanfi import (
     solver,
 )
 from meanfi.interop import kwant as utils
-from meanfi.integrate.common import effective_filling_tol
-from meanfi.integrate.defaults import select_default_integration
+from meanfi.density.integrate.common import effective_filling_tol
+from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.tests.fixtures import kwant_examples
-from meanfi.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.tests.helpers import spinful_chain
+from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
+from meanfi.tests.fixtures.models import spinful_chain
 
 
 pytestmark = pytest.mark.integration
@@ -33,7 +33,7 @@ def test_graphene_kwant_end_to_end_regression():
     guess = guess_tb(frozenset(h_int), len(next(iter(h_0.values()))))
 
     model = Model(h_0, h_int, filling=2.0, kT=0.05)
-    with pytest.warns(UserWarning, match="structurally allowed SCF support"):
+    with pytest.warns(UserWarning, match="active SCF density selection"):
         result = solver(
             model,
             guess,
