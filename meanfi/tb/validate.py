@@ -43,7 +43,9 @@ def validate_tb_dict(tb: _tb_type) -> None:
             raise ValueError("All hopping matrices need to have the same shape")
 
 
-def validate_bdg_state(tb: _tb_type, *, ndof: int, name: str = "BdG correction") -> None:
+def validate_bdg_state(
+    tb: _tb_type, *, ndof: int, name: str = "BdG correction"
+) -> None:
     from meanfi.tb.bdg import validate_bdg_tb
 
     validate_bdg_tb(tb, ndof=ndof, ndim=tb_dimension(tb), name=name)

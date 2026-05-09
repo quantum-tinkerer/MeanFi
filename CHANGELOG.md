@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2024-05-31
 
 ### Fixed
-- Ensure {autolink}`~meanfi.state.normal.tb_to_rparams` and {autolink}`~meanfi.state.normal.rparams_to_tb` use minimal parametrisation of the tight-binding dictionary.
+- Ensure {autolink}`~meanfi.space.hermitian.tb_to_rparams` and {autolink}`~meanfi.space.hermitian.rparams_to_tb` use minimal parametrisation of the tight-binding dictionary.
 
 ### Added
 - Density matrix cost for the mean-field solver.

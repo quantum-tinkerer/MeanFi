@@ -119,7 +119,9 @@ def test_density_selection_value_order_and_negative_grid_key():
     selected_tb = selection.values_to_tb(values)
     assert selected_tb[(0,)][0, 0] == values[0]
     assert selected_tb[(-1,)][1, 0] == values[1]
-    np.testing.assert_allclose(selection.values_from_tb({(0,): selected_tb[(0,)]}), [values[0], 0.0])
+    np.testing.assert_allclose(
+        selection.values_from_tb({(0,): selected_tb[(0,)]}), [values[0], 0.0]
+    )
     np.testing.assert_allclose(selection.values_from_tb(selected_tb), values)
 
     real_space_values = np.zeros((4, selection.value_count), dtype=complex)
@@ -265,7 +267,9 @@ def test_selection_aware_bdg_parametrization_and_density_roundtrip():
 
     density = {key: np.array(value, copy=True) for key, value in recovered.items()}
     density_params = bdg_density_to_rparams(density, selection=selection, ndof=2)
-    density_recovered = rparams_to_bdg_density(density_params, selection=selection, ndof=2)
+    density_recovered = rparams_to_bdg_density(
+        density_params, selection=selection, ndof=2
+    )
     np.testing.assert_allclose(density_recovered[(0,)][:2, :2], recovered[(0,)][:2, :2])
     np.testing.assert_allclose(density_recovered[(1,)][:2, 2:], recovered[(1,)][:2, 2:])
 

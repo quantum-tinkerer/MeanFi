@@ -27,7 +27,11 @@ from meanfi.tb.ops import (
     to_dense,
     transpose,
 )
-from meanfi.tb.storage import match_tb_storage, prefers_sparse_storage, tb_entries_changed
+from meanfi.tb.storage import (
+    match_tb_storage,
+    prefers_sparse_storage,
+    tb_entries_changed,
+)
 from meanfi.tb.transforms import ifftn_to_tb, kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
 from meanfi.tb.utils import fermi_energy, generate_tb_keys, guess_tb
 from meanfi.tb.validate import (

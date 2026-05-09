@@ -91,7 +91,7 @@
 ## Developer internals
 
 ```{eval-rst}
-.. automodule:: meanfi.state.normal
+.. automodule:: meanfi.space.hermitian
    :members: tb_to_rparams, rparams_to_tb
    :show-inheritance:
 ```

@@ -15,8 +15,11 @@ def matrix_support_pairs(matrix) -> tuple[np.ndarray, np.ndarray]:
     """
 
     if is_sparse_like(matrix):
-        coo = matrix.tocoo()
-        return coo.row.astype(int, copy=False), coo.col.astype(int, copy=False)
+        coordinate_matrix = matrix.tocoo()
+        return (
+            coordinate_matrix.row.astype(int, copy=False),
+            coordinate_matrix.col.astype(int, copy=False),
+        )
     rows, cols = np.nonzero(np.asarray(matrix))
     return rows.astype(int, copy=False), cols.astype(int, copy=False)
 
@@ -69,9 +72,7 @@ class DensitySelection:
     @property
     def all_rows(self) -> np.ndarray:
         arrays = [
-            selection.rows
-            for selection in self.key_selections
-            if selection.rows.size
+            selection.rows for selection in self.key_selections if selection.rows.size
         ]
         if not arrays:
             return np.empty(0, dtype=int)
@@ -80,9 +81,7 @@ class DensitySelection:
     @property
     def all_cols(self) -> np.ndarray:
         arrays = [
-            selection.cols
-            for selection in self.key_selections
-            if selection.cols.size
+            selection.cols for selection in self.key_selections if selection.cols.size
         ]
         if not arrays:
             return np.empty(0, dtype=int)

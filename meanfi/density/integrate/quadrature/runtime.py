@@ -167,4 +167,3 @@ def solve_quadrature_at_mu(
         result.error,
     )
     return density_matrix, density_matrix_error, backend.density_info_builder(result)
-

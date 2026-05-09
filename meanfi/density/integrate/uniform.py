@@ -45,7 +45,9 @@ def _selected_value_grid_to_tb(
     grid_shape = tuple(real_space_values.shape[:ndim])
     rho: _tb_type = {}
     for selection in density_selection.key_selections:
-        block = np.zeros((density_selection.size, density_selection.size), dtype=complex)
+        block = np.zeros(
+            (density_selection.size, density_selection.size), dtype=complex
+        )
         if selection.rows.size:
             key_values = np.asarray(
                 real_space_values[_ifft_grid_index(selection.key, grid_shape)],
@@ -323,7 +325,9 @@ def uniform_grid_density_from_nodes(
 ) -> tuple[_tb_type, float]:
     estimate = np.zeros(bundle.density_selection.value_count, dtype=complex)
     value_grid = (
-        np.empty((len(bundle.nodes), bundle.density_selection.value_count), dtype=complex)
+        np.empty(
+            (len(bundle.nodes), bundle.density_selection.value_count), dtype=complex
+        )
         if bundle.grid_shape
         else None
     )
@@ -392,7 +396,9 @@ def resolve_uniform_grid_matrix_function(
     if isinstance(resolved, RationalFOE) and not any(
         is_sparse_like(matrix) for matrix in hamiltonian.values()
     ):
-        raise ValueError("UniformGrid RationalFOE is supported only for sparse matrices")
+        raise ValueError(
+            "UniformGrid RationalFOE is supported only for sparse matrices"
+        )
     return resolved
 
 

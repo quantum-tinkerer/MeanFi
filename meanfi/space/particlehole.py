@@ -44,7 +44,9 @@ def bdg_top_half_selection(
         local_key=local_key,
         allow_empty=True,
     )
-    if electron_selection is None:  # pragma: no cover - allow_empty guarantees selection
+    if (
+        electron_selection is None
+    ):  # pragma: no cover - allow_empty guarantees selection
         raise ValueError("BdG top-half selection unexpectedly missing")
 
     anomalous_pairs: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]] = {}
@@ -62,7 +64,9 @@ def bdg_top_half_selection(
         selected_pairs=anomalous_pairs,
         allow_empty=True,
     )
-    if anomalous_selection is None:  # pragma: no cover - allow_empty guarantees selection
+    if (
+        anomalous_selection is None
+    ):  # pragma: no cover - allow_empty guarantees selection
         raise ValueError("BdG anomalous selection unexpectedly missing")
 
     return BdGTopHalfSelection(

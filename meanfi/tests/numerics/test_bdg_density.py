@@ -459,8 +459,12 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
         ndof=1,
     )
     np.testing.assert_allclose(
-        bdg_density_to_rparams(dense_result.density_matrix, ndof=1, selection=selection),
-        bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, selection=selection),
+        bdg_density_to_rparams(
+            dense_result.density_matrix, ndof=1, selection=selection
+        ),
+        bdg_density_to_rparams(
+            sparse_result.density_matrix, ndof=1, selection=selection
+        ),
         atol=1e-3,
     )
 
@@ -527,7 +531,11 @@ def test_bdg_sparse_uniform_grid_selected_density_matches_dense_reference(
     )
 
     np.testing.assert_allclose(
-        bdg_density_to_rparams(dense_result.density_matrix, ndof=1, selection=selection),
-        bdg_density_to_rparams(sparse_result.density_matrix, ndof=1, selection=selection),
+        bdg_density_to_rparams(
+            dense_result.density_matrix, ndof=1, selection=selection
+        ),
+        bdg_density_to_rparams(
+            sparse_result.density_matrix, ndof=1, selection=selection
+        ),
         atol=2e-3,
     )

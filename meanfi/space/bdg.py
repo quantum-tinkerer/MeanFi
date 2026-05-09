@@ -72,7 +72,9 @@ def _rparams_to_bdg_top_half(
     anomalous_tb = selection.anomalous.values_to_tb(real_to_complex(anomalous_params))
     offset = electron_size + 2 * anomalous_count
     if offset != len(params):
-        raise ValueError("tb_params has the wrong length for the requested BdG selection")
+        raise ValueError(
+            "tb_params has the wrong length for the requested BdG selection"
+        )
     return electron_tb, anomalous_tb
 
 
@@ -149,7 +151,9 @@ def rparams_to_bdg_tb(
         offset += block_size
 
     if offset != len(params):
-        raise ValueError("tb_params has the wrong length for the requested BdG selection")
+        raise ValueError(
+            "tb_params has the wrong length for the requested BdG selection"
+        )
 
     tb = assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
     validate_bdg_state(tb, ndof=ndof)
@@ -228,7 +232,9 @@ class BdGMeanFieldDensitySpace:
         use_sparse = any(is_sparse_like(value) for value in tb.values())
         if use_sparse:
             zero_sparse = as_sparse(zero)
-            return {key: as_sparse(tb.get(key, zero_sparse)) for key in self.active_keys}
+            return {
+                key: as_sparse(tb.get(key, zero_sparse)) for key in self.active_keys
+            }
         return {
             key: np.asarray(tb.get(key, zero), dtype=complex)
             for key in self.active_keys
@@ -255,7 +261,9 @@ class BdGMeanFieldDensitySpace:
         )
         self.active_keys = self.projected_active_keys(guess)
         projected = rparams_to_bdg_tb(
-            bdg_tb_to_rparams(guess, self.model._ndof, selection=self.top_half_selection),
+            bdg_tb_to_rparams(
+                guess, self.model._ndof, selection=self.top_half_selection
+            ),
             self.active_keys,
             self.model._ndof,
             selection=self.top_half_selection,

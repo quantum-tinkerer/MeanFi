@@ -416,23 +416,25 @@ def _adaptive_quadrature_fixed_filling(
             fixed_filling_tolerance=resolved_filling_tol,
             density_selection=context.density_selection,
         )
-        density_matrix, density_matrix_error, raw_info = _solve_quadrature_fixed_filling(
-            backend,
-            filling=filling,
-            mu_guess=mu_guess,
-            rule=integration.rule,
-            batch_size=integration.batch_size,
-            filling_tol=resolved_filling_tol,
-            mu_tol=mu_tol,
-            max_charge_evaluations=max_charge_evaluations,
-            density_atol=integration.density_matrix_tol,
-            max_subdivisions=integration.max_refinements,
-            root_error_message=(
-                "Adaptive quadrature did not converge while solving for the chemical potential"
-            ),
-            density_error_message=(
-                "Adaptive quadrature did not converge while evaluating density"
-            ),
+        density_matrix, density_matrix_error, raw_info = (
+            _solve_quadrature_fixed_filling(
+                backend,
+                filling=filling,
+                mu_guess=mu_guess,
+                rule=integration.rule,
+                batch_size=integration.batch_size,
+                filling_tol=resolved_filling_tol,
+                mu_tol=mu_tol,
+                max_charge_evaluations=max_charge_evaluations,
+                density_atol=integration.density_matrix_tol,
+                max_subdivisions=integration.max_refinements,
+                root_error_message=(
+                    "Adaptive quadrature did not converge while solving for the chemical potential"
+                ),
+                density_error_message=(
+                    "Adaptive quadrature did not converge while evaluating density"
+                ),
+            )
         )
 
     return _wrap_adaptive_payload(

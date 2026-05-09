@@ -261,7 +261,9 @@ def prepared_selected_frozen_density_evaluator(
     keys_array = np.asarray(density_selection.keys, dtype=float)
 
     def evaluator(points: np.ndarray, payload: list[Any], mu: float) -> np.ndarray:
-        values = np.empty((points.shape[0], density_selection.value_count), dtype=complex)
+        values = np.empty(
+            (points.shape[0], density_selection.value_count), dtype=complex
+        )
         for index, (point, prepared) in enumerate(zip(points, payload, strict=True)):
             density_values = prepared.density_values_from_charge_order(mu)
             phase = np.exp(1j * np.dot(point, keys_array.T))
@@ -281,7 +283,9 @@ def prepared_selected_transient_density_evaluator(
     keys_array = np.asarray(density_selection.keys, dtype=float)
 
     def evaluator(points: np.ndarray, payload: list[Any], mu: float) -> np.ndarray:
-        values = np.empty((points.shape[0], density_selection.value_count), dtype=complex)
+        values = np.empty(
+            (points.shape[0], density_selection.value_count), dtype=complex
+        )
         for index, (point, prepared) in enumerate(zip(points, payload, strict=True)):
             density_values = prepared.density_values(mu, tolerance=tolerance)
             phase = np.exp(1j * np.dot(point, keys_array.T))
@@ -426,7 +430,9 @@ def build_normal_backend(
             (
                 density_selection
                 if isinstance(matrix_function, DirectDiagonalization)
-                else (mumps_density_selection if use_sparse_mumps else density_selection)
+                else (
+                    mumps_density_selection if use_sparse_mumps else density_selection
+                )
             ),
         ),
         density_info_builder=integration_stats,

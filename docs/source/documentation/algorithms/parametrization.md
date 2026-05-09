@@ -22,7 +22,7 @@ The reduced parameter vector has two goals:
 - make the outer SCF problem smaller,
 - avoid iterating over entries that can never affect the self-consistent mean field because the interaction is structurally zero there.
 
-This reduction is implemented in the `meanfi.state.*` layer.
+This reduction is implemented in the `meanfi.space.*` layer.
 It provides the map $P$ used in the SCF fixed-point equation $\theta = P(\rho)$ from [SCF loop](./scf_loop.md).
 
 ## Normal-state reduction

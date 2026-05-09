@@ -31,7 +31,9 @@ class NormalMeanFieldDensitySpace:
             local_key=model._local_key,
             allow_empty=True,
         )
-        if density_selection is None:  # pragma: no cover - allow_empty guarantees selection
+        if (
+            density_selection is None
+        ):  # pragma: no cover - allow_empty guarantees selection
             raise ValueError("Normal density space unexpectedly missing")
         return cls(model=model, keys=keys, density_selection=density_selection)
 
@@ -59,8 +61,7 @@ class NormalMeanFieldDensitySpace:
     def params_from_density(self, density_matrix: _tb_type) -> np.ndarray:
         zero = np.zeros((self.model._ndof, self.model._ndof), dtype=complex)
         density_reduced = {
-            key: density_matrix.get(key, zero)
-            for key in self.density_selection.keys
+            key: density_matrix.get(key, zero) for key in self.density_selection.keys
         }
         return np.asarray(
             tb_to_rparams(density_reduced, selection=self.density_selection),
@@ -75,7 +76,9 @@ class NormalMeanFieldDensitySpace:
             selection=self.density_selection,
         )
 
-    def meanfield_from_density(self, density_matrix: _tb_type, *, mu: float = 0.0) -> _tb_type:
+    def meanfield_from_density(
+        self, density_matrix: _tb_type, *, mu: float = 0.0
+    ) -> _tb_type:
         density_reduced = {key: density_matrix[key] for key in self.keys}
         result = dict(meanfield(density_reduced, self.model.h_int))
         result[self.model._local_key] = result.get(

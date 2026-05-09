@@ -84,10 +84,7 @@ def full_density_selection(
 ) -> DensitySelection:
     grid = np.arange(size, dtype=int)
     rows, cols = np.meshgrid(grid, grid, indexing="ij")
-    pairs = {
-        key: (rows.reshape(-1), cols.reshape(-1))
-        for key in keys
-    }
+    pairs = {key: (rows.reshape(-1), cols.reshape(-1)) for key in keys}
     selection = density_selection_from_pairs(
         size=size,
         keys=keys,
@@ -289,10 +286,7 @@ def tb_to_rparams(
 def hermitian_param_count(selection: DensitySelection, ndof: int) -> int:
     """Return the real-coordinate length for a selected Hermitian TB space."""
 
-    zero_tb = {
-        key: np.zeros((ndof, ndof), dtype=complex)
-        for key in selection.keys
-    }
+    zero_tb = {key: np.zeros((ndof, ndof), dtype=complex) for key in selection.keys}
     return int(tb_to_rparams(zero_tb, selection=selection).size)
 
 
@@ -336,7 +330,9 @@ def rparams_to_tb(
             matrices[opposite_key(key)] = hopping.conj().T
 
         if offset != len(params):
-            raise ValueError("tb_params has the wrong length for the requested selection")
+            raise ValueError(
+                "tb_params has the wrong length for the requested selection"
+            )
         return matrices
 
     ordered_keys = canonical_tb_keys(tb_keys)
