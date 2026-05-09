@@ -276,30 +276,7 @@ plt.show()
 :tags: [hide-input]
 
 def mean_field_energy_density(result):
-    density = result.density_matrix_result.density_matrix
-    electron_density = {
-        key: np.asarray(value, dtype=complex)[:1, :1]
-        for key, value in density.items()
-    }
-    anomalous_density = {
-        key: np.asarray(value, dtype=complex)[:1, 1:]
-        for key, value in density.items()
-    }
-    normal_mf_half = {
-        key: 0.5 * np.asarray(value, dtype=complex)[:1, :1]
-        for key, value in result.mf.items()
-    }
-    pairing_half = {
-        key: 0.5 * np.asarray(value, dtype=complex)[:1, 1:]
-        for key, value in result.mf.items()
-    }
-
-    energy = meanfi.expectation_value(
-        electron_density,
-        meanfi.add_tb(h_0, normal_mf_half),
-    )
-    energy += meanfi.expectation_value(anomalous_density, pairing_half)
-    return float(np.real(energy))
+    return meanfi.total_energy(model, result.density_matrix_result.density_matrix)
 
 
 print(f"chiral energy density: {mean_field_energy_density(result):.6f}")

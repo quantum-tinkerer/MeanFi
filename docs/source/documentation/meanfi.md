@@ -70,9 +70,15 @@
 
 ```{eval-rst}
 .. automodule:: meanfi.observables
-   :members: expectation_value
+   :members: expectation_value, total_energy
    :show-inheritance:
 ```
+
+`total_energy` expects a density matrix containing every key needed by both the
+non-interacting Hamiltonian and the interaction. For normal calculations where
+the solver only requested interaction keys, evaluate the density with energy
+keys first, for example `keys=list(set(h_0) | set(h_int))`, then pass that
+density matrix to `meanfi.total_energy(model, density_matrix)`.
 
 ## Tight-binding dictionary utilities
 
