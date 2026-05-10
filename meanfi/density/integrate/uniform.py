@@ -20,7 +20,7 @@ from meanfi.density.kpoint.occupations import fermi_dirac
 from meanfi.density.integrate.methods import UniformGrid
 from meanfi.density.integrate.workspace import workspace_complex_dtype
 from meanfi.space.density_selection import DensitySelection
-from meanfi.space.hermitian import full_density_selection
+from meanfi.space.density_selection import full_density_selection
 from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like, to_dense
 from meanfi.tb.transforms import kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
 from meanfi.tb.validate import tb_dimension, tb_orbital_count

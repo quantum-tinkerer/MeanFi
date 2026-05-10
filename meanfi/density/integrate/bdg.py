@@ -47,7 +47,7 @@ from meanfi.density.filling import charge_diagonal, mu_bracket_for_bdg
 from meanfi.density.integrate.workspace import workspace_complex_dtype
 from meanfi.results import DensityMatrixResult, FixedFillingInfo
 from meanfi.space.density_selection import DensitySelection
-from meanfi.space.hermitian import full_density_selection
+from meanfi.space.density_selection import full_density_selection
 from meanfi.tb.ops import _tb_type, is_sparse_like
 
 

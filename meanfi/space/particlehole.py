@@ -10,20 +10,23 @@ from meanfi.space.density_selection import (
     matrix_support_pairs,
     sorted_unique_pairs,
 )
-from meanfi.space.hermitian import normal_density_selection
+from meanfi.space.interaction_selection import normal_density_selection
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.ops import to_dense
 
 
 @dataclass(frozen=True)
-class BdGTopHalfSelection:
+class BdGElectronAnomalousSelection:
     """Selected electron and anomalous values from the top half of BdG blocks."""
 
     electron: DensitySelection
     anomalous: DensitySelection
 
 
-def split_bdg_matrix(matrix: np.ndarray, ndof: int) -> tuple[np.ndarray, np.ndarray]:
+def electron_and_anomalous_blocks(
+    matrix: np.ndarray,
+    ndof: int,
+) -> tuple[np.ndarray, np.ndarray]:
     """Return electron and anomalous top-half blocks of a BdG matrix."""
 
     array = to_dense(matrix)
@@ -36,7 +39,7 @@ def bdg_top_half_selection(
     interaction_tb: _tb_type,
     ndof: int,
     local_key: tuple[int, ...],
-) -> BdGTopHalfSelection:
+) -> BdGElectronAnomalousSelection:
     electron_selection = normal_density_selection(
         keys=keys,
         interaction_tb=interaction_tb,
@@ -69,14 +72,14 @@ def bdg_top_half_selection(
     ):  # pragma: no cover - allow_empty guarantees selection
         raise ValueError("BdG anomalous selection unexpectedly missing")
 
-    return BdGTopHalfSelection(
+    return BdGElectronAnomalousSelection(
         electron=electron_selection,
         anomalous=anomalous_selection,
     )
 
 
 def bdg_density_selection_from_top_half(
-    top_half_selection: BdGTopHalfSelection,
+    top_half_selection: BdGElectronAnomalousSelection,
     *,
     ndof: int,
 ) -> DensitySelection:
@@ -100,6 +103,7 @@ def bdg_density_selection_from_top_half(
             rows.append(electron.rows)
             cols.append(electron.cols)
         if anomalous is not None and anomalous.rows.size:
+            # Anomalous entries live in the top-right BdG block [:ndof, ndof:].
             rows.append(anomalous.rows)
             cols.append(anomalous.cols + ndof)
         if rows:

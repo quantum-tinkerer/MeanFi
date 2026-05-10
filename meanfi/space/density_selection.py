@@ -210,3 +210,24 @@ def density_selection_from_pairs(
     if not has_values and not allow_empty:
         return None
     return DensitySelection(size=size, key_selections=tuple(key_selections))
+
+
+def full_density_selection(
+    keys: list[tuple[int, ...]],
+    *,
+    size: int,
+) -> DensitySelection:
+    """Select every matrix entry for each requested tight-binding key."""
+
+    grid = np.arange(size, dtype=int)
+    rows, cols = np.meshgrid(grid, grid, indexing="ij")
+    pairs = {key: (rows.reshape(-1), cols.reshape(-1)) for key in keys}
+    selection = density_selection_from_pairs(
+        size=size,
+        keys=keys,
+        selected_pairs=pairs,
+        allow_empty=False,
+    )
+    if selection is None:  # pragma: no cover - dense full selection cannot be empty
+        raise ValueError("Full density selection unexpectedly empty")
+    return selection

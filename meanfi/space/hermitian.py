@@ -4,8 +4,6 @@ import numpy as np
 
 from meanfi.space.density_selection import (
     DensitySelection,
-    density_selection_from_pairs,
-    matrix_support_pairs,
     selected_pairs_by_key,
     sorted_unique_pairs,
 )
@@ -20,90 +18,17 @@ from meanfi.space.params import (
 from meanfi.tb.ops import _tb_type, to_dense
 
 
-def _normal_selected_pairs_by_key(
-    *,
-    keys: list[tuple[int, ...]],
-    interaction_tb: _tb_type,
-    ndof: int,
-    local_key: tuple[int, ...],
-) -> dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]]:
-    """Select density values needed by a Hermitian normal mean-field map."""
-
-    selected_pairs: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]] = {}
-    diagonal_indices: set[int] = set()
-    for matrix in interaction_tb.values():
-        rows, cols = matrix_support_pairs(matrix)
-        diagonal_indices.update(int(row) for row in rows)
-        diagonal_indices.update(int(col) for col in cols)
-
-    for key in keys:
-        matrix = interaction_tb.get(key)
-        rows, cols = (
-            matrix_support_pairs(matrix)
-            if matrix is not None
-            else (np.empty(0, dtype=int), np.empty(0, dtype=int))
-        )
-        if key == local_key and diagonal_indices:
-            diagonal = np.asarray(sorted(diagonal_indices), dtype=int)
-            rows = np.concatenate([rows, diagonal])
-            cols = np.concatenate([cols, diagonal])
-        rows, cols = sorted_unique_pairs(rows, cols)
-        if rows.size or key == local_key:
-            selected_pairs[key] = (rows, cols)
-
-    if local_key not in selected_pairs:
-        selected_pairs[local_key] = (np.empty(0, dtype=int), np.empty(0, dtype=int))
-    return selected_pairs
-
-
-def normal_density_selection(
-    *,
-    keys: list[tuple[int, ...]],
-    interaction_tb: _tb_type,
-    ndof: int,
-    local_key: tuple[int, ...],
-    allow_empty: bool = False,
-) -> DensitySelection | None:
-    return density_selection_from_pairs(
-        size=ndof,
-        keys=keys,
-        selected_pairs=_normal_selected_pairs_by_key(
-            keys=keys,
-            interaction_tb=interaction_tb,
-            ndof=ndof,
-            local_key=local_key,
-        ),
-        allow_empty=allow_empty,
-    )
-
-
-def full_density_selection(
-    keys: list[tuple[int, ...]],
-    *,
-    size: int,
-) -> DensitySelection:
-    grid = np.arange(size, dtype=int)
-    rows, cols = np.meshgrid(grid, grid, indexing="ij")
-    pairs = {key: (rows.reshape(-1), cols.reshape(-1)) for key in keys}
-    selection = density_selection_from_pairs(
-        size=size,
-        keys=keys,
-        selected_pairs=pairs,
-        allow_empty=False,
-    )
-    if selection is None:  # pragma: no cover - dense full selection cannot be empty
-        raise ValueError("Full density selection unexpectedly empty")
-    return selection
-
-
-def _pack_onsite(matrix: np.ndarray) -> np.ndarray:
+def _hermitian_onsite_matrix_to_real_params(matrix: np.ndarray) -> np.ndarray:
     onsite = np.asarray(matrix, dtype=complex)
     upper = onsite[np.triu_indices(onsite.shape[0], k=1)]
     diagonal = np.diag(onsite).real
     return np.concatenate((diagonal, complex_to_real(upper)))
 
 
-def _unpack_onsite(params: np.ndarray, ndof: int) -> tuple[np.ndarray, int]:
+def _real_params_to_hermitian_onsite_matrix(
+    params: np.ndarray,
+    ndof: int,
+) -> tuple[np.ndarray, int]:
     diagonal = np.asarray(params[:ndof], dtype=float)
     n_upper = ndof * (ndof - 1) // 2
     upper = real_to_complex(params[ndof : ndof + 2 * n_upper])
@@ -115,11 +40,10 @@ def _unpack_onsite(params: np.ndarray, ndof: int) -> tuple[np.ndarray, int]:
     return onsite, ndof + 2 * n_upper
 
 
-def _pack_selected_onsite(
-    matrix: np.ndarray,
+def _independent_onsite_entries_from_selection(
     rows: np.ndarray,
     cols: np.ndarray,
-) -> np.ndarray:
+) -> tuple[np.ndarray, list[tuple[int, int]]]:
     diagonal = np.asarray(
         sorted({int(row) for row, col in zip(rows, cols, strict=True) if row == col}),
         dtype=int,
@@ -131,6 +55,15 @@ def _pack_selected_onsite(
             if row != col
         }
     )
+    return diagonal, upper_pairs
+
+
+def _selected_onsite_entries_to_real_params(
+    matrix: np.ndarray,
+    rows: np.ndarray,
+    cols: np.ndarray,
+) -> np.ndarray:
+    diagonal, upper_pairs = _independent_onsite_entries_from_selection(rows, cols)
     diagonal_params = np.real(np.asarray(matrix, dtype=complex)[diagonal, diagonal])
     upper_params = np.asarray(
         [np.asarray(matrix, dtype=complex)[row, col] for row, col in upper_pairs],
@@ -143,24 +76,14 @@ def _pack_selected_onsite(
     )
 
 
-def _unpack_selected_onsite(
+def _real_params_to_selected_onsite_matrix(
     params: np.ndarray,
     *,
     ndof: int,
     rows: np.ndarray,
     cols: np.ndarray,
 ) -> tuple[np.ndarray, int]:
-    diagonal = np.asarray(
-        sorted({int(row) for row, col in zip(rows, cols, strict=True) if row == col}),
-        dtype=int,
-    )
-    upper_pairs = sorted(
-        {
-            (min(int(row), int(col)), max(int(row), int(col)))
-            for row, col in zip(rows, cols, strict=True)
-            if row != col
-        }
-    )
+    diagonal, upper_pairs = _independent_onsite_entries_from_selection(rows, cols)
     onsite = np.zeros((ndof, ndof), dtype=complex)
     offset = 0
     if diagonal.size:
@@ -175,7 +98,7 @@ def _unpack_selected_onsite(
     return onsite, offset
 
 
-def _selected_hopping_pairs(
+def _fold_selected_hopping_entries_to_representative_key(
     key: tuple[int, ...],
     selected_pairs: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]],
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -201,7 +124,7 @@ def _selected_hopping_pairs(
     return sorted_unique_pairs(selected_rows, selected_cols)
 
 
-def _pack_selected_hopping(
+def _selected_hopping_entries_to_real_params(
     matrix: np.ndarray,
     rows: np.ndarray,
     cols: np.ndarray,
@@ -212,7 +135,7 @@ def _pack_selected_hopping(
     return complex_to_real(values)
 
 
-def _unpack_selected_hopping(
+def _real_params_to_selected_hopping_matrix(
     params: np.ndarray,
     *,
     ndof: int,
@@ -228,52 +151,12 @@ def _unpack_selected_hopping(
     return hopping, 2 * count
 
 
-def tb_to_rparams(
-    tb: _tb_type,
-    selection: DensitySelection | None = None,
-) -> np.ndarray:
-    """Convert a Hermitian TB dictionary into symmetry-minimal real parameters."""
-
-    if selection is not None:
-        selected_pairs = selected_pairs_by_key(selection)
-        ordered_keys = canonical_tb_keys(selection.keys)
-        local_key = onsite_key(len(ordered_keys[0]))
-        onsite_rows, onsite_cols = selected_pairs.get(
-            local_key,
-            (np.empty(0, dtype=int), np.empty(0, dtype=int)),
-        )
-        onsite_matrix = to_dense(
-            tb.get(local_key, np.zeros((selection.size, selection.size), dtype=complex))
-        )
-        onsite_params = _pack_selected_onsite(
-            onsite_matrix,
-            onsite_rows,
-            onsite_cols,
-        )
-        hopping_params = []
-        for key in independent_hopping_keys(ordered_keys):
-            rows, cols = _selected_hopping_pairs(key, selected_pairs)
-            if rows.size == 0:
-                continue
-            hopping_params.append(
-                _pack_selected_hopping(
-                    to_dense(
-                        tb.get(
-                            key,
-                            np.zeros((selection.size, selection.size), dtype=complex),
-                        )
-                    ),
-                    rows,
-                    cols,
-                )
-            )
-        if not hopping_params:
-            return onsite_params
-        return np.concatenate((onsite_params, *hopping_params))
+def full_hermitian_tb_to_real_params(tb: _tb_type) -> np.ndarray:
+    """Convert a full Hermitian TB dictionary into minimal real parameters."""
 
     ordered_keys = canonical_tb_keys(tb.keys())
     local_key = onsite_key(len(ordered_keys[0]))
-    onsite_params = _pack_onsite(tb[local_key])
+    onsite_params = _hermitian_onsite_matrix_to_real_params(tb[local_key])
     hopping_params = [
         complex_to_real(np.asarray(tb[key], dtype=complex).reshape(-1))
         for key in independent_hopping_keys(ordered_keys)
@@ -283,62 +166,115 @@ def tb_to_rparams(
     return np.concatenate((onsite_params, *hopping_params))
 
 
+def selected_hermitian_tb_to_real_params(
+    tb: _tb_type,
+    selection: DensitySelection,
+) -> np.ndarray:
+    """Convert selected Hermitian TB entries into minimal real parameters."""
+
+    selected_pairs = selected_pairs_by_key(selection)
+    ordered_keys = canonical_tb_keys(selection.keys)
+    local_key = onsite_key(len(ordered_keys[0]))
+    onsite_rows, onsite_cols = selected_pairs.get(
+        local_key,
+        (np.empty(0, dtype=int), np.empty(0, dtype=int)),
+    )
+    onsite_matrix = to_dense(
+        tb.get(local_key, np.zeros((selection.size, selection.size), dtype=complex))
+    )
+    onsite_params = _selected_onsite_entries_to_real_params(
+        onsite_matrix,
+        onsite_rows,
+        onsite_cols,
+    )
+    hopping_params = []
+    for key in independent_hopping_keys(ordered_keys):
+        rows, cols = _fold_selected_hopping_entries_to_representative_key(
+            key,
+            selected_pairs,
+        )
+        if rows.size == 0:
+            continue
+        hopping_params.append(
+            _selected_hopping_entries_to_real_params(
+                to_dense(
+                    tb.get(
+                        key,
+                        np.zeros((selection.size, selection.size), dtype=complex),
+                    )
+                ),
+                rows,
+                cols,
+            )
+        )
+    if not hopping_params:
+        return onsite_params
+    return np.concatenate((onsite_params, *hopping_params))
+
+
 def hermitian_param_count(selection: DensitySelection, ndof: int) -> int:
     """Return the real-coordinate length for a selected Hermitian TB space."""
 
     zero_tb = {key: np.zeros((ndof, ndof), dtype=complex) for key in selection.keys}
-    return int(tb_to_rparams(zero_tb, selection=selection).size)
+    return int(selected_hermitian_tb_to_real_params(zero_tb, selection).size)
 
 
-def rparams_to_tb(
+def real_params_to_selected_hermitian_tb(
+    tb_params: np.ndarray,
+    selection: DensitySelection,
+    ndof: int,
+) -> _tb_type:
+    """Convert selected Hermitian real parameters into a TB dictionary."""
+
+    ordered_keys = canonical_tb_keys(selection.keys)
+    local_key = onsite_key(len(ordered_keys[0]))
+    selected_pairs = selected_pairs_by_key(selection)
+    params = np.asarray(tb_params, dtype=float).reshape(-1)
+
+    onsite_rows, onsite_cols = selected_pairs.get(
+        local_key,
+        (np.empty(0, dtype=int), np.empty(0, dtype=int)),
+    )
+    onsite, offset = _real_params_to_selected_onsite_matrix(
+        params,
+        ndof=ndof,
+        rows=onsite_rows,
+        cols=onsite_cols,
+    )
+
+    matrices = {key: np.zeros((ndof, ndof), dtype=complex) for key in ordered_keys}
+    matrices[local_key] = onsite
+    for key in independent_hopping_keys(ordered_keys):
+        rows, cols = _fold_selected_hopping_entries_to_representative_key(
+            key,
+            selected_pairs,
+        )
+        hopping, consumed = _real_params_to_selected_hopping_matrix(
+            params[offset:],
+            ndof=ndof,
+            rows=rows,
+            cols=cols,
+        )
+        offset += consumed
+        matrices[key] = hopping
+        matrices[opposite_key(key)] = hopping.conj().T
+
+    if offset != len(params):
+        raise ValueError("tb_params has the wrong length for the requested selection")
+    return matrices
+
+
+def real_params_to_full_hermitian_tb(
     tb_params: np.ndarray,
     tb_keys: list[tuple[None] | tuple[int, ...]],
     ndof: int,
-    selection: DensitySelection | None = None,
 ) -> _tb_type:
-    """Convert symmetry-minimal real parameters into a Hermitian TB dictionary."""
-
-    if selection is not None:
-        ordered_keys = canonical_tb_keys(selection.keys)
-        local_key = onsite_key(len(ordered_keys[0]))
-        selected_pairs = selected_pairs_by_key(selection)
-        params = np.asarray(tb_params, dtype=float).reshape(-1)
-
-        onsite_rows, onsite_cols = selected_pairs.get(
-            local_key,
-            (np.empty(0, dtype=int), np.empty(0, dtype=int)),
-        )
-        onsite, offset = _unpack_selected_onsite(
-            params,
-            ndof=ndof,
-            rows=onsite_rows,
-            cols=onsite_cols,
-        )
-
-        matrices = {key: np.zeros((ndof, ndof), dtype=complex) for key in ordered_keys}
-        matrices[local_key] = onsite
-        for key in independent_hopping_keys(ordered_keys):
-            rows, cols = _selected_hopping_pairs(key, selected_pairs)
-            hopping, consumed = _unpack_selected_hopping(
-                params[offset:],
-                ndof=ndof,
-                rows=rows,
-                cols=cols,
-            )
-            offset += consumed
-            matrices[key] = hopping
-            matrices[opposite_key(key)] = hopping.conj().T
-
-        if offset != len(params):
-            raise ValueError(
-                "tb_params has the wrong length for the requested selection"
-            )
-        return matrices
+    """Convert full Hermitian real parameters into a TB dictionary."""
 
     ordered_keys = canonical_tb_keys(tb_keys)
     params = np.asarray(tb_params, dtype=float).reshape(-1)
     local_key = onsite_key(len(ordered_keys[0]))
-    onsite, offset = _unpack_onsite(params, ndof)
+    onsite, offset = _real_params_to_hermitian_onsite_matrix(params, ndof)
 
     matrices = {local_key: onsite}
     block_size = 2 * ndof * ndof

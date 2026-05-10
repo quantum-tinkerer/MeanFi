@@ -45,7 +45,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
     """Build the normal-state map consumed by the generic SCF engine."""
 
     space = MeanFieldDensitySpace.normal(model)
-    keys = space.keys
+    keys = space.interaction_keys
 
     def project_guess(guess: _tb_type) -> _tb_type:
         projected = space.project_guess(guess)

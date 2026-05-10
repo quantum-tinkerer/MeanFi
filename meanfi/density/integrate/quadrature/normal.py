@@ -10,7 +10,7 @@ from meanfi.results import DensityIntegrationInfo
 from meanfi.tb.validate import tb_dimension, tb_orbital_count
 from meanfi.density.integrate.workspace import workspace_complex_dtype
 from meanfi.space.density_selection import DensitySelection
-from meanfi.space.hermitian import full_density_selection
+from meanfi.space.density_selection import full_density_selection
 from meanfi.density.kpoint.matrix_functions import (
     DirectDiagonalization,
     RationalFOE,

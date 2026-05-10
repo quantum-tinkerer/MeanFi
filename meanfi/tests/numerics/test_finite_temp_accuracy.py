@@ -16,11 +16,11 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.space.hermitian import normal_density_selection
+from meanfi.space.hermitian import selected_hermitian_tb_to_real_params
+from meanfi.space.interaction_selection import normal_density_selection
 import meanfi.density.kpoint.matrix_functions.rational as rational_matrix_functions
 import meanfi.density.integrate.normal as normal_integration
 import meanfi.density.integrate.quadrature.runtime as quadrature_runtime
-from meanfi.space.normal import tb_to_rparams
 from meanfi.scf.normal import (
     _density_update_for_normal_hamiltonian as _evaluate_density_for_hamiltonian,
 )
@@ -273,8 +273,14 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     assert abs(dense_result.mu - sparse_result.mu) <= 5e-4
     assert abs(dense_result.filling - sparse_result.filling) <= 5e-4
     np.testing.assert_allclose(
-        tb_to_rparams(dense_result.density_matrix, selection=selection),
-        tb_to_rparams(sparse_result.density_matrix, selection=selection),
+        selected_hermitian_tb_to_real_params(
+            dense_result.density_matrix,
+            selection,
+        ),
+        selected_hermitian_tb_to_real_params(
+            sparse_result.density_matrix,
+            selection,
+        ),
         atol=5e-4,
     )
 

@@ -6,11 +6,15 @@ import numpy as np
 
 
 def complex_to_real(z: np.ndarray) -> np.ndarray:
+    """Pack complex values as ``[real parts..., imaginary parts...]``."""
+
     array = np.asarray(z, dtype=complex).reshape(-1)
     return np.concatenate((np.real(array), np.imag(array)))
 
 
 def real_to_complex(z: np.ndarray) -> np.ndarray:
+    """Unpack ``[real parts..., imaginary parts...]`` into complex values."""
+
     array = np.asarray(z, dtype=float).reshape(-1)
     if len(array) % 2:
         raise ValueError("real_to_complex expects an even number of real values")
@@ -27,11 +31,15 @@ def opposite_key(key: tuple[int, ...]) -> tuple[int, ...]:
 
 
 def canonical_pair_representative(key: tuple[int, ...]) -> tuple[int, ...]:
+    """Choose the deterministic representative from the Hermitian pair {R, -R}."""
+
     opposite = opposite_key(key)
     return key if key <= opposite else opposite
 
 
 def canonical_tb_keys(tb_keys: Iterable[tuple[int, ...]]) -> list[tuple[int, ...]]:
+    """Return onsite first, then deterministic {R, -R} key pairs."""
+
     keys = [tuple(key) for key in tb_keys]
     if not keys:
         raise ValueError("tb_keys must be non-empty")
@@ -64,6 +72,8 @@ def canonical_tb_keys(tb_keys: Iterable[tuple[int, ...]]) -> list[tuple[int, ...
 def independent_hopping_keys(
     tb_keys: Iterable[tuple[int, ...]],
 ) -> list[tuple[int, ...]]:
+    """Return one hopping key from each non-onsite Hermitian pair {R, -R}."""
+
     ordered = canonical_tb_keys(tb_keys)
     local_key = onsite_key(len(ordered[0]))
     return [

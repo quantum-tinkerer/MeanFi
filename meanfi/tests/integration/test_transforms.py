@@ -4,7 +4,13 @@ import numpy as np
 import pytest
 
 from meanfi.space.density_selection import density_selection_from_pairs
-from meanfi.space.hermitian import normal_density_selection
+from meanfi.space.hermitian import (
+    full_hermitian_tb_to_real_params,
+    real_params_to_full_hermitian_tb,
+    real_params_to_selected_hermitian_tb,
+    selected_hermitian_tb_to_real_params,
+)
+from meanfi.space.interaction_selection import normal_density_selection
 from meanfi.space.particlehole import (
     bdg_density_selection_from_top_half,
     bdg_top_half_selection,
@@ -16,10 +22,6 @@ from meanfi.space.bdg import (
     rparams_to_bdg_tb,
 )
 from meanfi.space.params import canonical_tb_keys, real_to_complex
-from meanfi.space.normal import (
-    rparams_to_tb,
-    tb_to_rparams,
-)
 from meanfi.space import MeanFieldDensitySpace
 from meanfi.meanfield import assemble_bdg_correction
 from meanfi.model import Model
@@ -85,8 +87,8 @@ def _bdg_examples():
 def test_parametrization_roundtrip_on_generated_guesses(cutoff, dim, ndof, seed):
     np.random.seed(seed)
     tb = guess_tb(generate_tb_keys(cutoff, dim), ndof)
-    params = tb_to_rparams(tb)
-    compare_dicts(tb, rparams_to_tb(params, list(tb), ndof))
+    params = full_hermitian_tb_to_real_params(tb)
+    compare_dicts(tb, real_params_to_full_hermitian_tb(params, list(tb), ndof))
 
 
 def test_canonical_tb_keys_are_deterministic_and_explicit():
@@ -138,7 +140,7 @@ def test_real_to_complex_rejects_odd_length_values():
 
 def test_parametrization_rejects_asymmetric_selection():
     with pytest.raises(ValueError, match="symmetric under key inversion"):
-        rparams_to_tb(np.zeros(6), [(0,), (1,)], 1)
+        real_params_to_full_hermitian_tb(np.zeros(6), [(0,), (1,)], 1)
 
     with pytest.raises(ValueError, match="symmetric under key inversion"):
         canonical_tb_keys([(0,), (1,)])
@@ -151,8 +153,8 @@ def test_parametrization_roundtrip_on_multi_orbital_selection():
         (-1,): np.array([[0.5 - 0.2j, -0.3j], [-0.2, 0.1 + 0.1j]], dtype=complex),
     }
 
-    params = tb_to_rparams(tb)
-    compare_dicts(tb, rparams_to_tb(params, list(tb), ndof=2))
+    params = full_hermitian_tb_to_real_params(tb)
+    compare_dicts(tb, real_params_to_full_hermitian_tb(params, list(tb), ndof=2))
 
 
 def test_selection_aware_normal_parametrization_roundtrip():
@@ -175,9 +177,9 @@ def test_selection_aware_normal_parametrization_roundtrip():
         (-1,): np.array([[0.4, 0.6], [0.5, 0.7]], dtype=complex),
     }
 
-    params = tb_to_rparams(tb, selection=selection)
-    assert params.size < tb_to_rparams(tb).size
-    recovered = rparams_to_tb(params, list(tb), ndof=2, selection=selection)
+    params = selected_hermitian_tb_to_real_params(tb, selection)
+    assert params.size < full_hermitian_tb_to_real_params(tb).size
+    recovered = real_params_to_selected_hermitian_tb(params, selection, ndof=2)
 
     np.testing.assert_allclose(
         recovered[(0,)], np.array([[0.3, 0.0], [0.0, 1.7]], dtype=complex)

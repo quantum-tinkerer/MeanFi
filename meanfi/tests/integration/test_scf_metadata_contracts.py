@@ -103,7 +103,7 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
             return rho
 
     class FakeSpace:
-        keys = [(0,)]
+        interaction_keys = [(0,)]
 
         def __init__(self, model):
             self.model = model

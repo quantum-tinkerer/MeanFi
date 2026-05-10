@@ -11,14 +11,21 @@ from meanfi.space.params import (
     canonical_tb_keys,
     complex_to_real,
     independent_hopping_keys,
+    onsite_key,
     real_to_complex,
 )
-from meanfi.space.hermitian import hermitian_param_count, rparams_to_tb, tb_to_rparams
+from meanfi.space.hermitian import (
+    full_hermitian_tb_to_real_params,
+    hermitian_param_count,
+    real_params_to_full_hermitian_tb,
+    real_params_to_selected_hermitian_tb,
+    selected_hermitian_tb_to_real_params,
+)
 from meanfi.space.particlehole import (
-    BdGTopHalfSelection,
+    BdGElectronAnomalousSelection,
     bdg_density_selection_from_top_half,
     bdg_top_half_selection,
-    split_bdg_matrix,
+    electron_and_anomalous_blocks,
 )
 from meanfi.space.density_selection import (
     DensitySelection,
@@ -27,45 +34,47 @@ from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like
 from meanfi.tb.validate import validate_bdg_state
 
 
-def _bdg_top_half_to_rparams(
+def _bdg_top_half_blocks_to_real_params(
     tb: _tb_type,
     *,
-    selection: BdGTopHalfSelection,
+    selection: BdGElectronAnomalousSelection,
     ndof: int,
 ) -> np.ndarray:
     """Pack selected electron and anomalous top-half BdG blocks as real params."""
 
     zero = np.zeros((2 * ndof, 2 * ndof), dtype=complex)
     electron_tb = {
-        key: split_bdg_matrix(tb.get(key, zero), ndof)[0]
+        key: electron_and_anomalous_blocks(tb.get(key, zero), ndof)[0]
         for key in selection.electron.keys
     }
     anomalous_tb = {
-        key: split_bdg_matrix(tb.get(key, zero), ndof)[1]
+        key: electron_and_anomalous_blocks(tb.get(key, zero), ndof)[1]
         for key in selection.anomalous.keys
     }
-    electron_params = tb_to_rparams(electron_tb, selection=selection.electron)
+    electron_params = selected_hermitian_tb_to_real_params(
+        electron_tb,
+        selection.electron,
+    )
     anomalous_params = complex_to_real(selection.anomalous.values_from_tb(anomalous_tb))
     if anomalous_params.size == 0:
         return electron_params
     return np.concatenate((electron_params, anomalous_params))
 
 
-def _rparams_to_bdg_top_half(
+def _real_params_to_bdg_top_half_blocks(
     params: np.ndarray,
     *,
-    selection: BdGTopHalfSelection,
+    selection: BdGElectronAnomalousSelection,
     ndof: int,
 ) -> tuple[_tb_type, _tb_type]:
     """Unpack real params into selected electron and anomalous TB blocks."""
 
     params = np.asarray(params, dtype=float).reshape(-1)
     electron_size = hermitian_param_count(selection.electron, ndof)
-    electron_tb = rparams_to_tb(
+    electron_tb = real_params_to_selected_hermitian_tb(
         params[:electron_size],
-        list(selection.electron.keys),
+        selection.electron,
         ndof,
-        selection=selection.electron,
     )
     anomalous_count = selection.anomalous.value_count
     anomalous_params = params[electron_size : electron_size + 2 * anomalous_count]
@@ -98,21 +107,21 @@ def _top_half_blocks_to_density_tb(
 def bdg_tb_to_rparams(
     tb: _tb_type,
     ndof: int,
-    selection: BdGTopHalfSelection | None = None,
+    selection: BdGElectronAnomalousSelection | None = None,
 ) -> np.ndarray:
     validate_bdg_state(tb, ndof=ndof)
     if selection is not None:
-        return _bdg_top_half_to_rparams(tb, selection=selection, ndof=ndof)
+        return _bdg_top_half_blocks_to_real_params(tb, selection=selection, ndof=ndof)
 
     ordered_keys = canonical_tb_keys(tb.keys())
     normal_block = {}
     anomalous_parts = []
     for key in ordered_keys:
-        normal, anomalous = split_bdg_matrix(tb[key], ndof)
+        normal, anomalous = electron_and_anomalous_blocks(tb[key], ndof)
         normal_block[key] = normal
         anomalous_parts.append(complex_to_real(anomalous.reshape(-1)))
 
-    normal_params = tb_to_rparams(normal_block)
+    normal_params = full_hermitian_tb_to_real_params(normal_block)
     return np.concatenate((normal_params, *anomalous_parts))
 
 
@@ -120,10 +129,10 @@ def rparams_to_bdg_tb(
     tb_params: np.ndarray,
     tb_keys: list[tuple[None] | tuple[int, ...]],
     ndof: int,
-    selection: BdGTopHalfSelection | None = None,
+    selection: BdGElectronAnomalousSelection | None = None,
 ) -> _tb_type:
     if selection is not None:
-        normal_block, anomalous_block = _rparams_to_bdg_top_half(
+        normal_block, anomalous_block = _real_params_to_bdg_top_half_blocks(
             tb_params,
             selection=selection,
             ndof=ndof,
@@ -133,12 +142,16 @@ def rparams_to_bdg_tb(
         return tb
 
     ordered_keys = canonical_tb_keys(tb_keys)
-    n_onsite = ndof + ndof * (ndof - 1)
+    n_onsite = ndof * ndof
     n_hopping = len(independent_hopping_keys(ordered_keys)) * 2 * ndof * ndof
     normal_size = n_onsite + n_hopping
 
     params = np.asarray(tb_params, dtype=float).reshape(-1)
-    normal_block = rparams_to_tb(params[:normal_size], ordered_keys, ndof)
+    normal_block = real_params_to_full_hermitian_tb(
+        params[:normal_size],
+        ordered_keys,
+        ndof,
+    )
 
     block_size = 2 * ndof * ndof
     offset = normal_size
@@ -163,10 +176,10 @@ def rparams_to_bdg_tb(
 def bdg_density_to_rparams(
     density_matrix: _tb_type,
     *,
-    selection: BdGTopHalfSelection,
+    selection: BdGElectronAnomalousSelection,
     ndof: int,
 ) -> np.ndarray:
-    return _bdg_top_half_to_rparams(
+    return _bdg_top_half_blocks_to_real_params(
         density_matrix,
         selection=selection,
         ndof=ndof,
@@ -176,10 +189,10 @@ def bdg_density_to_rparams(
 def rparams_to_bdg_density(
     params: np.ndarray,
     *,
-    selection: BdGTopHalfSelection,
+    selection: BdGElectronAnomalousSelection,
     ndof: int,
 ) -> _tb_type:
-    electron_density, anomalous_density = _rparams_to_bdg_top_half(
+    electron_density, anomalous_density = _real_params_to_bdg_top_half_blocks(
         params,
         selection=selection,
         ndof=ndof,
@@ -197,13 +210,13 @@ class BdGMeanFieldDensitySpace:
     model: Model
     onsite: tuple[int, ...]
     density_keys: list[tuple[int, ...]]
-    top_half_selection: BdGTopHalfSelection
+    top_half_selection: BdGElectronAnomalousSelection
     density_selection: DensitySelection
     active_keys: list[tuple[int, ...]]
 
     @classmethod
     def from_model(cls, model: Model) -> BdGMeanFieldDensitySpace:
-        onsite = (0,) * model._ndim
+        onsite = onsite_key(model._ndim)
         density_keys = bdg_density_keys(model, {})
         top_half_selection = bdg_top_half_selection(
             keys=density_keys,

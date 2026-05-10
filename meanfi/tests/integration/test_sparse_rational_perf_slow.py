@@ -122,7 +122,7 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
 
 @pytest.mark.perf_slow
 def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
-    from meanfi.space.hermitian import full_density_selection
+    from meanfi.space.density_selection import full_density_selection
     from meanfi.density.kpoint.matrix_functions import (
         density_block,
         shift_by_mu,

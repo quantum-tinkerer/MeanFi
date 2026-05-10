@@ -9,7 +9,7 @@ from meanfi.results import DensityIntegrationInfo
 from meanfi.tb.validate import tb_dimension
 from meanfi.tb.ops import is_sparse_like
 from meanfi.space.density_selection import DensitySelection
-from meanfi.space.hermitian import full_density_selection
+from meanfi.space.density_selection import full_density_selection
 from meanfi.density.kpoint.matrix_functions import (
     BdGMatrixFunction,
     DirectDiagonalization,
