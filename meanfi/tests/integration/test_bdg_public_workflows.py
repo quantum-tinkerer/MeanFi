@@ -21,7 +21,6 @@ from meanfi import (
     UniformGrid,
     density_matrix,
     density_matrix_at_mu,
-    guess_tb,
     solver,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
@@ -198,9 +197,21 @@ def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():
     assert result.info.iterations >= 1
 
 
-def test_guess_tb_can_generate_bdg_compliant_superconducting_guesses():
-    guess = guess_tb([(0,), (1,), (-1,)], ndof=2, scale=0.1, superconducting=True)
+def test_model_random_meanfield_generates_valid_bdg_guess():
+    model = Model(
+        spinful_chain(),
+        {(0,): np.ones((2, 2), dtype=complex)},
+        filling=1.0,
+        kT=0.2,
+        superconducting=True,
+    )
 
-    assert set(guess) == {(0,), (1,), (-1,)}
-    assert all(matrix.shape == (4, 4) for matrix in guess.values())
-    assert np.allclose(guess[(1,)], guess[(-1,)].conj().T)
+    first = model.random_meanfield(rng=123, scale=0.1)
+    second = model.random_meanfield(rng=123, scale=0.1)
+    zero = model.random_meanfield(rng=123, scale=0.0)
+
+    assert set(first) == {(0,)}
+    for key in first:
+        np.testing.assert_allclose(first[key], second[key])
+        np.testing.assert_allclose(zero[key], np.zeros_like(zero[key]))
+    model.bdg_hamiltonian_from_meanfield(first)

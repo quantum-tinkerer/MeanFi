@@ -13,7 +13,6 @@ from meanfi import (
     UniformGrid,
     tb_to_kfunc,
 )
-from meanfi.space import ActiveDensitySpace
 from meanfi.density.filling import charge_diagonal
 from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
 from meanfi.tb.bdg import assemble_bdg_tb
@@ -458,12 +457,16 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
         mu_guess=0.0,
     )
 
-    space = ActiveDensitySpace.bdg(
-        Model(dense_h0, dense_hint, filling=0.5, kT=0.2, superconducting=True)
-    )
+    space = Model(
+        dense_h0,
+        dense_hint,
+        filling=0.5,
+        kT=0.2,
+        superconducting=True,
+    ).scf_space
     np.testing.assert_allclose(
-        space.compress(dense_result.density_matrix),
-        space.compress(sparse_result.density_matrix),
+        space.params_from_meanfield_input(dense_result.density_matrix),
+        space.params_from_meanfield_input(sparse_result.density_matrix),
         atol=1e-3,
     )
 
@@ -492,7 +495,7 @@ def test_bdg_sparse_uniform_grid_selected_density_matches_dense_reference(
     sparse_model = Model(
         sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True
     )
-    space = ActiveDensitySpace.bdg(dense_model)
+    space = dense_model.scf_space
 
     dense_result = solve_bdg_density_fixed_filling(
         dense_model,
@@ -525,7 +528,7 @@ def test_bdg_sparse_uniform_grid_selected_density_matches_dense_reference(
     )
 
     np.testing.assert_allclose(
-        space.compress(dense_result.density_matrix),
-        space.compress(sparse_result.density_matrix),
+        space.params_from_meanfield_input(dense_result.density_matrix),
+        space.params_from_meanfield_input(sparse_result.density_matrix),
         atol=2e-3,
     )

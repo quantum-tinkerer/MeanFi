@@ -7,7 +7,6 @@ from meanfi.meanfield import bdg_correction_from_density_parts
 from meanfi.model import Model
 from meanfi.results import DensityMatrixResult
 from meanfi.scf.engine import SCFProblem, SolverRuntime, warn_on_projection
-from meanfi.space import ActiveDensitySpace
 from meanfi.space.support import active_tb_keys
 from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb, zero_bdg_array
 from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like
@@ -16,7 +15,7 @@ from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like
 def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     """Build the superconducting map consumed by the generic SCF engine."""
 
-    space = ActiveDensitySpace.bdg(model)
+    space = model.scf_space
     active_keys = active_tb_keys({space.onsite})
 
     def project_guess(guess: _tb_type) -> _tb_type:
@@ -29,7 +28,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
         )
         active_keys = active_tb_keys(set(guess) | {space.onsite})
         projected = _assemble_bdg_active_tb(
-            space.project(guess),
+            space.project_meanfield_input(guess),
             ndof=model._ndof,
             ndim=model._ndim,
             keys=space.active_coordinates.keys,
@@ -63,7 +62,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     ) -> DensityMatrixResult:
         return evaluate_meanfield(
             _bdg_meanfield_from_active_density(
-                space.expand(params),
+                space.meanfield_input_from_params(params),
                 model=model,
                 active_keys=active_keys,
             ),
@@ -72,7 +71,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
 
     def finalize_meanfield(density_result: DensityMatrixResult) -> _tb_type:
         return _bdg_meanfield_from_active_density(
-            space.project(density_result.density_matrix),
+            space.project_meanfield_input(density_result.density_matrix),
             model=model,
             active_keys=active_keys,
         )
@@ -81,7 +80,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
         runtime=runtime,
         project_guess=project_guess,
         evaluate_projected_guess=evaluate_projected_guess,
-        compress_density=space.compress,
+        compress_density=space.params_from_meanfield_input,
         density_result_from_params=density_result_from_params,
         finalize_meanfield=finalize_meanfield,
     )

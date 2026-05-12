@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from meanfi.meanfield import bdg_density_keys
-from meanfi.model import Model
 from meanfi.space.coordinates import (
     DensityCoordinates,
     canonical_tb_keys,
@@ -14,6 +14,9 @@ from meanfi.space.coordinates import (
     sorted_unique_pairs,
 )
 from meanfi.tb.ops import _tb_type
+
+if TYPE_CHECKING:
+    from meanfi.model import Model
 
 
 @dataclass(frozen=True)

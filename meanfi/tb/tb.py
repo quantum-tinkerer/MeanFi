@@ -33,7 +33,7 @@ from meanfi.tb.storage import (
     tb_entries_changed,
 )
 from meanfi.tb.transforms import ifftn_to_tb, kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
-from meanfi.tb.utils import fermi_energy, generate_tb_keys, guess_tb
+from meanfi.tb.utils import fermi_energy, generate_tb_keys
 from meanfi.tb.validate import (
     matrix_allclose,
     normalize_keys,
@@ -58,7 +58,6 @@ __all__ = [
     "electron_to_bdg_tb",
     "fermi_energy",
     "generate_tb_keys",
-    "guess_tb",
     "hermitian_spectral_bound",
     "ifftn_to_tb",
     "is_sparse_like",

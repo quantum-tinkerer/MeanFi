@@ -16,7 +16,6 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.space import ActiveDensitySpace
 import meanfi.density.kpoint.matrix_functions.rational as rational_matrix_functions
 import meanfi.density.integrate.normal as normal_integration
 import meanfi.density.integrate.quadrature.runtime as quadrature_runtime
@@ -237,7 +236,7 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     model_dense = Model(dense_h0, dense_hint, filling=1.0, kT=0.15)
     model_sparse = Model(sparse_h0, sparse_hint, filling=1.0, kT=0.15)
 
-    space = ActiveDensitySpace.normal(model_sparse)
+    space = model_sparse.scf_space
 
     dense_result = _evaluate_density_for_hamiltonian(
         model_dense,
@@ -265,8 +264,8 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     assert abs(dense_result.mu - sparse_result.mu) <= 5e-4
     assert abs(dense_result.filling - sparse_result.filling) <= 5e-4
     np.testing.assert_allclose(
-        space.compress(dense_result.density_matrix),
-        space.compress(sparse_result.density_matrix),
+        space.params_from_meanfield_input(dense_result.density_matrix),
+        space.params_from_meanfield_input(sparse_result.density_matrix),
         atol=5e-4,
     )
 
@@ -463,14 +462,13 @@ def test_sparse_aaa_arrowhead_poles_match_barycentric_form():
 def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
     shared_cache = []
     matrix = sparse.csr_matrix(np.array([[0.2, -1.0], [-1.0, -0.1]], dtype=complex))
-    space = ActiveDensitySpace.normal(
-        Model(
-            {(0,): np.asarray(matrix.toarray(), dtype=complex)},
-            {(0,): np.ones((2, 2), dtype=complex)},
-            filling=1.0,
-            kT=0.15,
-        )
+    model = Model(
+        {(0,): np.asarray(matrix.toarray(), dtype=complex)},
+        {(0,): np.ones((2, 2), dtype=complex)},
+        filling=1.0,
+        kT=0.15,
     )
+    space = model.scf_space
     node = rational_matrix_functions.PreparedMumpsRationalNode(
         matrix,
         kT=0.15,

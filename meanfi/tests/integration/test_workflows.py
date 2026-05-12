@@ -7,7 +7,6 @@ from meanfi import (
     Model,
     add_tb,
     density_matrix,
-    guess_tb,
     solver,
 )
 from meanfi.interop import kwant as utils
@@ -29,17 +28,14 @@ def test_graphene_kwant_end_to_end_regression():
     graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
     h_0 = utils.builder_to_tb(graphene_builder)
     h_int = utils.builder_to_tb(int_builder, {"U": 1.0, "V": 0.0})
-    np.random.seed(0)
-    guess = guess_tb(frozenset(h_int), len(next(iter(h_0.values()))))
-
     model = Model(h_0, h_int, filling=2.0, kT=0.05)
-    with pytest.warns(UserWarning, match="active SCF density selection"):
-        result = solver(
-            model,
-            guess,
-            scf=AndersonMixing(M=0, max_iterations=40),
-            scf_tol=5e-4,
-        )
+    guess = model.random_meanfield(rng=0)
+    result = solver(
+        model,
+        guess,
+        scf=AndersonMixing(M=0, max_iterations=40),
+        scf_tol=5e-4,
+    )
     density_result = density_matrix(
         add_tb(h_0, result.mf),
         filling=2.0,

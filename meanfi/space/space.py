@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from meanfi.model import Model
 from meanfi.space.coordinates import DensityCoordinates, DensityEntry
 from meanfi.space.reducers import (
     LinearConstraintReducer,
@@ -21,10 +21,13 @@ from meanfi.space.support import (
 from meanfi.space.symmetry import HermiticityConstraint, ParticleHoleConstraint
 from meanfi.tb.ops import _tb_type, is_sparse_like
 
+if TYPE_CHECKING:
+    from meanfi.model import Model
+
 
 @dataclass(frozen=True)
-class ActiveDensitySpace:
-    """Minimal real density variables for one mean-field SCF problem."""
+class ActiveSCFSpace:
+    """Minimal real variables used by one mean-field SCF problem."""
 
     active_coordinates: DensityCoordinates
     required_coordinates: DensityCoordinates
@@ -43,7 +46,7 @@ class ActiveDensitySpace:
         return int(self.basis.shape[1])
 
     @classmethod
-    def normal(cls, model: Model) -> ActiveDensitySpace:
+    def normal(cls, model: Model) -> ActiveSCFSpace:
         support = normal_active_support(model)
         entries = support.coordinates.entries
         basis = OrbitReducer(entries).basis((HermiticityConstraint(),))
@@ -55,7 +58,7 @@ class ActiveDensitySpace:
         return cls._from_support(support, basis)
 
     @classmethod
-    def bdg(cls, model: Model) -> ActiveDensitySpace:
+    def bdg(cls, model: Model) -> ActiveSCFSpace:
         support = bdg_active_support(model)
         entries = support.coordinates.entries
         basis = OrbitReducer(entries).basis(
@@ -72,7 +75,7 @@ class ActiveDensitySpace:
         return cls._from_support(support, basis)
 
     @classmethod
-    def from_interaction(cls, model: Model) -> ActiveDensitySpace:
+    def from_model(cls, model: Model) -> ActiveSCFSpace:
         return cls.bdg(model) if model.superconducting else cls.normal(model)
 
     @classmethod
@@ -80,7 +83,7 @@ class ActiveDensitySpace:
         cls,
         support: ActiveCoordinateSupport,
         basis: np.ndarray,
-    ) -> ActiveDensitySpace:
+    ) -> ActiveSCFSpace:
         selected = select_required_coordinates(support.coordinates, basis)
         return cls(
             active_coordinates=support.coordinates,
@@ -102,7 +105,7 @@ class ActiveDensitySpace:
             return self.required_coordinates
         return None
 
-    def compress_from_entries(self, values: np.ndarray) -> np.ndarray:
+    def params_from_required_entries(self, values: np.ndarray) -> np.ndarray:
         real_values = complex_to_real(values)
         if real_values.size != self.required_real_rows.size:
             raise ValueError("values do not match required real-space entries")
@@ -112,15 +115,17 @@ class ActiveDensitySpace:
         params, *_ = np.linalg.lstsq(sample_basis, real_values, rcond=None)
         return np.asarray(params, dtype=float)
 
-    def compress(self, rho: _tb_type) -> np.ndarray:
-        return self.compress_from_entries(self.required_coordinates.values_from_tb(rho))
+    def params_from_meanfield_input(self, rho: _tb_type) -> np.ndarray:
+        return self.params_from_required_entries(
+            self.required_coordinates.values_from_tb(rho)
+        )
 
-    def expand(self, params: np.ndarray) -> _tb_type:
+    def meanfield_input_from_params(self, params: np.ndarray) -> _tb_type:
         params = np.asarray(params, dtype=float).reshape(-1)
         if params.size != self.num_params:
-            raise ValueError("params has the wrong length for this active density space")
+            raise ValueError("params has the wrong length for this active SCF space")
         real_values = self.basis @ params
         return self.active_coordinates.values_to_tb(real_to_complex(real_values))
 
-    def project(self, rho: _tb_type) -> _tb_type:
-        return self.expand(self.compress(rho))
+    def project_meanfield_input(self, rho: _tb_type) -> _tb_type:
+        return self.meanfield_input_from_params(self.params_from_meanfield_input(rho))

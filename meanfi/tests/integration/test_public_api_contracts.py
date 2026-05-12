@@ -21,7 +21,6 @@ from meanfi import (
     UniformGrid,
     density_matrix,
     density_matrix_at_mu,
-    guess_tb,
     solver,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
@@ -105,6 +104,17 @@ def test_top_level_exports_only_supported_diagonalization_names():
     assert DirectDiagonalization.__name__ == "DirectDiagonalization"
     assert not hasattr(meanfi, "ExactDiagonalization")
     assert not hasattr(meanfi, "ChebyshevFOE")
+    assert not hasattr(meanfi, "guess_tb")
+
+
+def test_guess_tb_is_removed_from_public_tb_api():
+    import meanfi.tb as tb
+
+    assert not hasattr(tb, "guess_tb")
+    with pytest.raises(ImportError):
+        exec("from meanfi import guess_tb")
+    with pytest.raises(ImportError):
+        exec("from meanfi.tb import guess_tb")
 
 
 def test_removed_chebyshev_public_api_is_not_importable():
@@ -184,3 +194,24 @@ def test_model_rejects_nonhermitian_inputs():
 
     with pytest.raises(ValueError, match="hermitian"):
         Model(**kwargs)
+
+
+def test_model_is_immutable_and_owns_scf_space():
+    model = Model(**_base_model_kwargs())
+
+    assert model.scf_space is model.scf_space
+    with pytest.raises(AttributeError, match="immutable"):
+        model.filling = 2.0
+
+
+def test_model_random_meanfield_is_seeded_and_solver_ready():
+    model = Model(**_base_model_kwargs())
+
+    first = model.random_meanfield(rng=123, scale=0.25)
+    second = model.random_meanfield(rng=123, scale=0.25)
+    zero = model.random_meanfield(rng=123, scale=0.0)
+
+    for key in first:
+        np.testing.assert_allclose(first[key], second[key])
+        np.testing.assert_allclose(zero[key], np.zeros_like(zero[key]))
+        np.testing.assert_allclose(first[key], first[tuple(-np.asarray(key))].conj().T)

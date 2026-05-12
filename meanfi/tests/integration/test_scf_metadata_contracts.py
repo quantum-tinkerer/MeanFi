@@ -21,7 +21,6 @@ from meanfi import (
     UniformGrid,
     density_matrix,
     density_matrix_at_mu,
-    guess_tb,
     solver,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
@@ -95,6 +94,7 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
             self._local_key = (0,)
             self.filling = 1.0
             self.kT = 0.2
+            self.scf_space = FakeSpace(self)
 
         def hamiltonian_from_meanfield(self, mf):
             return mf
@@ -109,17 +109,17 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
         def __init__(self, model):
             self.model = model
 
-        def project(self, guess):
+        def project_meanfield_input(self, guess):
             return guess
 
         def required_density_coordinates_for(self, hamiltonian):
             del hamiltonian
             return None
 
-        def compress(self, rho):
+        def params_from_meanfield_input(self, rho):
             return np.asarray(rho[(0,)], dtype=float)
 
-        def expand(self, params):
+        def meanfield_input_from_params(self, params):
             return {(0,): np.asarray(params, dtype=float)}
 
     def fake_density_for_hamiltonian(
@@ -145,11 +145,6 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
         )
         return fake_result(hamiltonian, model.step)
 
-    monkeypatch.setattr(
-        normal_scf.ActiveDensitySpace,
-        "normal",
-        lambda model: FakeSpace(model),
-    )
     monkeypatch.setattr(
         normal_scf,
         "_density_update_for_normal_hamiltonian",

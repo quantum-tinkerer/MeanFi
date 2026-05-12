@@ -1,4 +1,4 @@
-"""Active mean-field density spaces and symmetry reductions."""
+"""Active SCF spaces and symmetry reductions."""
 
 from meanfi.space.coordinates import (
     DensityCoordinates,
@@ -14,7 +14,7 @@ from meanfi.space.reducers import (
     complex_to_real,
     real_to_complex,
 )
-from meanfi.space.space import ActiveDensitySpace
+from meanfi.space.space import ActiveSCFSpace
 from meanfi.space.symmetry import (
     HermiticityConstraint,
     ParticleHoleConstraint,
@@ -22,7 +22,7 @@ from meanfi.space.symmetry import (
 )
 
 __all__ = [
-    "ActiveDensitySpace",
+    "ActiveSCFSpace",
     "DensityCoordinates",
     "DensityEntry",
     "HermiticityConstraint",

@@ -12,7 +12,6 @@ from meanfi.scf.engine import (
     SolverRuntime,
     warn_on_projection,
 )
-from meanfi.space import ActiveDensitySpace
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import match_tb_storage, prefers_sparse_storage
 
@@ -46,11 +45,11 @@ def _density_update_for_normal_hamiltonian(
 def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     """Build the normal-state map consumed by the generic SCF engine."""
 
-    space = ActiveDensitySpace.normal(model)
+    space = model.scf_space
     keys = space.interaction_keys
 
     def project_guess(guess: _tb_type) -> _tb_type:
-        projected = space.project(guess)
+        projected = space.project_meanfield_input(guess)
         projected = match_tb_storage(
             projected,
             like_sparse=prefers_sparse_storage(
@@ -88,13 +87,13 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         params: np.ndarray, mu_guess: float
     ) -> DensityMatrixResult:
         return evaluate_hamiltonian(
-            model.hamiltonian_from_rho(space.expand(params)),
+            model.hamiltonian_from_rho(space.meanfield_input_from_params(params)),
             mu_guess=mu_guess,
         )
 
     def finalize_meanfield(density_result: DensityMatrixResult) -> _tb_type:
         return _meanfield_from_active_density(
-            space.project(density_result.density_matrix),
+            space.project_meanfield_input(density_result.density_matrix),
             model=model,
             interaction_keys=space.interaction_keys,
             onsite=space.onsite,
@@ -105,7 +104,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         runtime=runtime,
         project_guess=project_guess,
         evaluate_projected_guess=evaluate_projected_guess,
-        compress_density=space.compress,
+        compress_density=space.params_from_meanfield_input,
         density_result_from_params=density_result_from_params,
         finalize_meanfield=finalize_meanfield,
     )

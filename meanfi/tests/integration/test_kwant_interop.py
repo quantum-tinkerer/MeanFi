@@ -6,7 +6,24 @@ import pytest
 
 from meanfi.interop.kwant import builder_to_tb, tb_to_builder
 from meanfi.tb.ops import compare_dicts
-from meanfi.tb.utils import generate_tb_keys, guess_tb
+from meanfi.tb.utils import generate_tb_keys
+
+
+def _hermitian_tb(keys, ndof, seed=0):
+    rng = np.random.default_rng(seed)
+    tb = {}
+    for key in keys:
+        key = tuple(key)
+        if key in tb:
+            continue
+        matrix = rng.normal(size=(ndof, ndof)) + 1j * rng.normal(size=(ndof, ndof))
+        opposite = tuple(-component for component in key)
+        if key == opposite:
+            tb[key] = 0.5 * (matrix + matrix.conj().T)
+        else:
+            tb[key] = matrix
+            tb[opposite] = matrix.conj().T
+    return tb
 
 
 pytestmark = pytest.mark.integration
@@ -24,8 +41,7 @@ def test_kwant_conversion_roundtrip_on_representative_builder():
             sublattice.norbs
         )
 
-    np.random.seed(0)
-    tb = guess_tb(generate_tb_keys(1, 2), 3)
+    tb = _hermitian_tb(generate_tb_keys(1, 2), 3)
     builder = tb_to_builder(
         tb, list(dummy_builder.sites()), dummy_builder.symmetry.periods
     )

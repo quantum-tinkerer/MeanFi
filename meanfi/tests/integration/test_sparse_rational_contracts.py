@@ -21,7 +21,6 @@ from meanfi import (
     UniformGrid,
     density_matrix,
     density_matrix_at_mu,
-    guess_tb,
     solver,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
