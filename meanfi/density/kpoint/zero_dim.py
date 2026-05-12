@@ -14,20 +14,20 @@ from meanfi.density.kpoint.matrix_functions import (
 from meanfi.density.kpoint.occupations import fermi_dirac
 from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.tb.ops import _tb_type
-from meanfi.space.density_selection import DensitySelection
+from meanfi.space.coordinates import DensityCoordinates
 
 
 def density_from_matrix(
     matrix: np.ndarray,
     keys: list[tuple[int, ...]],
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> tuple[_tb_type, _tb_type]:
     """Embed a local density matrix into the requested tight-binding keys."""
 
-    if density_selection is not None:
-        values = density_selection.values_from_assembled_matrix(matrix)
-        zeros = np.zeros(density_selection.value_count, dtype=float)
-        return density_selection.values_and_errors_to_tb(values, zeros)
+    if density_coordinates is not None:
+        values = density_coordinates.values_from_assembled_matrix(matrix)
+        zeros = np.zeros(density_coordinates.value_count, dtype=float)
+        return density_coordinates.values_and_errors_to_tb(values, zeros)
 
     onsite_key = tuple(0 for _ in next(iter(keys), tuple()))
     rho = {key: matrix if key == onsite_key else np.zeros_like(matrix) for key in keys}
@@ -41,7 +41,7 @@ def density_matrix_at_mu_zero_dim(
     mu: float,
     kT: float,
     keys: list[tuple[int, ...]],
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
     matrix_function: object | None = None,
     workspace_dtype: np.dtype = np.dtype(complex),
     density_tolerance: float = 0.0,
@@ -57,7 +57,7 @@ def density_matrix_at_mu_zero_dim(
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
     occupation = fermi_dirac(eigenvalues, kT, mu)
     density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-    rho, error = density_from_matrix(density, keys, density_selection)
+    rho, error = density_from_matrix(density, keys, density_coordinates)
     info = DensityIntegrationInfo(
         n_kernel_evals=1,
         unique_evals=1,
@@ -83,7 +83,7 @@ def density_matrix_zero_dim(
     max_charge_evaluations: int | None,
     density_atol: float,
     density_rtol: float,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
     matrix_function: object | None = None,
     workspace_dtype: np.dtype = np.dtype(complex),
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
@@ -103,7 +103,7 @@ def density_matrix_zero_dim(
         )
         occupation = fermi_dirac(eigenvalues, kT, mu)
         density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-        rho, error = density_from_matrix(density, keys, density_selection)
+        rho, error = density_from_matrix(density, keys, density_coordinates)
         info = FixedFillingInfo(
             mu=mu,
             charge=charge,
@@ -160,7 +160,7 @@ def density_matrix_zero_dim(
 
     occupation = fermi_dirac(eigenvalues, kT, root.mu)
     density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-    rho, error = density_from_matrix(density, keys, density_selection)
+    rho, error = density_from_matrix(density, keys, density_coordinates)
     charge_integral_atol, _ = charge_integral_tolerance(charge_tol)
     info = FixedFillingInfo(
         mu=root.mu,

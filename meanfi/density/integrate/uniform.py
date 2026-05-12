@@ -19,8 +19,8 @@ from meanfi.density.kpoint.matrix_functions.rational import (
 from meanfi.density.kpoint.occupations import fermi_dirac
 from meanfi.density.integrate.methods import UniformGrid
 from meanfi.density.integrate.workspace import workspace_complex_dtype
-from meanfi.space.density_selection import DensitySelection
-from meanfi.space.density_selection import full_density_selection
+from meanfi.space.coordinates import DensityCoordinates
+from meanfi.space.coordinates import full_density_coordinates
 from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like, to_dense
 from meanfi.tb.transforms import kgrid_to_tb, tb_to_kfunc, tb_to_kgrid
 from meanfi.tb.validate import tb_dimension, tb_orbital_count
@@ -34,7 +34,7 @@ def _ifft_grid_index(
 
 
 def _selected_value_grid_to_tb(
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
     k_value_grid: np.ndarray,
     *,
     ndim: int,
@@ -44,17 +44,17 @@ def _selected_value_grid_to_tb(
     real_space_values = np.fft.ifftn(k_value_grid, axes=np.arange(ndim))
     grid_shape = tuple(real_space_values.shape[:ndim])
     rho: _tb_type = {}
-    for selection in density_selection.key_selections:
+    for key, rows, cols, value_slice in density_coordinates.iter_key_coordinates():
         block = np.zeros(
-            (density_selection.size, density_selection.size), dtype=complex
+            (density_coordinates.size, density_coordinates.size), dtype=complex
         )
-        if selection.rows.size:
+        if rows.size:
             key_values = np.asarray(
-                real_space_values[_ifft_grid_index(selection.key, grid_shape)],
+                real_space_values[_ifft_grid_index(key, grid_shape)],
                 dtype=complex,
             )
-            block[selection.rows, selection.cols] = key_values[selection.value_slice]
-        rho[selection.key] = block
+            block[rows, cols] = key_values[value_slice]
+        rho[key] = block
     return rho
 
 
@@ -64,7 +64,7 @@ def uniform_grid_density_terms(
     mu: float,
     kT: float,
     nk: int,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
     workspace_dtype: np.dtype = np.dtype(complex),
 ) -> tuple[_tb_type, float]:
     ndim = tb_dimension(hamiltonian)
@@ -73,11 +73,11 @@ def uniform_grid_density_terms(
         eigenvalues, eigenvectors = np.linalg.eigh(matrix)
         occupation = fermi_dirac(eigenvalues, kT, mu)
         density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-        if density_selection is not None:
-            values = density_selection.values_from_assembled_matrix(density)
-            rho = density_selection.values_and_errors_to_tb(
+        if density_coordinates is not None:
+            values = density_coordinates.values_from_assembled_matrix(density)
+            rho = density_coordinates.values_and_errors_to_tb(
                 values,
-                np.zeros(density_selection.value_count, dtype=float),
+                np.zeros(density_coordinates.value_count, dtype=float),
             )[0]
             return rho, float(np.sum(occupation))
         return {tuple(): density}, float(np.sum(occupation))
@@ -86,7 +86,7 @@ def uniform_grid_density_terms(
     eigenvalues, eigenvectors = np.linalg.eigh(kham)
     occupation = fermi_dirac(eigenvalues, kT, mu)
     filling = float(np.mean(np.sum(occupation, axis=-1)))
-    if density_selection is None:
+    if density_coordinates is None:
         occupied_vectors = eigenvectors * occupation[..., np.newaxis, :]
         density_matrix_k = occupied_vectors @ eigenvectors.conj().swapaxes(-1, -2)
         density_matrix = kgrid_to_tb(density_matrix_k)
@@ -95,10 +95,10 @@ def uniform_grid_density_terms(
     value_grid = selected_density_values_from_eigensystem(
         eigenvectors,
         occupation,
-        density_selection,
+        density_coordinates,
     )
     density_matrix = _selected_value_grid_to_tb(
-        density_selection,
+        density_coordinates,
         value_grid,
         ndim=ndim,
     )
@@ -166,7 +166,7 @@ class _PreparedDirectNode:
     kT: float
     q_diag: np.ndarray
     trace_weights_diag: np.ndarray
-    density_selection: DensitySelection
+    density_coordinates: DensityCoordinates
     workspace_dtype: np.dtype
 
     def __post_init__(self) -> None:
@@ -234,14 +234,14 @@ class _PreparedDirectNode:
         return selected_density_values_from_eigensystem(
             eigenvectors,
             occupation,
-            self.density_selection,
+            self.density_coordinates,
         )
 
 
 @dataclass(frozen=True)
 class UniformGridNodeBundle:
     nodes: tuple[Any, ...]
-    density_selection: DensitySelection
+    density_coordinates: DensityCoordinates
     grid_shape: tuple[int, ...]
     use_derivative: bool
 
@@ -257,15 +257,15 @@ def build_uniform_grid_node_bundle(
     trace_weights_diag: np.ndarray,
     charge_tolerance: float,
     density_tolerance: float,
-    density_selection: DensitySelection | None,
+    density_coordinates: DensityCoordinates | None,
     workspace_dtype: np.dtype,
 ) -> UniformGridNodeBundle:
     ndim = tb_dimension(hamiltonian)
     size = int(q_diag.size)
-    density_selection = (
-        density_selection
-        if density_selection is not None
-        else full_density_selection(keys, size=size)
+    density_coordinates = (
+        density_coordinates
+        if density_coordinates is not None
+        else full_density_coordinates(keys, size=size)
     )
     kpoints = uniform_grid_kpoints(ndim, nk)
     point_matrix = _tb_point_evaluator(hamiltonian, workspace_dtype=workspace_dtype)
@@ -282,7 +282,7 @@ def build_uniform_grid_node_bundle(
                     kT=kT,
                     q_diag=q_diag,
                     trace_weights_diag=trace_weights_diag,
-                    density_selection=density_selection,
+                    density_coordinates=density_coordinates,
                     workspace_dtype=workspace_dtype,
                 )
             )
@@ -296,7 +296,7 @@ def build_uniform_grid_node_bundle(
                     q_diag=q_diag,
                     options=matrix_function,
                     charge_tolerance=charge_tolerance,
-                    density_selection=density_selection,
+                    density_coordinates=density_coordinates,
                     density_tolerance=density_tolerance,
                     workspace_dtype=workspace_dtype,
                     trace_weights_diag=trace_weights_diag,
@@ -312,7 +312,7 @@ def build_uniform_grid_node_bundle(
 
     return UniformGridNodeBundle(
         nodes=tuple(nodes),
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
         grid_shape=tuple([nk] * ndim),
         use_derivative=use_derivative,
     )
@@ -323,10 +323,10 @@ def uniform_grid_density_from_nodes(
     *,
     mu: float,
 ) -> tuple[_tb_type, float]:
-    estimate = np.zeros(bundle.density_selection.value_count, dtype=complex)
+    estimate = np.zeros(bundle.density_coordinates.value_count, dtype=complex)
     value_grid = (
         np.empty(
-            (len(bundle.nodes), bundle.density_selection.value_count), dtype=complex
+            (len(bundle.nodes), bundle.density_coordinates.value_count), dtype=complex
         )
         if bundle.grid_shape
         else None
@@ -344,16 +344,16 @@ def uniform_grid_density_from_nodes(
     if n_kpoints:
         charge /= float(n_kpoints)
     if value_grid is None:
-        density_matrix = bundle.density_selection.values_and_errors_to_tb(
+        density_matrix = bundle.density_coordinates.values_and_errors_to_tb(
             estimate,
-            np.zeros(bundle.density_selection.value_count, dtype=float),
+            np.zeros(bundle.density_coordinates.value_count, dtype=float),
         )[0]
     else:
         grid = value_grid.reshape(
-            bundle.grid_shape + (bundle.density_selection.value_count,)
+            bundle.grid_shape + (bundle.density_coordinates.value_count,)
         )
         density_matrix = _selected_value_grid_to_tb(
-            bundle.density_selection,
+            bundle.density_coordinates,
             grid,
             ndim=len(bundle.grid_shape),
         )
@@ -409,7 +409,7 @@ def solve_uniform_grid_at_mu(
     kT: float,
     keys: list[tuple[int, ...]],
     integration: UniformGrid,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ):
     ndim = tb_dimension(hamiltonian)
     workspace_dtype = workspace_complex_dtype(integration)
@@ -426,7 +426,7 @@ def solve_uniform_grid_at_mu(
             mu=mu,
             kT=kT,
             nk=integration.nk,
-            density_selection=density_selection,
+            density_coordinates=density_coordinates,
             workspace_dtype=workspace_dtype,
         )
     else:
@@ -440,7 +440,7 @@ def solve_uniform_grid_at_mu(
             trace_weights_diag=_uniform_charge_weights(hamiltonian),
             charge_tolerance=integration.density_matrix_tol,
             density_tolerance=integration.density_matrix_tol,
-            density_selection=density_selection,
+            density_coordinates=density_coordinates,
             workspace_dtype=workspace_dtype,
         )
         density_matrix, filling = uniform_grid_density_from_nodes(bundle, mu=mu)

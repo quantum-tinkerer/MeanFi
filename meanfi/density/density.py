@@ -23,7 +23,7 @@ from meanfi.density.results import (
     wrap_density_evaluation,
 )
 from meanfi.results import DensityMatrixResult
-from meanfi.space.density_selection import DensitySelection
+from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type
 
 
@@ -34,14 +34,14 @@ def solve_density_matrix_at_mu(
     kT: float,
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod | None,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> DensityMatrixResult:
     problem = build_normal_problem(
         hamiltonian,
         kT=kT,
         keys=keys,
         integration=integration,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
     )
     plan = build_plan(problem)
     evaluation = evaluate_at_mu(problem, plan, mu)
@@ -59,14 +59,14 @@ def solve_density_matrix_fixed_filling(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float = 0.0,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> DensityMatrixResult:
     problem = build_normal_problem(
         hamiltonian,
         kT=kT,
         keys=keys,
         integration=integration,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
     )
     plan = build_plan(problem)
     evaluation = evaluate_fixed_filling(

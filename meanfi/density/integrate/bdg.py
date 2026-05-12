@@ -46,8 +46,8 @@ from meanfi.density.integrate.normal import (
 from meanfi.density.filling import charge_diagonal, mu_bracket_for_bdg
 from meanfi.density.integrate.workspace import workspace_complex_dtype
 from meanfi.results import DensityMatrixResult, FixedFillingInfo
-from meanfi.space.density_selection import DensitySelection
-from meanfi.space.density_selection import full_density_selection
+from meanfi.space.coordinates import DensityCoordinates
+from meanfi.space.coordinates import full_density_coordinates
 from meanfi.tb.ops import _tb_type, is_sparse_like
 
 
@@ -108,7 +108,7 @@ def _bdg_zero_dim_prepared_node(
     density_tolerance: float,
     filling_indices,
     filling_weights: np.ndarray,
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
     workspace_dtype: np.dtype,
 ):
     if not isinstance(selected_matrix_function, RationalFOE):
@@ -124,7 +124,7 @@ def _bdg_zero_dim_prepared_node(
         q_diag=q_diag,
         options=selected_matrix_function,
         charge_tolerance=filling_tol,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
         density_tolerance=density_tolerance,
         workspace_dtype=workspace_dtype,
         trace_weights_diag=_trace_weights(
@@ -190,7 +190,7 @@ def _bdg_zero_dim_density(
     selected_matrix_function: BdGMatrixFunction,
     integration: IntegrationMethod,
     keys: list[tuple[int, ...]],
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
     prepared_node,
     workspace_dtype: np.dtype,
 ) -> tuple[_tb_type, _tb_type]:
@@ -205,16 +205,16 @@ def _bdg_zero_dim_density(
             tolerance=integration.density_matrix_tol,
             workspace_dtype=workspace_dtype,
         ).block
-        return density_selection.values_and_errors_to_tb(
-            density_selection.values_from_assembled_matrix(density),
-            np.zeros(density_selection.value_count, dtype=float),
+        return density_coordinates.values_and_errors_to_tb(
+            density_coordinates.values_from_assembled_matrix(density),
+            np.zeros(density_coordinates.value_count, dtype=float),
         )
 
     assert prepared_node is not None
     density = prepared_node.density_values_from_charge_order(root.mu)
-    return density_selection.values_and_errors_to_tb(
+    return density_coordinates.values_and_errors_to_tb(
         density,
-        np.zeros(density_selection.value_count, dtype=float),
+        np.zeros(density_coordinates.value_count, dtype=float),
     )
 
 
@@ -260,7 +260,7 @@ def _solve_bdg_zero_dim(
     selected_matrix_function: BdGMatrixFunction,
     filling_indices,
     filling_weights: np.ndarray,
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
 ) -> DensityMatrixResult:
     from meanfi.density.filling import mu_bracket_for_bdg
 
@@ -276,7 +276,7 @@ def _solve_bdg_zero_dim(
         density_tolerance=integration.density_matrix_tol,
         filling_indices=filling_indices,
         filling_weights=filling_weights,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
         workspace_dtype=workspace_dtype,
     )
     evaluate_charge = _bdg_zero_dim_charge_evaluator(
@@ -317,7 +317,7 @@ def _solve_bdg_zero_dim(
         selected_matrix_function=selected_matrix_function,
         integration=integration,
         keys=keys,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
         prepared_node=prepared_node,
         workspace_dtype=workspace_dtype,
     )
@@ -366,7 +366,7 @@ class BdGFixedFillingContext:
     mu_tol: float
     max_charge_evaluations: int | None
     mu_guess: float
-    density_selection: DensitySelection | None
+    density_coordinates: DensityCoordinates | None
     q_diag: np.ndarray
     selected_matrix_function: BdGMatrixFunction
     filling_indices: tuple[int, ...]
@@ -380,7 +380,7 @@ def build_bdg_problem(
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod,
     filling_tol: float | None,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> BdGFixedFillingContext:
     """Normalize a BdG fixed-filling problem before executor selection."""
 
@@ -407,7 +407,7 @@ def build_bdg_problem(
         mu_tol=0.0,
         max_charge_evaluations=None,
         mu_guess=0.0,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
         q_diag=q_diag,
         selected_matrix_function=selected_matrix_function,
         filling_indices=filling_indices,
@@ -422,10 +422,10 @@ def _solve_bdg_uniform_grid_fixed_filling(
     assert isinstance(integration, UniformGrid)
     model = context.model
     workspace_dtype = workspace_complex_dtype(integration)
-    resolved_density_selection = (
-        context.density_selection
-        if context.density_selection is not None
-        else full_density_selection(context.keys, size=2 * model._ndof)
+    resolved_density_coordinates = (
+        context.density_coordinates
+        if context.density_coordinates is not None
+        else full_density_coordinates(context.keys, size=2 * model._ndof)
     )
     bundle = build_uniform_grid_node_bundle(
         context.hamiltonian,
@@ -439,7 +439,7 @@ def _solve_bdg_uniform_grid_fixed_filling(
         ),
         charge_tolerance=context.filling_tol,
         density_tolerance=integration.density_matrix_tol,
-        density_selection=resolved_density_selection,
+        density_coordinates=resolved_density_coordinates,
         workspace_dtype=workspace_dtype,
     )
     density_matrix, mu, resolved_filling, info = _uniform_fixed_filling_from_nodes(
@@ -489,7 +489,7 @@ def _solve_bdg_adaptive_quadrature_fixed_filling(
         filling_weights=context.filling_weights,
         tolerance=integration.density_matrix_tol,
         charge_tolerance=context.filling_tol,
-        density_selection=context.density_selection,
+        density_coordinates=context.density_coordinates,
         workspace_dtype=workspace_complex_dtype(integration),
     )
     density_matrix, density_matrix_error, raw_info = _solve_quadrature_fixed_filling(
@@ -530,7 +530,7 @@ def solve_bdg_density_fixed_filling(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> DensityMatrixResult:
     if mu_tol <= 0:
         raise ValueError("mu_tol must be positive")
@@ -543,7 +543,7 @@ def solve_bdg_density_fixed_filling(
         keys=keys,
         integration=integration,
         filling_tol=filling_tol,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
     )
     context = BdGFixedFillingContext(
         **{
@@ -555,9 +555,9 @@ def solve_bdg_density_fixed_filling(
     )
 
     if model._ndim == 0:
-        density_selection = context.density_selection
-        if density_selection is None:
-            density_selection = full_density_selection(
+        density_coordinates = context.density_coordinates
+        if density_coordinates is None:
+            density_coordinates = full_density_coordinates(
                 context.keys,
                 size=2 * model._ndof,
             )
@@ -575,7 +575,7 @@ def solve_bdg_density_fixed_filling(
             selected_matrix_function=context.selected_matrix_function,
             filling_indices=context.filling_indices,
             filling_weights=context.filling_weights,
-            density_selection=density_selection,
+            density_coordinates=density_coordinates,
         )
 
     if isinstance(context.integration, UniformGrid):

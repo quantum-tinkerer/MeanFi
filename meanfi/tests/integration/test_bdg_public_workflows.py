@@ -170,17 +170,26 @@ def test_zero_temperature_bdg_supports_explicit_uniform_grid():
 
 def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():
     model = Model(
-        {(0,): np.array([[0.0]], dtype=complex)},
-        {(0,): np.array([[0.0]], dtype=complex)},
-        filling=0.5,
+        {(0,): np.zeros((2, 2), dtype=complex)},
+        {(0,): np.zeros((2, 2), dtype=complex)},
+        filling=1.0,
         kT=0.2,
         superconducting=True,
     )
+    anomalous = np.array([[0.0, 0.3], [-0.3, 0.0]], dtype=complex)
+    guess = {
+        (0,): np.block(
+            [
+                [np.zeros((2, 2), dtype=complex), anomalous],
+                [anomalous.conj().T, np.zeros((2, 2), dtype=complex)],
+            ]
+        )
+    }
 
     with pytest.warns(UserWarning, match="projected away"):
         result = solver(
             model,
-            {(0,): np.array([[0.0, 0.3], [0.3, 0.0]], dtype=complex)},
+            guess,
             integration=AdaptiveQuadrature(density_matrix_tol=1e-2),
             scf=LinearMixing(max_iterations=1),
             scf_tol=1e-8,

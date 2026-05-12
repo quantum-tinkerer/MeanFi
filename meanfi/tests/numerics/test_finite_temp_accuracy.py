@@ -16,8 +16,7 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.space.hermitian import selected_hermitian_tb_to_real_params
-from meanfi.space.interaction_selection import normal_density_selection
+from meanfi.space import ActiveDensitySpace
 import meanfi.density.kpoint.matrix_functions.rational as rational_matrix_functions
 import meanfi.density.integrate.normal as normal_integration
 import meanfi.density.integrate.quadrature.runtime as quadrature_runtime
@@ -238,14 +237,7 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     model_dense = Model(dense_h0, dense_hint, filling=1.0, kT=0.15)
     model_sparse = Model(sparse_h0, sparse_hint, filling=1.0, kT=0.15)
 
-    selection = normal_density_selection(
-        keys=[(0,)],
-        interaction_tb=dense_hint,
-        ndof=2,
-        local_key=(0,),
-        allow_empty=True,
-    )
-    assert selection is not None
+    space = ActiveDensitySpace.normal(model_sparse)
 
     dense_result = _evaluate_density_for_hamiltonian(
         model_dense,
@@ -256,7 +248,7 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
         mu_tol=1e-8,
         max_charge_evaluations=None,
         mu_guess=0.0,
-        density_selection=None,
+        density_coordinates=None,
     )
     sparse_result = _evaluate_density_for_hamiltonian(
         model_sparse,
@@ -267,20 +259,14 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
         mu_tol=1e-8,
         max_charge_evaluations=None,
         mu_guess=0.0,
-        density_selection=selection,
+        density_coordinates=space.required_coordinates,
     )
 
     assert abs(dense_result.mu - sparse_result.mu) <= 5e-4
     assert abs(dense_result.filling - sparse_result.filling) <= 5e-4
     np.testing.assert_allclose(
-        selected_hermitian_tb_to_real_params(
-            dense_result.density_matrix,
-            selection,
-        ),
-        selected_hermitian_tb_to_real_params(
-            sparse_result.density_matrix,
-            selection,
-        ),
+        space.compress(dense_result.density_matrix),
+        space.compress(sparse_result.density_matrix),
         atol=5e-4,
     )
 
@@ -477,21 +463,21 @@ def test_sparse_aaa_arrowhead_poles_match_barycentric_form():
 def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
     shared_cache = []
     matrix = sparse.csr_matrix(np.array([[0.2, -1.0], [-1.0, -0.1]], dtype=complex))
-    selection = normal_density_selection(
-        keys=[(0,)],
-        interaction_tb={(0,): np.ones((2, 2), dtype=complex)},
-        ndof=2,
-        local_key=(0,),
-        allow_empty=True,
+    space = ActiveDensitySpace.normal(
+        Model(
+            {(0,): np.asarray(matrix.toarray(), dtype=complex)},
+            {(0,): np.ones((2, 2), dtype=complex)},
+            filling=1.0,
+            kT=0.15,
+        )
     )
-    assert selection is not None
     node = rational_matrix_functions.PreparedMumpsRationalNode(
         matrix,
         kT=0.15,
         q_diag=np.ones(2, dtype=float),
         options=RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"),
         charge_tolerance=1e-2,
-        density_selection=selection,
+        density_coordinates=space.required_coordinates,
         density_tolerance=1e-2,
         trace_weights_diag=np.ones(2, dtype=float),
         shared_aaa_interval_cache=shared_cache,

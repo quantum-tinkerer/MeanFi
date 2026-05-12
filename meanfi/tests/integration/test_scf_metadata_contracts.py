@@ -104,26 +104,23 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
 
     class FakeSpace:
         interaction_keys = [(0,)]
+        onsite = (0,)
 
         def __init__(self, model):
             self.model = model
 
-        def project_guess(self, guess):
+        def project(self, guess):
             return guess
 
-        def density_selection_for(self, hamiltonian):
+        def required_density_coordinates_for(self, hamiltonian):
             del hamiltonian
             return None
 
-        def params_from_density(self, rho):
+        def compress(self, rho):
             return np.asarray(rho[(0,)], dtype=float)
 
-        def density_from_params(self, params):
+        def expand(self, params):
             return {(0,): np.asarray(params, dtype=float)}
-
-        def meanfield_from_density(self, rho, *, mu=0.0):
-            del rho, mu
-            return {}
 
     def fake_density_for_hamiltonian(
         model,
@@ -135,7 +132,7 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
         mu_tol,
         max_charge_evaluations,
         mu_guess,
-        density_selection,
+        density_coordinates,
     ):
         del (
             keys,
@@ -144,12 +141,12 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
             mu_tol,
             max_charge_evaluations,
             mu_guess,
-            density_selection,
+            density_coordinates,
         )
         return fake_result(hamiltonian, model.step)
 
     monkeypatch.setattr(
-        normal_scf.MeanFieldDensitySpace,
+        normal_scf.ActiveDensitySpace,
         "normal",
         lambda model: FakeSpace(model),
     )
@@ -157,6 +154,11 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
         normal_scf,
         "_density_update_for_normal_hamiltonian",
         fake_density_for_hamiltonian,
+    )
+    monkeypatch.setattr(
+        normal_scf,
+        "_meanfield_from_active_density",
+        lambda *args, **kwargs: {},
     )
 
     info_short = scf_pipeline.solver(

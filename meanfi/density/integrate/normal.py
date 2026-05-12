@@ -61,7 +61,7 @@ from meanfi.density.kpoint.zero_dim import (
 )
 from meanfi.density.integrate.workspace import workspace_complex_dtype
 from meanfi.results import FixedFillingInfo
-from meanfi.space.density_selection import DensitySelection
+from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type, is_sparse_like, to_dense
 from meanfi.tb.transforms import tb_to_kgrid
 from meanfi.tb.validate import (
@@ -112,7 +112,7 @@ def _normal_zero_dim_fixed_filling(
     max_charge_evaluations: int | None,
     density_atol: float,
     density_rtol: float,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
     matrix_function: object | None = None,
     workspace_dtype: np.dtype = np.dtype(complex),
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
@@ -131,7 +131,7 @@ def _normal_zero_dim_fixed_filling(
         )
         occupation = fermi_dirac(eigenvalues, kT, mu)
         density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-        rho, error = density_from_matrix(density, keys, density_selection)
+        rho, error = density_from_matrix(density, keys, density_coordinates)
         info = FixedFillingInfo(
             mu=mu,
             charge=charge,
@@ -187,7 +187,7 @@ def _normal_zero_dim_fixed_filling(
 
     occupation = fermi_dirac(eigenvalues, kT, root.mu)
     density = eigenvectors * occupation[np.newaxis, :] @ eigenvectors.conj().T
-    rho, error = density_from_matrix(density, keys, density_selection)
+    rho, error = density_from_matrix(density, keys, density_coordinates)
 
     charge_integral_atol, _ = charge_integral_tolerance(charge_tol)
     info = FixedFillingInfo(
@@ -232,7 +232,7 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
             mu=mu,
             kT=context.kT,
             keys=context.solve_keys,
-            density_selection=None,
+            density_coordinates=None,
             matrix_function=getattr(integration, "matrix_function", None),
             workspace_dtype=workspace_complex_dtype(integration),
             density_tolerance=integration.density_matrix_tol,
@@ -243,7 +243,7 @@ def _adaptive_quadrature_at_mu(context: DispatchContext, mu: float):
             integration=integration,
             keys=context.solve_keys,
             kT=context.kT,
-            density_selection=context.density_selection,
+            density_coordinates=context.density_coordinates,
         )
         density_matrix, density_matrix_error, raw_info = solve_quadrature_at_mu(
             backend,
@@ -402,7 +402,7 @@ def _adaptive_quadrature_fixed_filling(
                 max_charge_evaluations=max_charge_evaluations,
                 density_atol=integration.density_matrix_tol,
                 density_rtol=0.0,
-                density_selection=None,
+                density_coordinates=None,
                 matrix_function=getattr(integration, "matrix_function", None),
                 workspace_dtype=workspace_complex_dtype(integration),
             )
@@ -414,7 +414,7 @@ def _adaptive_quadrature_fixed_filling(
             keys=context.solve_keys,
             kT=context.kT,
             fixed_filling_tolerance=resolved_filling_tol,
-            density_selection=context.density_selection,
+            density_coordinates=context.density_coordinates,
         )
         density_matrix, density_matrix_error, raw_info = (
             _solve_quadrature_fixed_filling(
@@ -624,7 +624,7 @@ def _uniform_grid_at_mu(context: DispatchContext, mu: float):
             kT=context.kT,
             keys=context.solve_keys,
             integration=integration,
-            density_selection=context.density_selection,
+            density_coordinates=context.density_coordinates,
         ),
         keys=context.requested_keys,
     )
@@ -680,7 +680,7 @@ def _uniform_grid_fixed_filling(
                 trace_weights_diag=_uniform_charge_weights(hamiltonian),
                 charge_tolerance=integration.density_matrix_tol,
                 density_tolerance=integration.density_matrix_tol,
-                density_selection=context.density_selection,
+                density_coordinates=context.density_coordinates,
                 workspace_dtype=workspace_dtype,
             )
             density_matrix, resolved_filling = uniform_grid_density_from_nodes(
@@ -692,7 +692,7 @@ def _uniform_grid_fixed_filling(
                 mu=mu,
                 kT=0.0,
                 nk=integration.nk,
-                density_selection=context.density_selection,
+                density_coordinates=context.density_coordinates,
                 workspace_dtype=workspace_dtype,
             )
         return retarget_result_keys(
@@ -731,7 +731,7 @@ def _uniform_grid_fixed_filling(
         trace_weights_diag=_uniform_charge_weights(hamiltonian),
         charge_tolerance=resolved_filling_tol,
         density_tolerance=integration.density_matrix_tol,
-        density_selection=context.density_selection,
+        density_coordinates=context.density_coordinates,
         workspace_dtype=workspace_dtype,
     )
     density_matrix, mu, resolved_filling, info = _uniform_fixed_filling_from_nodes(

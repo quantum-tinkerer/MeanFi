@@ -34,7 +34,7 @@ class SCFProblem:
     runtime: SolverRuntime
     project_guess: Callable[[_tb_type], _tb_type]
     evaluate_projected_guess: Callable[[_tb_type], DensityMatrixResult]
-    params_from_density_result: Callable[[DensityMatrixResult], np.ndarray]
+    compress_density: Callable[[_tb_type], np.ndarray]
     density_result_from_params: Callable[[np.ndarray, float], DensityMatrixResult]
     finalize_meanfield: Callable[[DensityMatrixResult], _tb_type]
 
@@ -56,7 +56,7 @@ def iterate_density_fixed_point(
     params0: np.ndarray,
     *,
     density_result_from_params: Callable[[np.ndarray, float], DensityMatrixResult],
-    params_from_density_result: Callable[[DensityMatrixResult], np.ndarray],
+    compress_density: Callable[[_tb_type], np.ndarray],
     scf: SCFMethod,
     scf_tol: float,
     state: SCFRunState | None = None,
@@ -66,7 +66,7 @@ def iterate_density_fixed_point(
     def residual_fn(params: np.ndarray) -> np.ndarray:
         density_result = density_result_from_params(params, run_state.mu)
         record_density_result(run_state, density_result)
-        updated = np.asarray(params_from_density_result(density_result), dtype=float)
+        updated = np.asarray(compress_density(density_result.density_matrix), dtype=float)
         residual = updated - np.asarray(params, dtype=float)
         run_state.residual_norm = max_norm(residual)
         return residual
@@ -85,7 +85,7 @@ def iterate_density_fixed_point(
     final_density_result = density_result_from_params(result_params, run_state.mu)
     residual_norm = max_norm(
         np.asarray(
-            params_from_density_result(final_density_result)
+            compress_density(final_density_result.density_matrix)
             - np.asarray(result_params, dtype=float),
             dtype=float,
         )
@@ -111,7 +111,7 @@ def run_scf_loop(
     projected_guess = problem.project_guess(guess)
     initial_density_result = problem.evaluate_projected_guess(projected_guess)
     params0 = np.asarray(
-        problem.params_from_density_result(initial_density_result),
+        problem.compress_density(initial_density_result.density_matrix),
         dtype=float,
     )
 
@@ -121,7 +121,7 @@ def run_scf_loop(
     run = iterate_density_fixed_point(
         params0,
         density_result_from_params=problem.density_result_from_params,
-        params_from_density_result=problem.params_from_density_result,
+        compress_density=problem.compress_density,
         scf=scf,
         scf_tol=scf_tol,
         state=state,

@@ -23,6 +23,7 @@ class Model:
         *,
         kT: float = 0.0,
         superconducting: bool = False,
+        spatial_symmetries=(),
     ) -> None:
         validate_tb_dict(h_0)
         validate_tb_dict(h_int)
@@ -39,6 +40,7 @@ class Model:
         self.filling = float(filling)
         self.kT = float(kT)
         self.superconducting = bool(superconducting)
+        self.spatial_symmetries = tuple(spatial_symmetries)
 
         self._ndim = tb_dimension(h_0)
         self._ndof = tb_orbital_count(h_0)

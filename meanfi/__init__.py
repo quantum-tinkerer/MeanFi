@@ -39,6 +39,7 @@ from .observables import expectation_value
 from .scf.engine import NoConvergence
 from .scf.methods import AndersonMixing, LinearMixing, SCFMethod
 from .scf.scf import solver
+from .space import SpatialSymmetry
 from .tb.tb import (
     add_tb,
     fermi_energy,
@@ -119,6 +120,7 @@ __all__ = [
     "SCFInfo",
     "SCFMethod",
     "SolverResult",
+    "SpatialSymmetry",
     "UniformGrid",
     "UniformGridInfo",
     "__version__",

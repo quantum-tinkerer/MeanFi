@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import scipy.sparse.linalg as sparse_linalg
 
-from meanfi.space.density_selection import DensitySelection
+from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import as_sparse, is_sparse_like
 
 from ..base import RationalFOE, _BlockResult
@@ -19,10 +19,10 @@ from ..mumps_backend import SelectedInversePattern, build_selected_inverse_patte
 
 
 def _selection_requested_pairs(
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
 ) -> tuple[np.ndarray, np.ndarray]:
-    stacked_rows = density_selection.all_rows
-    stacked_cols = density_selection.all_cols
+    stacked_rows = density_coordinates.all_rows
+    stacked_cols = density_coordinates.all_cols
     if stacked_rows.size == 0:
         return stacked_rows, stacked_cols
     pairs = np.unique(np.stack([stacked_rows, stacked_cols], axis=1), axis=0)
@@ -104,11 +104,11 @@ def build_sparse_charge_pattern(trace_weights_diag: np.ndarray) -> SparseChargeP
 def build_sparse_density_pattern(
     *,
     size: int,
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
 ) -> SparseDensityPattern:
-    unique_rows, unique_cols = _selection_requested_pairs(density_selection)
-    requested_rows = density_selection.all_rows
-    requested_cols = density_selection.all_cols
+    unique_rows, unique_cols = _selection_requested_pairs(density_coordinates)
+    requested_rows = density_coordinates.all_rows
+    requested_cols = density_coordinates.all_cols
     reverse_rows = unique_cols
     reverse_cols = unique_rows
     pattern = build_selected_inverse_pattern(

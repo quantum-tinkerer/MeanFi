@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from meanfi.space.density_selection import DensitySelection
+from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import as_sparse, is_sparse_like
 
 from ..base import RationalFOE
@@ -40,7 +40,7 @@ class PreparedMumpsRationalNode:
         q_diag: np.ndarray,
         options: RationalFOE,
         charge_tolerance: float,
-        density_selection: DensitySelection,
+        density_coordinates: DensityCoordinates,
         density_tolerance: float,
         workspace_dtype: np.dtype = np.dtype(complex),
         trace_weights_diag: np.ndarray | None = None,
@@ -66,11 +66,11 @@ class PreparedMumpsRationalNode:
             if trace_weights_diag is None
             else np.asarray(trace_weights_diag, dtype=float)
         )
-        self._density_selection = density_selection
+        self._density_coordinates = density_coordinates
         self._charge_pattern = build_sparse_charge_pattern(self._trace_weights)
         self._density_pattern = build_sparse_density_pattern(
             size=self.size,
-            density_selection=density_selection,
+            density_coordinates=density_coordinates,
         )
         density_extra_positions = np.asarray(
             [

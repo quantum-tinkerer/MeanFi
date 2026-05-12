@@ -81,6 +81,10 @@ def validate_bdg_tb(
             raise ValueError(
                 f"{name} lower-left block must equal Delta(-R).dagger in electron-first BdG form"
             )
+        if not matrix_allclose(anomalous, -transpose(opposite_anomalous)):
+            raise ValueError(
+                f"{name} anomalous block must satisfy Delta(R) = -Delta(-R).T"
+            )
 
 
 def zero_bdg_array(ndof: int) -> np.ndarray:

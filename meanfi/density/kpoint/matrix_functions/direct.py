@@ -6,7 +6,7 @@ import numpy as np
 
 from meanfi.tb.ops import to_dense
 from meanfi.density.kpoint.occupations import fermi_dirac
-from meanfi.space.density_selection import DensitySelection
+from meanfi.space.coordinates import DensityCoordinates
 
 from .base import _BlockResult
 
@@ -54,29 +54,31 @@ def _exact_density_block(
 def selected_density_values_from_eigensystem(
     eigenvectors: np.ndarray,
     occupation: np.ndarray,
-    selection: DensitySelection,
+    coords: DensityCoordinates,
     *,
     phases: np.ndarray | None = None,
 ) -> np.ndarray:
     """Compute selected density values directly from eigenvectors.
 
-    The returned vector follows ``selection.key_selections`` order and never forms
+    The returned vector follows ``coords.iter_key_coordinates()`` order and never forms
     selected columns as an intermediate representation.
     """
 
     values = np.empty(
-        np.shape(eigenvectors)[:-2] + (selection.value_count,),
+        np.shape(eigenvectors)[:-2] + (coords.value_count,),
         dtype=complex,
     )
-    for group_index, group in enumerate(selection.key_selections):
+    for group_index, (_key, rows, cols, value_slice) in enumerate(
+        coords.iter_key_coordinates()
+    ):
         selected = np.einsum(
             "...pa,...a,...pa->...p",
-            eigenvectors[..., group.rows, :],
+            eigenvectors[..., rows, :],
             occupation,
-            eigenvectors[..., group.cols, :].conj(),
+            eigenvectors[..., cols, :].conj(),
             optimize=True,
         )
         if phases is not None:
             selected = selected * phases[..., group_index, np.newaxis]
-        values[..., group.value_slice] = selected
+        values[..., value_slice] = selected
     return values

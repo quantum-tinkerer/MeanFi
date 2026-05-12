@@ -8,8 +8,8 @@ import warnings
 from meanfi.results import DensityIntegrationInfo
 from meanfi.tb.validate import tb_dimension
 from meanfi.tb.ops import is_sparse_like
-from meanfi.space.density_selection import DensitySelection
-from meanfi.space.density_selection import full_density_selection
+from meanfi.space.coordinates import DensityCoordinates
+from meanfi.space.coordinates import full_density_coordinates
 from meanfi.density.kpoint.matrix_functions import (
     BdGMatrixFunction,
     DirectDiagonalization,
@@ -111,12 +111,12 @@ def _density_evaluator(
     tolerance: float,
     keys: list[tuple[int, ...]],
     matrix_from_payload,
-    density_selection: DensitySelection | None,
+    density_coordinates: DensityCoordinates | None,
     workspace_dtype: np.dtype,
 ):
     prefactor = quadrature_prefactor(ndim)
     keys_array = np.asarray(
-        density_selection.keys if density_selection is not None else keys,
+        density_coordinates.keys if density_coordinates is not None else keys,
         dtype=float,
     )
     size = q_diag.size
@@ -124,8 +124,8 @@ def _density_evaluator(
 
     def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
         value_count = (
-            density_selection.value_count
-            if density_selection is not None
+            density_coordinates.value_count
+            if density_coordinates is not None
             else size * size * len(keys)
         )
         values = np.empty((points.shape[0], value_count), dtype=complex)
@@ -147,12 +147,12 @@ def _density_evaluator(
                 workspace_dtype=workspace_dtype,
             )
             phase = np.exp(1j * np.dot(point, keys_array.T))
-            if density_selection is None:
+            if density_coordinates is None:
                 values[index] = (
                     result.block[..., np.newaxis] * phase[np.newaxis, np.newaxis, :]
                 ).reshape(-1)
             else:
-                values[index] = density_selection.values_from_assembled_matrix(
+                values[index] = density_coordinates.values_from_assembled_matrix(
                     result.block,
                     phases=phase,
                 )
@@ -188,7 +188,7 @@ def _prepared_payload_builder(
     density_tolerance: float,
     matrix_from_payload,
     workspace_dtype: np.dtype,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ):
     shared_aaa_interval_cache = []
 
@@ -199,7 +199,7 @@ def _prepared_payload_builder(
             matrix = matrix_from_payload(payload_row)
             if isinstance(matrix_function, RationalFOE):
                 if is_sparse_like(matrix):
-                    if density_selection is None:
+                    if density_coordinates is None:
                         raise ValueError(
                             "Sparse MUMPS-backed BdG RationalFOE requires a density selection"
                         )
@@ -210,7 +210,7 @@ def _prepared_payload_builder(
                             q_diag=q_diag,
                             options=matrix_function,
                             charge_tolerance=charge_tolerance,
-                            density_selection=density_selection,
+                            density_coordinates=density_coordinates,
                             density_tolerance=density_tolerance,
                             workspace_dtype=workspace_dtype,
                             trace_weights_diag=filling_weights,
@@ -241,7 +241,7 @@ def build_bdg_backend(
     filling_weights: np.ndarray,
     tolerance: float,
     charge_tolerance: float,
-    density_selection: DensitySelection | None,
+    density_coordinates: DensityCoordinates | None,
     workspace_dtype: np.dtype,
 ) -> QuadratureBackend:
     ndim = tb_dimension(hamiltonian)
@@ -249,10 +249,10 @@ def build_bdg_backend(
     use_sparse_mumps = isinstance(matrix_function, RationalFOE) and any(
         is_sparse_like(matrix) for matrix in hamiltonian.values()
     )
-    mumps_density_selection = (
-        full_density_selection(keys, size=q_diag.size)
-        if use_sparse_mumps and density_selection is None
-        else density_selection
+    mumps_density_coordinates = (
+        full_density_coordinates(keys, size=q_diag.size)
+        if use_sparse_mumps and density_coordinates is None
+        else density_coordinates
     )
 
     def density_info_builder(result) -> DensityIntegrationInfo:
@@ -278,10 +278,10 @@ def build_bdg_backend(
         tolerance=tolerance,
         keys=keys,
         matrix_from_payload=matrix_from_payload,
-        density_selection=(
+        density_coordinates=(
             None
             if isinstance(matrix_function, DirectDiagonalization)
-            else density_selection
+            else density_coordinates
         ),
         workspace_dtype=workspace_dtype,
     )
@@ -302,7 +302,7 @@ def build_bdg_backend(
             density_tolerance=tolerance,
             matrix_from_payload=matrix_from_payload,
             workspace_dtype=workspace_dtype,
-            density_selection=mumps_density_selection if use_sparse_mumps else None,
+            density_coordinates=mumps_density_coordinates if use_sparse_mumps else None,
         )
         use_charge_only = use_sparse_mumps or (
             isinstance(matrix_function, RationalFOE)
@@ -316,9 +316,9 @@ def build_bdg_backend(
         density_evaluator = (
             prepared_selected_frozen_density_evaluator(
                 ndim,
-                mumps_density_selection if use_sparse_mumps else density_selection,
+                mumps_density_coordinates if use_sparse_mumps else density_coordinates,
             )
-            if (mumps_density_selection if use_sparse_mumps else density_selection)
+            if (mumps_density_coordinates if use_sparse_mumps else density_coordinates)
             is not None
             else prepared_frozen_density_evaluator(ndim, keys)
         )
@@ -335,10 +335,10 @@ def build_bdg_backend(
         split_density_result=(
             (
                 lambda estimate, error: (
-                    mumps_density_selection if use_sparse_mumps else density_selection
+                    mumps_density_coordinates if use_sparse_mumps else density_coordinates
                 ).values_and_errors_to_tb(estimate, error)
             )
-            if (mumps_density_selection if use_sparse_mumps else density_selection)
+            if (mumps_density_coordinates if use_sparse_mumps else density_coordinates)
             is not None
             and not isinstance(matrix_function, DirectDiagonalization)
             else lambda estimate, error: split_density_result(

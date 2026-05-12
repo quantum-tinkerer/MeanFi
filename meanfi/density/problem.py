@@ -12,7 +12,7 @@ from meanfi.density.integrate.common import (
 from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.results import DensityMatrixResult
-from meanfi.space.density_selection import DensitySelection
+from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type
 
 
@@ -26,7 +26,7 @@ class DensityProblem:
     integration: IntegrationMethod
     requested_keys: list[tuple[int, ...]]
     solve_keys: list[tuple[int, ...]]
-    density_selection: DensitySelection | None = None
+    density_coordinates: DensityCoordinates | None = None
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ def build_normal_problem(
     kT: float,
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod | None,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> DensityProblem:
     """Normalize public normal-density inputs into one pipeline problem."""
 
@@ -71,7 +71,7 @@ def build_normal_problem(
         integration=selected_integration,
         requested_keys=requested_keys,
         solve_keys=working_keys,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
     )
 
 

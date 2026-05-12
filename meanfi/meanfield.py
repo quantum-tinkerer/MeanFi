@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sparse
 
-from meanfi.tb.bdg import assemble_bdg_tb
+from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import (
     _tb_type,
     add_tb,
@@ -67,22 +67,50 @@ def assemble_bdg_correction(
     anomalous_block: _tb_type,
     model,
 ) -> _tb_type:
-    return assemble_bdg_tb(normal_block, anomalous_block, ndof=model._ndof)
+    correction = assemble_bdg_tb(normal_block, anomalous_block, ndof=model._ndof)
+    validate_bdg_tb(
+        correction,
+        ndof=model._ndof,
+        ndim=model._ndim,
+        name="BdG correction",
+    )
+    return correction
+
+
+def bdg_correction_from_density_parts(
+    density_matrix: _tb_type,
+    *,
+    h_int: _tb_type,
+    ndof: int,
+    ndim: int,
+) -> _tb_type:
+    electron_density = {
+        key: matrix[:ndof, :ndof] for key, matrix in density_matrix.items()
+    }
+    anomalous_density = {
+        key: matrix[:ndof, ndof:] for key, matrix in density_matrix.items()
+    }
+    normal_block = meanfield(electron_density, h_int)
+    zero_e = np.zeros((ndof, ndof), dtype=complex)
+    anomalous_block = {
+        key: -elementwise_product(
+            h_int.get(key, zero_e),
+            anomalous_density.get(key, zero_e),
+        )
+        for key in frozenset(h_int) | frozenset(anomalous_density)
+    }
+    correction = assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
+    validate_bdg_tb(correction, ndof=ndof, ndim=ndim, name="BdG correction")
+    return correction
 
 
 def bdg_correction_from_density(density_matrix: _tb_type, model) -> _tb_type:
-    electron_density = extract_electron_density(density_matrix, model)
-    anomalous_density = extract_anomalous_density(density_matrix, model)
-    normal_block = meanfield(electron_density, model.h_int)
-    zero_e = zero_electron_matrix(model)
-    anomalous_block = {
-        key: -elementwise_product(
-            model.h_int.get(key, zero_e),
-            anomalous_density.get(key, zero_e),
-        )
-        for key in frozenset(model.h_int) | frozenset(anomalous_density)
-    }
-    return assemble_bdg_correction(normal_block, anomalous_block, model)
+    return bdg_correction_from_density_parts(
+        density_matrix,
+        h_int=model.h_int,
+        ndof=model._ndof,
+        ndim=model._ndim,
+    )
 
 
 def bdg_density_keys(model, meanfield_correction: _tb_type) -> list[tuple[int, ...]]:

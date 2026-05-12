@@ -4,6 +4,7 @@ import numpy as np
 
 from meanfi.density.density import solve_density_matrix_fixed_filling
 from meanfi.density.integrate.methods import IntegrationMethod
+from meanfi.meanfield import meanfield
 from meanfi.model import Model
 from meanfi.results import DensityMatrixResult
 from meanfi.scf.engine import (
@@ -11,8 +12,9 @@ from meanfi.scf.engine import (
     SolverRuntime,
     warn_on_projection,
 )
-from meanfi.space import MeanFieldDensitySpace
+from meanfi.space import ActiveDensitySpace
 from meanfi.tb.ops import _tb_type
+from meanfi.tb.storage import match_tb_storage, prefers_sparse_storage
 
 
 def _density_update_for_normal_hamiltonian(
@@ -25,7 +27,7 @@ def _density_update_for_normal_hamiltonian(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
-    density_selection=None,
+    density_coordinates=None,
 ) -> DensityMatrixResult:
     return solve_density_matrix_fixed_filling(
         hamiltonian,
@@ -37,18 +39,26 @@ def _density_update_for_normal_hamiltonian(
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
-        density_selection=density_selection,
+        density_coordinates=density_coordinates,
     )
 
 
 def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     """Build the normal-state map consumed by the generic SCF engine."""
 
-    space = MeanFieldDensitySpace.normal(model)
+    space = ActiveDensitySpace.normal(model)
     keys = space.interaction_keys
 
     def project_guess(guess: _tb_type) -> _tb_type:
-        projected = space.project_guess(guess)
+        projected = space.project(guess)
+        projected = match_tb_storage(
+            projected,
+            like_sparse=prefers_sparse_storage(
+                getattr(model, "h_0", None),
+                model.h_int,
+                guess,
+            ),
+        )
         warn_on_projection(guess, projected, label="Normal SCF guess")
         return projected
 
@@ -65,7 +75,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
             max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
         )
-        kwargs["density_selection"] = space.density_selection_for(hamiltonian)
+        kwargs["density_coordinates"] = space.required_density_coordinates_for(hamiltonian)
         return _density_update_for_normal_hamiltonian(model, hamiltonian, **kwargs)
 
     def evaluate_projected_guess(projected_guess: _tb_type) -> DensityMatrixResult:
@@ -74,20 +84,20 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
             mu_guess=0.0,
         )
 
-    def params_from_density_result(density_result: DensityMatrixResult) -> np.ndarray:
-        return space.params_from_density(density_result.density_matrix)
-
     def density_result_from_params(
         params: np.ndarray, mu_guess: float
     ) -> DensityMatrixResult:
         return evaluate_hamiltonian(
-            model.hamiltonian_from_rho(space.density_from_params(params)),
+            model.hamiltonian_from_rho(space.expand(params)),
             mu_guess=mu_guess,
         )
 
     def finalize_meanfield(density_result: DensityMatrixResult) -> _tb_type:
-        return space.meanfield_from_density(
-            density_result.density_matrix,
+        return _meanfield_from_active_density(
+            space.project(density_result.density_matrix),
+            model=model,
+            interaction_keys=space.interaction_keys,
+            onsite=space.onsite,
             mu=density_result.mu,
         )
 
@@ -95,7 +105,27 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         runtime=runtime,
         project_guess=project_guess,
         evaluate_projected_guess=evaluate_projected_guess,
-        params_from_density_result=params_from_density_result,
+        compress_density=space.compress,
         density_result_from_params=density_result_from_params,
         finalize_meanfield=finalize_meanfield,
     )
+
+
+def _meanfield_from_active_density(
+    active_density: _tb_type,
+    *,
+    model: Model,
+    interaction_keys: list[tuple[int, ...]],
+    onsite: tuple[int, ...],
+    mu: float,
+) -> _tb_type:
+    zero = np.zeros((model._ndof, model._ndof), dtype=complex)
+    density_reduced = {
+        key: active_density.get(key, zero) for key in interaction_keys
+    }
+    result = dict(meanfield(density_reduced, model.h_int))
+    result[onsite] = result.get(
+        onsite,
+        np.zeros((model._ndof, model._ndof), dtype=complex),
+    ) - float(mu) * np.eye(model._ndof)
+    return result

@@ -9,8 +9,8 @@ from meanfi.tb.ops import is_sparse_like
 from meanfi.results import DensityIntegrationInfo
 from meanfi.tb.validate import tb_dimension, tb_orbital_count
 from meanfi.density.integrate.workspace import workspace_complex_dtype
-from meanfi.space.density_selection import DensitySelection
-from meanfi.space.density_selection import full_density_selection
+from meanfi.space.coordinates import DensityCoordinates
+from meanfi.space.coordinates import full_density_coordinates
 from meanfi.density.kpoint.matrix_functions import (
     DirectDiagonalization,
     RationalFOE,
@@ -120,10 +120,10 @@ def selected_density_evaluator(
     ndim: int,
     ndof: int,
     kT: float,
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
 ):
     prefactor = quadrature_prefactor(ndim)
-    keys_array = np.asarray(density_selection.keys, dtype=float)
+    keys_array = np.asarray(density_coordinates.keys, dtype=float)
 
     def evaluator(points: np.ndarray, payload: np.ndarray, mu: float) -> np.ndarray:
         eigenvalues = payload[:, :ndof].real
@@ -133,7 +133,7 @@ def selected_density_evaluator(
         values = selected_density_values_from_eigensystem(
             eigenvectors,
             occupation,
-            density_selection,
+            density_coordinates,
             phases=phase,
         )
         return prefactor * values
@@ -148,7 +148,7 @@ def prepared_mumps_rational_payload_builder(
     kT: float,
     charge_tolerance: float,
     density_tolerance: float,
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
     workspace_dtype: np.dtype,
     q_diag: np.ndarray,
     trace_weights_diag: np.ndarray,
@@ -167,7 +167,7 @@ def prepared_mumps_rational_payload_builder(
                     q_diag=q_diag,
                     options=matrix_function,
                     charge_tolerance=charge_tolerance,
-                    density_selection=density_selection,
+                    density_coordinates=density_coordinates,
                     density_tolerance=density_tolerance,
                     workspace_dtype=workspace_dtype,
                     trace_weights_diag=trace_weights_diag,
@@ -255,19 +255,19 @@ def prepared_frozen_density_evaluator(ndim: int, keys: list[tuple[int, ...]]):
 
 def prepared_selected_frozen_density_evaluator(
     ndim: int,
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
 ):
     prefactor = quadrature_prefactor(ndim)
-    keys_array = np.asarray(density_selection.keys, dtype=float)
+    keys_array = np.asarray(density_coordinates.keys, dtype=float)
 
     def evaluator(points: np.ndarray, payload: list[Any], mu: float) -> np.ndarray:
         values = np.empty(
-            (points.shape[0], density_selection.value_count), dtype=complex
+            (points.shape[0], density_coordinates.value_count), dtype=complex
         )
         for index, (point, prepared) in enumerate(zip(points, payload, strict=True)):
             density_values = prepared.density_values_from_charge_order(mu)
             phase = np.exp(1j * np.dot(point, keys_array.T))
-            values[index] = density_selection.phase_values(density_values, phase)
+            values[index] = density_coordinates.phase_values(density_values, phase)
         return prefactor * values
 
     return evaluator
@@ -275,21 +275,21 @@ def prepared_selected_frozen_density_evaluator(
 
 def prepared_selected_transient_density_evaluator(
     ndim: int,
-    density_selection: DensitySelection,
+    density_coordinates: DensityCoordinates,
     *,
     tolerance: float,
 ):
     prefactor = quadrature_prefactor(ndim)
-    keys_array = np.asarray(density_selection.keys, dtype=float)
+    keys_array = np.asarray(density_coordinates.keys, dtype=float)
 
     def evaluator(points: np.ndarray, payload: list[Any], mu: float) -> np.ndarray:
         values = np.empty(
-            (points.shape[0], density_selection.value_count), dtype=complex
+            (points.shape[0], density_coordinates.value_count), dtype=complex
         )
         for index, (point, prepared) in enumerate(zip(points, payload, strict=True)):
             density_values = prepared.density_values(mu, tolerance=tolerance)
             phase = np.exp(1j * np.dot(point, keys_array.T))
-            values[index] = density_selection.phase_values(density_values, phase)
+            values[index] = density_coordinates.phase_values(density_values, phase)
         return prefactor * values
 
     return evaluator
@@ -315,12 +315,12 @@ def split_density_result(
     error: np.ndarray,
     ndof: int,
     keys: list[tuple[int, ...]],
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> tuple[_tb_type, _tb_type]:
     """Convert vectorized density estimates to tight-binding dictionaries."""
 
-    if density_selection is not None:
-        return density_selection.values_and_errors_to_tb(estimate, error)
+    if density_coordinates is not None:
+        return density_coordinates.values_and_errors_to_tb(estimate, error)
 
     estimate = np.asarray(estimate).reshape(ndof, ndof, len(keys))
     error = np.asarray(error).reshape(ndof, ndof, len(keys))
@@ -340,7 +340,7 @@ def build_normal_backend(
     keys: list[tuple[int, ...]],
     kT: float,
     fixed_filling_tolerance: float | None = None,
-    density_selection: DensitySelection | None = None,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> QuadratureBackend:
     ndim = tb_dimension(hamiltonian)
     ndof = tb_orbital_count(hamiltonian)
@@ -349,14 +349,14 @@ def build_normal_backend(
         getattr(integration, "matrix_function", None),
         hamiltonian,
     )
-    density_selection = density_selection
+    density_coordinates = density_coordinates
     use_sparse_mumps = isinstance(matrix_function, RationalFOE) and any(
         is_sparse_like(matrix) for matrix in hamiltonian.values()
     )
-    mumps_density_selection = (
-        full_density_selection(keys, size=ndof)
-        if use_sparse_mumps and density_selection is None
-        else density_selection
+    mumps_density_coordinates = (
+        full_density_coordinates(keys, size=ndof)
+        if use_sparse_mumps and density_coordinates is None
+        else density_coordinates
     )
 
     freeze_density_mesh = False
@@ -366,8 +366,8 @@ def build_normal_backend(
         payload_builder = None
         charge_kernel = charge_evaluator(ndim, ndof, kT)
         density_kernel = (
-            selected_density_evaluator(ndim, ndof, kT, density_selection)
-            if density_selection is not None
+            selected_density_evaluator(ndim, ndof, kT, density_coordinates)
+            if density_coordinates is not None
             else density_evaluator(ndim, ndof, keys, kT)
         )
     elif isinstance(matrix_function, RationalFOE):
@@ -376,7 +376,7 @@ def build_normal_backend(
             raise ValueError(
                 "AdaptiveQuadrature RationalFOE is supported only for sparse matrices"
             )
-        if mumps_density_selection is None:  # pragma: no cover - guarded above
+        if mumps_density_coordinates is None:  # pragma: no cover - guarded above
             raise ValueError(
                 "Sparse MUMPS-backed RationalFOE requires a density selection"
             )
@@ -390,7 +390,7 @@ def build_normal_backend(
                 else fixed_filling_tolerance
             ),
             density_tolerance=integration.density_matrix_tol,
-            density_selection=mumps_density_selection,
+            density_coordinates=mumps_density_coordinates,
             workspace_dtype=workspace_dtype,
             q_diag=np.ones(ndof, dtype=float),
             trace_weights_diag=np.ones(ndof, dtype=float),
@@ -399,14 +399,14 @@ def build_normal_backend(
             charge_kernel = prepared_charge_evaluator(ndim)
             density_kernel = prepared_selected_transient_density_evaluator(
                 ndim,
-                mumps_density_selection,
+                mumps_density_coordinates,
                 tolerance=integration.density_matrix_tol,
             )
         else:
             charge_kernel = prepared_charge_only_evaluator(ndim)
             density_kernel = prepared_selected_frozen_density_evaluator(
                 ndim,
-                mumps_density_selection,
+                mumps_density_coordinates,
             )
             freeze_density_mesh = True
             charge_has_derivative = False
@@ -428,10 +428,10 @@ def build_normal_backend(
             ndof,
             keys,
             (
-                density_selection
+                density_coordinates
                 if isinstance(matrix_function, DirectDiagonalization)
                 else (
-                    mumps_density_selection if use_sparse_mumps else density_selection
+                    mumps_density_coordinates if use_sparse_mumps else density_coordinates
                 )
             ),
         ),

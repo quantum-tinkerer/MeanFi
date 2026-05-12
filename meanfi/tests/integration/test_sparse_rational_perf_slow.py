@@ -122,7 +122,7 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
 
 @pytest.mark.perf_slow
 def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
-    from meanfi.space.density_selection import full_density_selection
+    from meanfi.space.coordinates import full_density_coordinates
     from meanfi.density.kpoint.matrix_functions import (
         density_block,
         shift_by_mu,
@@ -140,7 +140,7 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
     options = RationalFOE(initial_poles=4, max_poles=64)
     q_diag = np.array([1.0, -1.0], dtype=float)
     trace_weights = np.array([1.0, 0.0], dtype=float)
-    selection = full_density_selection([tuple()], size=2)
+    coords = full_density_coordinates([tuple()], size=2)
 
     mumps_node = PreparedMumpsRationalNode(
         matrix,
@@ -148,7 +148,7 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
         q_diag=q_diag,
         options=options,
         charge_tolerance=1e-3,
-        density_selection=selection,
+        density_coordinates=coords,
         density_tolerance=1e-3,
         trace_weights_diag=trace_weights,
     )
@@ -164,7 +164,7 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
     ).block
     solve_charge = float(np.real(np.sum(trace_weights * np.diag(direct_density))))
     mumps_charge, mumps_derivative = mumps_node.charge_and_derivative(0.05)
-    solve_density = selection.values_from_assembled_matrix(direct_density)
+    solve_density = coords.values_from_assembled_matrix(direct_density)
     mumps_density = mumps_node.density_values_from_charge_order(0.05)
 
     assert np.isnan(mumps_derivative)

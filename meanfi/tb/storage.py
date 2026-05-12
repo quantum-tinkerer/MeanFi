@@ -20,12 +20,17 @@ def match_tb_storage(tb: _tb_type, *, like_sparse: bool) -> _tb_type:
     return {key: as_sparse(value) for key, value in tb.items()}
 
 
-def tb_entries_changed(original: _tb_type, projected: _tb_type) -> bool:
+def tb_entries_changed(
+    original: _tb_type,
+    projected: _tb_type,
+    *,
+    atol: float = 1e-12,
+) -> bool:
     for key in frozenset(original) | frozenset(projected):
         before = to_dense(original.get(key, np.zeros((0, 0), dtype=complex)))
         after = to_dense(projected.get(key, np.zeros((0, 0), dtype=complex)))
         if before.shape != after.shape:
             continue
-        if np.any(np.abs(before - after) > 0.0):
+        if np.any(np.abs(before - after) > atol):
             return True
     return False
