@@ -22,6 +22,7 @@ from meanfi import (
     density_matrix,
     density_matrix_at_mu,
     solver,
+    total_energy,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
 from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
@@ -80,6 +81,10 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_at_mu_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
     assert density_at_mu_params["integration"].default is None
     assert "filling_tol" not in density_at_mu_params
+
+    total_energy_params = inspect.signature(total_energy).parameters
+    assert list(total_energy_params) == ["model", "density_matrix"]
+    assert meanfi.total_energy is total_energy
 
 
 @pytest.mark.parametrize(

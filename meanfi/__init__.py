@@ -35,7 +35,7 @@ from .density.kpoint.matrix_functions import (
 from .density.kpoint.occupations import fermi_dirac
 from .model import Model
 from .meanfield import meanfield
-from .observables import expectation_value
+from .observables import expectation_value, total_energy
 from .scf.engine import NoConvergence
 from .scf.methods import AndersonMixing, LinearMixing, SCFMethod
 from .scf.scf import solver
@@ -140,4 +140,5 @@ __all__ = [
     "tb_to_kgrid",
     "tb_to_tight_binding_model",
     "tb_to_vertex_cache",
+    "total_energy",
 ]
