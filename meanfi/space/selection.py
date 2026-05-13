@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+import scipy.linalg as la
 
 from meanfi.space.coordinates import DensityCoordinates, DensityEntry
 
@@ -10,7 +11,8 @@ from meanfi.space.coordinates import DensityCoordinates, DensityEntry
 @dataclass(frozen=True)
 class RequiredCoordinateSelection:
     coordinates: DensityCoordinates
-    real_rows: np.ndarray
+    active_real_rows: np.ndarray
+    value_real_rows: np.ndarray
 
 
 def select_required_coordinates(
@@ -19,45 +21,54 @@ def select_required_coordinates(
 ) -> RequiredCoordinateSelection:
     """Choose active entries whose real/imag values determine all parameters."""
 
-    selected_entries = _select_required_entries(active_coordinates.entries, basis)
+    selected = _select_required_entries(active_coordinates.entries, basis)
     required_coordinates = _coordinates_from_entries(
         size=active_coordinates.size,
         keys=list(active_coordinates.keys),
-        entries=selected_entries,
+        entries=selected.entries,
     )
     return RequiredCoordinateSelection(
         coordinates=required_coordinates,
-        real_rows=_real_rows_for_entries(
+        active_real_rows=selected.active_real_rows,
+        value_real_rows=_value_rows_for_entries(
             active_entries=active_coordinates.entries,
             selected_entries=required_coordinates.entries,
+            active_real_rows=selected.active_real_rows,
         ),
     )
+
+
+@dataclass(frozen=True)
+class _SelectedRows:
+    entries: tuple[DensityEntry, ...]
+    active_real_rows: np.ndarray
 
 
 def _select_required_entries(
     entries: tuple[DensityEntry, ...],
     basis: np.ndarray,
-) -> tuple[DensityEntry, ...]:
+) -> _SelectedRows:
     parameter_count = int(basis.shape[1])
     if parameter_count == 0:
-        return tuple()
+        return _SelectedRows(tuple(), np.empty(0, dtype=int))
     value_count = len(entries)
-    selected_rows: list[int] = []
-    selected_entries: list[DensityEntry] = []
-    rank = 0
-    for index, entry in enumerate(entries):
-        candidate_rows = [*selected_rows, index, value_count + index]
-        candidate_rank = int(np.linalg.matrix_rank(basis[candidate_rows, :]))
-        if candidate_rank <= rank:
-            continue
-        selected_rows = candidate_rows
-        selected_entries.append(entry)
-        rank = candidate_rank
-        if rank == parameter_count:
-            break
+    _q, r, pivots = la.qr(basis.T, mode="economic", pivoting=True)
+    del _q
+    tolerance = (
+        np.finfo(float).eps * max(basis.shape) * (abs(r[0, 0]) if r.size else 1.0)
+    )
+    rank = int(np.sum(np.abs(np.diag(r)) > tolerance))
     if rank != parameter_count:
         raise ValueError("Could not select enough active entries to determine params")
-    return tuple(selected_entries)
+
+    active_real_rows = np.asarray(pivots[:parameter_count], dtype=int)
+    selected_positions = sorted(
+        {int(pivot % value_count) for pivot in active_real_rows}
+    )
+    return _SelectedRows(
+        tuple(entries[position] for position in selected_positions),
+        active_real_rows,
+    )
 
 
 def _coordinates_from_entries(
@@ -77,13 +88,28 @@ def _coordinates_from_entries(
     return coordinates
 
 
-def _real_rows_for_entries(
+def _value_rows_for_entries(
     *,
     active_entries: tuple[DensityEntry, ...],
     selected_entries: tuple[DensityEntry, ...],
+    active_real_rows: np.ndarray,
 ) -> np.ndarray:
     value_count = len(active_entries)
-    index = {entry: position for position, entry in enumerate(active_entries)}
-    positions = [index[entry] for entry in selected_entries]
-    rows = [*positions, *(value_count + position for position in positions)]
+    selected_index = {
+        entry: position for position, entry in enumerate(selected_entries)
+    }
+    active_index = {entry: position for position, entry in enumerate(active_entries)}
+    active_entries_by_position = {
+        position: entry for entry, position in active_index.items()
+    }
+    selected_count = len(selected_entries)
+    rows = []
+    for active_row in active_real_rows:
+        active_position = int(active_row % value_count)
+        entry = active_entries_by_position[active_position]
+        selected_position = selected_index[entry]
+        if active_row < value_count:
+            rows.append(selected_position)
+        else:
+            rows.append(selected_count + selected_position)
     return np.asarray(rows, dtype=int)

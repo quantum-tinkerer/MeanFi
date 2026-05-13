@@ -33,6 +33,8 @@ class ActiveSCFSpace:
     required_coordinates: DensityCoordinates
     basis: np.ndarray
     required_real_rows: np.ndarray
+    required_value_rows: np.ndarray
+    required_to_params: np.ndarray
     interaction_keys: list[tuple[int, ...]]
     density_keys: list[tuple[int, ...]]
     onsite: tuple[int, ...]
@@ -85,11 +87,19 @@ class ActiveSCFSpace:
         basis: np.ndarray,
     ) -> ActiveSCFSpace:
         selected = select_required_coordinates(support.coordinates, basis)
+        sample_basis = np.asarray(basis, dtype=float)[selected.active_real_rows, :]
+        required_to_params = (
+            np.linalg.inv(sample_basis)
+            if sample_basis.size
+            else np.zeros((0, 0), dtype=float)
+        )
         return cls(
             active_coordinates=support.coordinates,
             required_coordinates=selected.coordinates,
             basis=np.asarray(basis, dtype=float),
-            required_real_rows=selected.real_rows,
+            required_real_rows=selected.active_real_rows,
+            required_value_rows=selected.value_real_rows,
+            required_to_params=required_to_params,
             interaction_keys=support.interaction_keys,
             density_keys=support.density_keys,
             onsite=support.onsite,
@@ -98,7 +108,9 @@ class ActiveSCFSpace:
     def required_realspace_entries(self) -> tuple[DensityEntry, ...]:
         return self.required_coordinates.entries
 
-    def required_density_coordinates_for(self, tb: _tb_type) -> DensityCoordinates | None:
+    def required_density_coordinates_for(
+        self, tb: _tb_type
+    ) -> DensityCoordinates | None:
         if self.required_coordinates.value_count == 0:
             return None
         if any(is_sparse_like(matrix) for matrix in tb.values()):
@@ -107,13 +119,14 @@ class ActiveSCFSpace:
 
     def params_from_required_entries(self, values: np.ndarray) -> np.ndarray:
         real_values = complex_to_real(values)
-        if real_values.size != self.required_real_rows.size:
+        if real_values.size != 2 * self.required_coordinates.value_count:
             raise ValueError("values do not match required real-space entries")
         if self.num_params == 0:
             return np.empty(0, dtype=float)
-        sample_basis = self.basis[self.required_real_rows, :]
-        params, *_ = np.linalg.lstsq(sample_basis, real_values, rcond=None)
-        return np.asarray(params, dtype=float)
+        return np.asarray(
+            self.required_to_params @ real_values[self.required_value_rows],
+            dtype=float,
+        )
 
     def params_from_meanfield_input(self, rho: _tb_type) -> np.ndarray:
         return self.params_from_required_entries(

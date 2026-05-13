@@ -335,7 +335,9 @@ def build_bdg_backend(
         split_density_result=(
             (
                 lambda estimate, error: (
-                    mumps_density_coordinates if use_sparse_mumps else density_coordinates
+                    mumps_density_coordinates
+                    if use_sparse_mumps
+                    else density_coordinates
                 ).values_and_errors_to_tb(estimate, error)
             )
             if (mumps_density_coordinates if use_sparse_mumps else density_coordinates)

@@ -119,17 +119,15 @@ The object `full_model` now contains all the information needed to solve the mea
 To find a mean-field solution, we first require a starting guess.
 In cases where the non-interacting Hamiltonian is highly degenerate, there exists several possible mean-field solutions, many of which are local and not global minima of the energy landscape.
 Therefore, the choice of the initial guess can significantly affect the final solution depending on the energy landscape.
-Here the problem is simple enough that we can generate a random guess for the mean-field solution through the {autolink}`~meanfi.tb.utils.guess_tb` function.
-It creates a random Hermitian tight-binding dictionary based on the hopping keys provided and the number of degrees of freedom within the unit cell.
-Because the mean-field solution cannot contain hoppings longer than the interaction itself, we use `h_int` keys as an input to {autolink}`~meanfi.tb.utils.guess_tb`.
+Here the problem is simple enough that we can generate a random mean-field guess directly from the model.
+The model owns the active SCF space, so `Model.random_meanfield` samples only solver-ready mean-field corrections that can affect the interaction.
 
 ```{code-cell} ipython3
 filling = 2
 full_model = meanfi.Model(h_0, h_int, filling)
-guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
 result = meanfi.solver(
     full_model,
-    guess,
+    full_model.random_meanfield(rng=0, scale=0.05),
 )
 mf_sol = result.mf
 ```
@@ -175,11 +173,10 @@ def compute_sol(U, h_0, filling=2):
     h_int = {
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
     }
-    guess = meanfi.guess_tb(frozenset(h_int), len(list(h_0.values())[0]))
     full_model = meanfi.Model(h_0, h_int, filling)
     result = meanfi.solver(
         full_model,
-        guess,
+        full_model.random_meanfield(rng=0, scale=0.05),
     )
     full_sol = meanfi.add_tb(h_0, result.mf)
     rho_result = meanfi.density_matrix(

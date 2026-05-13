@@ -17,15 +17,22 @@ class SpatialSymmetry:
 
     def __post_init__(self) -> None:
         lattice_matrix = np.asarray(self.lattice_matrix, dtype=int)
-        if lattice_matrix.ndim != 2 or lattice_matrix.shape[0] != lattice_matrix.shape[1]:
+        if (
+            lattice_matrix.ndim != 2
+            or lattice_matrix.shape[0] != lattice_matrix.shape[1]
+        ):
             raise ValueError("SpatialSymmetry.lattice_matrix must be square")
         object.__setattr__(self, "lattice_matrix", lattice_matrix)
         normalized = {
-            tuple(int(component) for component in shift): np.asarray(unitary, dtype=complex)
+            tuple(int(component) for component in shift): np.asarray(
+                unitary, dtype=complex
+            )
             for shift, unitary in self.unitaries_by_shift.items()
         }
         if not normalized:
-            raise ValueError("SpatialSymmetry requires at least one shift/unitary block")
+            raise ValueError(
+                "SpatialSymmetry requires at least one shift/unitary block"
+            )
         ndim = lattice_matrix.shape[0]
         for shift, unitary in normalized.items():
             if len(shift) != ndim:

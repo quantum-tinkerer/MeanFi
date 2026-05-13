@@ -66,7 +66,9 @@ def iterate_density_fixed_point(
     def residual_fn(params: np.ndarray) -> np.ndarray:
         density_result = density_result_from_params(params, run_state.mu)
         record_density_result(run_state, density_result)
-        updated = np.asarray(compress_density(density_result.density_matrix), dtype=float)
+        updated = np.asarray(
+            compress_density(density_result.density_matrix), dtype=float
+        )
         residual = updated - np.asarray(params, dtype=float)
         run_state.residual_norm = max_norm(residual)
         return residual

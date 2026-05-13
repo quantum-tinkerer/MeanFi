@@ -154,4 +154,3 @@ def test_bdg_solver_matches_1d_nonlocal_odd_parity_reference():
         abs(result.mf[(-1,)][0, 1].real - reference_meanfield[(-1,)][0, 1].real) <= 3e-3
     )
     assert abs(result.density_matrix_result.mu - reference_mu) <= 2e-3
-

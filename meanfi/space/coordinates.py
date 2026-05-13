@@ -40,9 +40,7 @@ def canonical_tb_keys(keys) -> list[tuple[int, ...]]:
         raise ValueError("tb_keys must include the onsite key")
 
     representatives = {
-        canonical_pair_representative(key)
-        for key in key_set
-        if key != local_key
+        canonical_pair_representative(key) for key in key_set if key != local_key
     }
     for key in key_set:
         if opposite_key(key) not in key_set:

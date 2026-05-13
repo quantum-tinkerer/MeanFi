@@ -74,7 +74,9 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
             max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
         )
-        kwargs["density_coordinates"] = space.required_density_coordinates_for(hamiltonian)
+        kwargs["density_coordinates"] = space.required_density_coordinates_for(
+            hamiltonian
+        )
         return _density_update_for_normal_hamiltonian(model, hamiltonian, **kwargs)
 
     def evaluate_projected_guess(projected_guess: _tb_type) -> DensityMatrixResult:
@@ -119,9 +121,7 @@ def _meanfield_from_active_density(
     mu: float,
 ) -> _tb_type:
     zero = np.zeros((model._ndof, model._ndof), dtype=complex)
-    density_reduced = {
-        key: active_density.get(key, zero) for key in interaction_keys
-    }
+    density_reduced = {key: active_density.get(key, zero) for key in interaction_keys}
     result = dict(meanfield(density_reduced, model.h_int))
     result[onsite] = result.get(
         onsite,

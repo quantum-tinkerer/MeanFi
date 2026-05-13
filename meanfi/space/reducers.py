@@ -37,8 +37,10 @@ def nullspace(equations: np.ndarray, variable_count: int) -> np.ndarray:
         return np.eye(variable_count, dtype=float)
     u, singular_values, vh = np.linalg.svd(equations, full_matrices=True)
     del u
-    tolerance = np.finfo(float).eps * max(equations.shape) * (
-        singular_values[0] if singular_values.size else 1.0
+    tolerance = (
+        np.finfo(float).eps
+        * max(equations.shape)
+        * (singular_values[0] if singular_values.size else 1.0)
     )
     rank = int(np.sum(singular_values > tolerance))
     return np.asarray(vh[rank:].T, dtype=float)
@@ -53,7 +55,9 @@ def _zero_equations(index: int, value_count: int) -> list[np.ndarray]:
     return rows
 
 
-def _conjugate_pair_equations(left: int, right: int, value_count: int) -> list[np.ndarray]:
+def _conjugate_pair_equations(
+    left: int, right: int, value_count: int
+) -> list[np.ndarray]:
     real_row = np.zeros(2 * value_count, dtype=float)
     real_row[left] = 1.0
     real_row[right] -= 1.0
@@ -63,7 +67,9 @@ def _conjugate_pair_equations(left: int, right: int, value_count: int) -> list[n
     return [real_row, imag_row]
 
 
-def _negative_pair_equations(left: int, right: int, value_count: int) -> list[np.ndarray]:
+def _negative_pair_equations(
+    left: int, right: int, value_count: int
+) -> list[np.ndarray]:
     real_row = np.zeros(2 * value_count, dtype=float)
     real_row[left] = 1.0
     real_row[right] += 1.0
@@ -134,7 +140,14 @@ class OrbitReducer:
     ) -> np.ndarray:
         index = {entry: position for position, entry in enumerate(self.entries)}
         value_count = len(self.entries)
-        equations: list[np.ndarray] = []
+        if value_count == 0:
+            return np.zeros((0, 0), dtype=float)
+
+        pair_constraints: list[
+            tuple[int, int, HermiticityConstraint | ParticleHoleConstraint]
+        ] = []
+        zero_positions: set[int] = set()
+        adjacency: list[list[int]] = [[] for _ in range(value_count)]
         for constraint in constraints:
             for position, entry in enumerate(self.entries):
                 partner = constraint.partner(entry)
@@ -143,23 +156,80 @@ class OrbitReducer:
                 partner_position = index.get(partner)
                 if partner_position is None:
                     _warn_missing_partner(entry, partner)
-                    equations.extend(_zero_equations(position, value_count))
-                elif isinstance(constraint, HermiticityConstraint):
-                    equations.extend(
-                        _conjugate_pair_equations(
-                            position, partner_position, value_count
-                        )
-                    )
-                else:
-                    equations.extend(
-                        _negative_pair_equations(position, partner_position, value_count)
-                    )
-        matrix = (
-            np.vstack(equations)
-            if equations
-            else np.zeros((0, 2 * value_count), dtype=float)
-        )
-        return nullspace(matrix, 2 * value_count)
+                    zero_positions.add(position)
+                    continue
+                pair_constraints.append((position, partner_position, constraint))
+                adjacency[position].append(partner_position)
+                adjacency[partner_position].append(position)
+
+        basis_blocks = []
+        visited = np.zeros(value_count, dtype=bool)
+        for seed in range(value_count):
+            if visited[seed]:
+                continue
+            stack = [seed]
+            component: list[int] = []
+            visited[seed] = True
+            while stack:
+                current = stack.pop()
+                component.append(current)
+                for neighbor in adjacency[current]:
+                    if not visited[neighbor]:
+                        visited[neighbor] = True
+                        stack.append(neighbor)
+            basis_blocks.append(
+                _component_basis(
+                    component=component,
+                    pair_constraints=pair_constraints,
+                    zero_positions=zero_positions,
+                    value_count=value_count,
+                )
+            )
+
+        if not basis_blocks:
+            return np.zeros((2 * value_count, 0), dtype=float)
+        return np.concatenate(basis_blocks, axis=1)
+
+
+def _component_basis(
+    *,
+    component: list[int],
+    pair_constraints: list[
+        tuple[int, int, HermiticityConstraint | ParticleHoleConstraint]
+    ],
+    zero_positions: set[int],
+    value_count: int,
+) -> np.ndarray:
+    local_index = {position: local for local, position in enumerate(component)}
+    local_count = len(component)
+    equations: list[np.ndarray] = []
+    for position in component:
+        if position in zero_positions:
+            equations.extend(_zero_equations(local_index[position], local_count))
+    for left, right, constraint in pair_constraints:
+        if left not in local_index:
+            continue
+        left_local = local_index[left]
+        right_local = local_index[right]
+        if isinstance(constraint, HermiticityConstraint):
+            equations.extend(
+                _conjugate_pair_equations(left_local, right_local, local_count)
+            )
+        else:
+            equations.extend(
+                _negative_pair_equations(left_local, right_local, local_count)
+            )
+    matrix = (
+        np.vstack(equations)
+        if equations
+        else np.zeros((0, 2 * local_count), dtype=float)
+    )
+    local_basis = nullspace(matrix, 2 * local_count)
+    global_basis = np.zeros((2 * value_count, local_basis.shape[1]), dtype=float)
+    for local, position in enumerate(component):
+        global_basis[position, :] = local_basis[local, :]
+        global_basis[value_count + position, :] = local_basis[local_count + local, :]
+    return global_basis
 
 
 @dataclass(frozen=True)
@@ -211,7 +281,11 @@ class LinearConstraintReducer:
     ) -> dict[int, complex]:
         key, row, col = entry
         anomalous = self.family == "bdg" and row < self.ndof <= col
-        if self.family == "bdg" and not anomalous and not (row < self.ndof and col < self.ndof):
+        if (
+            self.family == "bdg"
+            and not anomalous
+            and not (row < self.ndof and col < self.ndof)
+        ):
             return {}
 
         source_col = col - self.ndof if anomalous else col

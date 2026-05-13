@@ -195,13 +195,7 @@ In superconducting calculations, the initial guess matters even more than in the
 If we instead start from a random BdG guess, the solver can converge to a different superconducting state.
 
 ```{code-cell} ipython3
-np.random.seed(11)
-random_guess = meanfi.guess_tb(
-    frozenset(h_int),
-    ndof=1,
-    scale=0.5,
-    superconducting=True,
-)
+random_guess = model.random_meanfield(rng=11, scale=0.5)
 
 random_result = meanfi.solver(
     model,

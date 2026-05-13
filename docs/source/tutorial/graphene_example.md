@@ -99,12 +99,9 @@ We then generate a random guess for the mean-field solution and solve the system
 ```{code-cell} ipython3
 filling = 2
 model = meanfi.Model(h_0, h_int, filling=2)
-int_keys = frozenset(h_int)
-ndof = len(list(h_0.values())[0])
-guess = meanfi.guess_tb(int_keys, ndof)
 result = meanfi.solver(
     model,
-    guess,
+    model.random_meanfield(rng=0, scale=0.05),
 )
 h_full = meanfi.add_tb(h_0, result.mf)
 ```
@@ -176,10 +173,9 @@ for U in Us:
         h_int = utils.builder_to_tb(builder_int, params)
 
         model = meanfi.Model(h_0, h_int, filling=filling)
-        guess = meanfi.guess_tb(int_keys, ndof)
         result = meanfi.solver(
             model,
-            guess,
+            model.random_meanfield(rng=0, scale=0.05),
         )
         mf_sols.append(result.mf)
 

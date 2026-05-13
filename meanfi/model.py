@@ -90,7 +90,9 @@ class Model:
     def random_meanfield(self, rng=None, scale: float = 1.0) -> _tb_type:
         """Sample a solver-ready mean-field correction in this model's SCF space."""
 
-        generator = rng if isinstance(rng, np.random.Generator) else np.random.default_rng(rng)
+        generator = (
+            rng if isinstance(rng, np.random.Generator) else np.random.default_rng(rng)
+        )
         params = float(scale) * generator.standard_normal(self.scf_space.num_params)
         meanfield_input = self.scf_space.meanfield_input_from_params(params)
         if self.superconducting:

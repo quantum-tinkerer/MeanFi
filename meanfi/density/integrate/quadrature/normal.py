@@ -431,7 +431,9 @@ def build_normal_backend(
                 density_coordinates
                 if isinstance(matrix_function, DirectDiagonalization)
                 else (
-                    mumps_density_coordinates if use_sparse_mumps else density_coordinates
+                    mumps_density_coordinates
+                    if use_sparse_mumps
+                    else density_coordinates
                 )
             ),
         ),
