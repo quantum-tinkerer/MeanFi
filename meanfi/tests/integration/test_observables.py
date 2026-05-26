@@ -8,6 +8,7 @@ from meanfi.meanfield import (
     extract_electron_density,
     meanfield,
 )
+from meanfi.tests.fixtures.models import bipartite_hubbard_2d
 
 
 pytestmark = pytest.mark.integration
@@ -31,6 +32,23 @@ def test_total_energy_half_counts_normal_mean_field_interaction():
     assert naive - total_energy(model, density) == pytest.approx(
         0.5 * interaction_energy
     )
+
+
+def test_total_energy_gradient_matches_hubbard_mean_field_hamiltonian():
+    model = Model(*bipartite_hubbard_2d(U=3.7), filling=2.0, kT=0.2)
+    rho = {(0, 0): np.diag([0.65, 0.35, 0.45, 0.55]).astype(complex)}
+    direction = {(0, 0): np.diag([0.2, -0.1, 0.15, -0.25]).astype(complex)}
+    epsilon = 1e-6
+
+    def shifted(scale):
+        return {(0, 0): rho[(0, 0)] + scale * direction[(0, 0)]}
+
+    derivative = (
+        total_energy(model, shifted(epsilon)) - total_energy(model, shifted(-epsilon))
+    ) / (2.0 * epsilon)
+    rhs = np.real(expectation_value(direction, model.hamiltonian_from_rho(rho)))
+
+    assert derivative == pytest.approx(rhs, rel=1e-8, abs=1e-8)
 
 
 def test_total_energy_matches_bdg_block_formula():
