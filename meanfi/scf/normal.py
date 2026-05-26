@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from meanfi.density.density import solve_density_matrix_fixed_filling
-from meanfi.density.integrate.methods import IntegrationMethod
+from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
 from meanfi.meanfield import meanfield
 from meanfi.model import Model
 from meanfi.results import DensityMatrixResult
@@ -74,9 +74,12 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
             max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
         )
-        kwargs["density_coordinates"] = space.required_density_coordinates_for(
-            hamiltonian
-        )
+        if isinstance(runtime.integration, AdaptiveSimplex):
+            kwargs["density_coordinates"] = space.required_coordinates
+        else:
+            kwargs["density_coordinates"] = space.required_density_coordinates_for(
+                hamiltonian
+            )
         return _density_update_for_normal_hamiltonian(model, hamiltonian, **kwargs)
 
     def evaluate_projected_guess(projected_guess: _tb_type) -> DensityMatrixResult:
