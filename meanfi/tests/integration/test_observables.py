@@ -35,17 +35,19 @@ def test_total_energy_half_counts_normal_mean_field_interaction():
 
 def test_total_energy_matches_bdg_block_formula():
     model = Model(
-        {(): np.array([[2.0]], dtype=complex)},
-        {(): np.array([[1.5]], dtype=complex)},
-        filling=0.5,
+        {(): np.diag([2.0, 3.0]).astype(complex)},
+        {(): np.array([[0.0, 1.5], [1.5, 0.0]], dtype=complex)},
+        filling=1.0,
         kT=0.2,
         superconducting=True,
     )
     density = {
         (): np.array(
             [
-                [0.4, 0.2],
-                [0.2, 0.6],
+                [0.4, 0.05, 0.0, 0.2],
+                [0.05, 0.3, -0.2, 0.0],
+                [0.0, -0.2, 0.6, 0.01],
+                [0.2, 0.0, 0.01, 0.7],
             ],
             dtype=complex,
         )

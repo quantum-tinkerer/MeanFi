@@ -215,7 +215,9 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
 
         def required_density_coordinates_for(self, hamiltonian):
             del hamiltonian
-            raise AssertionError("AdaptiveSimplex should use required_coordinates directly")
+            raise AssertionError(
+                "AdaptiveSimplex should use required_coordinates directly"
+            )
 
         def project_meanfield_input(self, tb):
             return tb
@@ -299,7 +301,10 @@ def test_adaptive_simplex_wrapper_passes_generic_density_components(monkeypatch)
         del args
         captured.update(kwargs)
         return (
-            {(0,): np.zeros((2, 2), dtype=complex), (1,): np.zeros((2, 2), dtype=complex)},
+            {
+                (0,): np.zeros((2, 2), dtype=complex),
+                (1,): np.zeros((2, 2), dtype=complex),
+            },
             {(0,): np.zeros((2, 2), dtype=float), (1,): np.zeros((2, 2), dtype=float)},
             0.0,
             SimpleNamespace(),
