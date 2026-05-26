@@ -5,8 +5,31 @@ from adaptivesimplex import (
     density_matrix_at_mu_zero_temp as _density_matrix_at_mu_zero_temp,
 )
 from adaptivesimplex import density_matrix_zero_temp as _density_matrix_zero_temp
+from adaptivesimplex import full_density_components
 
+from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type
+
+
+def _components_from_density_coordinates(
+    density_coordinates: DensityCoordinates,
+) -> list[tuple[int, int, tuple[int, ...]]]:
+    return [
+        (int(row), int(col), tuple(int(part) for part in key))
+        for key, rows, cols, _value_slice in density_coordinates.iter_key_coordinates()
+        for row, col in zip(rows, cols, strict=True)
+    ]
+
+
+def _resolve_density_components(
+    h: _tb_type,
+    keys: list[tuple[int, ...]],
+    density_coordinates: DensityCoordinates | None,
+) -> list[tuple[int, int, tuple[int, ...]]]:
+    if density_coordinates is not None:
+        return _components_from_density_coordinates(density_coordinates)
+    size = int(next(iter(h.values())).shape[0])
+    return full_density_components(keys, size=size)
 
 
 def density_matrix_at_mu_zero_temp(
@@ -14,6 +37,7 @@ def density_matrix_at_mu_zero_temp(
     *,
     mu: float,
     keys: list[tuple[int, ...]],
+    density_coordinates: DensityCoordinates | None = None,
     density_atol: float,
     density_rtol: float,
     max_subdivisions: int | None = None,
@@ -23,6 +47,7 @@ def density_matrix_at_mu_zero_temp(
         h,
         mu=mu,
         keys=keys,
+        density_components=_resolve_density_components(h, keys, density_coordinates),
         density_atol=density_atol,
         density_rtol=density_rtol,
         max_subdivisions=max_subdivisions,
@@ -35,6 +60,7 @@ def density_matrix_zero_temp(
     *,
     filling: float,
     keys: list[tuple[int, ...]],
+    density_coordinates: DensityCoordinates | None = None,
     charge_tol: float,
     density_atol: float,
     density_rtol: float,
@@ -48,6 +74,7 @@ def density_matrix_zero_temp(
         h,
         filling=filling,
         keys=keys,
+        density_components=_resolve_density_components(h, keys, density_coordinates),
         charge_tol=charge_tol,
         density_atol=density_atol,
         density_rtol=density_rtol,
