@@ -36,18 +36,33 @@ def test_total_energy_half_counts_normal_mean_field_interaction():
 
 def test_total_energy_gradient_matches_hubbard_mean_field_hamiltonian():
     model = Model(*bipartite_hubbard_2d(U=3.7), filling=2.0, kT=0.2)
-    rho = {(0, 0): np.diag([0.65, 0.35, 0.45, 0.55]).astype(complex)}
-    direction = {(0, 0): np.diag([0.2, -0.1, 0.15, -0.25]).astype(complex)}
+    rng = np.random.default_rng(1123)
+    occupied, _ = np.linalg.qr(
+        rng.standard_normal((4, 2)) + 1j * rng.standard_normal((4, 2))
+    )
+    rho = {(0, 0): occupied @ occupied.conj().T}
+    raw_direction = rng.standard_normal((4, 4)) + 1j * rng.standard_normal((4, 4))
+    direction = {(0, 0): raw_direction + raw_direction.conj().T}
     epsilon = 1e-6
 
     def shifted(scale):
         return {(0, 0): rho[(0, 0)] + scale * direction[(0, 0)]}
+
+    def slater_energy():
+        h_0 = model.h_0[(0, 0)]
+        interaction = model.h_int[(0, 0)]
+        first, second = occupied.T
+        vec = (np.kron(first, second) - np.kron(second, first)) / np.sqrt(2.0)
+        one_body = np.kron(h_0, np.eye(4)) + np.kron(np.eye(4), h_0)
+        two_body = np.diag(interaction.ravel())
+        return float(np.real(np.vdot(vec, (one_body + two_body) @ vec)))
 
     derivative = (
         total_energy(model, shifted(epsilon)) - total_energy(model, shifted(-epsilon))
     ) / (2.0 * epsilon)
     rhs = np.real(expectation_value(direction, model.hamiltonian_from_rho(rho)))
 
+    assert total_energy(model, rho) == pytest.approx(slater_energy())
     assert derivative == pytest.approx(rhs, rel=1e-8, abs=1e-8)
 
 
