@@ -49,7 +49,6 @@ def density_matrix_at_mu_zero_temp(
         keys=keys,
         density_components=_resolve_density_components(h, keys, density_coordinates),
         density_atol=density_atol,
-        density_rtol=density_rtol,
         max_subdivisions=max_subdivisions,
         refinement_depth=refinement_depth,
     )
@@ -77,7 +76,6 @@ def density_matrix_zero_temp(
         density_components=_resolve_density_components(h, keys, density_coordinates),
         charge_tol=charge_tol,
         density_atol=density_atol,
-        density_rtol=density_rtol,
         mu_guess=mu_guess,
         mu_xtol=mu_xtol,
         max_mu_iterations=max_charge_evaluations,
