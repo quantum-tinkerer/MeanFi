@@ -182,9 +182,12 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
         kT=0.0,
         keys=[(0,)],
         integration=AdaptiveSimplex(density_matrix_tol=1e-4),
+        filling_tol=2e-3,
     )
 
     assert called["kwargs"]["density_atol"] == 1e-4
+    assert called["kwargs"]["charge_tol"] == 1e-4
+    assert called["kwargs"]["filling_tol"] == 2e-3
     assert np.allclose(result.density_matrix[(0,)], np.array([[1.0]]))
     assert np.allclose(result.density_matrix_error[(0,)], np.array([[0.0]]))
     assert result.mu == 0.0
@@ -325,6 +328,7 @@ def test_adaptive_simplex_wrapper_passes_generic_density_components(monkeypatch)
         keys=[(0,), (1,)],
         density_coordinates=required,
         charge_tol=1e-3,
+        filling_tol=2e-3,
         density_atol=1e-3,
         density_rtol=0.0,
         mu_guess=0.0,

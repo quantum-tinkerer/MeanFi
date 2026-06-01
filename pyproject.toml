@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "adaptivesimplex @ git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git@9c271c49bf20856354275492319727e2c19cb028",
+    "adaptivesimplex @ git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git@a32f1c4490ef62f80df48a78ee5b1ec100affa99",
     "numpy>=2.0",
     "packaging>=22.0",
     "python-mumps",

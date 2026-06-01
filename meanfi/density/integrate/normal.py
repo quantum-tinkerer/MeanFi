@@ -8,6 +8,8 @@ low-level matrix-function, quadrature, simplex, and uniform-grid evaluators.
 
 from __future__ import annotations
 
+from math import ceil
+
 import numpy as np
 
 from meanfi.density.integrate.common import (
@@ -526,7 +528,9 @@ def _adaptive_simplex_fixed_filling(
             filling=filling,
             keys=context.solve_keys,
             density_coordinates=context.density_coordinates,
-            charge_tol=resolved_filling_tol,
+            charge_tol=ceil(tb_orbital_count(hamiltonian) / 10)
+            * integration.density_matrix_tol,
+            filling_tol=resolved_filling_tol,
             density_atol=integration.density_matrix_tol,
             density_rtol=0.0,
             mu_guess=mu_guess,

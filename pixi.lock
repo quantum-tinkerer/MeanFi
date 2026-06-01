@@ -128,7 +128,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
       osx-64:
@@ -229,7 +229,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
       osx-arm64:
@@ -329,7 +329,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
       win-64:
@@ -422,7 +422,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
   docs:
@@ -646,7 +646,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
       - pypi: https://files.pythonhosted.org/packages/8d/3f/95338030883d8c8b91223b4e21744b04d11b161a3ef117295d8241f50ab4/accessible_pygments-0.0.5-py3-none-any.whl
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/1a/39/47f9197bdd44df24d67ac8893641e16f386c984a0619ef2ee4c51fbbc019/beautifulsoup4-4.14.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/0d/8ba33fa83a7dcde13eb3c1c2a0c1cc29950a048bfed6d9b0d8b6bd710b4c/pydata_sphinx_theme-0.16.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/f5/0c41cb68dcae6b7de4fac4188a3a9589e21fb31df21ea3a2e888db95e6c9/soupsieve-2.8.4-py3-none-any.whl
@@ -846,7 +846,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
       - pypi: https://files.pythonhosted.org/packages/8d/3f/95338030883d8c8b91223b4e21744b04d11b161a3ef117295d8241f50ab4/accessible_pygments-0.0.5-py3-none-any.whl
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/1a/39/47f9197bdd44df24d67ac8893641e16f386c984a0619ef2ee4c51fbbc019/beautifulsoup4-4.14.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/0d/8ba33fa83a7dcde13eb3c1c2a0c1cc29950a048bfed6d9b0d8b6bd710b4c/pydata_sphinx_theme-0.16.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/f5/0c41cb68dcae6b7de4fac4188a3a9589e21fb31df21ea3a2e888db95e6c9/soupsieve-2.8.4-py3-none-any.whl
@@ -1045,7 +1045,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: https://files.pythonhosted.org/packages/8d/3f/95338030883d8c8b91223b4e21744b04d11b161a3ef117295d8241f50ab4/accessible_pygments-0.0.5-py3-none-any.whl
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/1a/39/47f9197bdd44df24d67ac8893641e16f386c984a0619ef2ee4c51fbbc019/beautifulsoup4-4.14.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/0d/8ba33fa83a7dcde13eb3c1c2a0c1cc29950a048bfed6d9b0d8b6bd710b4c/pydata_sphinx_theme-0.16.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/f5/0c41cb68dcae6b7de4fac4188a3a9589e21fb31df21ea3a2e888db95e6c9/soupsieve-2.8.4-py3-none-any.whl
@@ -1233,7 +1233,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
       - pypi: https://files.pythonhosted.org/packages/8d/3f/95338030883d8c8b91223b4e21744b04d11b161a3ef117295d8241f50ab4/accessible_pygments-0.0.5-py3-none-any.whl
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/1a/39/47f9197bdd44df24d67ac8893641e16f386c984a0619ef2ee4c51fbbc019/beautifulsoup4-4.14.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e2/0d/8ba33fa83a7dcde13eb3c1c2a0c1cc29950a048bfed6d9b0d8b6bd710b4c/pydata_sphinx_theme-0.16.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/f5/0c41cb68dcae6b7de4fac4188a3a9589e21fb31df21ea3a2e888db95e6c9/soupsieve-2.8.4-py3-none-any.whl
@@ -1399,7 +1399,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -1525,7 +1525,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -1650,7 +1650,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -1763,7 +1763,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -1921,7 +1921,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2049,7 +2049,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2176,7 +2176,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2291,7 +2291,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2447,7 +2447,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2573,7 +2573,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2698,7 +2698,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2811,7 +2811,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
       - pypi: ./
@@ -2968,7 +2968,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zlib-ng-2.3.3-hceb46e0_1.conda
       - conda: https://prefix.dev/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/1c/60/668ad1dd30744564ef2d3e444bf39e10c41f1820240e949d0a3fadea9101/memray-1.19.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
@@ -3097,7 +3097,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/fa/79/095c09f62f2ca527e4b5e71c38e7c9686f06c15a39f69f691428c45bae83/memray-1.19.3-cp312-cp312-macosx_10_14_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
@@ -3225,7 +3225,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/2e/26/8328966c9b1cecbf43e8c96a210178f68fb1df8a62dd4f1735158aa6610b/memray-1.19.3-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
@@ -3341,7 +3341,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
-      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+      - pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
       - pypi: https://files.pythonhosted.org/packages/96/04/5b886a36df947599e0f37cd46e6e44e565299815f044e2303ab2ae9f8870/memray-1.19.3.tar.gz
       - pypi: https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/a0/8c/0f661a4d9c796e5e06dd80812641729ebce9e83012f6412bf60b2741e815/stateful_quadrature-0.2.1-py3-none-any.whl
@@ -3919,7 +3919,7 @@ packages:
   - hypothesis ; extra == 'tests'
   - pytest ; extra == 'tests'
   requires_python: '>=3.9'
-- pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=9c271c49bf20856354275492319727e2c19cb028#9c271c49bf20856354275492319727e2c19cb028
+- pypi: git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git?rev=a32f1c4490ef62f80df48a78ee5b1ec100affa99#a32f1c4490ef62f80df48a78ee5b1ec100affa99
   name: adaptivesimplex
   version: 0.0.dev0
   requires_dist:
@@ -8271,9 +8271,9 @@ packages:
 - pypi: ./
   name: meanfi
   version: 0.0.dev0
-  sha256: 08182c875fa9df284266ff6808b43e83d380ffb1f65ca6c44db633ca4727a347
+  sha256: 53054fb5fcd4f278e009baff6359a4502767229e639206ca8fedb6ca856a0e89
   requires_dist:
-  - adaptivesimplex @ git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git@9c271c49bf20856354275492319727e2c19cb028
+  - adaptivesimplex @ git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git@a32f1c4490ef62f80df48a78ee5b1ec100affa99
   - numpy>=2.0
   - packaging>=22.0
   - python-mumps
