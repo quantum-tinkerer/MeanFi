@@ -49,11 +49,11 @@ def mu_bracket(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
 def charge_integral_tolerance(filling_tol: float) -> tuple[float, float]:
     """Translate filling tolerance to charge-integral tolerances.
 
-    The fixed-filling solver only accepts a charge sample when both
-    `abs(charge - filling) <= filling_tol` and
-    `charge_error <= filling_tol / 2`. We therefore budget at most one quarter of
-    the total filling tolerance to the charge integration error so the root solver
-    still has headroom to resolve the physical residual.
+    By default, the fixed-filling solver only accepts a charge sample when both
+    `abs(charge - filling) <= filling_tol` and `charge_error <= filling_tol / 2`.
+    We therefore budget at most one quarter of the total filling tolerance to the
+    charge integration error so the root solver still has headroom to resolve the
+    physical residual.
     """
 
     filling_tol_value = float(filling_tol)
@@ -144,6 +144,7 @@ class _ChargeRootSolver:
         filling_tol: float,
         mu_xtol: float,
         max_charge_evaluations: int | None,
+        charge_error_tol: float | None,
         use_derivative: bool,
     ) -> None:
         self.evaluate_charge = evaluate_charge
@@ -151,6 +152,9 @@ class _ChargeRootSolver:
         self.filling_tol = float(filling_tol)
         self.mu_xtol = float(mu_xtol)
         self.max_charge_evaluations = max_charge_evaluations
+        self.charge_error_tol = (
+            None if charge_error_tol is None else float(charge_error_tol)
+        )
         self.use_derivative = bool(use_derivative)
         self.charge_evaluations = 0
         self.cache: dict[float, _ChargeSample] = {}
@@ -220,10 +224,14 @@ class _ChargeRootSolver:
         return self._result(final)
 
     def accepted(self, sample: _ChargeSample) -> bool:
+        charge_error_tol = (
+            self.filling_tol * _CHARGE_ERROR_ACCEPTANCE_FRACTION
+            if self.charge_error_tol is None
+            else self.charge_error_tol
+        )
         return (
             abs(sample.residual) <= self.filling_tol
-            and sample.charge_error
-            <= self.filling_tol * _CHARGE_ERROR_ACCEPTANCE_FRACTION
+            and sample.charge_error <= charge_error_tol
         )
 
     def sample(self, mu: float, *, enforce_limit: bool = True) -> _ChargeSample:
@@ -368,6 +376,7 @@ class _ChargeRootSolver:
             "Chemical-potential solve failed: "
             f"{reason}; mu={sample.mu}, residual={sample.residual}, "
             f"charge_error={sample.charge_error}, filling_tol={self.filling_tol}, "
+            f"charge_error_tol={self.charge_error_tol}, "
             f"charge_evaluations={self.charge_evaluations}"
         )
 
@@ -381,6 +390,7 @@ def _validate_root_inputs(
     filling_tol: float,
     mu_xtol: float,
     max_charge_evaluations: int | None,
+    charge_error_tol: float | None = None,
 ) -> None:
     if not np.isfinite(filling):
         raise ValueError("Requested filling must be finite")
@@ -396,6 +406,9 @@ def _validate_root_inputs(
         raise ValueError("mu_tol must be a positive finite number")
     if max_charge_evaluations is not None and max_charge_evaluations <= 0:
         raise ValueError("max_charge_evaluations must be positive when provided")
+    if charge_error_tol is not None:
+        if not np.isfinite(charge_error_tol) or charge_error_tol <= 0.0:
+            raise ValueError("charge_error_tol must be positive when provided")
 
 
 def solve_mu_in_bracket(
@@ -408,6 +421,7 @@ def solve_mu_in_bracket(
     filling_tol: float,
     mu_xtol: float,
     max_charge_evaluations: int | None,
+    charge_error_tol: float | None = None,
     use_derivative: bool = True,
 ) -> FixedFillingSolve:
     """Solve for the chemical potential inside an existing valid bracket.
@@ -426,6 +440,7 @@ def solve_mu_in_bracket(
         filling_tol=filling_tol,
         mu_xtol=mu_xtol,
         max_charge_evaluations=max_charge_evaluations,
+        charge_error_tol=charge_error_tol,
     )
     return _ChargeRootSolver(
         evaluate_charge,
@@ -433,6 +448,7 @@ def solve_mu_in_bracket(
         filling_tol=filling_tol,
         mu_xtol=mu_xtol,
         max_charge_evaluations=max_charge_evaluations,
+        charge_error_tol=charge_error_tol,
         use_derivative=use_derivative,
     ).solve_in_bracket(
         lower=lower,
@@ -450,6 +466,7 @@ def solve_mu(
     filling_tol: float,
     mu_tol: float,
     max_charge_evaluations: int | None,
+    charge_error_tol: float | None = None,
     use_derivative: bool = True,
 ) -> FixedFillingSolve:
     """Solve for the chemical potential by first building and expanding a bracket.
@@ -461,12 +478,23 @@ def solve_mu(
     the expanded bracket.
     """
     lower, upper = initial_bracket()
+    _validate_root_inputs(
+        filling=filling,
+        mu_guess=mu_guess,
+        lower=lower,
+        upper=upper,
+        filling_tol=filling_tol,
+        mu_xtol=mu_tol,
+        max_charge_evaluations=max_charge_evaluations,
+        charge_error_tol=charge_error_tol,
+    )
     return _ChargeRootSolver(
         evaluate_charge,
         filling=filling,
         filling_tol=filling_tol,
         mu_xtol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
+        charge_error_tol=charge_error_tol,
         use_derivative=use_derivative,
     ).solve_with_expansion(
         lower=lower,

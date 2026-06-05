@@ -75,45 +75,29 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
 
 @requires_ext
 @pytest.mark.parametrize("mode", ("at_mu", "fixed_filling"))
-def test_root_mesh_only_zero_temperature_mode_reports_no_error_estimate(mode):
+def test_zero_temperature_backend_raises_when_refinement_cap_prevents_convergence(mode):
     tb = spinful_chain()
     integration = AdaptiveSimplex(density_matrix_tol=1e-6, max_refinements=0)
     keys = [(0,), (1,), (-1,)]
 
-    if mode == "at_mu":
-        result = density_matrix_at_mu(
+    with pytest.raises(RuntimeError, match="Adaptive simplex loop did not converge"):
+        if mode == "at_mu":
+            density_matrix_at_mu(
+                tb,
+                mu=0.2,
+                kT=0.0,
+                keys=keys,
+                integration=integration,
+            )
+            return
+
+        density_matrix(
             tb,
-            mu=0.2,
+            filling=1.0,
             kT=0.0,
             keys=keys,
             integration=integration,
         )
-        assert result.info.refinements == 0
-        assert result.info.error_estimate_available is False
-        assert result.density_matrix_error is None
-        assert np.allclose(
-            result.density_matrix[(-1,)],
-            result.density_matrix[(1,)].conj().T,
-            atol=1e-8,
-        )
-        return
-
-    result = density_matrix(
-        tb,
-        filling=1.0,
-        kT=0.0,
-        keys=keys,
-        integration=integration,
-    )
-    assert np.isfinite(result.mu)
-    assert result.info.refinements == 0
-    assert result.info.error_estimate_available is False
-    assert result.density_matrix_error is None
-    assert np.allclose(
-        result.density_matrix[(-1,)],
-        result.density_matrix[(1,)].conj().T,
-        atol=1e-8,
-    )
 
 
 def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backend(
@@ -170,6 +154,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
                 error_estimate_available=True,
                 charge_integration_calls=1,
                 density_integration_calls=1,
+                num_threads=3,
             ),
         )
 
@@ -181,17 +166,19 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
         filling=1.0,
         kT=0.0,
         keys=[(0,)],
-        integration=AdaptiveSimplex(density_matrix_tol=1e-4),
+        integration=AdaptiveSimplex(density_matrix_tol=1e-4, num_threads=3),
         filling_tol=2e-3,
     )
 
     assert called["kwargs"]["density_atol"] == 1e-4
     assert called["kwargs"]["charge_tol"] == 1e-4
     assert called["kwargs"]["filling_tol"] == 2e-3
+    assert called["kwargs"]["num_threads"] == 3
     assert np.allclose(result.density_matrix[(0,)], np.array([[1.0]]))
     assert np.allclose(result.density_matrix_error[(0,)], np.array([[0.0]]))
     assert result.mu == 0.0
     assert result.filling == 1.0
+    assert result.info.num_threads == 3
 
 
 def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
@@ -286,7 +273,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
     assert captured["density_coordinates"] is required
 
 
-def test_adaptive_simplex_wrapper_passes_generic_density_components(monkeypatch):
+def test_adaptive_simplex_wrapper_resolves_generic_density_components():
     import meanfi.density.integrate.simplex as simplex_integration
 
     required = DensityCoordinates.from_pairs(
@@ -298,57 +285,69 @@ def test_adaptive_simplex_wrapper_passes_generic_density_components(monkeypatch)
         },
         allow_empty=False,
     )
-    captured = {}
 
-    def fake_density_matrix_zero_temp(*args, **kwargs):
-        del args
-        captured.update(kwargs)
-        return (
-            {
-                (0,): np.zeros((2, 2), dtype=complex),
-                (1,): np.zeros((2, 2), dtype=complex),
-            },
-            {(0,): np.zeros((2, 2), dtype=float), (1,): np.zeros((2, 2), dtype=float)},
-            0.0,
-            SimpleNamespace(),
-        )
-
-    monkeypatch.setattr(
-        simplex_integration,
-        "_density_matrix_zero_temp",
-        fake_density_matrix_zero_temp,
-    )
-
-    simplex_integration.density_matrix_zero_temp(
+    components = simplex_integration._resolve_density_components(
         {
             (0,): np.zeros((2, 2), dtype=complex),
             (1,): np.zeros((2, 2), dtype=complex),
         },
-        filling=1.0,
-        keys=[(0,), (1,)],
-        density_coordinates=required,
-        charge_tol=1e-3,
-        filling_tol=2e-3,
-        density_atol=1e-3,
-        density_rtol=0.0,
-        mu_guess=0.0,
-        mu_xtol=1e-10,
-        max_charge_evaluations=None,
+        [(0,), (1,)],
+        required,
     )
 
-    assert captured["density_components"] == [(0, 1, (0,)), (1, 0, (1,))]
-    assert "density_coordinates" not in captured
+    assert components == [(0, 1, (0,)), (1, 0, (1,))]
+
+
+def test_adaptive_simplex_native_thread_option_is_forwarded_or_rejected():
+    import meanfi.density.integrate.simplex as simplex_integration
+
+    class KeywordRuntime:
+        def integrate_density(self, mu, density_atol, max_refinements, *, num_threads):
+            return ("density", mu, density_atol, max_refinements, num_threads)
+
+    class PositionalRuntime:
+        def integrate_charge(self, mu, charge_tol, max_refinements, num_threads):
+            return ("charge", mu, charge_tol, max_refinements, num_threads)
+
+    class OldRuntime:
+        def integrate_density(self, mu, density_atol, max_refinements):
+            del mu, density_atol, max_refinements
+            return "ignored"
+
+    assert simplex_integration._integrate_density(
+        KeywordRuntime(),
+        mu=0.25,
+        density_atol=1e-3,
+        max_refinements=12,
+        num_threads=4,
+    ) == ("density", 0.25, 1e-3, 12, 4)
+    assert simplex_integration._integrate_charge(
+        PositionalRuntime(),
+        mu=0.5,
+        charge_tol=2e-3,
+        max_refinements=8,
+        num_threads=2,
+    ) == ("charge", 0.5, 2e-3, 8, 2)
+    with pytest.raises(RuntimeError, match="per-integration thread controls"):
+        simplex_integration._integrate_density(
+            OldRuntime(),
+            mu=0.25,
+            density_atol=1e-3,
+            max_refinements=12,
+            num_threads=4,
+        )
 
 
 def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):
-    import adaptivesimplex.backend as simplex_backend
+    import lineartetrahedron.backend as simplex_backend
 
     monkeypatch.setattr(simplex_backend, "NATIVE_AVAILABLE", False)
-    monkeypatch.setattr(simplex_backend, "Geometry", None)
+    monkeypatch.setattr(simplex_backend, "IntegrationRuntime", None)
+    monkeypatch.setattr(simplex_backend, "TightBindingModel", None)
 
     with pytest.raises(
         RuntimeError,
-        match="requires the compiled adaptivesimplex._native extension",
+        match="requires the compiled lineartetrahedron._native extension",
     ):
         density_matrix(
             spinful_chain(),
@@ -360,18 +359,30 @@ def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):
 
 
 @requires_ext
-def test_zero_temperature_backend_supports_higher_dimensions():
+def test_zero_temperature_backend_supports_three_dimensions():
     result = density_matrix_at_mu(
-        {(0, 0, 0, 0): np.diag([-1.0, 1.0])},
+        {(0, 0, 0): np.diag([-1.0, 1.0])},
         mu=0.0,
         kT=0.0,
-        keys=[(0, 0, 0, 0)],
+        keys=[(0, 0, 0)],
         integration=AdaptiveSimplex(density_matrix_tol=1e-12, max_refinements=10),
     )
 
     assert np.allclose(
-        result.density_matrix[(0, 0, 0, 0)],
+        result.density_matrix[(0, 0, 0)],
         np.diag([1.0, 0.0]),
         atol=1e-12,
     )
     assert result.info.n_leaves > 0
+
+
+@requires_ext
+def test_zero_temperature_backend_rejects_four_dimensions():
+    with pytest.raises(ValueError, match="supports dimensions 1, 2, and 3"):
+        density_matrix_at_mu(
+            {(0, 0, 0, 0): np.diag([-1.0, 1.0])},
+            mu=0.0,
+            kT=0.0,
+            keys=[(0, 0, 0, 0)],
+            integration=AdaptiveSimplex(density_matrix_tol=1e-12, max_refinements=10),
+        )

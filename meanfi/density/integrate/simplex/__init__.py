@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from adaptivesimplex import NATIVE_AVAILABLE as _ZERO_TEMP_EXT_AVAILABLE
-from adaptivesimplex import (
-    density_matrix_at_mu_zero_temp as _density_matrix_at_mu_zero_temp,
+from lineartetrahedron import NATIVE_AVAILABLE as _ZERO_TEMP_EXT_AVAILABLE
+from lineartetrahedron import (
+    build_runtime,
+    full_density_components,
+    prepare_density_components,
 )
-from adaptivesimplex import density_matrix_zero_temp as _density_matrix_zero_temp
-from adaptivesimplex import full_density_components
 
+from meanfi.density.filling import mu_bracket as build_mu_bracket
+from meanfi.density.filling import solve_mu
+from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type
 
@@ -32,6 +35,117 @@ def _resolve_density_components(
     return full_density_components(keys, size=size)
 
 
+def _max_refinements(max_subdivisions: int | None) -> int:
+    return -1 if max_subdivisions is None else int(max_subdivisions)
+
+
+def _native_threading_error(exc: TypeError) -> RuntimeError:
+    del exc
+    return RuntimeError(
+        "AdaptiveSimplex(num_threads=...) requires a lineartetrahedron build "
+        "that exposes per-integration thread controls"
+    )
+
+
+def _integrate_charge(
+    runtime,
+    *,
+    mu: float,
+    charge_tol: float,
+    max_refinements: int,
+    num_threads: int | None,
+):
+    if num_threads is None:
+        return runtime.integrate_charge(mu, charge_tol, max_refinements)
+    try:
+        return runtime.integrate_charge(
+            mu,
+            charge_tol,
+            max_refinements,
+            num_threads=num_threads,
+        )
+    except TypeError as keyword_exc:
+        try:
+            return runtime.integrate_charge(
+                mu,
+                charge_tol,
+                max_refinements,
+                num_threads,
+            )
+        except TypeError:
+            raise _native_threading_error(keyword_exc) from keyword_exc
+
+
+def _integrate_density(
+    runtime,
+    *,
+    mu: float,
+    density_atol: float,
+    max_refinements: int,
+    num_threads: int | None,
+):
+    if num_threads is None:
+        return runtime.integrate_density(mu, density_atol, max_refinements)
+    try:
+        return runtime.integrate_density(
+            mu,
+            density_atol,
+            max_refinements,
+            num_threads=num_threads,
+        )
+    except TypeError as keyword_exc:
+        try:
+            return runtime.integrate_density(
+                mu,
+                density_atol,
+                max_refinements,
+                num_threads,
+            )
+        except TypeError:
+            raise _native_threading_error(keyword_exc) from keyword_exc
+
+
+def _runtime_and_components(
+    h: _tb_type,
+    *,
+    keys: list[tuple[int, ...]],
+    density_coordinates: DensityCoordinates | None,
+):
+    prepared = prepare_density_components(
+        h,
+        keys,
+        _resolve_density_components(h, keys, density_coordinates),
+    )
+    runtime = build_runtime(
+        h,
+        keys=list(prepared.keys),
+        component_rows=prepared.rows,
+        component_cols=prepared.cols,
+        component_key_indices=prepared.key_indices,
+    )
+    return runtime, prepared
+
+
+def _density_info(
+    result,
+    runtime,
+    *,
+    num_threads: int | None,
+) -> DensityIntegrationInfo:
+    work = int(result.work)
+    return DensityIntegrationInfo(
+        n_kernel_evals=work,
+        unique_evals=work,
+        n_evaluator_evals=work,
+        n_cached_nodes=int(runtime.n_cached_nodes),
+        n_leaves=int(result.n_active_simplices),
+        n_leaf_nodes=int(result.n_active_vertices),
+        subdivisions=int(result.refinements),
+        error_estimate_available=bool(result.converged),
+        num_threads=num_threads,
+    )
+
+
 def density_matrix_at_mu_zero_temp(
     h: _tb_type,
     *,
@@ -41,16 +155,68 @@ def density_matrix_at_mu_zero_temp(
     density_atol: float,
     density_rtol: float,
     max_subdivisions: int | None = None,
-    refinement_depth: int = 0,
+    num_threads: int | None = None,
 ):
-    return _density_matrix_at_mu_zero_temp(
+    del density_rtol
+    runtime, prepared = _runtime_and_components(
         h,
-        mu=mu,
         keys=keys,
-        density_components=_resolve_density_components(h, keys, density_coordinates),
-        density_atol=density_atol,
-        max_subdivisions=max_subdivisions,
-        refinement_depth=refinement_depth,
+        density_coordinates=density_coordinates,
+    )
+    result = _integrate_density(
+        runtime,
+        mu=float(mu),
+        density_atol=float(density_atol),
+        max_refinements=_max_refinements(max_subdivisions),
+        num_threads=num_threads,
+    )
+    density_matrix, density_matrix_error = prepared.values_and_errors_to_tb(
+        result.estimate_array(),
+        result.error_vector_array(),
+    )
+    return (
+        density_matrix,
+        density_matrix_error,
+        _density_info(result, runtime, num_threads=num_threads),
+    )
+
+
+def _fixed_filling_info(
+    *,
+    root,
+    charge_integration_calls: int,
+    charge_work: int,
+    charge_refinements: int,
+    density_info: DensityIntegrationInfo,
+    charge_tol: float,
+    density_atol: float,
+    density_rtol: float,
+    num_threads: int | None,
+) -> FixedFillingInfo:
+    return FixedFillingInfo(
+        mu=float(root.mu),
+        charge=float(root.charge),
+        charge_error=float(root.charge_error),
+        dcharge_dmu=0.0 if root.derivative is None else float(root.derivative),
+        charge_evaluations=int(root.charge_evaluations),
+        charge_integration_calls=int(charge_integration_calls),
+        density_integration_calls=1,
+        charge_n_kernel_evals=int(charge_work),
+        density_n_kernel_evals=int(density_info.n_kernel_evals),
+        n_kernel_evals=int(charge_work + density_info.n_kernel_evals),
+        unique_evals=int(charge_work + density_info.unique_evals),
+        charge_n_evaluator_evals=int(charge_work),
+        density_n_evaluator_evals=int(density_info.n_evaluator_evals),
+        n_evaluator_evals=int(charge_work + density_info.n_evaluator_evals),
+        n_cached_nodes=int(density_info.n_cached_nodes),
+        n_leaves=int(density_info.n_leaves),
+        n_leaf_nodes=int(density_info.n_leaf_nodes),
+        subdivisions=int(charge_refinements + density_info.subdivisions),
+        charge_integral_atol=float(charge_tol),
+        density_atol=float(density_atol),
+        density_rtol=float(density_rtol),
+        error_estimate_available=bool(density_info.error_estimate_available),
+        num_threads=num_threads,
     )
 
 
@@ -68,21 +234,74 @@ def density_matrix_zero_temp(
     mu_xtol: float,
     max_charge_evaluations: int | None,
     max_subdivisions: int | None = None,
-    refinement_depth: int = 0,
+    num_threads: int | None = None,
 ):
-    return _density_matrix_zero_temp(
+    runtime, prepared = _runtime_and_components(
         h,
-        filling=filling,
         keys=keys,
-        density_components=_resolve_density_components(h, keys, density_coordinates),
-        charge_tol=charge_tol,
-        filling_tol=filling_tol,
-        density_atol=density_atol,
-        mu_guess=mu_guess,
-        mu_xtol=mu_xtol,
-        max_mu_iterations=max_charge_evaluations,
-        max_subdivisions=max_subdivisions,
-        refinement_depth=refinement_depth,
+        density_coordinates=density_coordinates,
+    )
+    max_refinements = _max_refinements(max_subdivisions)
+    charge_integration_calls = 0
+    charge_work = 0
+    charge_refinements = 0
+
+    def evaluate_charge(candidate_mu: float) -> tuple[float, float, float | None]:
+        nonlocal charge_integration_calls, charge_work, charge_refinements
+        result = _integrate_charge(
+            runtime,
+            mu=float(candidate_mu),
+            charge_tol=float(charge_tol),
+            max_refinements=max_refinements,
+            num_threads=num_threads,
+        )
+        charge_integration_calls += 1
+        charge_work += int(result.work)
+        charge_refinements += int(result.refinements)
+        return (
+            float(result.charge),
+            float(result.charge_error),
+            float(result.dcharge_dmu),
+        )
+
+    root = solve_mu(
+        evaluate_charge=evaluate_charge,
+        initial_bracket=lambda: build_mu_bracket(h, 0.0),
+        filling=float(filling),
+        mu_guess=float(mu_guess),
+        filling_tol=float(filling_tol),
+        mu_tol=float(mu_xtol),
+        max_charge_evaluations=max_charge_evaluations,
+        charge_error_tol=float(charge_tol),
+        use_derivative=True,
+    )
+    density_result = _integrate_density(
+        runtime,
+        mu=float(root.mu),
+        density_atol=float(density_atol),
+        max_refinements=max_refinements,
+        num_threads=num_threads,
+    )
+    density_matrix, density_matrix_error = prepared.values_and_errors_to_tb(
+        density_result.estimate_array(),
+        density_result.error_vector_array(),
+    )
+    density_info = _density_info(density_result, runtime, num_threads=num_threads)
+    return (
+        density_matrix,
+        density_matrix_error,
+        float(root.mu),
+        _fixed_filling_info(
+            root=root,
+            charge_integration_calls=charge_integration_calls,
+            charge_work=charge_work,
+            charge_refinements=charge_refinements,
+            density_info=density_info,
+            charge_tol=charge_tol,
+            density_atol=density_atol,
+            density_rtol=density_rtol,
+            num_threads=num_threads,
+        ),
     )
 
 

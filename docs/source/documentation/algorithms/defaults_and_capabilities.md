@@ -37,6 +37,8 @@ The main supported combinations are:
 | `UniformGrid` | Yes | Yes | Yes | Yes |
 | `AdaptiveQuadrature` | No | No | Yes | Yes |
 
+`AdaptiveSimplex` uses the `lineartetrahedron` backend and supports normal-state zero-temperature problems in one, two, and three momentum dimensions. Its `num_threads` option requests a per-integration native thread count from that backend when threading support is available.
+
 ## Matrix-function defaults
 
 At finite temperature:

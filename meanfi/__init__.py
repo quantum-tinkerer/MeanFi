@@ -50,7 +50,6 @@ from .tb.tb import (
     tb_to_kfunc,
     tb_to_kgrid,
     tb_to_tight_binding_model,
-    tb_to_vertex_cache,
 )
 
 
@@ -139,6 +138,5 @@ __all__ = [
     "tb_to_kfunc",
     "tb_to_kgrid",
     "tb_to_tight_binding_model",
-    "tb_to_vertex_cache",
     "total_energy",
 ]

@@ -100,8 +100,8 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
             kT=0.0,
             keys=[(0,), (1,)],
             integration=AdaptiveSimplex(
-                density_matrix_tol=2e-3,
-                max_refinements=600,
+                density_matrix_tol=1e-5,
+                max_refinements=2000,
             ),
             filling_tol=5e-5,
         )

@@ -100,12 +100,12 @@ def _broad_hermitian_correction(keys, ndof: int, *, seed: int):
 
 
 @requires_ext
-def test_refinement_depth_improves_bad_graphene_point_diagnostic():
+def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
     h0, h_int, sz = _build_graphene_bad_point()
     ndof = len(next(iter(h0.values())))
     seeds = [0, 2, 3]
 
-    def solve_sdw_measure(refinement_depth: int):
+    def solve_sdw_measure():
         values = []
         for seed in seeds:
             model = Model(h0, h_int, filling=2)
@@ -115,7 +115,6 @@ def test_refinement_depth_improves_bad_graphene_point_diagnostic():
                     _broad_hermitian_correction(h_int, ndof, seed=seed),
                     integration=AdaptiveSimplex(
                         density_matrix_tol=1e-4,
-                        refinement_depth=refinement_depth,
                     ),
                     scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=1000),
                     scf_tol=1e-7,
@@ -124,10 +123,8 @@ def test_refinement_depth_improves_bad_graphene_point_diagnostic():
             values.append(_sdw_measure(h0, result.mf, sz))
         return values
 
-    depth0 = solve_sdw_measure(0)
-    depth1 = solve_sdw_measure(1)
+    values = solve_sdw_measure()
 
-    # Diagnostic only: the refined path should avoid collapsing to the
+    # Diagnostic only: the adaptive path should avoid collapsing to the
     # symmetry-preserving branch at this known ill-behaved point.
-    assert min(depth0) > 0.5
-    assert min(depth1) > 0.5
+    assert min(values) > 0.5

@@ -70,9 +70,7 @@ h_int = utils.builder_to_tb(builder_int, params)
 
 int_keys = frozenset(h_int)
 ndof = len(next(iter(h_0.values())))
-integration = meanfi.AdaptiveSimplex(
-    density_matrix_tol=density_atol, refinement_depth=2
-)
+integration = meanfi.AdaptiveSimplex(density_matrix_tol=density_atol)
 
 
 # %% Single solve

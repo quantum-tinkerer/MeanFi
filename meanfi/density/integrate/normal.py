@@ -472,7 +472,7 @@ def _adaptive_simplex_at_mu(context: DispatchContext, mu: float):
             density_atol=integration.density_matrix_tol,
             density_rtol=0.0,
             max_subdivisions=integration.max_refinements,
-            refinement_depth=integration.refinement_depth,
+            num_threads=integration.num_threads,
         )
 
     return _wrap_adaptive_payload(
@@ -537,7 +537,7 @@ def _adaptive_simplex_fixed_filling(
             mu_xtol=mu_tol,
             max_charge_evaluations=max_charge_evaluations,
             max_subdivisions=integration.max_refinements,
-            refinement_depth=integration.refinement_depth,
+            num_threads=integration.num_threads,
         )
 
     return _wrap_adaptive_payload(

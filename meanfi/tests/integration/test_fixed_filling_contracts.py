@@ -74,6 +74,26 @@ def test_derivative_free_fixed_filling_root_solves_monotone_charge():
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
 
 
+def test_fixed_filling_root_accepts_explicit_charge_error_tolerance():
+    def evaluate_charge(mu: float) -> tuple[float, float, None]:
+        return 1.0 / (1.0 + np.exp(-mu)), 5e-4, None
+
+    root = solve_mu(
+        evaluate_charge=evaluate_charge,
+        initial_bracket=lambda: (-4.0, 4.0),
+        filling=0.7,
+        mu_guess=0.0,
+        filling_tol=1e-6,
+        mu_tol=1e-8,
+        max_charge_evaluations=200,
+        charge_error_tol=1e-3,
+        use_derivative=False,
+    )
+
+    assert abs(root.charge - 0.7) <= 1e-6
+    assert root.charge_error == pytest.approx(5e-4)
+
+
 def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
     def evaluate_charge(mu: float) -> tuple[float, float, float]:
         charge = 1.0 / (1.0 + np.exp(-mu))

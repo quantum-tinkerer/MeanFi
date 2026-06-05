@@ -14,18 +14,15 @@ class AdaptiveSimplex(IntegrationMethod):
 
     density_matrix_tol: float = 2e-3
     max_refinements: int | None = None
-    refinement_depth: int = 2
-    workspace_precision: int = 128
+    num_threads: int | None = None
 
     def __post_init__(self) -> None:
         if self.density_matrix_tol <= 0:
             raise ValueError("density_matrix_tol must be positive")
         if self.max_refinements is not None and self.max_refinements < 0:
             raise ValueError("max_refinements must be non-negative or None")
-        if self.refinement_depth < 0:
-            raise ValueError("refinement_depth must be non-negative")
-        if self.workspace_precision not in (64, 128):
-            raise ValueError("workspace_precision must be 64 or 128")
+        if self.num_threads is not None and self.num_threads <= 0:
+            raise ValueError("num_threads must be positive or None")
 
 
 @dataclass(frozen=True)

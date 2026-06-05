@@ -13,10 +13,11 @@ kernelspec:
 # `AdaptiveSimplex`
 
 `AdaptiveSimplex` is the dedicated zero-temperature adaptive integration backend for normal-state calculations.
-Its native implementation now lives in the separate `adaptivesimplex` package,
-while MeanFi keeps the public integration API and dispatch logic.
-For implementation details, see the
-[adaptivesimplex package](https://gitlab.kwant-project.org/qt/adaptivesimplex).
+Its physics-specific native implementation lives in the separate
+[lineartetrahedron package](https://gitlab.kwant-project.org/qt/lineartetrahedron),
+while the generic adaptive mesh engine lives in
+[adaptivesimplex](https://gitlab.kwant-project.org/qt/adaptivesimplex).
+MeanFi keeps the public integration API and dispatch logic.
 
 At zero temperature, the occupation becomes discontinuous, so the finite-temperature quadrature machinery is no longer the natural default.
 Instead, `AdaptiveSimplex` refines a simplicial partition of the Brillouin zone and estimates the integral from local simplex contributions.
@@ -63,6 +64,11 @@ This method is specialized but efficient when the zero-temperature integrand is 
 
 - `density_matrix_tol`
 - `max_refinements`
-- `refinement_depth`
+- `num_threads`
+
+`num_threads` requests a per-integration native worker count from the `lineartetrahedron`
+backend. Leave it as `None` to use the backend default. This is the preferred way to
+control AdaptiveSimplex threading from notebooks or task schedulers such as Dask, where
+setting OpenMP environment variables for each calculation is awkward.
 
 It requires `kT = 0` and is the default normal-state integration family at zero temperature.

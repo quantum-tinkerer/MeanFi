@@ -205,6 +205,11 @@ def test_uniform_grid_density_at_mu_converges_against_dense_reference(case):
     assert records[0][1] > records[1][1] > records[2][1]
 
 
-def test_adaptive_simplex_rejects_negative_refinement_depth():
-    with pytest.raises(ValueError, match="refinement_depth must be non-negative"):
-        AdaptiveSimplex(refinement_depth=-1)
+def test_adaptive_simplex_rejects_negative_max_refinements():
+    with pytest.raises(ValueError, match="max_refinements must be non-negative"):
+        AdaptiveSimplex(max_refinements=-1)
+
+
+def test_adaptive_simplex_rejects_nonpositive_num_threads():
+    with pytest.raises(ValueError, match="num_threads must be positive"):
+        AdaptiveSimplex(num_threads=0)

@@ -114,7 +114,7 @@ def translate_adaptive_info(
         if isinstance(integration, AdaptiveSimplex)
         else AdaptiveQuadratureInfo
     )
-    return info_type(
+    kwargs = dict(
         n_kernel_evals=int(raw_info.n_kernel_evals),
         unique_evals=int(getattr(raw_info, "unique_evals", raw_info.n_kernel_evals)),
         n_evaluator_evals=int(raw_info.n_evaluator_evals),
@@ -127,6 +127,9 @@ def translate_adaptive_info(
         charge_integration_calls=getattr(raw_info, "charge_integration_calls", None),
         density_integration_calls=getattr(raw_info, "density_integration_calls", None),
     )
+    if isinstance(integration, AdaptiveSimplex):
+        kwargs["num_threads"] = getattr(raw_info, "num_threads", None)
+    return info_type(**kwargs)
 
 
 def uniform_grid_info(

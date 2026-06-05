@@ -16,6 +16,7 @@ class DensityIntegrationInfo:
     n_leaf_nodes: int
     subdivisions: int
     error_estimate_available: bool
+    num_threads: int | None = None
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,7 @@ class FixedFillingInfo:
     density_atol: float
     density_rtol: float
     error_estimate_available: bool
+    num_threads: int | None = None
 
 
 @dataclass(frozen=True)
@@ -61,6 +63,7 @@ class AdaptiveSimplexInfo:
     charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
+    num_threads: int | None = None
 
 
 @dataclass(frozen=True)

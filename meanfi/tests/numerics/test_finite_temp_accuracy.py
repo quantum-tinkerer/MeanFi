@@ -274,17 +274,7 @@ def test_workspace_precision_controls_are_validated():
     with pytest.raises(ValueError, match="workspace_precision must be 64 or 128"):
         AdaptiveQuadrature(workspace_precision=32)
 
-    with pytest.raises(
-        ValueError,
-        match="AdaptiveSimplex currently supports only workspace_precision=128",
-    ):
-        density_matrix(
-            spinful_chain(),
-            filling=1.0,
-            kT=0.0,
-            keys=[(0,), (1,), (-1,)],
-            integration=AdaptiveSimplex(workspace_precision=64),
-        )
+    assert "workspace_precision" not in AdaptiveSimplex.__dataclass_fields__
 
 
 def test_quadrature_workspace_precision_64_matches_128():

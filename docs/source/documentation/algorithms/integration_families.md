@@ -42,8 +42,10 @@ It is simple, predictable, and useful for explicit coarse-grid workflows and for
 
 This is the dedicated zero-temperature adaptive simplicial backend.
 It refines a simplicial partition of the Brillouin zone and is the default normal-state family for `kT = 0`.
-For implementation details, see the
-[adaptivesimplex package](https://gitlab.kwant-project.org/qt/adaptivesimplex).
+The physics integration backend is
+[lineartetrahedron](https://gitlab.kwant-project.org/qt/lineartetrahedron),
+which uses the generic mesh engine from
+[adaptivesimplex](https://gitlab.kwant-project.org/qt/adaptivesimplex).
 
 ## What the family controls
 
