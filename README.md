@@ -70,14 +70,20 @@ Zero-temperature BdG calculations are not part of the main package workflow.
 Until the next packaged release, install from a checkout:
 
 ```bash
+git clone https://gitlab.kwant-project.org/qt/adaptivesimplex.git
+cmake -S adaptivesimplex -B adaptivesimplex/build -DCMAKE_INSTALL_PREFIX=$HOME/.local
+cmake --build adaptivesimplex/build
+cmake --install adaptivesimplex/build
+export CMAKE_PREFIX_PATH=$HOME/.local${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}
 python -m pip install "stateful-quadrature @ git+https://github.com/Kostusas/stateful_quadrature.git"
-python -m pip install "adaptivesimplex @ git+https://gitlab.kwant-project.org/qt/adaptivesimplex.git@main"
+python -m pip install "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@main"
 python -m pip install -e .
 ```
 
 The zero-temperature `AdaptiveSimplex` backend now lives in the separate
-`adaptivesimplex` package. MeanFi keeps the public `meanfi.AdaptiveSimplex`
-API, but the native extension is no longer built from this repository.
+`lineartetrahedron` package, which uses `adaptivesimplex` as its generic C++
+mesh engine. MeanFi keeps the public `meanfi.AdaptiveSimplex` API, but the
+native extension is no longer built from this repository.
 
 For local development with Pixi:
 

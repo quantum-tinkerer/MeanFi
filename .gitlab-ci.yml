@@ -1,6 +1,7 @@
 image: ghcr.io/prefix-dev/pixi:0.62.0
 
 variables:
+  ADAPTIVESIMPLEX_PREFIX : $CI_PROJECT_DIR/.pixi/adaptivesimplex-prefix
   OPENBLAS_NUM_THREADS : 1
   OMP_NUM_THREADS : 1
   MKL_DYNAMIC : FALSE
@@ -8,6 +9,8 @@ variables:
 
 before_script:
   - pixi global install git
+  - pixi run -e native-build install-adaptivesimplex-cmake
+  - export CMAKE_PREFIX_PATH="$ADAPTIVESIMPLEX_PREFIX${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
 
 run tests:
   when: manual # delete when tests implemented and uncomment pages commands
@@ -100,7 +103,7 @@ run pre-commit:
     PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
   script:
     - pixi run -e precommit git config --global --add safe.directory $CI_PROJECT_DIR
-    - pixi run pre-commit run --all-files
+    - pixi run -e precommit pre-commit run --all-files
   cache:
     key: "$CI_JOB_NAME"
     paths:
