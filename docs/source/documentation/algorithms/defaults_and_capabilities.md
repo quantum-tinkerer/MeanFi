@@ -37,7 +37,7 @@ The main supported combinations are:
 | `UniformGrid` | Yes | Yes | Yes | Yes |
 | `AdaptiveQuadrature` | No | No | Yes | Yes |
 
-`AdaptiveSimplex` uses the `lineartetrahedron` backend and supports normal-state zero-temperature problems in one, two, and three momentum dimensions. Its `num_threads` option requests a per-integration native thread count from that backend when threading support is available.
+`AdaptiveSimplex` uses the `lineartetrahedron` backend and supports normal-state zero-temperature problems in one, two, and three momentum dimensions. MeanFi calls the backend with the backward-compatible adaptive preview depth of `3`.
 
 ## Matrix-function defaults
 
@@ -54,7 +54,9 @@ Some other public defaults that affect algorithm behavior are:
 
 - `Model(..., kT=0.0)`
 - `solver(..., scf=AndersonMixing(), scf_tol=1e-3)`
-- adaptive integration methods default to `density_matrix_tol=1e-2`
-- implicit `filling_tol` is derived from the density tolerance and orbital count
+- `AdaptiveSimplex` defaults to `density_matrix_tol=1e-3`
+- `AdaptiveSimplex` implicit `filling_tol` and charge mesh tolerance both use
+  `density_matrix_tol`
+- other integration methods derive implicit `filling_tol` from density tolerance and orbital count
 
 These defaults live in the runtime code, so this page should be updated whenever those policies change.

@@ -298,39 +298,31 @@ def test_adaptive_simplex_wrapper_resolves_generic_density_components():
     assert components == [(0, 1, (0,)), (1, 0, (1,))]
 
 
-def test_adaptive_simplex_native_thread_option_is_forwarded_or_rejected():
+def test_adaptive_simplex_wrapper_builds_native_options_with_preview_depth():
     import meanfi.density.integrate.simplex as simplex_integration
 
-    class KeywordRuntime:
-        def integrate_density(self, mu, density_atol, max_refinements, *, num_threads):
-            return ("density", mu, density_atol, max_refinements, num_threads)
+    class Runtime:
+        def integrate_density(self, mu, options):
+            return ("density", mu, options)
 
-    class PositionalRuntime:
-        def integrate_charge(self, mu, charge_tol, max_refinements, num_threads):
-            return ("charge", mu, charge_tol, max_refinements, num_threads)
-
-    class OldRuntime:
-        def integrate_density(self, mu, density_atol, max_refinements):
-            del mu, density_atol, max_refinements
-            return "ignored"
-
-    assert simplex_integration._integrate_density(
-        KeywordRuntime(),
+    kind, mu, options = simplex_integration._integrate_density(
+        Runtime(),
         mu=0.25,
         density_atol=1e-3,
         max_refinements=12,
-        num_threads=4,
-    ) == ("density", 0.25, 1e-3, 12, 4)
-    assert simplex_integration._integrate_charge(
-        PositionalRuntime(),
-        mu=0.5,
-        charge_tol=2e-3,
-        max_refinements=8,
-        num_threads=2,
-    ) == ("charge", 0.5, 2e-3, 8, 2)
-    with pytest.raises(RuntimeError, match="per-integration thread controls"):
+        num_threads=None,
+    )
+
+    assert kind == "density"
+    assert mu == 0.25
+    assert options.target_error == 1e-3
+    assert options.max_refinements == 12
+    assert options.preview_depth == 3
+    assert options.min_refinement_batch_size == 1
+    assert options.max_refinement_batch_size == 100
+    with pytest.raises(RuntimeError, match="num_threads"):
         simplex_integration._integrate_density(
-            OldRuntime(),
+            Runtime(),
             mu=0.25,
             density_atol=1e-3,
             max_refinements=12,

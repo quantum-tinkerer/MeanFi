@@ -86,6 +86,15 @@ def local_density_filling(
     return float(np.trace(density_matrix[local_key]).real)
 
 
+def adaptive_simplex_charge_tol(
+    integration: AdaptiveSimplex,
+    *,
+    hamiltonian: _tb_type,
+) -> float:
+    del hamiltonian
+    return float(integration.density_matrix_tol)
+
+
 def effective_filling_tol(
     integration: IntegrationMethod,
     *,
@@ -97,7 +106,10 @@ def effective_filling_tol(
             raise ValueError("filling_tol must be positive when provided")
         return float(filling_tol)
 
-    if isinstance(integration, (AdaptiveSimplex, AdaptiveQuadrature, UniformGrid)):
+    if isinstance(integration, AdaptiveSimplex):
+        return adaptive_simplex_charge_tol(integration, hamiltonian=hamiltonian)
+
+    if isinstance(integration, (AdaptiveQuadrature, UniformGrid)):
         return float(
             0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol
         )

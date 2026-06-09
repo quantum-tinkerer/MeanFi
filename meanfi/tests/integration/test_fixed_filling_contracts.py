@@ -115,7 +115,27 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
 
 
-def test_adaptive_methods_default_filling_tol_scales_with_density_matrix_tol(
+def test_adaptive_simplex_default_filling_tol_matches_charge_tol():
+    from meanfi.density.integrate.common import (
+        adaptive_simplex_charge_tol,
+        effective_filling_tol,
+    )
+
+    hamiltonian = spinful_chain()
+    integration = AdaptiveSimplex()
+
+    assert (
+        effective_filling_tol(
+            integration,
+            hamiltonian=hamiltonian,
+            filling_tol=None,
+        )
+        == 1e-3
+    )
+    assert adaptive_simplex_charge_tol(integration, hamiltonian=hamiltonian) == 1e-3
+
+
+def test_adaptive_quadrature_default_filling_tol_scales_with_density_matrix_tol(
     monkeypatch,
 ):
     import meanfi.density.integrate.normal as integration

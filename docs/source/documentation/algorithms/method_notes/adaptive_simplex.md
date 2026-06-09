@@ -66,9 +66,9 @@ This method is specialized but efficient when the zero-temperature integrand is 
 - `max_refinements`
 - `num_threads`
 
-`num_threads` requests a per-integration native worker count from the `lineartetrahedron`
-backend. Leave it as `None` to use the backend default. This is the preferred way to
-control AdaptiveSimplex threading from notebooks or task schedulers such as Dask, where
-setting OpenMP environment variables for each calculation is awkward.
+MeanFi uses the backward-compatible adaptive preview depth of `3` when calling the
+`lineartetrahedron` backend. `num_threads` is reserved for native backends that expose
+per-integration thread control; the current `lineartetrahedron` backend requires it to
+remain `None`.
 
 It requires `kT = 0` and is the default normal-state integration family at zero temperature.

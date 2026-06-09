@@ -12,7 +12,7 @@ class IntegrationMethod:
 class AdaptiveSimplex(IntegrationMethod):
     """Adaptive zero-temperature simplicial integration."""
 
-    density_matrix_tol: float = 2e-3
+    density_matrix_tol: float = 1e-3
     max_refinements: int | None = None
     num_threads: int | None = None
 
