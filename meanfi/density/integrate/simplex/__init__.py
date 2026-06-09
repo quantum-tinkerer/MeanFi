@@ -292,7 +292,10 @@ def density_matrix_zero_temp(
             if max_charge_evaluations is None
             else max_charge_evaluations - charge_evaluations
         )
-        if remaining_charge_evaluations is not None and remaining_charge_evaluations <= 0:
+        if (
+            remaining_charge_evaluations is not None
+            and remaining_charge_evaluations <= 0
+        ):
             raise RuntimeError(
                 "Chemical-potential solve failed: maximum charge-evaluation budget "
                 "reached before satisfying the filling tolerance"
@@ -332,9 +335,8 @@ def density_matrix_zero_temp(
         charge_refinements += int(result.refinements)
 
         residual = float(result.charge) - float(filling)
-        if (
-            abs(residual) <= float(filling_tol)
-            and float(result.charge_error) <= float(charge_tol)
+        if abs(residual) <= float(filling_tol) and float(result.charge_error) <= float(
+            charge_tol
         ):
             root = FixedFillingSolve(
                 mu=float(root.mu),
