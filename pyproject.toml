@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@86723120bf015e507d301932d7d3587e44e78c94",
+    "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@4d538670a195ff13d4e58685060ca374872477c8",
     "numpy>=2.0",
     "packaging>=22.0",
     "python-mumps",
