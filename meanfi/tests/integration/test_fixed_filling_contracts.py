@@ -127,14 +127,11 @@ def test_adaptive_simplex_default_filling_tol_uses_estimator_factor():
     integration = AdaptiveSimplex()
     expected_filling_tol = integration.density_matrix_tol / estimator_factor()
 
-    assert (
-        effective_filling_tol(
-            integration,
-            hamiltonian=hamiltonian,
-            filling_tol=None,
-        )
-        == pytest.approx(expected_filling_tol)
-    )
+    assert effective_filling_tol(
+        integration,
+        hamiltonian=hamiltonian,
+        filling_tol=None,
+    ) == pytest.approx(expected_filling_tol)
     assert effective_charge_tol(integration) == pytest.approx(1e-3)
     assert adaptive_simplex_charge_tol(integration, hamiltonian=hamiltonian) == 1e-3
 
