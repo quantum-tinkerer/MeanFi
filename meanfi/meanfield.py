@@ -7,8 +7,10 @@ from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import (
     _tb_type,
     add_tb,
+    as_sparse,
     elementwise_product,
     is_sparse_like,
+    transpose,
 )
 from meanfi.tb.validate import tb_dimension, zero_key
 
@@ -77,6 +79,34 @@ def assemble_bdg_correction(
     return correction
 
 
+def _antisymmetrize_anomalous_block(anomalous_block: _tb_type, ndof: int) -> _tb_type:
+    """Project pairing blocks onto Delta(R) = -Delta(-R).T."""
+
+    zero = np.zeros((ndof, ndof), dtype=complex)
+    keys = frozenset(anomalous_block) | {
+        tuple(-np.asarray(key, dtype=int)) for key in anomalous_block
+    }
+    result = {}
+    for key in keys:
+        if key in result:
+            continue
+        opposite = tuple(-np.asarray(key, dtype=int))
+        block = anomalous_block.get(key, zero)
+        opposite_block = anomalous_block.get(opposite, zero)
+        if is_sparse_like(block) or is_sparse_like(opposite_block):
+            projected = 0.5 * (as_sparse(block) - transpose(as_sparse(opposite_block)))
+            projected = projected.tocsr()
+        else:
+            projected = 0.5 * (
+                np.asarray(block, dtype=complex)
+                - transpose(np.asarray(opposite_block, dtype=complex))
+            )
+        result[key] = projected
+        if opposite != key:
+            result[opposite] = -transpose(projected)
+    return result
+
+
 def bdg_correction_from_density_parts(
     density_matrix: _tb_type,
     *,
@@ -99,6 +129,7 @@ def bdg_correction_from_density_parts(
         )
         for key in frozenset(h_int) | frozenset(anomalous_density)
     }
+    anomalous_block = _antisymmetrize_anomalous_block(anomalous_block, ndof)
     correction = assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
     validate_bdg_tb(correction, ndof=ndof, ndim=ndim, name="BdG correction")
     return correction
