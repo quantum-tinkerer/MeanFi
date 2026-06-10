@@ -67,8 +67,8 @@ This method is specialized but efficient when the zero-temperature integrand is 
 - `num_threads`
 
 MeanFi uses the backward-compatible adaptive preview depth of `3` when calling the
-`lineartetrahedron` backend. `num_threads` is reserved for native backends that expose
-per-integration thread control; the current `lineartetrahedron` backend requires it to
-remain `None`.
+`lineartetrahedron` backend. `num_threads` requests the OpenMP thread limit for the
+native integration call, which is useful in notebooks and task workers where setting
+environment variables before process startup is inconvenient.
 
 It requires `kT = 0` and is the default normal-state integration family at zero temperature.

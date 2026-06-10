@@ -22,12 +22,13 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@ab6c25209012e7950aa96f117883bf3eb00071b4",
+    "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@17d6099846913ff08b2be0559ee040ba5c5d0272",
     "numpy>=2.0",
     "packaging>=22.0",
     "python-mumps",
     "scipy>=1.13",
     "stateful-quadrature>=0.2.1",
+    "threadpoolctl>=3.0",
 ]
 
 [tool.hatch.version]

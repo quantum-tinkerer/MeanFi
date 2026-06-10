@@ -320,14 +320,18 @@ def test_adaptive_simplex_wrapper_builds_native_options_with_preview_depth():
     assert options.preview_depth == 3
     assert options.min_refinement_batch_size == 1
     assert options.max_refinement_batch_size == 100
-    with pytest.raises(RuntimeError, match="num_threads"):
-        simplex_integration._integrate_density(
-            Runtime(),
-            mu=0.25,
-            density_atol=1e-3,
-            max_refinements=12,
-            num_threads=4,
-        )
+    kind, mu, options = simplex_integration._integrate_density(
+        Runtime(),
+        mu=0.25,
+        density_atol=1e-3,
+        max_refinements=12,
+        num_threads=4,
+    )
+
+    assert kind == "density"
+    assert mu == 0.25
+    assert options.target_error == 1e-3
+    assert options.max_refinements == 12
 
 
 def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):

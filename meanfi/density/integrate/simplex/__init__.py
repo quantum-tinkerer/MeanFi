@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
+
 from lineartetrahedron import NATIVE_AVAILABLE as _ZERO_TEMP_EXT_AVAILABLE
 from lineartetrahedron import (
     AdaptiveOptions,
@@ -7,6 +9,7 @@ from lineartetrahedron import (
     full_density_components,
     prepare_density_components,
 )
+from threadpoolctl import threadpool_limits
 
 from meanfi.density.filling import FixedFillingSolve
 from meanfi.density.filling import mu_bracket as build_mu_bracket
@@ -46,11 +49,10 @@ def _max_refinements(max_subdivisions: int | None) -> int:
     return -1 if max_subdivisions is None else int(max_subdivisions)
 
 
-def _native_threading_error() -> RuntimeError:
-    return RuntimeError(
-        "AdaptiveSimplex(num_threads=...) is not supported by this "
-        "lineartetrahedron backend"
-    )
+def _native_thread_context(num_threads: int | None):
+    if num_threads is None:
+        return nullcontext()
+    return threadpool_limits(limits=int(num_threads), user_api="openmp")
 
 
 def _adaptive_options(
@@ -59,8 +61,7 @@ def _adaptive_options(
     max_refinements: int,
     num_threads: int | None,
 ):
-    if num_threads is not None:
-        raise _native_threading_error()
+    del num_threads
     return AdaptiveOptions(
         float(target_error),
         max_refinements=max_refinements,
@@ -68,6 +69,16 @@ def _adaptive_options(
         min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
         max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
     )
+
+
+def _call_native(method, *args, num_threads: int | None):
+    if num_threads is not None:
+        try:
+            return method(*args, int(num_threads))
+        except TypeError:
+            pass
+    with _native_thread_context(num_threads):
+        return method(*args)
 
 
 def _integrate_charge(
@@ -78,13 +89,15 @@ def _integrate_charge(
     max_refinements: int,
     num_threads: int | None,
 ):
-    return runtime.integrate_charge(
+    return _call_native(
+        runtime.integrate_charge,
         mu,
         _adaptive_options(
             target_error=charge_tol,
             max_refinements=max_refinements,
             num_threads=num_threads,
         ),
+        num_threads=num_threads,
     )
 
 
@@ -95,13 +108,15 @@ def _evaluate_charge(
     charge_tol: float,
     num_threads: int | None,
 ):
-    return runtime.evaluate_charge(
+    return _call_native(
+        runtime.evaluate_charge,
         mu,
         _adaptive_options(
             target_error=charge_tol,
             max_refinements=0,
             num_threads=num_threads,
         ),
+        num_threads=num_threads,
     )
 
 
@@ -113,13 +128,15 @@ def _integrate_density(
     max_refinements: int,
     num_threads: int | None,
 ):
-    return runtime.integrate_density(
+    return _call_native(
+        runtime.integrate_density,
         mu,
         _adaptive_options(
             target_error=density_atol,
             max_refinements=max_refinements,
             num_threads=num_threads,
         ),
+        num_threads=num_threads,
     )
 
 
