@@ -67,34 +67,35 @@ Zero-temperature BdG calculations are not part of the main package workflow.
 
 ## Installation
 
-Until the next packaged release, install from a checkout:
+For a fresh development checkout, use [Pixi](https://pixi.sh/). Pixi creates
+the Python environment and installs the native build tools that MeanFi needs:
 
 ```bash
-git clone https://gitlab.kwant-project.org/qt/adaptivesimplex.git
-cmake -S adaptivesimplex -B adaptivesimplex/build -DCMAKE_INSTALL_PREFIX=$HOME/.local
-cmake --build adaptivesimplex/build
-cmake --install adaptivesimplex/build
-export CMAKE_PREFIX_PATH=$HOME/.local${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}
-python -m pip install "stateful-quadrature @ git+https://github.com/Kostusas/stateful_quadrature.git"
-python -m pip install "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@main"
-python -m pip install -e .
+curl -fsSL https://pixi.sh/install.sh | sh
+git clone https://gitlab.kwant-project.org/qt/meanfi.git
+cd meanfi
+pixi install
+pixi run python -c "import meanfi; print(meanfi.__version__)"
 ```
 
 The zero-temperature `AdaptiveSimplex` backend now lives in the separate
 `lineartetrahedron` package, which uses `adaptivesimplex` as its generic C++
 mesh engine. MeanFi keeps the public `meanfi.AdaptiveSimplex` API, but the
-native extension is no longer built from this repository.
+native extension is no longer built from this repository. The current
+`lineartetrahedron` package vendors `adaptivesimplex`, so a normal Pixi install
+does not require a separate AdaptiveSimplex checkout or CMake install.
 
-For local development with Pixi:
+Common development tasks can then be run through Pixi:
 
 ```bash
-pixi install
+pixi run tests-mid
+pixi run -e docs docs-build
 ```
 
 If you also want the `kwant` helpers:
 
 ```bash
-python -m pip install ".[kwant]"
+pixi install -e mid
 ```
 
 ## Citing `MeanFi`

@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@4d538670a195ff13d4e58685060ca374872477c8",
+    "lineartetrahedron @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@24810e5665469ab59d9d4b0d160f0d4aa12b024a",
     "numpy>=2.0",
     "packaging>=22.0",
     "python-mumps",
@@ -83,6 +83,20 @@ git = ">=2.47.1,<3"
 pre-commit = ">=3.7.1,<3.8"
 
 [tool.pixi.target.linux-64.dependencies]
+cxx-compiler = ">=1.11.0,<2"
+
+[tool.pixi.target.osx-64.dependencies]
+clang-tools = ">=19.1.7,<20"
+cxx-compiler = ">=1.11.0,<2"
+
+[tool.pixi.target.osx-arm64.dependencies]
+clang-tools = ">=19.1.7,<20"
+cxx-compiler = ">=1.11.0,<2"
+
+[tool.pixi.target.osx.activation.env]
+CMAKE_ARGS = "-DCMAKE_CXX_COMPILER_CLANG_SCAN_DEPS=$CONDA_PREFIX/bin/clang-scan-deps"
+
+[tool.pixi.target.win-64.dependencies]
 cxx-compiler = ">=1.11.0,<2"
 
 [tool.pixi.feature.test.dependencies]
