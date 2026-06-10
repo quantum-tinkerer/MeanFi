@@ -53,10 +53,13 @@ For `UniformGrid`, the same dense/sparse distinction is still relevant when the 
 Some other public defaults that affect algorithm behavior are:
 
 - `Model(..., kT=0.0)`
-- `solver(..., scf=AndersonMixing(), scf_tol=1e-3)`
-- `AdaptiveSimplex` defaults to `density_matrix_tol=1e-3`
-- `AdaptiveSimplex` implicit `filling_tol` and charge mesh tolerance both use
+- `solver(..., scf=AndersonMixing(), scf_tol=None)`, where omitted
+  `scf_tol` is derived from the selected integration method's
   `density_matrix_tol`
-- other integration methods derive implicit `filling_tol` from density tolerance and orbital count
+- `AdaptiveSimplex` defaults to `density_matrix_tol=1e-3`
+- omitted `filling_tol` is derived from `density_matrix_tol` using the internal
+  estimator factor `0.6 * preview_depth**2`
+- integration methods accept `charge_tol`; when omitted, it uses
+  `density_matrix_tol`
 
 These defaults live in the runtime code, so this page should be updated whenever those policies change.

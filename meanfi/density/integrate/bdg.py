@@ -13,6 +13,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from meanfi.density.integrate.common import (
+    effective_charge_tol,
+    estimator_factor,
     uniform_grid_info,
     validate_integration_method,
     wrap_adaptive_result,
@@ -61,7 +63,8 @@ def effective_bdg_filling_tol(
         if filling_tol <= 0:
             raise ValueError("filling_tol must be positive when provided")
         return float(filling_tol)
-    return float(0.1 * np.sum(np.abs(filling_weights)) * density_matrix_tol)
+    del filling_weights
+    return float(density_matrix_tol) / estimator_factor()
 
 
 def resolve_bdg_matrix_function(
@@ -105,6 +108,7 @@ def _bdg_zero_dim_prepared_node(
     q_diag: np.ndarray,
     selected_matrix_function: BdGMatrixFunction,
     filling_tol: float,
+    charge_tol: float,
     density_tolerance: float,
     filling_indices,
     filling_weights: np.ndarray,
@@ -123,7 +127,7 @@ def _bdg_zero_dim_prepared_node(
         kT=kT,
         q_diag=q_diag,
         options=selected_matrix_function,
-        charge_tolerance=filling_tol,
+        charge_tolerance=charge_tol,
         density_coordinates=density_coordinates,
         density_tolerance=density_tolerance,
         workspace_dtype=workspace_dtype,
@@ -218,7 +222,7 @@ def _bdg_zero_dim_density(
     )
 
 
-def _bdg_zero_dim_info(root, *, filling_tol: float, integration: IntegrationMethod):
+def _bdg_zero_dim_info(root, *, charge_tol: float, integration: IntegrationMethod):
     return FixedFillingInfo(
         mu=root.mu,
         charge=root.charge,
@@ -238,7 +242,7 @@ def _bdg_zero_dim_info(root, *, filling_tol: float, integration: IntegrationMeth
         n_leaves=1,
         n_leaf_nodes=1,
         subdivisions=0,
-        charge_integral_atol=filling_tol,
+        charge_integral_atol=charge_tol,
         density_atol=integration.density_matrix_tol,
         density_rtol=0.0,
         error_estimate_available=True,
@@ -253,6 +257,7 @@ def _solve_bdg_zero_dim(
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod,
     filling_tol: float,
+    charge_tol: float,
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
@@ -273,6 +278,7 @@ def _solve_bdg_zero_dim(
         q_diag=q_diag,
         selected_matrix_function=selected_matrix_function,
         filling_tol=filling_tol,
+        charge_tol=charge_tol,
         density_tolerance=integration.density_matrix_tol,
         filling_indices=filling_indices,
         filling_weights=filling_weights,
@@ -321,9 +327,7 @@ def _solve_bdg_zero_dim(
         prepared_node=prepared_node,
         workspace_dtype=workspace_dtype,
     )
-    raw_info = _bdg_zero_dim_info(
-        root, filling_tol=filling_tol, integration=integration
-    )
+    raw_info = _bdg_zero_dim_info(root, charge_tol=charge_tol, integration=integration)
     if isinstance(integration, UniformGrid):
         return wrap_density_result(
             density_matrix=density_matrix,
@@ -363,6 +367,7 @@ class BdGFixedFillingContext:
     keys: list[tuple[int, ...]]
     integration: IntegrationMethod
     filling_tol: float
+    charge_tol: float
     mu_tol: float
     max_charge_evaluations: int | None
     mu_guess: float
@@ -404,6 +409,7 @@ def build_bdg_problem(
             density_matrix_tol=getattr(integration, "density_matrix_tol"),
             filling_weights=filling_weights,
         ),
+        charge_tol=effective_charge_tol(integration),
         mu_tol=0.0,
         max_charge_evaluations=None,
         mu_guess=0.0,
@@ -437,7 +443,7 @@ def _solve_bdg_uniform_grid_fixed_filling(
         trace_weights_diag=np.concatenate(
             [np.ones(model._ndof, dtype=float), np.zeros(model._ndof, dtype=float)]
         ),
-        charge_tolerance=context.filling_tol,
+        charge_tolerance=context.charge_tol,
         density_tolerance=integration.density_matrix_tol,
         density_coordinates=resolved_density_coordinates,
         workspace_dtype=workspace_dtype,
@@ -488,7 +494,7 @@ def _solve_bdg_adaptive_quadrature_fixed_filling(
         filling_indices=context.filling_indices,
         filling_weights=context.filling_weights,
         tolerance=integration.density_matrix_tol,
-        charge_tolerance=context.filling_tol,
+        charge_tolerance=context.charge_tol,
         density_coordinates=context.density_coordinates,
         workspace_dtype=workspace_complex_dtype(integration),
     )
@@ -501,6 +507,7 @@ def _solve_bdg_adaptive_quadrature_fixed_filling(
         filling_tol=context.filling_tol,
         mu_tol=context.mu_tol,
         max_charge_evaluations=context.max_charge_evaluations,
+        charge_atol=context.charge_tol,
         density_atol=integration.density_matrix_tol,
         max_subdivisions=integration.max_refinements,
         root_error_message=(
@@ -568,6 +575,7 @@ def solve_bdg_density_fixed_filling(
             keys=context.keys,
             integration=context.integration,
             filling_tol=context.filling_tol,
+            charge_tol=context.charge_tol,
             mu_tol=context.mu_tol,
             max_charge_evaluations=context.max_charge_evaluations,
             mu_guess=context.mu_guess,

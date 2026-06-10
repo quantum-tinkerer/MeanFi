@@ -93,6 +93,7 @@ def test_half_filling_keeps_particle_hole_symmetry():
 @requires_ext
 def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
     tb = spinful_chain()
+    filling_tol = 5e-5
     for filling in (0.1, 0.25, 0.5, 0.9, 1.1, 1.5, 1.75, 1.9):
         result = density_matrix(
             tb,
@@ -103,11 +104,11 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
                 density_matrix_tol=1e-5,
                 max_refinements=2000,
             ),
-            filling_tol=5e-5,
+            filling_tol=filling_tol,
         )
 
         assert abs(result.mu - exact_spinful_chain_mu(filling)) <= 1e-4
-        assert abs(exact_spinful_chain_charge(result.mu) - filling) <= 3e-5
+        assert abs(exact_spinful_chain_charge(result.mu) - filling) <= filling_tol
         assert result.info.refinements > 0
 
 

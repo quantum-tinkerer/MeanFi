@@ -13,13 +13,38 @@ from meanfi.results import (
 from meanfi.tb.validate import (
     normalize_keys,
     tb_dimension,
-    tb_orbital_count,
     zero_key,
 )
 from meanfi.tb.ops import _tb_type
 
 from meanfi.density.integrate.workspace import require_supported_workspace_precision
-from .methods import AdaptiveQuadrature, AdaptiveSimplex, IntegrationMethod, UniformGrid
+from .methods import (
+    ADAPTIVE_PREVIEW_DEPTH,
+    AdaptiveQuadrature,
+    AdaptiveSimplex,
+    IntegrationMethod,
+    UniformGrid,
+)
+
+
+def estimator_factor(*, preview_depth: int = ADAPTIVE_PREVIEW_DEPTH) -> float:
+    return float(0.6 * int(preview_depth) ** 2)
+
+
+def estimated_error_from_density_tol(integration: IntegrationMethod) -> float:
+    return float(integration.density_matrix_tol) / estimator_factor()
+
+
+def effective_scf_tol(
+    integration: IntegrationMethod,
+    *,
+    scf_tol: float | None,
+) -> float:
+    if scf_tol is not None:
+        if scf_tol <= 0:
+            raise ValueError("scf_tol must be positive when provided")
+        return float(scf_tol)
+    return estimated_error_from_density_tol(integration)
 
 
 def validate_integration_method(integration: IntegrationMethod, *, kT: float) -> None:
@@ -92,6 +117,17 @@ def adaptive_simplex_charge_tol(
     hamiltonian: _tb_type,
 ) -> float:
     del hamiltonian
+    return effective_charge_tol(integration)
+
+
+def effective_charge_tol(
+    integration: IntegrationMethod,
+) -> float:
+    charge_tol = getattr(integration, "charge_tol", None)
+    if charge_tol is not None:
+        if charge_tol <= 0:
+            raise ValueError("charge_tol must be positive when provided")
+        return float(charge_tol)
     return float(integration.density_matrix_tol)
 
 
@@ -107,12 +143,11 @@ def effective_filling_tol(
         return float(filling_tol)
 
     if isinstance(integration, AdaptiveSimplex):
-        return adaptive_simplex_charge_tol(integration, hamiltonian=hamiltonian)
+        return estimated_error_from_density_tol(integration)
 
     if isinstance(integration, (AdaptiveQuadrature, UniformGrid)):
-        return float(
-            0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol
-        )
+        del hamiltonian
+        return estimated_error_from_density_tol(integration)
 
     raise ValueError("UniformGrid requires an implicit grid-resolved filling target")
 

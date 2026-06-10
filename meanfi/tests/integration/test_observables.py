@@ -100,3 +100,30 @@ def test_total_energy_matches_bdg_block_formula():
     expected += 0.5 * expectation_value(anomalous_density, pairing_correction)
 
     assert total_energy(model, density) == pytest.approx(np.real(expected))
+
+
+def test_bdg_correction_projects_pairing_antisymmetry_noise():
+    model = Model(
+        {
+            (0,): np.zeros((1, 1), dtype=complex),
+            (1,): np.zeros((1, 1), dtype=complex),
+            (-1,): np.zeros((1, 1), dtype=complex),
+        },
+        {
+            (1,): np.ones((1, 1), dtype=complex),
+            (-1,): np.ones((1, 1), dtype=complex),
+        },
+        filling=0.5,
+        kT=0.1,
+        superconducting=True,
+    )
+    density = {
+        (0,): np.zeros((2, 2), dtype=complex),
+        (1,): np.array([[0.0, 0.2], [0.0, 0.0]], dtype=complex),
+        (-1,): np.array([[0.0, -0.20000004], [0.0, 0.0]], dtype=complex),
+    }
+
+    correction = bdg_correction_from_density(density, model)
+
+    assert correction[(1,)][0, 1] == pytest.approx(-0.20000002)
+    assert correction[(-1,)][0, 1] == pytest.approx(0.20000002)
