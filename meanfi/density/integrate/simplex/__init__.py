@@ -14,11 +14,12 @@ from threadpoolctl import threadpool_limits
 from meanfi.density.filling import FixedFillingSolve
 from meanfi.density.filling import mu_bracket as build_mu_bracket
 from meanfi.density.filling import solve_mu
+from meanfi.density.integrate.methods import ADAPTIVE_PREVIEW_DEPTH
 from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type
 
-_PREVIEW_DEPTH = 3
+_PREVIEW_DEPTH = ADAPTIVE_PREVIEW_DEPTH
 _MIN_REFINEMENT_BATCH_SIZE = 1
 _MAX_REFINEMENT_BATCH_SIZE = 100
 _ROOT_SOLVE_CHARGE_ERROR_TOL = 1e300

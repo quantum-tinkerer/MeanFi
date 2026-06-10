@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from meanfi.density.integrate.defaults import select_default_integration
+from meanfi.density.integrate.common import effective_scf_tol
 from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.model import Model
 from meanfi.results import SolverResult
@@ -19,7 +20,7 @@ def solver(
     *,
     integration: IntegrationMethod | None = None,
     scf: SCFMethod = AndersonMixing(),
-    scf_tol: float = 1e-3,
+    scf_tol: float | None = None,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
@@ -49,7 +50,7 @@ def solver(
     return run_scf_loop(
         guess,
         scf=scf,
-        scf_tol=scf_tol,
+        scf_tol=effective_scf_tol(resolved_integration, scf_tol=scf_tol),
         problem=problem,
     )
 

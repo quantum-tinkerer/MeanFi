@@ -65,6 +65,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     ):
         assert solver_params[name].kind is inspect.Parameter.KEYWORD_ONLY
     assert solver_params["integration"].default is None
+    assert solver_params["scf_tol"].default is None
     assert "optimizer" not in solver_params
     assert "optimizer_kwargs" not in solver_params
 
@@ -85,6 +86,34 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     total_energy_params = inspect.signature(total_energy).parameters
     assert list(total_energy_params) == ["model", "density_matrix"]
     assert meanfi.total_energy is total_energy
+
+    for method in (AdaptiveSimplex, AdaptiveQuadrature, UniformGrid):
+        params = inspect.signature(method).parameters
+        assert params["charge_tol"].default is None
+
+
+def test_solver_derives_scf_tol_from_integration_density_matrix_tol(monkeypatch):
+    import meanfi.scf.scf as scf_pipeline
+
+    captured = {}
+
+    def fake_run_scf_loop(guess, *, scf, scf_tol, problem):
+        captured["guess"] = guess
+        captured["scf"] = scf
+        captured["scf_tol"] = scf_tol
+        captured["problem"] = problem
+        return SimpleNamespace()
+
+    monkeypatch.setattr(scf_pipeline, "run_scf_loop", fake_run_scf_loop)
+
+    model = Model(**_base_model_kwargs())
+    guess = {(0,): np.zeros((2, 2))}
+    integration = AdaptiveQuadrature(density_matrix_tol=5.4e-4)
+
+    result = solver(model, guess, integration=integration)
+
+    assert result == SimpleNamespace()
+    assert captured["scf_tol"] == pytest.approx(1e-4)
 
 
 @pytest.mark.parametrize(

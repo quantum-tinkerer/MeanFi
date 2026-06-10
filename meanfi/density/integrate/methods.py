@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+ADAPTIVE_PREVIEW_DEPTH = 3
+
+
 @dataclass(frozen=True)
 class IntegrationMethod:
     """Base class for Brillouin-zone integration strategies."""
@@ -15,10 +18,13 @@ class AdaptiveSimplex(IntegrationMethod):
     density_matrix_tol: float = 1e-3
     max_refinements: int | None = None
     num_threads: int | None = None
+    charge_tol: float | None = None
 
     def __post_init__(self) -> None:
         if self.density_matrix_tol <= 0:
             raise ValueError("density_matrix_tol must be positive")
+        if self.charge_tol is not None and self.charge_tol <= 0:
+            raise ValueError("charge_tol must be positive when provided")
         if self.max_refinements is not None and self.max_refinements < 0:
             raise ValueError("max_refinements must be non-negative or None")
         if self.num_threads is not None and self.num_threads <= 0:
@@ -35,10 +41,13 @@ class AdaptiveQuadrature(IntegrationMethod):
     batch_size: int | None = None
     matrix_function: object | None = None
     workspace_precision: int = 128
+    charge_tol: float | None = None
 
     def __post_init__(self) -> None:
         if self.density_matrix_tol <= 0:
             raise ValueError("density_matrix_tol must be positive")
+        if self.charge_tol is not None and self.charge_tol <= 0:
+            raise ValueError("charge_tol must be positive when provided")
         if self.max_refinements is not None and self.max_refinements < 0:
             raise ValueError("max_refinements must be non-negative or None")
         if self.batch_size is not None and self.batch_size <= 0:
@@ -55,11 +64,14 @@ class UniformGrid(IntegrationMethod):
     density_matrix_tol: float = 1e-2
     matrix_function: object | None = None
     workspace_precision: int = 128
+    charge_tol: float | None = None
 
     def __post_init__(self) -> None:
         if self.nk <= 0:
             raise ValueError("nk must be positive")
         if self.density_matrix_tol <= 0:
             raise ValueError("density_matrix_tol must be positive")
+        if self.charge_tol is not None and self.charge_tol <= 0:
+            raise ValueError("charge_tol must be positive when provided")
         if self.workspace_precision not in (64, 128):
             raise ValueError("workspace_precision must be 64 or 128")

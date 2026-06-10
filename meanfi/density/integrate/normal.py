@@ -11,8 +11,9 @@ from __future__ import annotations
 import numpy as np
 
 from meanfi.density.integrate.common import (
-    adaptive_simplex_charge_tol,
+    effective_charge_tol,
     effective_filling_tol,
+    estimated_error_from_density_tol,
     local_density_filling,
     retarget_result_keys,
     uniform_grid_info,
@@ -109,6 +110,7 @@ def _normal_zero_dim_fixed_filling(
     keys: list[tuple[int, ...]],
     mu_guess: float,
     charge_tol: float,
+    filling_tol: float,
     mu_xtol: float,
     max_charge_evaluations: int | None,
     density_atol: float,
@@ -181,7 +183,7 @@ def _normal_zero_dim_fixed_filling(
         initial_bracket=lambda: mu_bracket({tuple(): matrix}, kT),
         filling=filling,
         mu_guess=mu_guess,
-        filling_tol=charge_tol,
+        filling_tol=filling_tol,
         mu_tol=mu_xtol,
         max_charge_evaluations=max_charge_evaluations,
     )
@@ -280,6 +282,7 @@ def _solve_quadrature_fixed_filling(
     filling_tol: float,
     mu_tol: float,
     max_charge_evaluations: int | None,
+    charge_atol: float,
     density_atol: float,
     max_subdivisions: int | None,
     root_error_message: str,
@@ -287,7 +290,8 @@ def _solve_quadrature_fixed_filling(
 ) -> tuple[_tb_type, _tb_type, FixedFillingInfo]:
     """Run the shared fixed-filling executor for an adaptive backend."""
 
-    charge_integral_atol, charge_integral_rtol = charge_integral_tolerance(filling_tol)
+    charge_integral_atol = float(charge_atol)
+    charge_integral_rtol = 0.0
     charge_integrator = build_integrator(
         backend,
         evaluator=backend.charge_evaluator,
@@ -328,6 +332,7 @@ def _solve_quadrature_fixed_filling(
         filling_tol=filling_tol,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
+        charge_error_tol=charge_integral_atol,
         use_derivative=backend.charge_has_derivative,
     )
 
@@ -386,6 +391,7 @@ def _adaptive_quadrature_fixed_filling(
         hamiltonian=hamiltonian,
         filling_tol=filling_tol,
     )
+    resolved_charge_tol = effective_charge_tol(integration)
     resolve_normal_matrix_function(
         getattr(integration, "matrix_function", None), hamiltonian
     )
@@ -398,7 +404,8 @@ def _adaptive_quadrature_fixed_filling(
                 kT=context.kT,
                 keys=context.solve_keys,
                 mu_guess=mu_guess,
-                charge_tol=resolved_filling_tol,
+                charge_tol=resolved_charge_tol,
+                filling_tol=resolved_filling_tol,
                 mu_xtol=mu_tol,
                 max_charge_evaluations=max_charge_evaluations,
                 density_atol=integration.density_matrix_tol,
@@ -414,7 +421,7 @@ def _adaptive_quadrature_fixed_filling(
             integration=integration,
             keys=context.solve_keys,
             kT=context.kT,
-            fixed_filling_tolerance=resolved_filling_tol,
+            fixed_filling_tolerance=resolved_charge_tol,
             density_coordinates=context.density_coordinates,
         )
         density_matrix, density_matrix_error, raw_info = (
@@ -427,6 +434,7 @@ def _adaptive_quadrature_fixed_filling(
                 filling_tol=resolved_filling_tol,
                 mu_tol=mu_tol,
                 max_charge_evaluations=max_charge_evaluations,
+                charge_atol=resolved_charge_tol,
                 density_atol=integration.density_matrix_tol,
                 max_subdivisions=integration.max_refinements,
                 root_error_message=(
@@ -505,6 +513,7 @@ def _adaptive_simplex_fixed_filling(
         hamiltonian=hamiltonian,
         filling_tol=filling_tol,
     )
+    resolved_charge_tol = effective_charge_tol(integration)
     if tb_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
         density_matrix, density_matrix_error, _mu, raw_info = (
@@ -514,7 +523,8 @@ def _adaptive_simplex_fixed_filling(
                 kT=context.kT,
                 keys=context.solve_keys,
                 mu_guess=mu_guess,
-                charge_tol=resolved_filling_tol,
+                charge_tol=resolved_charge_tol,
+                filling_tol=resolved_filling_tol,
                 mu_xtol=mu_tol,
                 max_charge_evaluations=max_charge_evaluations,
                 density_atol=integration.density_matrix_tol,
@@ -527,10 +537,7 @@ def _adaptive_simplex_fixed_filling(
             filling=filling,
             keys=context.solve_keys,
             density_coordinates=context.density_coordinates,
-            charge_tol=adaptive_simplex_charge_tol(
-                integration,
-                hamiltonian=hamiltonian,
-            ),
+            charge_tol=resolved_charge_tol,
             filling_tol=resolved_filling_tol,
             density_atol=integration.density_matrix_tol,
             density_rtol=0.0,
@@ -561,9 +568,10 @@ def _implicit_uniform_filling_tol(
     integration: UniformGrid,
     filling_tol: float | None,
 ) -> float:
+    del hamiltonian
     if filling_tol is not None:
         return float(filling_tol)
-    return float(0.1 * tb_orbital_count(hamiltonian) * integration.density_matrix_tol)
+    return estimated_error_from_density_tol(integration)
 
 
 def _uniform_fixed_filling_from_nodes(
@@ -728,6 +736,7 @@ def _uniform_grid_fixed_filling(
         integration,
         filling_tol,
     )
+    resolved_charge_tol = effective_charge_tol(integration)
     bundle = build_uniform_grid_node_bundle(
         hamiltonian,
         kT=context.kT,
@@ -736,7 +745,7 @@ def _uniform_grid_fixed_filling(
         matrix_function=matrix_function,
         q_diag=_uniform_charge_weights(hamiltonian),
         trace_weights_diag=_uniform_charge_weights(hamiltonian),
-        charge_tolerance=resolved_filling_tol,
+        charge_tolerance=resolved_charge_tol,
         density_tolerance=integration.density_matrix_tol,
         density_coordinates=context.density_coordinates,
         workspace_dtype=workspace_dtype,
