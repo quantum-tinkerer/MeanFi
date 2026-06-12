@@ -125,6 +125,26 @@ def test_normal_density_matrix_space_roundtrip():
     compare_dicts(projected, recovered)
 
 
+def test_no_symmetry_normal_space_uses_compact_orbits_for_full_onsite_support():
+    ndof = 32
+    h_0 = {(0,): np.zeros((ndof, ndof), dtype=complex)}
+    h_int = {(0,): np.ones((ndof, ndof), dtype=complex)}
+
+    model = Model(h_0, h_int, filling=1.0, kT=0.1)
+    space = model.scf_space
+
+    assert space.basis is None
+    assert space.required_to_params is None
+    assert space.num_params == ndof * ndof
+    assert len(space.active_entries) == ndof * ndof
+    assert len(space.required_realspace_entries()) == ndof * (ndof + 1) // 2
+
+    params = np.arange(space.num_params, dtype=float)
+    density = space.meanfield_input_from_params(params)
+    np.testing.assert_allclose(density[(0,)], density[(0,)].conj().T)
+    np.testing.assert_allclose(space.params_from_meanfield_input(density), params)
+
+
 def test_bdg_space_imposes_strict_particle_hole_reduction():
     model = Model(
         spinful_chain(),

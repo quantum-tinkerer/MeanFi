@@ -104,6 +104,11 @@ It is the object passed to linear mixing or Anderson mixing.
 This is a linear SCF-variable space, not the full physical density-matrix manifold.
 It does not enforce positivity, trace constraints beyond the fixed-filling density solve, or density-matrix representability.
 
+For models without spatial symmetries, MeanFi does not materialize the matrix `B`.
+Hermiticity and particle-hole constraints are represented as small entry orbits instead:
+each required representative density entry is gathered into parameters, and expansion scatters those parameters back to the active entries with the appropriate sign or conjugation.
+This keeps storage linear in the number of active entries.
+
 ## How symmetries produce `B`
 
 All constraints are written as homogeneous real linear equations on `x`:
@@ -251,6 +256,7 @@ y = (P B)^+ P x.
 
 In the implementation, `model.scf_space` precomputes this compression map during model construction.
 During SCF iterations, compression is therefore just a matrix-vector multiply.
+For the compact no-spatial-symmetry path, the same compression is represented by row-index gathers rather than a dense matrix.
 
 The inverse direction expands SCF parameters back to active density input:
 
