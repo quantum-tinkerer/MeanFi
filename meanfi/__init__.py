@@ -13,6 +13,7 @@ from .results import (
     AdaptiveSimplexInfo,
     DensityMatrixResult,
     SCFInfo,
+    SCFIterationInfo,
     SolverResult,
     UniformGridInfo,
 )
@@ -116,6 +117,7 @@ __all__ = [
     "NoConvergence",
     "RationalFOE",
     "SCFInfo",
+    "SCFIterationInfo",
     "SCFMethod",
     "SolverResult",
     "SpatialSymmetry",

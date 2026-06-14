@@ -99,6 +99,18 @@ class UniformGridInfo:
 
 
 @dataclass(frozen=True)
+class SCFIterationInfo:
+    """Public runtime metadata for one SCF residual evaluation."""
+
+    step: int
+    residual_norm: float
+    integration_evals: int
+    cumulative_integration_evals: int
+    mu: float
+    filling_residual: float | None
+
+
+@dataclass(frozen=True)
 class SCFInfo:
     """Public runtime metadata for an SCF solve."""
 
@@ -110,6 +122,7 @@ class SCFInfo:
     total_kernel_evals: int
     total_unique_evals: int
     total_evaluator_evals: int
+    history: tuple[SCFIterationInfo, ...] = ()
 
 
 @dataclass(frozen=True)

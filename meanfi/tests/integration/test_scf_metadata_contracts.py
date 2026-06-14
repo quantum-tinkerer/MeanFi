@@ -18,6 +18,7 @@ from meanfi import (
     LinearMixing,
     Model,
     RationalFOE,
+    SCFIterationInfo,
     UniformGrid,
     density_matrix,
     density_matrix_at_mu,
@@ -195,3 +196,53 @@ def test_solver_info_exposes_total_unique_evals():
         result.info.total_unique_evals >= result.density_matrix_result.info.unique_evals
     )
     assert result.info.total_unique_evals > 0
+
+
+def test_solver_info_exposes_scf_iteration_history():
+    model = Model(
+        spinful_chain(),
+        {(0,): np.zeros((2, 2))},
+        filling=1.0,
+        kT=0.1,
+    )
+    result = solver(
+        model,
+        {(0,): np.zeros((2, 2))},
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-5),
+        scf=LinearMixing(max_iterations=3),
+        scf_tol=1e-5,
+    )
+
+    history = result.info.history
+    assert history
+    assert all(isinstance(item, SCFIterationInfo) for item in history)
+    assert np.isclose(history[-1].residual_norm, result.info.residual_norm)
+    assert [item.step for item in history] == list(range(1, len(history) + 1))
+    assert all(item.integration_evals >= 0 for item in history)
+    assert [item.cumulative_integration_evals for item in history] == list(
+        np.cumsum([item.integration_evals for item in history])
+    )
+
+
+def test_solver_verbose_prints_scf_progress(capsys):
+    model = Model(
+        spinful_chain(),
+        {(0,): np.zeros((2, 2))},
+        filling=1.0,
+        kT=0.1,
+    )
+    result = solver(
+        model,
+        {(0,): np.zeros((2, 2))},
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-5),
+        scf=LinearMixing(max_iterations=3),
+        scf_tol=1e-5,
+        verbose=True,
+    )
+
+    output = capsys.readouterr().out
+    assert result.info.history
+    assert "scf step=1" in output
+    assert "residual=" in output
+    assert "integration_evals=" in output
+    assert "mu=" in output

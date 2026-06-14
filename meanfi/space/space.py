@@ -219,8 +219,7 @@ class ActiveSCFSpace:
         values = np.zeros(self.active_coordinates.value_count, dtype=complex)
         real_mask = self.active_real_param >= 0
         values[real_mask] += (
-            self.active_real_sign[real_mask]
-            * params[self.active_real_param[real_mask]]
+            self.active_real_sign[real_mask] * params[self.active_real_param[real_mask]]
         )
         imag_mask = self.active_imag_param >= 0
         values[imag_mask] += (

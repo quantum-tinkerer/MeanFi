@@ -5,9 +5,14 @@ from typing import Callable
 
 import numpy as np
 
-from meanfi.results import DensityMatrixResult, SolverResult
+from meanfi.results import DensityMatrixResult, SCFIterationInfo, SolverResult
 from meanfi.scf.fixed_point import NoConvergence, max_norm, solve_fixed_point
-from meanfi.scf.info import SCFRunState, build_scf_info, record_density_result
+from meanfi.scf.info import (
+    SCFRunState,
+    build_scf_info,
+    record_density_result,
+    record_scf_iteration,
+)
 from meanfi.scf.methods import SCFMethod
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import tb_entries_changed
@@ -52,6 +57,19 @@ def warn_on_projection(original: _tb_type, projected: _tb_type, *, label: str) -
     )
 
 
+def _format_scf_progress(info: SCFIterationInfo) -> str:
+    parts = [
+        f"scf step={info.step}",
+        f"residual={info.residual_norm:.6e}",
+        f"integration_evals={info.integration_evals}",
+        f"cumulative_integration_evals={info.cumulative_integration_evals}",
+        f"mu={info.mu:.12g}",
+    ]
+    if info.filling_residual is not None:
+        parts.append(f"filling_residual={info.filling_residual:.6e}")
+    return " ".join(parts)
+
+
 def iterate_density_fixed_point(
     params0: np.ndarray,
     *,
@@ -59,6 +77,7 @@ def iterate_density_fixed_point(
     compress_density: Callable[[_tb_type], np.ndarray],
     scf: SCFMethod,
     scf_tol: float,
+    verbose: bool = False,
     state: SCFRunState | None = None,
 ) -> SCFRunResult:
     run_state = SCFRunState() if state is None else state
@@ -71,6 +90,13 @@ def iterate_density_fixed_point(
         )
         residual = updated - np.asarray(params, dtype=float)
         run_state.residual_norm = max_norm(residual)
+        iteration_info = record_scf_iteration(
+            run_state,
+            density_result,
+            residual_norm=run_state.residual_norm,
+        )
+        if verbose:
+            print(_format_scf_progress(iteration_info))
         return residual
 
     def on_iteration(iteration: int, residual_norm: float) -> None:
@@ -92,6 +118,13 @@ def iterate_density_fixed_point(
             dtype=float,
         )
     )
+    final_iteration_info = record_scf_iteration(
+        run_state,
+        final_density_result,
+        residual_norm=residual_norm,
+    )
+    if verbose:
+        print(_format_scf_progress(final_iteration_info))
     return SCFRunResult(
         params=np.asarray(result_params, dtype=float),
         final_density_result=final_density_result,
@@ -106,6 +139,7 @@ def run_scf_loop(
     scf: SCFMethod,
     scf_tol: float,
     problem: SCFProblem,
+    verbose: bool = False,
 ) -> SolverResult:
     if scf_tol <= 0:
         raise ValueError("scf_tol must be positive")
@@ -126,6 +160,7 @@ def run_scf_loop(
         compress_density=problem.compress_density,
         scf=scf,
         scf_tol=scf_tol,
+        verbose=verbose,
         state=state,
     )
 
