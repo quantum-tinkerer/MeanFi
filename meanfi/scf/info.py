@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from meanfi.results import DensityMatrixResult, SCFInfo
+from meanfi.results import DensityMatrixResult, SCFInfo, SCFIterationInfo
 from meanfi.scf.methods import AndersonMixing, LinearMixing, SCFMethod
 
 
@@ -17,6 +17,7 @@ class SCFRunState:
     total_kernel_evals: int = 0
     total_unique_evals: int = 0
     total_evaluator_evals: int = 0
+    history: list[SCFIterationInfo] | None = None
 
 
 def integration_counters(result: DensityMatrixResult) -> tuple[int, int, int, int, int]:
@@ -50,6 +51,40 @@ def record_density_result(state: SCFRunState, result: DensityMatrixResult) -> No
     state.total_evaluator_evals += evaluator_evals
 
 
+def record_scf_iteration(
+    state: SCFRunState,
+    result: DensityMatrixResult,
+    *,
+    residual_norm: float,
+) -> SCFIterationInfo:
+    (
+        _charge_calls,
+        _density_calls,
+        _kernel_evals,
+        integration_evals,
+        _evaluator_evals,
+    ) = integration_counters(result)
+    history = [] if state.history is None else state.history
+    cumulative_integration_evals = (
+        integration_evals
+        if not history
+        else history[-1].cumulative_integration_evals + integration_evals
+    )
+    info = SCFIterationInfo(
+        step=len(history) + 1,
+        residual_norm=float(residual_norm),
+        integration_evals=int(integration_evals),
+        cumulative_integration_evals=int(cumulative_integration_evals),
+        mu=float(result.mu),
+        filling_residual=(
+            None if result.filling_residual is None else float(result.filling_residual)
+        ),
+    )
+    history.append(info)
+    state.history = history
+    return info
+
+
 def scf_method_name(scf: SCFMethod) -> str:
     if isinstance(scf, AndersonMixing):
         return "anderson_mixing"
@@ -79,4 +114,5 @@ def build_scf_info(
         total_kernel_evals=state.total_kernel_evals + kernel_evals,
         total_unique_evals=state.total_unique_evals + unique_evals,
         total_evaluator_evals=state.total_evaluator_evals + evaluator_evals,
+        history=tuple(state.history or ()),
     )

@@ -24,6 +24,7 @@ def solver(
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
+    verbose: bool = False,
 ) -> SolverResult:
     """Run mean-field update -> density update -> SCF mixing."""
 
@@ -52,6 +53,7 @@ def solver(
         scf=scf,
         scf_tol=effective_scf_tol(resolved_integration, scf_tol=scf_tol),
         problem=problem,
+        verbose=verbose,
     )
 
 

@@ -85,3 +85,7 @@ The default solver path uses Anderson mixing with conservative settings.
 ## Output
 
 Once the fixed point converges, `MeanFi` converts the converged density result back into a mean-field correction and returns that as `result.mf`.
+
+The solve metadata is available as `result.info`.
+For convergence diagnostics, `result.info.history` contains one record per SCF residual evaluation, including the residual norm, the chemical potential, and the integration work for that evaluation.
+Passing `verbose=True` to `meanfi.solver(...)` prints the same progress records while the solve runs.
