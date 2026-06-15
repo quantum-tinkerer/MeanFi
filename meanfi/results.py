@@ -63,6 +63,7 @@ class AdaptiveSimplexInfo:
     charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
+    charge_error: float | None = None
     num_threads: int | None = None
 
 
@@ -81,6 +82,7 @@ class AdaptiveQuadratureInfo:
     charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
+    charge_error: float | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +97,7 @@ class UniformGridInfo:
     charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
+    charge_error: float | None = None
     error_estimate_available: bool = False
 
 
@@ -104,10 +107,12 @@ class SCFIterationInfo:
 
     step: int
     residual_norm: float
+    line_search_norm: float
     integration_evals: int
     cumulative_integration_evals: int
     mu: float
     filling_residual: float | None
+    charge_error: float | None
 
 
 @dataclass(frozen=True)
