@@ -61,12 +61,15 @@ def _format_scf_progress(info: SCFIterationInfo) -> str:
     parts = [
         f"scf step={info.step}",
         f"residual={info.residual_norm:.6e}",
+        f"line_search_norm={info.line_search_norm:.6e}",
         f"integration_evals={info.integration_evals}",
         f"cumulative_integration_evals={info.cumulative_integration_evals}",
         f"mu={info.mu:.12g}",
     ]
     if info.filling_residual is not None:
         parts.append(f"filling_residual={info.filling_residual:.6e}")
+    if info.charge_error is not None:
+        parts.append(f"charge_error={info.charge_error:.6e}")
     return " ".join(parts)
 
 
@@ -90,10 +93,12 @@ def iterate_density_fixed_point(
         )
         residual = updated - np.asarray(params, dtype=float)
         run_state.residual_norm = max_norm(residual)
+        line_search_norm = float(np.linalg.norm(np.ravel(residual)))
         iteration_info = record_scf_iteration(
             run_state,
             density_result,
             residual_norm=run_state.residual_norm,
+            line_search_norm=line_search_norm,
         )
         if verbose:
             print(_format_scf_progress(iteration_info))
@@ -111,17 +116,18 @@ def iterate_density_fixed_point(
         on_iteration=on_iteration,
     )
     final_density_result = density_result_from_params(result_params, run_state.mu)
-    residual_norm = max_norm(
-        np.asarray(
-            compress_density(final_density_result.density_matrix)
-            - np.asarray(result_params, dtype=float),
-            dtype=float,
-        )
+    final_residual = np.asarray(
+        compress_density(final_density_result.density_matrix)
+        - np.asarray(result_params, dtype=float),
+        dtype=float,
     )
+    residual_norm = max_norm(final_residual)
+    line_search_norm = float(np.linalg.norm(np.ravel(final_residual)))
     final_iteration_info = record_scf_iteration(
         run_state,
         final_density_result,
         residual_norm=residual_norm,
+        line_search_norm=line_search_norm,
     )
     if verbose:
         print(_format_scf_progress(final_iteration_info))

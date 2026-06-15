@@ -624,6 +624,7 @@ def _uniform_fixed_filling_from_nodes(
         charge_evaluations=root.charge_evaluations,
         charge_integration_calls=charge_calls,
         density_integration_calls=1,
+        charge_error=root.charge_error,
         error_estimate_available=False,
     )
     return density_matrix, root.mu, resolved_filling, info
@@ -724,6 +725,7 @@ def _uniform_grid_fixed_filling(
                     charge_integration_calls=1,
                     density_integration_calls=1,
                     charge_evaluations=1,
+                    charge_error=abs(float(resolved_filling) - float(filling)),
                     error_estimate_available=False,
                 ),
                 keys=context.solve_keys,

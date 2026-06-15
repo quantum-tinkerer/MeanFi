@@ -78,6 +78,62 @@ def test_solver_supports_anderson_mixing():
     )
 
 
+def test_anderson_mixing_forwards_scipy_options(monkeypatch):
+    import meanfi.scf.fixed_point as fixed_point
+
+    calls = {}
+
+    def fake_anderson(func, x0, **kwargs):
+        calls.update(kwargs)
+        return np.asarray(x0, dtype=float)
+
+    monkeypatch.setattr(fixed_point, "anderson", fake_anderson)
+
+    result = fixed_point.solve_fixed_point(
+        lambda x: np.zeros_like(x),
+        np.array([1.0]),
+        scf=AndersonMixing(
+            max_iterations=7,
+            alpha=0.3,
+            w0=0.2,
+            M=4,
+            f_rtol=1e-6,
+            x_tol=1e-7,
+            x_rtol=1e-8,
+            line_search=None,
+        ),
+        scf_tol=1e-9,
+        on_iteration=lambda *_args: None,
+    )
+
+    assert np.allclose(result, [1.0])
+    assert calls["alpha"] == 0.3
+    assert calls["w0"] == 0.2
+    assert calls["M"] == 4
+    assert calls["f_rtol"] == 1e-6
+    assert calls["x_tol"] == 1e-7
+    assert calls["x_rtol"] == 1e-8
+    assert calls["line_search"] is None
+    assert calls["maxiter"] == 7
+    assert calls["f_tol"] == 1e-9
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"alpha": 0.0}, "alpha must be positive"),
+        ({"w0": -1.0}, "w0 must be non-negative"),
+        ({"f_rtol": 0.0}, "f_rtol must be positive"),
+        ({"x_tol": 0.0}, "x_tol must be positive"),
+        ({"x_rtol": 0.0}, "x_rtol must be positive"),
+        ({"line_search": "bad"}, "line_search must be"),
+    ],
+)
+def test_anderson_mixing_validates_options(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        AndersonMixing(**kwargs)
+
+
 @requires_ext
 def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
     h_0 = spinful_chain()

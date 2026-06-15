@@ -81,11 +81,13 @@ Current built-in methods include:
 - `LinearMixing(...)`
 
 The default solver path uses Anderson mixing with conservative settings.
+`AndersonMixing` exposes SciPy's Anderson controls `alpha`, `w0`, `M`, `f_rtol`, `x_tol`, `x_rtol`, and `line_search`; `max_iterations` maps to SciPy's `maxiter`, while `solver(..., scf_tol=...)` controls the absolute residual tolerance.
 
 ## Output
 
 Once the fixed point converges, `MeanFi` converts the converged density result back into a mean-field correction and returns that as `result.mf`.
 
 The solve metadata is available as `result.info`.
-For convergence diagnostics, `result.info.history` contains one record per SCF residual evaluation, including the residual norm, the chemical potential, and the integration work for that evaluation.
+For convergence diagnostics, `result.info.history` contains one record per SCF residual evaluation, including the convergence residual norm, the line-search residual norm, the chemical potential, the integration charge error, and the integration work for that evaluation.
+The convergence norm is the maximum absolute residual component; the Armijo/Wolfe line-search norm is the Euclidean norm whose square is used by SciPy's line-search objective.
 Passing `verbose=True` to `meanfi.solver(...)` prints the same progress records while the solve runs.

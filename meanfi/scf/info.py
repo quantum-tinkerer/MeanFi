@@ -56,6 +56,7 @@ def record_scf_iteration(
     result: DensityMatrixResult,
     *,
     residual_norm: float,
+    line_search_norm: float,
 ) -> SCFIterationInfo:
     (
         _charge_calls,
@@ -73,11 +74,17 @@ def record_scf_iteration(
     info = SCFIterationInfo(
         step=len(history) + 1,
         residual_norm=float(residual_norm),
+        line_search_norm=float(line_search_norm),
         integration_evals=int(integration_evals),
         cumulative_integration_evals=int(cumulative_integration_evals),
         mu=float(result.mu),
         filling_residual=(
             None if result.filling_residual is None else float(result.filling_residual)
+        ),
+        charge_error=(
+            None
+            if getattr(result.info, "charge_error", None) is None
+            else float(result.info.charge_error)
         ),
     )
     history.append(info)

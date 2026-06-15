@@ -173,6 +173,7 @@ def translate_adaptive_info(
         charge_evaluations=getattr(raw_info, "charge_evaluations", None),
         charge_integration_calls=getattr(raw_info, "charge_integration_calls", None),
         density_integration_calls=getattr(raw_info, "density_integration_calls", None),
+        charge_error=getattr(raw_info, "charge_error", None),
     )
     if isinstance(integration, AdaptiveSimplex):
         kwargs["num_threads"] = getattr(raw_info, "num_threads", None)
@@ -188,6 +189,7 @@ def uniform_grid_info(
     charge_evaluations: int | None = None,
     charge_integration_calls: int | None = None,
     density_integration_calls: int | None = None,
+    charge_error: float | None = None,
     error_estimate_available: bool = False,
 ) -> UniformGridInfo:
     ndim = tb_dimension(hamiltonian)
@@ -211,6 +213,7 @@ def uniform_grid_info(
             if density_integration_calls is None
             else int(density_integration_calls)
         ),
+        charge_error=None if charge_error is None else float(charge_error),
         error_estimate_available=bool(error_estimate_available),
     )
 

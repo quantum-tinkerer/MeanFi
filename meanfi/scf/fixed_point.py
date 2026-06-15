@@ -77,10 +77,15 @@ def _solve_anderson(
                 residual_fn,
                 x0,
                 callback=optimizer_callback,
+                alpha=None if scf.alpha is None else float(scf.alpha),
+                w0=float(scf.w0),
                 M=int(scf.M),
                 line_search=scf.line_search,
                 maxiter=int(scf.max_iterations),
                 f_tol=scf_tol,
+                f_rtol=None if scf.f_rtol is None else float(scf.f_rtol),
+                x_tol=None if scf.x_tol is None else float(scf.x_tol),
+                x_rtol=None if scf.x_rtol is None else float(scf.x_rtol),
                 tol_norm=max_norm,
             )
     except Exception as exc:  # pragma: no cover - exercised through scipy

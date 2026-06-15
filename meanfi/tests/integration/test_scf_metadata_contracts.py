@@ -173,6 +173,7 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
     ).info
 
     assert np.isclose(info_short.residual_norm, 0.1)
+    assert np.isclose(info_short.history[-1].line_search_norm, np.hypot(0.1, 0.02))
     assert np.isclose(info_long.residual_norm, 0.1)
     assert info_short.total_unique_evals == info_long.total_unique_evals == 0
 
@@ -219,6 +220,8 @@ def test_solver_info_exposes_scf_iteration_history():
     assert np.isclose(history[-1].residual_norm, result.info.residual_norm)
     assert [item.step for item in history] == list(range(1, len(history) + 1))
     assert all(item.integration_evals >= 0 for item in history)
+    assert all(item.line_search_norm >= item.residual_norm for item in history)
+    assert history[-1].charge_error is not None
     assert [item.cumulative_integration_evals for item in history] == list(
         np.cumsum([item.integration_evals for item in history])
     )
@@ -244,5 +247,7 @@ def test_solver_verbose_prints_scf_progress(capsys):
     assert result.info.history
     assert "scf step=1" in output
     assert "residual=" in output
+    assert "line_search_norm=" in output
     assert "integration_evals=" in output
     assert "mu=" in output
+    assert "charge_error=" in output
