@@ -178,6 +178,7 @@ for U in Us:
             model,
             model.random_meanfield(rng=0, scale=0.05),
             scf=scf,
+            scf_tol=1e-3,
         )
         mf_sols.append(result.mf)
 
