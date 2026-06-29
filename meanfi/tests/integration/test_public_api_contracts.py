@@ -97,11 +97,12 @@ def test_solver_derives_scf_tol_from_integration_density_matrix_tol(monkeypatch)
 
     captured = {}
 
-    def fake_run_scf_loop(guess, *, scf, scf_tol, problem):
+    def fake_run_scf_loop(guess, *, scf, scf_tol, problem, verbose=False):
         captured["guess"] = guess
         captured["scf"] = scf
         captured["scf_tol"] = scf_tol
         captured["problem"] = problem
+        captured["verbose"] = verbose
         return SimpleNamespace()
 
     monkeypatch.setattr(scf_pipeline, "run_scf_loop", fake_run_scf_loop)

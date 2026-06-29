@@ -298,30 +298,92 @@ def test_adaptive_simplex_wrapper_resolves_generic_density_components():
     assert components == [(0, 1, (0,)), (1, 0, (1,))]
 
 
+def test_adaptive_simplex_wrapper_builds_exact_density_selection_arrays():
+    import meanfi.density.integrate.simplex as simplex_integration
+
+    required = DensityCoordinates.from_pairs(
+        size=2,
+        keys=[(0,), (1,)],
+        pairs_by_key={
+            (0,): (np.array([0]), np.array([1])),
+            (1,): (np.array([1]), np.array([0])),
+        },
+        allow_empty=False,
+    )
+
+    prepared = simplex_integration._prepare_density_components(
+        {
+            (0,): np.zeros((2, 2), dtype=complex),
+            (1,): np.zeros((2, 2), dtype=complex),
+        },
+        keys=[(0,), (1,)],
+        density_coordinates=required,
+    )
+
+    assert prepared.key_array.tolist() == [[0], [1]]
+    assert prepared.rows.tolist() == [0, 1]
+    assert prepared.cols.tolist() == [1, 0]
+    assert prepared.key_indices.tolist() == [0, 1]
+
+
 def test_adaptive_simplex_wrapper_builds_native_options_with_preview_depth():
     import meanfi.density.integrate.simplex as simplex_integration
 
     class Runtime:
-        def integrate_density(self, mu, options):
-            return ("density", mu, options)
+        def integrate_density(
+            self,
+            mu,
+            options,
+            key_array,
+            rows,
+            cols,
+            key_indices,
+            refine,
+        ):
+            return (
+                "density",
+                mu,
+                options,
+                key_array,
+                rows,
+                cols,
+                key_indices,
+                refine,
+            )
 
-    kind, mu, options = simplex_integration._integrate_density(
-        Runtime(),
-        mu=0.25,
-        density_atol=1e-3,
-        max_refinements=12,
-        num_threads=None,
+    prepared = SimpleNamespace(
+        key_array=np.array([[0]], dtype=np.int64),
+        rows=np.array([0], dtype=np.int64),
+        cols=np.array([0], dtype=np.int64),
+        key_indices=np.array([0], dtype=np.int64),
+    )
+
+    kind, mu, options, key_array, rows, cols, key_indices, refine = (
+        simplex_integration._integrate_density(
+            Runtime(),
+            prepared,
+            mu=0.25,
+            density_atol=1e-3,
+            max_refinements=12,
+            num_threads=None,
+        )
     )
 
     assert kind == "density"
     assert mu == 0.25
     assert options.target_error == 1e-3
     assert options.max_refinements == 12
-    assert options.preview_depth == 3
+    assert options.preview_depth == 1
     assert options.min_refinement_batch_size == 1
     assert options.max_refinement_batch_size == 100
-    kind, mu, options = simplex_integration._integrate_density(
+    assert key_array is prepared.key_array
+    assert rows is prepared.rows
+    assert cols is prepared.cols
+    assert key_indices is prepared.key_indices
+    assert refine is True
+    kind, mu, options, *_rest = simplex_integration._integrate_density(
         Runtime(),
+        prepared,
         mu=0.25,
         density_atol=1e-3,
         max_refinements=12,
@@ -332,6 +394,58 @@ def test_adaptive_simplex_wrapper_builds_native_options_with_preview_depth():
     assert mu == 0.25
     assert options.target_error == 1e-3
     assert options.max_refinements == 12
+
+
+def test_adaptive_simplex_charge_helpers_pass_refine_certify_and_bounds():
+    import meanfi.density.integrate.simplex as simplex_integration
+
+    class Runtime:
+        def __init__(self):
+            self.calls = []
+
+        def integrate_charge(self, *args):
+            self.calls.append(args)
+            return SimpleNamespace(
+                charge=1.0,
+                charge_error=0.0,
+                dcharge_dmu=0.0,
+                work=1,
+                refinements=0,
+                n_active_simplices=1,
+                n_active_vertices=2,
+                converged=True,
+            )
+
+    runtime = Runtime()
+    simplex_integration._evaluate_charge(
+        runtime,
+        mu=0.25,
+        charge_tol=1e-3,
+        num_threads=None,
+    )
+    mu, options, refine, certify, hessian_bound, anharmonicity_bound = runtime.calls[-1]
+    assert mu == 0.25
+    assert options.preview_depth == 1
+    assert refine is False
+    assert certify is False
+    assert hessian_bound == 0.0
+    assert anharmonicity_bound == 0.0
+
+    simplex_integration._integrate_charge(
+        runtime,
+        mu=0.5,
+        charge_tol=1e-4,
+        max_refinements=7,
+        num_threads=None,
+    )
+    mu, options, refine, certify, hessian_bound, anharmonicity_bound = runtime.calls[-1]
+    assert mu == 0.5
+    assert options.max_refinements == 7
+    assert options.preview_depth == 1
+    assert refine is True
+    assert certify is True
+    assert hessian_bound == 0.0
+    assert anharmonicity_bound == 0.0
 
 
 def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):

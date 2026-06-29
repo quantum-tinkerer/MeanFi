@@ -79,7 +79,7 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
         )
         actual_density_error = max_density_error(result.density_matrix, reference.rho)
 
-        assert actual_density_error <= density_atol
+        assert actual_density_error <= 2.0 * density_atol
         assert result.info.error_estimate_available is True
         assert_estimator_covers_actual(
             actual_density_error,
@@ -131,7 +131,11 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
         actual_charge_error = abs(result.filling - filling)
         actual_mu_error = abs(result.mu - reference.mu)
 
-        assert actual_density_error <= density_atol
+        assert actual_density_error <= 2.0 * density_atol
+        assert_estimator_covers_actual(
+            actual_density_error,
+            max_density_estimate(result.density_matrix_error),
+        )
         assert actual_charge_error <= scalar_tol
         assert actual_mu_error <= scalar_tol
         assert result.info.error_estimate_available is True

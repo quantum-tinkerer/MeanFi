@@ -164,6 +164,7 @@ And proceed to compute the gap and the mean-field correction for a range of $U$ 
 ```{code-cell} ipython3
 Us = np.linspace(0, 4, 10)
 Vs = np.linspace(0, 1.5, 10)
+scf = meanfi.LinearMixing(alpha=0.3, max_iterations=500)
 
 gaps = []
 mf_sols = []
@@ -176,6 +177,7 @@ for U in Us:
         result = meanfi.solver(
             model,
             model.random_meanfield(rng=0, scale=0.05),
+            scf=scf,
         )
         mf_sols.append(result.mf)
 

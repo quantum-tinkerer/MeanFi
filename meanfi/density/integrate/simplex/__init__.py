@@ -1,28 +1,61 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from dataclasses import dataclass
 
-from lineartetrahedron import NATIVE_AVAILABLE as _ZERO_TEMP_EXT_AVAILABLE
-from lineartetrahedron import (
-    AdaptiveOptions,
-    build_runtime,
-    full_density_components,
-    prepare_density_components,
-)
+import numpy as np
+import lineartetrahedron.backend as simplex_backend
 from threadpoolctl import threadpool_limits
 
 from meanfi.density.filling import FixedFillingSolve
 from meanfi.density.filling import mu_bracket as build_mu_bracket
 from meanfi.density.filling import solve_mu
-from meanfi.density.integrate.methods import ADAPTIVE_PREVIEW_DEPTH
 from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
-from meanfi.space.coordinates import DensityCoordinates
+from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
 from meanfi.tb.ops import _tb_type
 
-_PREVIEW_DEPTH = ADAPTIVE_PREVIEW_DEPTH
+_ZERO_TEMP_EXT_AVAILABLE = bool(simplex_backend.NATIVE_AVAILABLE)
+AdaptiveOptions = simplex_backend.AdaptiveOptions
+
+_PREVIEW_DEPTH = 1
 _MIN_REFINEMENT_BATCH_SIZE = 1
 _MAX_REFINEMENT_BATCH_SIZE = 100
-_ROOT_SOLVE_CHARGE_ERROR_TOL = 1e300
+
+
+@dataclass(frozen=True)
+class _PreparedDensityComponents:
+    density_coordinates: DensityCoordinates
+    key_array: np.ndarray
+    rows: np.ndarray
+    cols: np.ndarray
+    key_indices: np.ndarray
+
+    def values_and_errors_to_tb(
+        self,
+        values: np.ndarray,
+        errors: np.ndarray,
+    ) -> tuple[_tb_type, _tb_type]:
+        return self.density_coordinates.values_and_errors_to_tb(values, errors)
+
+
+def _require_native_backend() -> None:
+    if (
+        not bool(getattr(simplex_backend, "NATIVE_AVAILABLE", False))
+        or getattr(simplex_backend, "IntegrationRuntime", None) is None
+        or getattr(simplex_backend, "TightBindingModel", None) is None
+    ):
+        raise RuntimeError(
+            "Zero-temperature integration requires the compiled "
+            "lineartetrahedron._native extension"
+        )
+
+
+def _require_supported_dimension(h: _tb_type) -> None:
+    ndim = len(next(iter(h)))
+    if ndim not in (1, 2, 3):
+        raise ValueError(
+            "Adaptive simplex zero-temperature backend supports dimensions 1, 2, and 3"
+        )
 
 
 def _components_from_density_coordinates(
@@ -40,10 +73,49 @@ def _resolve_density_components(
     keys: list[tuple[int, ...]],
     density_coordinates: DensityCoordinates | None,
 ) -> list[tuple[int, int, tuple[int, ...]]]:
+    return _components_from_density_coordinates(
+        _density_coordinates(h, keys=keys, density_coordinates=density_coordinates)
+    )
+
+
+def _density_coordinates(
+    h: _tb_type,
+    *,
+    keys: list[tuple[int, ...]],
+    density_coordinates: DensityCoordinates | None,
+) -> DensityCoordinates:
     if density_coordinates is not None:
-        return _components_from_density_coordinates(density_coordinates)
+        return density_coordinates
     size = int(next(iter(h.values())).shape[0])
-    return full_density_components(keys, size=size)
+    return full_density_coordinates(keys, size=size)
+
+
+def _prepare_density_components(
+    h: _tb_type,
+    *,
+    keys: list[tuple[int, ...]],
+    density_coordinates: DensityCoordinates | None,
+) -> _PreparedDensityComponents:
+    coords = _density_coordinates(
+        h,
+        keys=keys,
+        density_coordinates=density_coordinates,
+    )
+    key_index = {key: index for index, key in enumerate(coords.keys)}
+    rows: list[int] = []
+    cols: list[int] = []
+    key_indices: list[int] = []
+    for key, key_rows, key_cols, _value_slice in coords.iter_key_coordinates():
+        rows.extend(int(row) for row in key_rows)
+        cols.extend(int(col) for col in key_cols)
+        key_indices.extend([key_index[key]] * len(key_rows))
+    return _PreparedDensityComponents(
+        density_coordinates=coords,
+        key_array=np.ascontiguousarray(np.asarray(coords.keys, dtype=np.int64)),
+        rows=np.ascontiguousarray(np.asarray(rows, dtype=np.int64)),
+        cols=np.ascontiguousarray(np.asarray(cols, dtype=np.int64)),
+        key_indices=np.ascontiguousarray(np.asarray(key_indices, dtype=np.int64)),
+    )
 
 
 def _max_refinements(max_subdivisions: int | None) -> int:
@@ -98,6 +170,10 @@ def _integrate_charge(
             max_refinements=max_refinements,
             num_threads=num_threads,
         ),
+        True,
+        True,
+        0.0,
+        0.0,
         num_threads=num_threads,
     )
 
@@ -110,19 +186,24 @@ def _evaluate_charge(
     num_threads: int | None,
 ):
     return _call_native(
-        runtime.evaluate_charge,
+        runtime.integrate_charge,
         mu,
         _adaptive_options(
             target_error=charge_tol,
             max_refinements=0,
             num_threads=num_threads,
         ),
+        False,
+        False,
+        0.0,
+        0.0,
         num_threads=num_threads,
     )
 
 
 def _integrate_density(
     runtime,
+    prepared: _PreparedDensityComponents,
     *,
     mu: float,
     density_atol: float,
@@ -137,6 +218,11 @@ def _integrate_density(
             max_refinements=max_refinements,
             num_threads=num_threads,
         ),
+        prepared.key_array,
+        prepared.rows,
+        prepared.cols,
+        prepared.key_indices,
+        True,
         num_threads=num_threads,
     )
 
@@ -147,19 +233,21 @@ def _runtime_and_components(
     keys: list[tuple[int, ...]],
     density_coordinates: DensityCoordinates | None,
 ):
-    prepared = prepare_density_components(
+    _require_native_backend()
+    _require_supported_dimension(h)
+    prepared = _prepare_density_components(
         h,
-        keys,
-        _resolve_density_components(h, keys, density_coordinates),
+        keys=keys,
+        density_coordinates=density_coordinates,
     )
-    runtime = build_runtime(
-        h,
-        keys=list(prepared.keys),
-        component_rows=prepared.rows,
-        component_cols=prepared.cols,
-        component_key_indices=prepared.key_indices,
-    )
+    model = simplex_backend._tb_to_tight_binding_model(h)
+    runtime = simplex_backend.IntegrationRuntime(model)
     return runtime, prepared
+
+
+def _raise_if_not_converged(result, message: str) -> None:
+    if not bool(result.converged):
+        raise RuntimeError(message)
 
 
 def _density_info(
@@ -201,10 +289,15 @@ def density_matrix_at_mu_zero_temp(
     )
     result = _integrate_density(
         runtime,
+        prepared,
         mu=float(mu),
         density_atol=float(density_atol),
         max_refinements=_max_refinements(max_subdivisions),
         num_threads=num_threads,
+    )
+    _raise_if_not_converged(
+        result,
+        "Adaptive simplex loop did not converge while evaluating density",
     )
     density_matrix, density_matrix_error = prepared.values_and_errors_to_tb(
         result.estimate_array(),
@@ -327,14 +420,10 @@ def density_matrix_zero_temp(
             filling_tol=float(filling_tol),
             mu_tol=float(mu_xtol),
             max_charge_evaluations=remaining_charge_evaluations,
-            charge_error_tol=_ROOT_SOLVE_CHARGE_ERROR_TOL,
             use_derivative=True,
         )
         charge_evaluations += int(root.charge_evaluations)
         current_mu_guess = float(root.mu)
-
-        if float(root.charge_error) <= float(charge_tol):
-            break
 
         remaining_refinements = (
             max_refinements
@@ -351,6 +440,10 @@ def density_matrix_zero_temp(
         charge_integration_calls += 1
         charge_work += int(result.work)
         charge_refinements += int(result.refinements)
+        _raise_if_not_converged(
+            result,
+            "Adaptive simplex loop did not converge while solving for the chemical potential",
+        )
 
         residual = float(result.charge) - float(filling)
         if abs(residual) <= float(filling_tol) and float(result.charge_error) <= float(
@@ -376,10 +469,15 @@ def density_matrix_zero_temp(
     )
     density_result = _integrate_density(
         runtime,
+        prepared,
         mu=float(root.mu),
         density_atol=float(density_atol),
         max_refinements=max_refinements,
         num_threads=num_threads,
+    )
+    _raise_if_not_converged(
+        density_result,
+        "Adaptive simplex loop did not converge while evaluating density",
     )
     density_matrix, density_matrix_error = prepared.values_and_errors_to_tb(
         density_result.estimate_array(),
