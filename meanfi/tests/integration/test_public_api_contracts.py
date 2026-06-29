@@ -92,7 +92,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
         assert params["charge_tol"].default is None
 
 
-def test_solver_derives_scf_tol_from_integration_density_matrix_tol(monkeypatch):
+def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
     import meanfi.scf.scf as scf_pipeline
 
     captured = {}
@@ -114,7 +114,7 @@ def test_solver_derives_scf_tol_from_integration_density_matrix_tol(monkeypatch)
     result = solver(model, guess, integration=integration)
 
     assert result == SimpleNamespace()
-    assert captured["scf_tol"] == pytest.approx(1e-4)
+    assert captured["scf_tol"] == pytest.approx(1e-3)
 
 
 @pytest.mark.parametrize(

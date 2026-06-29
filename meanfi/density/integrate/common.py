@@ -27,6 +27,9 @@ from .methods import (
 )
 
 
+DEFAULT_SCF_TOL = 1e-3
+
+
 def estimator_factor(*, preview_depth: int = ADAPTIVE_PREVIEW_DEPTH) -> float:
     return float(0.6 * int(preview_depth) ** 2)
 
@@ -44,7 +47,7 @@ def effective_scf_tol(
         if scf_tol <= 0:
             raise ValueError("scf_tol must be positive when provided")
         return float(scf_tol)
-    return estimated_error_from_density_tol(integration)
+    return DEFAULT_SCF_TOL
 
 
 def validate_integration_method(integration: IntegrationMethod, *, kT: float) -> None:
