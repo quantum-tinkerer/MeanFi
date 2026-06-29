@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_url="${ADAPTIVESIMPLEX_REPOSITORY:-https://gitlab.kwant-project.org/qt/adaptivesimplex.git}"
-revision="${ADAPTIVESIMPLEX_REVISION:-c6eaa7ab251aa1b7c6be084e0c09d848282c1fe8}"
+revision="${ADAPTIVESIMPLEX_REVISION:-d1e898190300f051e344f549d68534c059fd486b}"
 project_root="${PIXI_PROJECT_ROOT:-$(pwd)}"
 source_dir="${ADAPTIVESIMPLEX_SOURCE_DIR:-$project_root/.pixi/adaptivesimplex-src}"
 build_dir="${ADAPTIVESIMPLEX_BUILD_DIR:-$project_root/.pixi/adaptivesimplex-build}"
