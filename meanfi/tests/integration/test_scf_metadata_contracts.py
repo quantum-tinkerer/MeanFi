@@ -178,6 +178,66 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
     assert info_short.total_unique_evals == info_long.total_unique_evals == 0
 
 
+def test_rejected_line_search_trial_does_not_update_scf_state(monkeypatch):
+    import meanfi.scf.engine as scf_engine
+    from meanfi.scf.info import SCFRunState
+
+    mu_guesses = []
+
+    def fake_result(params, mu_guess):
+        value = float(np.ravel(params)[0])
+        mu_guesses.append((value, float(mu_guess)))
+        return DensityMatrixResult(
+            density_matrix={(0,): np.array([value + 0.25])},
+            density_matrix_error=None,
+            mu=10.0 + value,
+            filling=1.0,
+            target_filling=1.0,
+            filling_residual=0.0,
+            integration=AdaptiveQuadrature(),
+            info=AdaptiveQuadratureInfo(
+                n_kernel_evals=0,
+                unique_evals=1,
+                n_evaluator_evals=0,
+                n_cached_nodes=0,
+                n_leaves=0,
+                n_leaf_nodes=0,
+                refinements=0,
+                error_estimate_available=True,
+                charge_integration_calls=0,
+                density_integration_calls=1,
+            ),
+        )
+
+    def fake_solve_fixed_point(residual_fn, x0, *, scf, scf_tol, on_iteration):
+        del scf, scf_tol
+        initial = np.asarray(x0, dtype=float)
+        residual = residual_fn(initial)
+        on_iteration(None, float(np.max(np.abs(residual))), initial, residual)
+
+        residual_fn(np.array([99.0]))
+
+        accepted = np.array([1.0])
+        residual = residual_fn(accepted)
+        on_iteration(1, float(np.max(np.abs(residual))), accepted, residual)
+        return accepted
+
+    monkeypatch.setattr(scf_engine, "solve_fixed_point", fake_solve_fixed_point)
+
+    run = scf_engine.iterate_density_fixed_point(
+        np.array([0.0]),
+        density_result_from_params=fake_result,
+        compress_density=lambda density: density[(0,)],
+        scf=AndersonMixing(),
+        scf_tol=1e-8,
+        state=SCFRunState(mu=2.0),
+    )
+
+    assert mu_guesses == [(0.0, 2.0), (99.0, 10.0), (1.0, 10.0), (1.0, 11.0)]
+    assert run.state.mu == 11.0
+    assert [item.mu for item in run.state.history] == [10.0, 11.0, 11.0]
+
+
 def test_solver_info_exposes_total_unique_evals():
     model = Model(
         spinful_chain(),

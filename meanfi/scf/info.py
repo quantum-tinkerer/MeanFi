@@ -38,17 +38,25 @@ def integration_counters(result: DensityMatrixResult) -> tuple[int, int, int, in
     )
 
 
-def record_density_result(state: SCFRunState, result: DensityMatrixResult) -> None:
+def record_density_evaluation(state: SCFRunState, result: DensityMatrixResult) -> None:
     charge_calls, density_calls, kernel_evals, unique_evals, evaluator_evals = (
         integration_counters(result)
     )
-    state.density_matrix_result = result
-    state.mu = result.mu
     state.total_charge_integration_calls += charge_calls
     state.total_density_integration_calls += density_calls
     state.total_kernel_evals += kernel_evals
     state.total_unique_evals += unique_evals
     state.total_evaluator_evals += evaluator_evals
+
+
+def accept_density_result(state: SCFRunState, result: DensityMatrixResult) -> None:
+    state.density_matrix_result = result
+    state.mu = result.mu
+
+
+def record_density_result(state: SCFRunState, result: DensityMatrixResult) -> None:
+    record_density_evaluation(state, result)
+    accept_density_result(state, result)
 
 
 def record_scf_iteration(

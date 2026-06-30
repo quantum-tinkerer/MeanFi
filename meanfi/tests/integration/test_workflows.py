@@ -118,6 +118,49 @@ def test_anderson_mixing_forwards_scipy_options(monkeypatch):
     assert calls["f_tol"] == 1e-9
 
 
+def test_anderson_mixing_reports_only_accepted_iterations(monkeypatch):
+    import meanfi.scf.fixed_point as fixed_point
+
+    events = []
+
+    def fake_anderson(func, x0, **kwargs):
+        func(np.asarray(x0, dtype=float))
+        func(np.array([99.0]))
+        kwargs["callback"](np.array([1.0]), np.array([0.25]))
+        return np.array([1.0])
+
+    def on_iteration(iteration, residual_norm, params, residual):
+        events.append(
+            (
+                iteration,
+                residual_norm,
+                np.asarray(params, dtype=float).copy(),
+                np.asarray(residual, dtype=float).copy(),
+            )
+        )
+
+    monkeypatch.setattr(fixed_point, "anderson", fake_anderson)
+
+    result = fixed_point.solve_fixed_point(
+        lambda x: np.asarray(x, dtype=float) + 0.5,
+        np.array([0.0]),
+        scf=AndersonMixing(max_iterations=3),
+        scf_tol=1e-9,
+        on_iteration=on_iteration,
+    )
+
+    assert np.allclose(result, [1.0])
+    assert len(events) == 2
+    assert events[0][0] is None
+    assert events[0][1] == 0.5
+    assert np.allclose(events[0][2], [0.0])
+    assert np.allclose(events[0][3], [0.5])
+    assert events[1][0] == 1
+    assert events[1][1] == 0.25
+    assert np.allclose(events[1][2], [1.0])
+    assert np.allclose(events[1][3], [0.25])
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [

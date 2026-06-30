@@ -9,7 +9,9 @@ from meanfi.results import DensityMatrixResult, SCFIterationInfo, SolverResult
 from meanfi.scf.fixed_point import NoConvergence, max_norm, solve_fixed_point
 from meanfi.scf.info import (
     SCFRunState,
+    accept_density_result,
     build_scf_info,
+    record_density_evaluation,
     record_density_result,
     record_scf_iteration,
 )
@@ -32,6 +34,15 @@ class SCFRunResult:
     final_density_result: DensityMatrixResult
     state: SCFRunState
     residual_norm: float
+
+
+@dataclass
+class _ResidualEvaluation:
+    params: np.ndarray
+    residual: np.ndarray
+    density_result: DensityMatrixResult
+    residual_norm: float
+    line_search_norm: float
 
 
 @dataclass(frozen=True)
@@ -84,29 +95,82 @@ def iterate_density_fixed_point(
     state: SCFRunState | None = None,
 ) -> SCFRunResult:
     run_state = SCFRunState() if state is None else state
+    trial_evaluations: list[_ResidualEvaluation] = []
+
+    def _arrays_match(left: np.ndarray, right: np.ndarray) -> bool:
+        left_array = np.asarray(left, dtype=float)
+        right_array = np.asarray(right, dtype=float)
+        if left_array.shape == right_array.shape:
+            return bool(np.array_equal(left_array, right_array))
+        return bool(np.array_equal(np.ravel(left_array), np.ravel(right_array)))
+
+    def _pop_trial(
+        params: np.ndarray, residual: np.ndarray
+    ) -> _ResidualEvaluation | None:
+        for index in range(len(trial_evaluations) - 1, -1, -1):
+            trial = trial_evaluations[index]
+            if _arrays_match(trial.params, params) and _arrays_match(
+                trial.residual, residual
+            ):
+                return trial_evaluations.pop(index)
+        for index in range(len(trial_evaluations) - 1, -1, -1):
+            trial = trial_evaluations[index]
+            if _arrays_match(trial.params, params):
+                return trial_evaluations.pop(index)
+        return None
+
+    def _commit_trial(
+        trial: _ResidualEvaluation, *, iteration: int | None
+    ) -> SCFIterationInfo:
+        if iteration is not None:
+            run_state.iterations = iteration
+        run_state.residual_norm = trial.residual_norm
+        accept_density_result(run_state, trial.density_result)
+        iteration_info = record_scf_iteration(
+            run_state,
+            trial.density_result,
+            residual_norm=trial.residual_norm,
+            line_search_norm=trial.line_search_norm,
+        )
+        trial_evaluations.clear()
+        if verbose:
+            print(_format_scf_progress(iteration_info))
+        return iteration_info
 
     def residual_fn(params: np.ndarray) -> np.ndarray:
         density_result = density_result_from_params(params, run_state.mu)
-        record_density_result(run_state, density_result)
+        record_density_evaluation(run_state, density_result)
         updated = np.asarray(
             compress_density(density_result.density_matrix), dtype=float
         )
         residual = updated - np.asarray(params, dtype=float)
-        run_state.residual_norm = max_norm(residual)
+        residual_norm = max_norm(residual)
         line_search_norm = float(np.linalg.norm(np.ravel(residual)))
-        iteration_info = record_scf_iteration(
-            run_state,
-            density_result,
-            residual_norm=run_state.residual_norm,
-            line_search_norm=line_search_norm,
+        trial_evaluations.append(
+            _ResidualEvaluation(
+                params=np.array(params, dtype=float, copy=True),
+                residual=np.array(residual, dtype=float, copy=True),
+                density_result=density_result,
+                residual_norm=residual_norm,
+                line_search_norm=line_search_norm,
+            )
         )
-        if verbose:
-            print(_format_scf_progress(iteration_info))
         return residual
 
-    def on_iteration(iteration: int, residual_norm: float) -> None:
-        run_state.iterations = iteration
-        run_state.residual_norm = residual_norm
+    def on_iteration(
+        iteration: int | None,
+        residual_norm: float,
+        params: np.ndarray,
+        residual: np.ndarray,
+    ) -> None:
+        del residual_norm
+        trial = _pop_trial(params, residual)
+        if trial is None:
+            residual = residual_fn(params)
+            trial = _pop_trial(params, residual)
+        if trial is None:  # pragma: no cover - defensive fallback
+            raise RuntimeError("accepted SCF iterate was not evaluated")
+        _commit_trial(trial, iteration=iteration)
 
     result_params = solve_fixed_point(
         residual_fn,
@@ -123,6 +187,7 @@ def iterate_density_fixed_point(
     )
     residual_norm = max_norm(final_residual)
     line_search_norm = float(np.linalg.norm(np.ravel(final_residual)))
+    accept_density_result(run_state, final_density_result)
     final_iteration_info = record_scf_iteration(
         run_state,
         final_density_result,

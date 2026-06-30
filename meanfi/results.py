@@ -103,7 +103,7 @@ class UniformGridInfo:
 
 @dataclass(frozen=True)
 class SCFIterationInfo:
-    """Public runtime metadata for one SCF residual evaluation."""
+    """Public runtime metadata for one accepted SCF residual evaluation."""
 
     step: int
     residual_norm: float

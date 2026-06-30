@@ -49,7 +49,7 @@ def _solve_linear_mixing(
     for iteration in range(1, maxiter + 1):
         residual = np.asarray(residual_fn(x), dtype=float)
         residual_norm = max_norm(residual)
-        on_iteration(iteration, residual_norm)
+        on_iteration(iteration, residual_norm, x, residual)
         if residual_norm <= scf_tol:
             return x
         x = x + alpha * residual
@@ -64,17 +64,24 @@ def _solve_anderson(
     scf_tol: float,
     on_iteration,
 ) -> np.ndarray:
-    state = {"iterations": 0}
+    state = {"iterations": 0, "accepted_initial": False}
+
+    def wrapped_residual_fn(x: np.ndarray) -> np.ndarray:
+        residual = np.asarray(residual_fn(x), dtype=float)
+        if not state["accepted_initial"]:
+            state["accepted_initial"] = True
+            on_iteration(None, max_norm(residual), x, residual)
+        return residual
 
     def optimizer_callback(x: np.ndarray, f: np.ndarray) -> None:
-        del x
         state["iterations"] += 1
-        on_iteration(state["iterations"], max_norm(np.asarray(f, dtype=float)))
+        residual = np.asarray(f, dtype=float)
+        on_iteration(state["iterations"], max_norm(residual), x, residual)
 
     try:
         with np.errstate(invalid="ignore"):
             result = anderson(
-                residual_fn,
+                wrapped_residual_fn,
                 x0,
                 callback=optimizer_callback,
                 alpha=None if scf.alpha is None else float(scf.alpha),
