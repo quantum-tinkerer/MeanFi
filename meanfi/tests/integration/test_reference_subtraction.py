@@ -60,9 +60,7 @@ def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
         scf_tol=1e-8,
         filling_tol=1e-10,
     )
-    interaction_correction = (
-        result.mf[()] + result.density_matrix_result.mu * np.eye(2)
-    )
+    interaction_correction = result.mf[()] + result.density_matrix_result.mu * np.eye(2)
 
     np.testing.assert_allclose(
         result.density_matrix_result.density_matrix[()],

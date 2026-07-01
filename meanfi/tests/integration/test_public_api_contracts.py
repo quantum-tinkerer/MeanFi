@@ -50,8 +50,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert model_params["kT"].kind is inspect.Parameter.KEYWORD_ONLY
     assert model_params["kT"].default == 0.0
     assert (
-        model_params["reference_density_matrix"].kind
-        is inspect.Parameter.KEYWORD_ONLY
+        model_params["reference_density_matrix"].kind is inspect.Parameter.KEYWORD_ONLY
     )
     assert model_params["reference_density_matrix"].default is None
     for name in ("charge_tol", "density_atol", "scf_tol", "max_subdivisions"):
