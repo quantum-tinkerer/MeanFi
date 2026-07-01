@@ -49,6 +49,10 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     model_params = inspect.signature(Model).parameters
     assert model_params["kT"].kind is inspect.Parameter.KEYWORD_ONLY
     assert model_params["kT"].default == 0.0
+    assert (
+        model_params["reference_density_matrix"].kind is inspect.Parameter.KEYWORD_ONLY
+    )
+    assert model_params["reference_density_matrix"].default is None
     for name in ("charge_tol", "density_atol", "scf_tol", "max_subdivisions"):
         assert name not in model_params
     assert model_params["superconducting"].kind is inspect.Parameter.KEYWORD_ONLY
@@ -234,6 +238,31 @@ def test_model_rejects_nonhermitian_inputs():
     }
 
     with pytest.raises(ValueError, match="hermitian"):
+        Model(**kwargs)
+
+
+def test_model_rejects_invalid_reference_density_matrix_shape():
+    kwargs = _base_model_kwargs()
+    kwargs["reference_density_matrix"] = {(0,): np.zeros((3, 3))}
+
+    with pytest.raises(ValueError, match="reference_density_matrix matrices"):
+        Model(**kwargs)
+
+
+def test_model_rejects_invalid_reference_density_matrix_dimension():
+    kwargs = _base_model_kwargs()
+    kwargs["reference_density_matrix"] = {(0, 0): np.zeros((2, 2))}
+
+    with pytest.raises(ValueError, match="reference_density_matrix keys"):
+        Model(**kwargs)
+
+
+def test_model_rejects_reference_density_matrix_for_superconducting_models():
+    kwargs = _base_model_kwargs()
+    kwargs["superconducting"] = True
+    kwargs["reference_density_matrix"] = {(0,): np.zeros((2, 2))}
+
+    with pytest.raises(ValueError, match="normal-state models"):
         Model(**kwargs)
 
 

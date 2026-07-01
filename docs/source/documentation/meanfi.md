@@ -7,6 +7,33 @@
    :members: hamiltonian_from_rho, hamiltonian_from_meanfield, bdg_hamiltonian_from_meanfield
 ```
 
+`Model(..., reference_density_matrix=rho_ref)` enables full reference-state
+subtraction for normal calculations. The effective Hamiltonian is built as
+`h_0 + W[rho - rho_ref]`, where `W` is the complete density-density mean-field
+correction, including both Hartree and exchange-like terms. This is not a
+Hartree-only background subtraction.
+
+If the reference should be the non-interacting density at a chosen filling,
+compute it explicitly and pass the density matrix to the model:
+
+```python
+onsite = (0,) * len(next(iter(h_0)))
+reference_keys = list(dict.fromkeys([*h_int, onsite]))
+rho_ref = meanfi.density_matrix(
+    h_0,
+    filling=reference_filling,
+    kT=kT,
+    keys=reference_keys,
+).density_matrix
+model = meanfi.Model(
+    h_0,
+    h_int,
+    filling=filling,
+    kT=kT,
+    reference_density_matrix=rho_ref,
+)
+```
+
 ## Mean-field and density matrix
 
 ```{eval-rst}
