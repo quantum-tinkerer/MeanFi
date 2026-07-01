@@ -5,19 +5,46 @@ from types import MappingProxyType
 import numpy as np
 
 from meanfi.tb.validate import (
+    matrix_array,
     tb_dimension,
     tb_orbital_count,
     validate_hermiticity,
     validate_tb_dict,
     zero_key,
 )
-from meanfi.meanfield import bdg_correction_from_density_parts, meanfield
+from meanfi.meanfield import (
+    bdg_correction_from_density_parts,
+    meanfield,
+    reference_subtracted_density,
+)
 from meanfi.tb.bdg import electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import add_tb, _tb_type
 
 
+def _validate_reference_density_matrix(
+    reference_density_matrix: _tb_type,
+    *,
+    ndim: int,
+    ndof: int,
+) -> None:
+    for key, value in reference_density_matrix.items():
+        if len(key) != ndim:
+            raise ValueError(
+                "reference_density_matrix keys must match the model dimension"
+            )
+        if matrix_array(value).shape != (ndof, ndof):
+            raise ValueError(
+                "reference_density_matrix matrices must match the model shape"
+            )
+
+
 class Model:
-    """Interacting tight-binding problem at non-negative temperature."""
+    """Interacting tight-binding problem at non-negative temperature.
+
+    ``reference_density_matrix`` enables full normal-state reference subtraction:
+    the interaction correction is built from ``rho - rho_ref`` instead of
+    ``rho``. This subtracts both Hartree and exchange-like mean-field terms.
+    """
 
     _frozen = False
 
@@ -35,6 +62,7 @@ class Model:
         kT: float = 0.0,
         superconducting: bool = False,
         spatial_symmetries=(),
+        reference_density_matrix: _tb_type | None = None,
     ) -> None:
         validate_tb_dict(h_0)
         validate_tb_dict(h_int)
@@ -45,6 +73,10 @@ class Model:
             raise ValueError("filling must be a positive scalar")
         if kT < 0:
             raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
+        if reference_density_matrix is not None and superconducting:
+            raise ValueError(
+                "reference_density_matrix is only supported for normal-state models"
+            )
 
         object.__setattr__(self, "h_0", MappingProxyType(dict(h_0)))
         object.__setattr__(self, "h_int", MappingProxyType(dict(h_int)))
@@ -56,16 +88,41 @@ class Model:
         object.__setattr__(self, "_ndim", tb_dimension(h_0))
         object.__setattr__(self, "_ndof", tb_orbital_count(h_0))
         object.__setattr__(self, "_local_key", zero_key(self._ndim))
+        if reference_density_matrix is not None:
+            _validate_reference_density_matrix(
+                reference_density_matrix,
+                ndim=self._ndim,
+                ndof=self._ndof,
+            )
 
         from meanfi.space import ActiveSCFSpace
 
         object.__setattr__(self, "scf_space", ActiveSCFSpace.from_model(self))
+        if reference_density_matrix is None:
+            reference = None
+        else:
+            reference = MappingProxyType(
+                dict(self.scf_space.project_meanfield_input(reference_density_matrix))
+            )
+        object.__setattr__(self, "reference_density_matrix", reference)
         object.__setattr__(self, "_frozen", True)
 
     def hamiltonian_from_rho(self, rho: _tb_type) -> _tb_type:
         """Return the interacting Hamiltonian implied by a trial density matrix."""
 
-        return add_tb(self.h_0, meanfield(rho, self.h_int))
+        if self.reference_density_matrix is None:
+            correction = meanfield(rho, self.h_int)
+        else:
+            active_density = self.scf_space.project_meanfield_input(rho)
+            density_difference = reference_subtracted_density(
+                active_density,
+                self.reference_density_matrix,
+                interaction_keys=self.scf_space.interaction_keys,
+                onsite=self.scf_space.onsite,
+                ndof=self._ndof,
+            )
+            correction = meanfield(density_difference, self.h_int)
+        return add_tb(self.h_0, correction)
 
     def hamiltonian_from_meanfield(self, mf: _tb_type) -> _tb_type:
         """Return the full Hamiltonian for a trial mean-field correction."""

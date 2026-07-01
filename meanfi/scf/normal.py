@@ -4,7 +4,7 @@ import numpy as np
 
 from meanfi.density.density import solve_density_matrix_fixed_filling
 from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
-from meanfi.meanfield import meanfield
+from meanfi.meanfield import meanfield, reference_subtracted_density
 from meanfi.model import Model
 from meanfi.results import DensityMatrixResult
 from meanfi.scf.engine import (
@@ -123,8 +123,13 @@ def _meanfield_from_active_density(
     onsite: tuple[int, ...],
     mu: float,
 ) -> _tb_type:
-    zero = np.zeros((model._ndof, model._ndof), dtype=complex)
-    density_reduced = {key: active_density.get(key, zero) for key in interaction_keys}
+    density_reduced = reference_subtracted_density(
+        active_density,
+        getattr(model, "reference_density_matrix", None),
+        interaction_keys=interaction_keys,
+        onsite=onsite,
+        ndof=model._ndof,
+    )
     result = dict(meanfield(density_reduced, model.h_int))
     result[onsite] = result.get(
         onsite,

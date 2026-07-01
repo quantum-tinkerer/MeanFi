@@ -46,6 +46,28 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     return add_tb(direct, exchange)
 
 
+def reference_subtracted_density(
+    active_density: _tb_type,
+    reference_density_matrix: _tb_type | None,
+    *,
+    interaction_keys: list[tuple[int, ...]],
+    onsite: tuple[int, ...],
+    ndof: int,
+) -> _tb_type:
+    """Return active density entries with an optional reference subtracted."""
+
+    keys = list(interaction_keys)
+    if onsite not in keys:
+        keys.append(onsite)
+    zero = np.zeros((ndof, ndof), dtype=complex)
+    if reference_density_matrix is None:
+        return {key: active_density.get(key, zero) for key in keys}
+    return {
+        key: active_density.get(key, zero) - reference_density_matrix.get(key, zero)
+        for key in keys
+    }
+
+
 def zero_electron_matrix(model) -> np.ndarray:
     return np.zeros((model._ndof, model._ndof), dtype=complex)
 
