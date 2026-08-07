@@ -97,6 +97,8 @@ As before, we construct {autolink}`~meanfi.model.Model` object to represent the 
 We then generate a random guess for the mean-field solution and solve the system.
 
 ```{code-cell} ipython3
+:tags: [skip-execution]
+
 filling = 2
 model = meanfi.Model(h_0, h_int, filling=2)
 result = meanfi.solver(
@@ -114,6 +116,8 @@ We then feed it into {autolink}`~meanfi.observables.expectation_value` function 
 In this case, we compute the CDW order parameter by measuring the expectation value of the $\sigma_z$ operator acting on the graphene sublattice degree of freedom.
 
 ```{code-cell} ipython3
+:tags: [skip-execution]
+
 cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
 
 rho_result = meanfi.density_matrix(
@@ -132,6 +136,22 @@ rho_0 = rho_0_result.density_matrix
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
 
+print(
+    f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}"
+)
+print(
+    f"CDW order parameter for non-interacting system: {np.round(np.abs(cdw_order_parameter_0), 2)}"
+)
+```
+
+Automated documentation builds load deterministic reference values for the expensive FermiSimplex calculations. Run the skipped cells interactively to recompute them.
+
+```{code-cell} ipython3
+:tags: [remove-input]
+
+single_point_data = np.load("data/graphene_phase_diagram.npz")
+cdw_order_parameter = single_point_data["cdw_interacting"]
+cdw_order_parameter_0 = single_point_data["cdw_noninteracting"]
 print(
     f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}"
 )
@@ -189,7 +209,7 @@ gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
 mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
 ```
 
-To keep automated documentation builds fast and reproducible, the rendered plots load reference data produced by the exact scan above. Run the skipped cells interactively to recompute the data.
+The rendered phase plots load reference data produced by the exact scan above.
 
 ```{code-cell} ipython3
 :tags: [remove-input]
