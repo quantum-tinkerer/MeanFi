@@ -169,6 +169,8 @@ def resolved_hubbard_gap(h, *, U, local_density, nk=400):
 ```
 
 ```{code-cell} ipython3
+:tags: [skip-execution]
+
 def compute_sol(U, h_0, filling=2):
     h_int = {
         (0,): U * np.kron(np.eye(2), np.ones((2, 2))),
@@ -201,6 +203,20 @@ def compute_phase_diagram(
 
 Us = np.linspace(0, 4, 30, endpoint=True)
 gaps = compute_phase_diagram(Us=Us)
+
+plt.plot(Us, gaps, c="k")
+plt.xlabel("$U / t$")
+plt.ylabel("$\Delta{E}/t$")
+plt.show()
+```
+
+
+```{code-cell} ipython3
+:tags: [remove-input]
+
+with np.load("data/hubbard_1d_phase_diagram.npz") as reference:
+    Us = reference["Us"]
+    gaps = reference["gaps"]
 
 plt.plot(Us, gaps, c="k")
 plt.xlabel("$U / t$")
