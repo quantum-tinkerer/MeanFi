@@ -162,8 +162,8 @@ def compute_gap(h, fermi_energy=0, nk=100):
 And proceed to compute the gap and the mean-field correction for a range of $U$ and $V$ values:
 
 ```{code-cell} ipython3
-Us = np.linspace(0, 4, 10)
-Vs = np.linspace(0, 1.5, 10)
+Us = np.linspace(0, 4, 7)
+Vs = np.linspace(0, 1.5, 7)
 scf = meanfi.LinearMixing(alpha=0.3, max_iterations=500)
 
 gaps = []
