@@ -1,7 +1,8 @@
-image: ghcr.io/prefix-dev/pixi:0.62.0
+image: ghcr.io/prefix-dev/pixi:0.70.2
 
 variables:
   ADAPTIVESIMPLEX_PREFIX : $CI_PROJECT_DIR/.pixi/adaptivesimplex-prefix
+  PIXI_LOCKED : "true"
   OPENBLAS_NUM_THREADS : 1
   OMP_NUM_THREADS : 1
   MKL_DYNAMIC : FALSE
