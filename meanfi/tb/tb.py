@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from meanfi.tb.backend import tb_to_tight_binding_model
 from meanfi.tb.bdg import (
     assemble_bdg_tb,
     electron_to_bdg_tb,
@@ -76,7 +75,6 @@ __all__ = [
     "tb_orbital_count",
     "tb_to_kfunc",
     "tb_to_kgrid",
-    "tb_to_tight_binding_model",
     "tb_entries_changed",
     "validate_bdg_state",
     "to_dense",

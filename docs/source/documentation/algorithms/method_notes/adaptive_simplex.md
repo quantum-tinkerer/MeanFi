@@ -14,7 +14,7 @@ kernelspec:
 
 `AdaptiveSimplex` is the dedicated zero-temperature adaptive integration backend for normal-state calculations.
 Its physics-specific native implementation lives in the separate
-[lineartetrahedron package](https://gitlab.kwant-project.org/qt/lineartetrahedron),
+[FermiSimplex package](https://gitlab.kwant-project.org/qt/lineartetrahedron),
 while the generic adaptive mesh engine lives in
 [adaptivesimplex](https://gitlab.kwant-project.org/qt/adaptivesimplex).
 MeanFi keeps the public integration API and dispatch logic.
@@ -40,7 +40,7 @@ At zero temperature the backend uses the same geometric infrastructure for both:
 - the charge solve $N(\mu)=\nu$,
 - and the final density integral at the converged $\mu$.
 
-The density stage starts from the charge-converged refined mesh rather than rebuilding from scratch.
+The density stage starts from the charge-converged refined mesh rather than rebuilding from scratch. MeanFi passes only the real-space matrix components required by its SCF parametrization, and `FermiSimplex` returns those values in the requested order.
 
 ## Cost versus error scaling
 
@@ -66,8 +66,8 @@ This method is specialized but efficient when the zero-temperature integrand is 
 - `max_refinements`
 - `num_threads`
 
-MeanFi uses the backward-compatible adaptive preview depth of `3` when calling the
-`lineartetrahedron` backend. `num_threads` requests the OpenMP thread limit for the
+MeanFi uses the density preview depth of `1` when calling the
+`FermiSimplex` backend. `num_threads` requests the OpenMP thread limit for the
 native integration call, which is useful in notebooks and task workers where setting
 environment variables before process startup is inconvenient.
 

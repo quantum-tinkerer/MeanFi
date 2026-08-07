@@ -145,6 +145,7 @@ def test_top_level_exports_only_supported_diagonalization_names():
     assert not hasattr(meanfi, "ChebyshevFOE")
     assert not hasattr(meanfi, "guess_tb")
     assert not hasattr(meanfi, "tb_to_vertex_cache")
+    assert not hasattr(meanfi, "tb_to_tight_binding_model")
 
 
 def test_guess_tb_is_removed_from_public_tb_api():
@@ -152,8 +153,11 @@ def test_guess_tb_is_removed_from_public_tb_api():
 
     assert not hasattr(tb, "guess_tb")
     assert not hasattr(tb, "tb_to_vertex_cache")
+    assert not hasattr(tb, "tb_to_tight_binding_model")
     with pytest.raises(ImportError):
         exec("from meanfi import guess_tb")
+    with pytest.raises(ImportError):
+        exec("from meanfi import tb_to_tight_binding_model")
     with pytest.raises(ImportError):
         exec("from meanfi.tb import guess_tb")
     with pytest.raises(ImportError):

@@ -115,25 +115,25 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
 
 
-def test_adaptive_simplex_default_filling_tol_uses_estimator_factor():
+def test_adaptive_simplex_default_filling_tol_uses_filling_tolerance_estimator_factor():
     from meanfi.density.integrate.common import (
         adaptive_simplex_charge_tol,
         effective_charge_tol,
         effective_filling_tol,
-        estimator_factor,
+        filling_tolerance_estimator_factor,
     )
 
     hamiltonian = spinful_chain()
     integration = AdaptiveSimplex()
-    expected_filling_tol = integration.density_matrix_tol / estimator_factor()
+    expected_filling_tol = integration.density_matrix_tol / filling_tolerance_estimator_factor()
 
     assert effective_filling_tol(
         integration,
         hamiltonian=hamiltonian,
         filling_tol=None,
     ) == pytest.approx(expected_filling_tol)
-    assert effective_charge_tol(integration) == pytest.approx(1e-3)
-    assert adaptive_simplex_charge_tol(integration, hamiltonian=hamiltonian) == 1e-3
+    assert effective_charge_tol(integration) == pytest.approx(1e-2)
+    assert adaptive_simplex_charge_tol(integration, hamiltonian=hamiltonian) == 1e-2
 
 
 def test_integration_charge_tol_overrides_density_matrix_tol():
@@ -147,7 +147,7 @@ def test_integration_charge_tol_overrides_density_matrix_tol():
 def test_adaptive_quadrature_default_tolerances_derive_from_density_matrix_tol(
     monkeypatch,
 ):
-    from meanfi.density.integrate.common import estimator_factor
+    from meanfi.density.integrate.common import filling_tolerance_estimator_factor
 
     import meanfi.density.integrate.normal as integration
 
@@ -169,7 +169,7 @@ def test_adaptive_quadrature_default_tolerances_derive_from_density_matrix_tol(
     )
 
     assert captured["charge_tol"] == pytest.approx(1e-8)
-    assert captured["filling_tol"] == pytest.approx(1e-8 / estimator_factor())
+    assert captured["filling_tol"] == pytest.approx(1e-8 / filling_tolerance_estimator_factor())
 
 
 def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():
@@ -203,10 +203,10 @@ def test_uniform_grid_accepts_zero_temperature_fixed_filling_controls():
 
 
 def test_uniform_grid_default_filling_tol_matches_explicit_default():
-    from meanfi.density.integrate.common import estimator_factor
+    from meanfi.density.integrate.common import filling_tolerance_estimator_factor
 
     integration = UniformGrid(nk=8, density_matrix_tol=1e-4)
-    explicit_tol = integration.density_matrix_tol / estimator_factor()
+    explicit_tol = integration.density_matrix_tol / filling_tolerance_estimator_factor()
     implicit = density_matrix(
         spinful_chain(),
         filling=1.0,

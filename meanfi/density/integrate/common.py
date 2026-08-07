@@ -19,9 +19,9 @@ from meanfi.tb.ops import _tb_type
 
 from meanfi.density.integrate.workspace import require_supported_workspace_precision
 from .methods import (
-    ADAPTIVE_PREVIEW_DEPTH,
     AdaptiveQuadrature,
     AdaptiveSimplex,
+    FILLING_TOLERANCE_ESTIMATOR_FACTOR,
     IntegrationMethod,
     UniformGrid,
 )
@@ -30,12 +30,12 @@ from .methods import (
 DEFAULT_SCF_TOL = 1e-3
 
 
-def estimator_factor(*, preview_depth: int = ADAPTIVE_PREVIEW_DEPTH) -> float:
-    return float(0.6 * int(preview_depth) ** 2)
+def filling_tolerance_estimator_factor() -> float:
+    return float(FILLING_TOLERANCE_ESTIMATOR_FACTOR)
 
 
 def estimated_error_from_density_tol(integration: IntegrationMethod) -> float:
-    return float(integration.density_matrix_tol) / estimator_factor()
+    return float(integration.density_matrix_tol) / filling_tolerance_estimator_factor()
 
 
 def effective_scf_tol(

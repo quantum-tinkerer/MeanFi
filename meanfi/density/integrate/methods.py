@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-ADAPTIVE_PREVIEW_DEPTH = 3
+FILLING_TOLERANCE_ESTIMATOR_FACTOR = 5.4
 
 
 @dataclass(frozen=True)
@@ -15,7 +15,7 @@ class IntegrationMethod:
 class AdaptiveSimplex(IntegrationMethod):
     """Adaptive zero-temperature simplicial integration."""
 
-    density_matrix_tol: float = 1e-3
+    density_matrix_tol: float = 1e-2
     max_refinements: int | None = None
     num_threads: int | None = None
     charge_tol: float | None = None

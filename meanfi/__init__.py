@@ -50,7 +50,6 @@ from .tb.tb import (
     scale_tb,
     tb_to_kfunc,
     tb_to_kgrid,
-    tb_to_tight_binding_model,
 )
 
 
@@ -139,6 +138,5 @@ __all__ = [
     "solver",
     "tb_to_kfunc",
     "tb_to_kgrid",
-    "tb_to_tight_binding_model",
     "total_energy",
 ]

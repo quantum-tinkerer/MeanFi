@@ -273,7 +273,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
     assert captured["density_coordinates"] is required
 
 
-def test_adaptive_simplex_wrapper_resolves_generic_density_components():
+def test_adaptive_simplex_maps_selected_density_results_to_tb():
     import meanfi.density.integrate.simplex as simplex_integration
 
     required = DensityCoordinates.from_pairs(
@@ -285,23 +285,100 @@ def test_adaptive_simplex_wrapper_resolves_generic_density_components():
         },
         allow_empty=False,
     )
+    native_result = SimpleNamespace(
+        values=np.array([2.0, 7.0], dtype=complex),
+        stopping_error=2e-4,
+    )
 
-    components = simplex_integration._resolve_density_components(
-        {
-            (0,): np.zeros((2, 2), dtype=complex),
-            (1,): np.zeros((2, 2), dtype=complex),
-        },
-        [(0,), (1,)],
+    density, error = simplex_integration._density_result_to_tb(
+        native_result,
         required,
     )
 
-    assert components == [(0, 1, (0,)), (1, 0, (1,))]
+    assert np.array_equal(density[(0,)], np.array([[0.0, 2.0], [0.0, 0.0]]))
+    assert np.array_equal(density[(1,)], np.array([[0.0, 0.0], [7.0, 0.0]]))
+    assert np.array_equal(error[(0,)], np.array([[0.0, 2e-4], [0.0, 0.0]]))
+    assert np.array_equal(error[(1,)], np.array([[0.0, 0.0], [2e-4, 0.0]]))
 
 
-def test_adaptive_simplex_wrapper_builds_exact_density_selection_arrays():
+
+def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkeypatch):
     import meanfi.density.integrate.simplex as simplex_integration
 
-    required = DensityCoordinates.from_pairs(
+    coordinates = DensityCoordinates.from_pairs(
+        size=2,
+        keys=[(0,)],
+        pairs_by_key={
+            (0,): (
+                np.array([], dtype=int),
+                np.array([], dtype=int),
+            )
+        },
+        allow_empty=True,
+    )
+    mesh = SimpleNamespace(
+        cached_vertices=5,
+        active_simplices=2,
+        active_vertices=3,
+    )
+    charge_result = SimpleNamespace(
+        value=1.0,
+        stopping_error=1e-4,
+        dcharge_dmu=0.5,
+        stats=SimpleNamespace(
+            evaluations=7,
+            refinements=2,
+            target_reached=True,
+        ),
+        error_stats=SimpleNamespace(hamiltonian_evaluations=3),
+    )
+
+    monkeypatch.setattr(simplex_integration, "_spectral_mesh", lambda h: mesh)
+    monkeypatch.setattr(
+        simplex_integration,
+        "solve_mu",
+        lambda **kwargs: SimpleNamespace(
+            mu=0.0,
+            charge=1.0,
+            charge_error=0.0,
+            residual=0.0,
+            derivative=0.5,
+            charge_evaluations=1,
+        ),
+    )
+    monkeypatch.setattr(
+        simplex_integration,
+        "_integrate_charge",
+        lambda *args, **kwargs: charge_result,
+    )
+
+    density, error, mu, info = simplex_integration.density_matrix_zero_temp(
+        spinful_chain(),
+        filling=1.0,
+        keys=[(0,)],
+        density_coordinates=coordinates,
+        charge_tol=1e-3,
+        filling_tol=1e-3,
+        density_atol=1e-3,
+        density_rtol=0.0,
+        mu_guess=0.0,
+        mu_xtol=1e-10,
+        max_charge_evaluations=None,
+        max_subdivisions=None,
+        num_threads=None,
+    )
+
+    assert mu == 0.0
+    assert np.count_nonzero(density[(0,)]) == 0
+    assert np.count_nonzero(error[(0,)]) == 0
+    assert info.charge_integration_calls == 1
+    assert info.density_integration_calls == 0
+    assert info.density_n_kernel_evals == 0
+
+def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one():
+    import meanfi.density.integrate.simplex as simplex_integration
+
+    coordinates = DensityCoordinates.from_pairs(
         size=2,
         keys=[(0,), (1,)],
         pairs_by_key={
@@ -310,189 +387,101 @@ def test_adaptive_simplex_wrapper_builds_exact_density_selection_arrays():
         },
         allow_empty=False,
     )
+    calls = []
 
-    prepared = simplex_integration._prepare_density_components(
-        {
-            (0,): np.zeros((2, 2), dtype=complex),
-            (1,): np.zeros((2, 2), dtype=complex),
-        },
-        keys=[(0,), (1,)],
-        density_coordinates=required,
-    )
+    class Mesh:
+        def integrate_density_components(self, **kwargs):
+            calls.append(kwargs)
+            return "density"
 
-    assert prepared.key_array.tolist() == [[0], [1]]
-    assert prepared.rows.tolist() == [0, 1]
-    assert prepared.cols.tolist() == [1, 0]
-    assert prepared.key_indices.tolist() == [0, 1]
-
-
-def test_adaptive_simplex_wrapper_builds_native_options_with_preview_depth():
-    import meanfi.density.integrate.simplex as simplex_integration
-
-    class Runtime:
-        def integrate_density(
-            self,
-            mu,
-            options,
-            key_array,
-            rows,
-            cols,
-            key_indices,
-            refine,
-        ):
-            return (
-                "density",
-                mu,
-                options,
-                key_array,
-                rows,
-                cols,
-                key_indices,
-                refine,
-            )
-
-    prepared = SimpleNamespace(
-        key_array=np.array([[0]], dtype=np.int64),
-        rows=np.array([0], dtype=np.int64),
-        cols=np.array([0], dtype=np.int64),
-        key_indices=np.array([0], dtype=np.int64),
-    )
-
-    kind, mu, options, key_array, rows, cols, key_indices, refine = (
-        simplex_integration._integrate_density(
-            Runtime(),
-            prepared,
-            mu=0.25,
-            density_atol=1e-3,
-            max_refinements=12,
-            num_threads=None,
-        )
-    )
-
-    assert kind == "density"
-    assert mu == 0.25
-    assert options.target_error == 1e-3
-    assert options.max_refinements == 12
-    assert options.preview_depth == 1
-    assert options.min_refinement_batch_size == 1
-    assert options.max_refinement_batch_size == 100
-    assert key_array is prepared.key_array
-    assert rows is prepared.rows
-    assert cols is prepared.cols
-    assert key_indices is prepared.key_indices
-    assert refine is True
-    kind, mu, options, *_rest = simplex_integration._integrate_density(
-        Runtime(),
-        prepared,
+    result = simplex_integration._integrate_density(
+        Mesh(),
+        coordinates,
         mu=0.25,
         density_atol=1e-3,
         max_refinements=12,
-        num_threads=4,
-    )
-
-    assert kind == "density"
-    assert mu == 0.25
-    assert options.target_error == 1e-3
-    assert options.max_refinements == 12
-
-
-def test_adaptive_simplex_charge_helpers_pass_refine_certify_and_bounds():
-    import meanfi.density.integrate.simplex as simplex_integration
-
-    class Runtime:
-        def __init__(self):
-            self.calls = []
-
-        def integrate_charge(self, *args):
-            self.calls.append(args)
-            return SimpleNamespace(
-                charge=1.0,
-                charge_error=0.0,
-                dcharge_dmu=0.0,
-                work=1,
-                refinements=0,
-                n_active_simplices=1,
-                n_active_vertices=2,
-                converged=True,
-            )
-
-    runtime = Runtime()
-    simplex_integration._evaluate_charge(
-        runtime,
-        mu=0.25,
-        charge_tol=1e-3,
         num_threads=None,
     )
-    mu, options, refine, certify, hessian_bound, anharmonicity_bound = runtime.calls[-1]
-    assert mu == 0.25
-    assert options.preview_depth == 1
-    assert refine is False
-    assert certify is False
-    assert hessian_bound == 0.0
-    assert anharmonicity_bound == 0.0
 
-    simplex_integration._integrate_charge(
-        runtime,
+    assert result == "density"
+    assert len(calls) == 1
+    components = calls[0].pop("components")
+    assert np.array_equal(components, np.array([[0, 0, 1], [1, 1, 0]]))
+    assert calls[0] == {
+        "mu": 0.25,
+        "lattice_vectors": ((0,), (1,)),
+        "target_error": 1e-3,
+        "max_refinements": 12,
+        "preview_depth": 1,
+        "min_refinement_batch_size": 1,
+        "max_refinement_batch_size": 100,
+    }
+
+
+def test_adaptive_simplex_calls_fermisimplex_charge_apis():
+    import meanfi.density.integrate.simplex as simplex_integration
+
+    calls = []
+
+    class Mesh:
+        cached_vertices = 5
+
+        def estimate_charge_on_current_mesh(self, **kwargs):
+            calls.append(("estimate", kwargs))
+            return SimpleNamespace(value=1.0, dcharge_dmu=0.5)
+
+        def integrate_charge(self, **kwargs):
+            calls.append(("integrate", kwargs))
+            return "charge"
+
+    mesh = Mesh()
+    current, evaluations = simplex_integration._evaluate_charge(
+        mesh,
+        mu=0.25,
+        num_threads=None,
+    )
+    adaptive = simplex_integration._integrate_charge(
+        mesh,
         mu=0.5,
         charge_tol=1e-4,
         max_refinements=7,
         num_threads=None,
     )
-    mu, options, refine, certify, hessian_bound, anharmonicity_bound = runtime.calls[-1]
-    assert mu == 0.5
-    assert options.max_refinements == 7
-    assert options.preview_depth == 1
-    assert refine is True
-    assert certify is True
-    assert hessian_bound == 0.0
-    assert anharmonicity_bound == 0.0
 
-
-def test_zero_temperature_runtime_error_when_extension_missing(monkeypatch):
-    import lineartetrahedron.backend as simplex_backend
-
-    monkeypatch.setattr(simplex_backend, "NATIVE_AVAILABLE", False)
-    monkeypatch.setattr(simplex_backend, "IntegrationRuntime", None)
-    monkeypatch.setattr(simplex_backend, "TightBindingModel", None)
-
-    with pytest.raises(
-        RuntimeError,
-        match="requires the compiled lineartetrahedron._native extension",
-    ):
-        density_matrix(
-            spinful_chain(),
-            filling=1.0,
-            kT=0.0,
-            keys=[(0,)],
-            integration=AdaptiveSimplex(density_matrix_tol=1e-4),
-        )
+    assert current.value == 1.0
+    assert evaluations == 0
+    assert adaptive == "charge"
+    assert calls == [
+        ("estimate", {"mu": 0.25}),
+        (
+            "integrate",
+            {
+                "mu": 0.5,
+                "target_error": 1e-4,
+                "max_refinements": 7,
+                "error_depth": 2,
+                "min_refinement_batch_size": 1,
+                "max_refinement_batch_size": 100,
+            },
+        ),
+    ]
 
 
 @requires_ext
-def test_zero_temperature_backend_supports_three_dimensions():
+@pytest.mark.parametrize("ndim", (3, 4))
+def test_zero_temperature_backend_supports_higher_dimensions(ndim):
+    key = (0,) * ndim
     result = density_matrix_at_mu(
-        {(0, 0, 0): np.diag([-1.0, 1.0])},
+        {key: np.diag([-1.0, 1.0])},
         mu=0.0,
         kT=0.0,
-        keys=[(0, 0, 0)],
+        keys=[key],
         integration=AdaptiveSimplex(density_matrix_tol=1e-12, max_refinements=10),
     )
 
     assert np.allclose(
-        result.density_matrix[(0, 0, 0)],
+        result.density_matrix[key],
         np.diag([1.0, 0.0]),
         atol=1e-12,
     )
     assert result.info.n_leaves > 0
-
-
-@requires_ext
-def test_zero_temperature_backend_rejects_four_dimensions():
-    with pytest.raises(ValueError, match="supports dimensions 1, 2, and 3"):
-        density_matrix_at_mu(
-            {(0, 0, 0, 0): np.diag([-1.0, 1.0])},
-            mu=0.0,
-            kT=0.0,
-            keys=[(0, 0, 0, 0)],
-            integration=AdaptiveSimplex(density_matrix_tol=1e-12, max_refinements=10),
-        )

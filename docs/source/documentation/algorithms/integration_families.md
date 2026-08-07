@@ -22,7 +22,6 @@ This page focuses only on the **k-space integration family**.
 method_notes/adaptive_quadrature.md
 method_notes/uniform_grid.md
 method_notes/adaptive_simplex.md
-method_notes/linear_tetrahedron.md
 ```
 
 ## The three families
@@ -44,7 +43,7 @@ It is simple, predictable, and useful for explicit coarse-grid workflows and for
 This is the dedicated zero-temperature adaptive simplicial backend.
 It refines a simplicial partition of the Brillouin zone and is the default normal-state family for `kT = 0`.
 The physics integration backend is
-[lineartetrahedron](https://gitlab.kwant-project.org/qt/lineartetrahedron),
+[FermiSimplex](https://gitlab.kwant-project.org/qt/lineartetrahedron),
 which uses the generic mesh engine from
 [adaptivesimplex](https://gitlab.kwant-project.org/qt/adaptivesimplex).
 
@@ -87,4 +86,3 @@ when an algebraic convergence law is available.
 - [Adaptive quadrature](./method_notes/adaptive_quadrature.md): adaptive cubature, typically with algebraic work-vs-tolerance scaling for smooth finite-temperature integrands
 - [Uniform grid](./method_notes/uniform_grid.md): fixed-grid sampling with work determined directly by the chosen grid size
 - [Adaptive simplex](./method_notes/adaptive_simplex.md): adaptive simplicial refinement with problem-dependent algebraic work-vs-error behavior
-- [Linear tetrahedron](./method_notes/linear_tetrahedron.md): zero-temperature normal-state simplex integration through the native `lineartetrahedron` backend

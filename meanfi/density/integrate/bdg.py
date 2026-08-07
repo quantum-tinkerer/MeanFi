@@ -14,7 +14,7 @@ import numpy as np
 
 from meanfi.density.integrate.common import (
     effective_charge_tol,
-    estimator_factor,
+    filling_tolerance_estimator_factor,
     uniform_grid_info,
     validate_integration_method,
     wrap_adaptive_result,
@@ -64,7 +64,7 @@ def effective_bdg_filling_tol(
             raise ValueError("filling_tol must be positive when provided")
         return float(filling_tol)
     del filling_weights
-    return float(density_matrix_tol) / estimator_factor()
+    return float(density_matrix_tol) / filling_tolerance_estimator_factor()
 
 
 def resolve_bdg_matrix_function(

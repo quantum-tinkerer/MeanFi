@@ -37,7 +37,7 @@ The main supported combinations are:
 | `UniformGrid` | Yes | Yes | Yes | Yes |
 | `AdaptiveQuadrature` | No | No | Yes | Yes |
 
-`AdaptiveSimplex` uses the `lineartetrahedron` backend and supports normal-state zero-temperature problems in one, two, and three momentum dimensions. MeanFi calls the backend with the backward-compatible adaptive preview depth of `3`.
+`AdaptiveSimplex` uses the `FermiSimplex` backend for normal-state zero-temperature problems. MeanFi reuses the charge-refined spectral mesh, requests only the density components needed by the SCF parametrization, and evaluates them with `preview_depth=1`.
 
 ## Matrix-function defaults
 
@@ -54,11 +54,10 @@ Some other public defaults that affect algorithm behavior are:
 
 - `Model(..., kT=0.0)`
 - `solver(..., scf=AndersonMixing(), scf_tol=None)`, where omitted
-  `scf_tol` is derived from the selected integration method's
-  `density_matrix_tol`
-- `AdaptiveSimplex` defaults to `density_matrix_tol=1e-3`
+  `scf_tol` resolves to `1e-3`
+- `AdaptiveSimplex` defaults to `density_matrix_tol=1e-2`
 - omitted `filling_tol` is derived from `density_matrix_tol` using the internal
-  estimator factor `0.6 * preview_depth**2`
+  estimator factor `5.4`
 - integration methods accept `charge_tol`; when omitted, it uses
   `density_matrix_tol`
 

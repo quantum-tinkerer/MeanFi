@@ -79,10 +79,10 @@ pixi run python -c "import meanfi; print(meanfi.__version__)"
 ```
 
 The zero-temperature `AdaptiveSimplex` backend now lives in the separate
-`lineartetrahedron` package, which uses `adaptivesimplex` as its generic C++
+`FermiSimplex` package, which uses `adaptivesimplex` as its generic C++
 mesh engine. MeanFi keeps the public `meanfi.AdaptiveSimplex` API, but the
 native extension is no longer built from this repository. The current
-`lineartetrahedron` package vendors `adaptivesimplex`, so a normal Pixi install
+`FermiSimplex` package vendors `adaptivesimplex`, so a normal Pixi install
 does not require a separate AdaptiveSimplex checkout or CMake install.
 
 Common development tasks can then be run through Pixi:
