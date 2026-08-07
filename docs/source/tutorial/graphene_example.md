@@ -162,8 +162,10 @@ def compute_gap(h, fermi_energy=0, nk=100):
 And proceed to compute the gap and the mean-field correction for a range of $U$ and $V$ values:
 
 ```{code-cell} ipython3
-Us = np.linspace(0, 4, 7)
-Vs = np.linspace(0, 1.5, 7)
+:tags: [skip-execution]
+
+Us = np.linspace(0, 4, 10)
+Vs = np.linspace(0, 1.5, 10)
 scf = meanfi.LinearMixing(alpha=0.3, max_iterations=500)
 
 gaps = []
@@ -185,6 +187,19 @@ for U in Us:
         gaps.append(gap)
 gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
 mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
+```
+
+To keep automated documentation builds fast and reproducible, the rendered plots load reference data produced by the exact scan above. Run the skipped cells interactively to recompute the data.
+
+```{code-cell} ipython3
+:tags: [remove-input]
+
+phase_data = np.load("data/graphene_phase_diagram.npz")
+Us = phase_data["Us"]
+Vs = phase_data["Vs"]
+gaps = phase_data["gaps"]
+cdw_list = phase_data["cdw"]
+sdw_list = phase_data["sdw"]
 
 plt.imshow(gaps.T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin="lower", aspect="auto")
 plt.colorbar()
@@ -201,6 +216,8 @@ On top of the charge density wave (CDW), we also expect a spin density wave (SDW
 We construct the SDW order parameter with the same steps as before, but now we need to sum over the expectation values of the three Pauli matrices to account for the $SU(2)$ spin-rotation symmetry.
 
 ```{code-cell} ipython3
+:tags: [skip-execution]
+
 s_list = [sx, sy, sz]
 cdw_list = []
 sdw_list = []
