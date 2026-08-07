@@ -301,7 +301,6 @@ def test_adaptive_simplex_maps_selected_density_results_to_tb():
     assert np.array_equal(error[(1,)], np.array([[0.0, 0.0], [2e-4, 0.0]]))
 
 
-
 def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkeypatch):
     import meanfi.density.integrate.simplex as simplex_integration
 
@@ -374,6 +373,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
     assert info.charge_integration_calls == 1
     assert info.density_integration_calls == 0
     assert info.density_n_kernel_evals == 0
+
 
 def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one():
     import meanfi.density.integrate.simplex as simplex_integration

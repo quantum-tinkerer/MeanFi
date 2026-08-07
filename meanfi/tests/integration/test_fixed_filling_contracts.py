@@ -125,7 +125,9 @@ def test_adaptive_simplex_default_filling_tol_uses_filling_tolerance_estimator_f
 
     hamiltonian = spinful_chain()
     integration = AdaptiveSimplex()
-    expected_filling_tol = integration.density_matrix_tol / filling_tolerance_estimator_factor()
+    expected_filling_tol = (
+        integration.density_matrix_tol / filling_tolerance_estimator_factor()
+    )
 
     assert effective_filling_tol(
         integration,
@@ -169,7 +171,9 @@ def test_adaptive_quadrature_default_tolerances_derive_from_density_matrix_tol(
     )
 
     assert captured["charge_tol"] == pytest.approx(1e-8)
-    assert captured["filling_tol"] == pytest.approx(1e-8 / filling_tolerance_estimator_factor())
+    assert captured["filling_tol"] == pytest.approx(
+        1e-8 / filling_tolerance_estimator_factor()
+    )
 
 
 def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():
