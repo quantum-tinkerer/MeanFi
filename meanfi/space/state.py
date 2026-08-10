@@ -20,7 +20,9 @@ class ActiveDensityState:
             raise ValueError("active density state values must be finite")
         expected = getattr(self.space, "num_params", values.size)
         if values.size != int(expected):
-            raise ValueError("active density state values do not match their active space")
+            raise ValueError(
+                "active density state values do not match their active space"
+            )
         values.setflags(write=False)
         object.__setattr__(self, "values", values)
 
