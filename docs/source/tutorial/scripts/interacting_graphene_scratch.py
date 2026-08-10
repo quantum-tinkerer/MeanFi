@@ -75,7 +75,7 @@ integration = meanfi.AdaptiveSimplex(density_matrix_tol=density_atol)
 
 # %% Single solve
 model = meanfi.Model(h_0, h_int, filling=filling)
-guess = meanfi.guess_tb(int_keys, ndof)
+guess = model.random_meanfield(rng=0, scale=0.05)
 
 result = meanfi.solver(
     model,
@@ -85,11 +85,11 @@ result = meanfi.solver(
     scf_tol=scf_tol,
     filling_tol=charge_tol,
 )
-h_full = meanfi.add_tb(h_0, result.mf)
+h_full = meanfi.add_tb(h_0, result.mean_field)
 
-print("residual_norm =", result.info.residual_norm)
-print("mu =", result.density_matrix_result.mu)
-print("filling =", result.density_matrix_result.filling)
+print("residual_norm =", result.errors.scf_residual)
+print("mu =", result.mu)
+print("filling =", result.filling)
 
 
 # %% CDW order parameter
@@ -130,7 +130,7 @@ def compute_gap(h, fermi_energy=0, nk=100):
     return np.abs(emin - emax)
 
 
-print("gap =", compute_gap(h_full, fermi_energy=0, nk=gap_nk))
+print("gap =", compute_gap(h_full, fermi_energy=result.mu, nk=gap_nk))
 
 
 # %% Phase diagram sweep
@@ -145,7 +145,7 @@ for U in Us:
         h_int = utils.builder_to_tb(builder_int, params)
 
         model = meanfi.Model(h_0, h_int, filling=filling)
-        guess = meanfi.guess_tb(int_keys, ndof)
+        guess = model.random_meanfield(rng=0, scale=0.05)
         result = meanfi.solver(
             model,
             guess,
@@ -158,9 +158,11 @@ for U in Us:
             scf_tol=scf_tol,
             filling_tol=charge_tol,
         )
-        mf_sols.append(result.mf)
+        mf_sols.append(result.mean_field)
 
-        gap = compute_gap(meanfi.add_tb(h_0, result.mf), fermi_energy=0, nk=gap_nk)
+        gap = compute_gap(
+            meanfi.add_tb(h_0, result.mean_field), fermi_energy=result.mu, nk=gap_nk
+        )
         gaps.append(gap)
 
 gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))

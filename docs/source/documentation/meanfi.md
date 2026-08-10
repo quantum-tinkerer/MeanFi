@@ -11,7 +11,9 @@
 subtraction for normal calculations. The effective Hamiltonian is built as
 `h_0 + W[rho - rho_ref]`, where `W` is the complete density-density mean-field
 correction, including both Hartree and exchange-like terms. This is not a
-Hartree-only background subtraction.
+Hartree-only background subtraction. Internally, the reference is copied into
+a private, read-only coordinate state tied to the model's active SCF space; it
+is never exposed as a zero-filled reduced density matrix.
 
 If the reference should be the non-interacting density at a chosen filling,
 compute it explicitly and pass the density matrix to the model:
@@ -53,22 +55,17 @@ model = meanfi.Model(
 ```
 
 ```{eval-rst}
-.. autoclass:: meanfi.DensityMatrixResult
+.. autoclass:: meanfi.DensityResult
    :show-inheritance:
 ```
 
 ```{eval-rst}
-.. autoclass:: meanfi.AdaptiveQuadratureInfo
+.. autoclass:: meanfi.ErrorTolerances
    :show-inheritance:
 ```
 
 ```{eval-rst}
-.. autoclass:: meanfi.AdaptiveSimplexInfo
-   :show-inheritance:
-```
-
-```{eval-rst}
-.. autoclass:: meanfi.UniformGridInfo
+.. autoclass:: meanfi.ErrorValues
    :show-inheritance:
 ```
 
@@ -79,12 +76,22 @@ model = meanfi.Model(
 ```
 
 ```{eval-rst}
-.. autoclass:: meanfi.SolverResult
+.. autoclass:: meanfi.SCFResult
    :show-inheritance:
 ```
 
 ```{eval-rst}
-.. autoclass:: meanfi.SCFInfo
+.. autoclass:: meanfi.SCFIteration
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoexception:: meanfi.SolverError
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoexception:: meanfi.SolverFailure
    :show-inheritance:
 ```
 

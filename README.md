@@ -30,11 +30,11 @@ h_int = {(0,): onsite_interaction}
 model = meanfi.Model(h_0, h_int, filling=2)
 
 # Guess
-guess = meanfi.guess_tb(frozenset(h_int), onsite.shape[0])
+guess = model.random_meanfield(rng=0, scale=0.1)
 
 # Solve
 result = meanfi.solver(model, guess)
-h_mf = meanfi.add_tb(h_0, result.mf)
+h_mf = meanfi.add_tb(h_0, result.mean_field)
 ```
 
 For examples, see the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).

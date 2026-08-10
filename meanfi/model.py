@@ -15,8 +15,8 @@ from meanfi.tb.validate import (
 from meanfi.meanfield import (
     bdg_correction_from_density_parts,
     meanfield,
-    reference_subtracted_density,
 )
+from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.tb.bdg import electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import add_tb, _tb_type
 
@@ -99,29 +99,43 @@ class Model:
 
         object.__setattr__(self, "scf_space", ActiveSCFSpace.from_model(self))
         if reference_density_matrix is None:
-            reference = None
+            reference_state = None
         else:
-            reference = MappingProxyType(
-                dict(self.scf_space.project_meanfield_input(reference_density_matrix))
+            reference_state = ActiveDensityState(
+                self.scf_space,
+                self.scf_space.params_from_meanfield_input(reference_density_matrix),
             )
-        object.__setattr__(self, "reference_density_matrix", reference)
+        object.__setattr__(self, "_reference_state", reference_state)
         object.__setattr__(self, "_frozen", True)
+
+    def _density_state(self, rho: _tb_type) -> ActiveDensityState:
+        return ActiveDensityState(
+            self.scf_space,
+            self.scf_space.params_from_meanfield_input(rho),
+        )
+
+    def _active_density_from_state(self, state: ActiveDensityState) -> _tb_type:
+        require_same_space(state, self.scf_space)
+        return self.scf_space.meanfield_input_from_params(state.values)
+
+    def _reference_difference(
+        self,
+        state: ActiveDensityState,
+    ) -> ActiveDensityState:
+        require_same_space(state, self.scf_space)
+        return state.relative_to(self._reference_state)
 
     def hamiltonian_from_rho(self, rho: _tb_type) -> _tb_type:
         """Return the interacting Hamiltonian implied by a trial density matrix."""
 
-        if self.reference_density_matrix is None:
+        if self._reference_state is None:
             correction = meanfield(rho, self.h_int)
         else:
-            active_density = self.scf_space.project_meanfield_input(rho)
-            density_difference = reference_subtracted_density(
-                active_density,
-                self.reference_density_matrix,
-                interaction_keys=self.scf_space.interaction_keys,
-                onsite=self.scf_space.onsite,
-                ndof=self._ndof,
+            difference = self._reference_difference(self._density_state(rho))
+            correction = meanfield(
+                self._active_density_from_state(difference),
+                self.h_int,
             )
-            correction = meanfield(density_difference, self.h_int)
         return add_tb(self.h_0, correction)
 
     def hamiltonian_from_meanfield(self, mf: _tb_type) -> _tb_type:

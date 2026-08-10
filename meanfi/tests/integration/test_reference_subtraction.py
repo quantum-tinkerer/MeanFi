@@ -1,8 +1,16 @@
 import numpy as np
 import pytest
 
-from meanfi import AdaptiveQuadrature, LinearMixing, Model, density_matrix, solver
+from meanfi import (
+    AdaptiveQuadrature,
+    LinearMixing,
+    Model,
+    density_matrix,
+    density_matrix_at_mu,
+    solver,
+)
 from meanfi.meanfield import meanfield
+from meanfi.space.state import ActiveDensityState
 
 
 pytestmark = pytest.mark.integration
@@ -60,11 +68,48 @@ def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
         scf_tol=1e-8,
         filling_tol=1e-10,
     )
-    interaction_correction = result.mf[()] + result.density_matrix_result.mu * np.eye(2)
+    interaction_correction = result.mean_field[()]
+    final_density = density_matrix_at_mu(
+        model.hamiltonian_from_meanfield(result.mean_field),
+        result.mu,
+        kT=model.kT,
+        keys=[()],
+        integration=integration,
+    )
 
     np.testing.assert_allclose(
-        result.density_matrix_result.density_matrix[()],
+        final_density.density_matrix[()],
         rho_ref[()],
         atol=1e-8,
     )
     np.testing.assert_allclose(interaction_correction, np.zeros((2, 2)), atol=1e-8)
+
+
+def test_reference_is_a_private_read_only_active_density_state():
+    h_0 = {(): np.zeros((2, 2), dtype=complex)}
+    h_int = {(): np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)}
+    rho_ref = {
+        (): np.array(
+            [[0.6, 0.1 + 0.2j], [0.1 - 0.2j, 0.4]],
+            dtype=complex,
+        )
+    }
+    model = Model(
+        h_0,
+        h_int,
+        filling=1.0,
+        reference_density_matrix=rho_ref,
+    )
+
+    assert not hasattr(model, "reference_density_matrix")
+    reference_state = model._reference_state
+    assert isinstance(reference_state, ActiveDensityState)
+    assert reference_state.space is model.scf_space
+    assert reference_state.values.flags.writeable is False
+    expected = model.scf_space.params_from_meanfield_input(rho_ref)
+    np.testing.assert_allclose(reference_state.values, expected)
+
+    rho_ref[()][0, 0] = 0.0
+    np.testing.assert_allclose(reference_state.values, expected)
+    with pytest.raises(ValueError):
+        reference_state.values[0] = 0.0

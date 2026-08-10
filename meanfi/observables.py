@@ -33,6 +33,15 @@ def expectation_value(density_matrix: _tb_type, observable: _tb_type) -> complex
     )
 
 
+def _validate_total_energy_density(model: Model, density_matrix: _tb_type) -> None:
+    required = set(model.h_0) | set(model.scf_space.interaction_keys)
+    missing = sorted(required - set(density_matrix))
+    if missing:
+        raise ValueError(
+            f"density_matrix is missing keys required for total energy: {missing}"
+        )
+
+
 def total_energy(model: Model, density_matrix: _tb_type) -> float:
     """Compute the total mean-field internal energy density.
 
@@ -60,9 +69,13 @@ def total_energy(model: Model, density_matrix: _tb_type) -> float:
     """
 
     if not model.superconducting:
-        correction = meanfield(density_matrix, model.h_int)
+        _validate_total_energy_density(model, density_matrix)
+        density_difference = model._active_density_from_state(
+            model._reference_difference(model._density_state(density_matrix))
+        )
+        correction = meanfield(density_difference, model.h_int)
         energy = expectation_value(density_matrix, model.h_0)
-        energy += 0.5 * expectation_value(density_matrix, correction)
+        energy += 0.5 * expectation_value(density_difference, correction)
         return float(np.real(energy))
 
     electron_density = extract_electron_density(density_matrix, model)

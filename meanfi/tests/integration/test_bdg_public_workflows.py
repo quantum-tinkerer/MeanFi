@@ -10,10 +10,8 @@ import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
-    AdaptiveQuadratureInfo,
     AdaptiveSimplex,
     AndersonMixing,
-    DensityMatrixResult,
     DirectDiagonalization,
     LinearMixing,
     Model,
@@ -128,8 +126,8 @@ def test_bdg_solver_supports_anderson_mixing():
         scf=AndersonMixing(M=0, max_iterations=4),
     )
 
-    assert result.info.method == "anderson_mixing"
-    assert result.info.iterations >= 1
+    assert result.history
+    assert result.errors.scf_residual is not None
 
 
 def test_zero_temperature_bdg_requires_explicit_uniform_grid_default_override():
@@ -163,8 +161,7 @@ def test_zero_temperature_bdg_supports_explicit_uniform_grid():
         scf_tol=1e-6,
     )
 
-    assert isinstance(result.integration, UniformGrid)
-    assert np.isfinite(result.density_matrix_result.mu)
+    assert np.isfinite(result.mu)
 
 
 def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():
@@ -194,7 +191,7 @@ def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():
             scf_tol=1e-8,
         )
 
-    assert result.info.iterations >= 1
+    assert result.errors.scf_residual is not None
 
 
 def test_model_random_meanfield_generates_valid_bdg_guess():

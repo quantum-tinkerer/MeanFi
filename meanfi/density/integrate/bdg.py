@@ -47,7 +47,8 @@ from meanfi.density.integrate.normal import (
 )
 from meanfi.density.filling import charge_diagonal, mu_bracket_for_bdg
 from meanfi.density.integrate.workspace import workspace_complex_dtype
-from meanfi.results import DensityMatrixResult, FixedFillingInfo
+from meanfi.density.internal import DensityEvaluation
+from meanfi.results import FixedFillingInfo
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.space.coordinates import full_density_coordinates
 from meanfi.tb.ops import _tb_type, is_sparse_like
@@ -266,7 +267,7 @@ def _solve_bdg_zero_dim(
     filling_indices,
     filling_weights: np.ndarray,
     density_coordinates: DensityCoordinates,
-) -> DensityMatrixResult:
+) -> DensityEvaluation:
     from meanfi.density.filling import mu_bracket_for_bdg
 
     workspace_dtype = workspace_complex_dtype(integration)
@@ -348,6 +349,7 @@ def _solve_bdg_zero_dim(
                 error_estimate_available=False,
             ),
             keys=keys,
+            density_coordinates=density_coordinates,
         )
     return wrap_adaptive_result(
         density_matrix=density_matrix,
@@ -358,6 +360,7 @@ def _solve_bdg_zero_dim(
         target_filling=filling,
         integration=integration,
         keys=keys,
+        density_coordinates=density_coordinates,
     )
 
 
@@ -424,7 +427,7 @@ def build_bdg_problem(
 
 def _solve_bdg_uniform_grid_fixed_filling(
     context: BdGFixedFillingContext,
-) -> DensityMatrixResult:
+) -> DensityEvaluation:
     integration = context.integration
     assert isinstance(integration, UniformGrid)
     model = context.model
@@ -479,12 +482,13 @@ def _solve_bdg_uniform_grid_fixed_filling(
             error_estimate_available=False,
         ),
         keys=context.keys,
+        density_coordinates=resolved_density_coordinates,
     )
 
 
 def _solve_bdg_adaptive_quadrature_fixed_filling(
     context: BdGFixedFillingContext,
-) -> DensityMatrixResult:
+) -> DensityEvaluation:
     integration = context.integration
     assert isinstance(integration, AdaptiveQuadrature)
     backend = build_bdg_backend(
@@ -526,6 +530,7 @@ def _solve_bdg_adaptive_quadrature_fixed_filling(
         target_filling=context.model.filling,
         integration=integration,
         keys=context.keys,
+        density_coordinates=context.density_coordinates,
     )
 
 
@@ -540,7 +545,7 @@ def solve_bdg_density_fixed_filling(
     max_charge_evaluations: int | None,
     mu_guess: float,
     density_coordinates: DensityCoordinates | None = None,
-) -> DensityMatrixResult:
+) -> DensityEvaluation:
     if mu_tol <= 0:
         raise ValueError("mu_tol must be positive")
     if max_charge_evaluations is not None and max_charge_evaluations <= 0:

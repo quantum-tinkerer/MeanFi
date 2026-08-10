@@ -1,19 +1,41 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 from scipy.optimize import anderson
 
 from meanfi.scf.methods import AndersonMixing, LinearMixing, SCFMethod
 
+if TYPE_CHECKING:
+    from meanfi.results import SCFResult
 
-class NoConvergence(Exception):
-    """Raised when the self-consistent field solver does not converge."""
 
-    def __init__(self, last_iterate: np.ndarray):
-        self.last_iterate = np.array(last_iterate, copy=True)
-        super().__init__(self.last_iterate)
+class SolverError(RuntimeError):
+    """Base class for solver failures with an optional last valid result."""
+
+    def __init__(self, message: str, *, result: SCFResult | None = None):
+        self.result = result
+        super().__init__(message)
+
+
+class NoConvergence(SolverError):
+    """Raised when the SCF iteration budget is exhausted."""
+
+    def __init__(
+        self,
+        last_iterate: np.ndarray,
+        *,
+        result: SCFResult | None = None,
+    ):
+        self.last_iterate = np.array(last_iterate, dtype=float, copy=True)
+        super().__init__(
+            "self-consistent field iteration did not converge", result=result
+        )
+
+
+class SolverFailure(SolverError):
+    """Raised when a numerical evaluation fails after a valid SCF state exists."""
 
 
 def max_norm(values: np.ndarray) -> float:

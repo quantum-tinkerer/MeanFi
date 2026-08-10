@@ -10,10 +10,8 @@ import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
-    AdaptiveQuadratureInfo,
     AdaptiveSimplex,
     AndersonMixing,
-    DensityMatrixResult,
     DirectDiagonalization,
     LinearMixing,
     Model,
@@ -66,7 +64,7 @@ def test_sparse_rational_sparse_input_uses_required_mumps_path():
     )
 
     assert result.mu == 0.0
-    assert result.info.error_estimate_available is True
+    assert result.errors.density_matrix_integration is not None
 
 
 def test_dense_rational_rejects_aaa_scheme():

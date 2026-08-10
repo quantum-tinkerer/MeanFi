@@ -129,10 +129,10 @@ result = meanfi.solver(
     full_model,
     full_model.random_meanfield(rng=0, scale=0.05),
 )
-mf_sol = result.mf
+mf_sol = result.mean_field
 ```
 
-The {autolink}`~meanfi.solver` function returns only the mean-field correction to the non-interacting Hamiltonian in the same tight-binding dictionary format.
+The {autolink}`~meanfi.solver` function returns the mean-field correction in `result.mean_field` and keeps the chemical potential separate in `result.mu`.
 To get the full Hamiltonian, we add the mean-field correction to the non-interacting Hamiltonian and plot the band structure just as before:
 
 ```{code-cell} ipython3
@@ -140,7 +140,7 @@ h_mf = meanfi.add_tb(h_0, mf_sol)
 
 hamiltonians = meanfi.tb_to_kgrid(h_mf, nk)
 vals, vecs = np.linalg.eigh(hamiltonians)
-plt.plot(ks, vals, c="k")
+plt.plot(ks, vals - result.mu, c="k")
 plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
 plt.xlim(0, 2 * np.pi)
 plt.ylabel("$E - E_F$")
@@ -156,10 +156,10 @@ We can go further and compute the gap for a wider range of $U$ values:
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-def resolved_hubbard_gap(h, *, U, local_density, nk=400):
+def resolved_hubbard_gap(h, *, U, local_density, fermi_energy, nk=400):
     eigenvalues = np.linalg.eigvalsh(meanfi.tb_to_kgrid(h, nk))
     direct_gap = float(
-        np.min(eigenvalues[eigenvalues > 0.0]) - np.max(eigenvalues[eigenvalues <= 0.0])
+        np.min(eigenvalues[eigenvalues > fermi_energy]) - np.max(eigenvalues[eigenvalues <= fermi_energy])
     )
     occupations = np.real(np.diag(local_density))
     magnetization = 0.5 * (
@@ -180,13 +180,13 @@ def compute_sol(U, h_0, filling=2):
         full_model,
         full_model.random_meanfield(rng=0, scale=0.05),
     )
-    full_sol = meanfi.add_tb(h_0, result.mf)
+    full_sol = meanfi.add_tb(h_0, result.mean_field)
     rho_result = meanfi.density_matrix(
         full_sol,
         filling=filling,
         keys=[(0,)],
     )
-    return full_sol, rho_result.density_matrix[(0,)]
+    return full_sol, rho_result.density_matrix[(0,)], result.mu
 
 
 def compute_phase_diagram(
@@ -194,8 +194,10 @@ def compute_phase_diagram(
 ):
     gaps = []
     for U in Us:
-        full_sol, local_density = compute_sol(U, h_0)
-        gap, _ = resolved_hubbard_gap(full_sol, U=U, local_density=local_density)
+        full_sol, local_density, mu = compute_sol(U, h_0)
+        gap, _ = resolved_hubbard_gap(
+            full_sol, U=U, local_density=local_density, fermi_energy=mu
+        )
         gaps.append(gap)
 
     return np.asarray(gaps, dtype=float)

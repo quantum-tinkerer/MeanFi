@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.density.density import solve_bdg_density_fixed_filling
+from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
+from meanfi.density.internal import DensityEvaluation, DensitySlice
 from meanfi.meanfield import bdg_correction_from_density_parts
 from meanfi.model import Model
-from meanfi.results import DensityMatrixResult
 from meanfi.scf.engine import SCFProblem, SolverRuntime, warn_on_projection
+from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.space.support import active_tb_keys
 from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb, zero_bdg_array
 from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like
@@ -41,48 +42,55 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
         meanfield_guess: _tb_type,
         *,
         mu_guess: float,
-    ) -> DensityMatrixResult:
+    ) -> DensityEvaluation:
         return solve_bdg_density_fixed_filling(
             model,
             meanfield_guess,
             keys=space.density_keys,
             integration=runtime.integration,
-            filling_tol=runtime.filling_tol,
+            filling_tol=runtime.tolerances.filling_residual,
             mu_tol=runtime.mu_tol,
             max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
-            density_coordinates=space.required_density_coordinates_for(meanfield_guess),
+            density_coordinates=space.required_coordinates,
         )
 
-    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityMatrixResult:
+    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityEvaluation:
         return evaluate_meanfield(projected_guess, mu_guess=0.0)
 
-    def density_result_from_params(
-        params: np.ndarray, mu_guess: float
-    ) -> DensityMatrixResult:
-        return evaluate_meanfield(
-            _bdg_meanfield_from_active_density(
-                space.meanfield_input_from_params(params),
-                model=model,
-                active_keys=active_keys,
-            ),
-            mu_guess=mu_guess,
+    def state_from_density(density: DensitySlice) -> ActiveDensityState:
+        if density.coordinates.entries != space.required_coordinates.entries:
+            raise ValueError("density slice does not match the BdG SCF space")
+        return ActiveDensityState(
+            space,
+            space.params_from_required_entries(density.values),
         )
 
-    def finalize_meanfield(density_result: DensityMatrixResult) -> _tb_type:
+    def active_density(state: ActiveDensityState) -> _tb_type:
+        require_same_space(state, space)
+        return space.meanfield_input_from_params(state.values)
+
+    def mean_field_from_state(state: ActiveDensityState) -> _tb_type:
         return _bdg_meanfield_from_active_density(
-            space.project_meanfield_input(density_result.density_matrix),
+            active_density(state),
             model=model,
             active_keys=active_keys,
         )
 
+    def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityEvaluation:
+        return evaluate_meanfield(
+            mean_field_from_state(state),
+            mu_guess=mu_guess,
+        )
+
     return SCFProblem(
         runtime=runtime,
+        state_space=space,
         project_guess=project_guess,
         evaluate_projected_guess=evaluate_projected_guess,
-        compress_density=space.params_from_meanfield_input,
-        density_result_from_params=density_result_from_params,
-        finalize_meanfield=finalize_meanfield,
+        state_from_density=state_from_density,
+        evaluate_state=evaluate_state,
+        mean_field_from_state=mean_field_from_state,
     )
 
 

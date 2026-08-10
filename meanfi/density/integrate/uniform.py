@@ -461,4 +461,5 @@ def solve_uniform_grid_at_mu(
             error_estimate_available=False,
         ),
         keys=keys,
+        density_coordinates=density_coordinates,
     )

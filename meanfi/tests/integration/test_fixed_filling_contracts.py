@@ -10,10 +10,8 @@ import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
-    AdaptiveQuadratureInfo,
     AdaptiveSimplex,
     AndersonMixing,
-    DensityMatrixResult,
     DirectDiagonalization,
     LinearMixing,
     Model,
@@ -115,7 +113,7 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
 
 
-def test_adaptive_simplex_default_filling_tol_uses_filling_tolerance_estimator_factor():
+def test_low_level_filling_fallback_uses_filling_tolerance_estimator_factor():
     from meanfi.density.integrate.common import (
         adaptive_simplex_charge_tol,
         effective_charge_tol,
@@ -124,7 +122,7 @@ def test_adaptive_simplex_default_filling_tol_uses_filling_tolerance_estimator_f
     )
 
     hamiltonian = spinful_chain()
-    integration = AdaptiveSimplex()
+    integration = AdaptiveSimplex(density_matrix_tol=1e-2)
     expected_filling_tol = (
         integration.density_matrix_tol / filling_tolerance_estimator_factor()
     )
@@ -146,11 +144,7 @@ def test_integration_charge_tol_overrides_density_matrix_tol():
     assert effective_charge_tol(integration) == pytest.approx(2e-7)
 
 
-def test_adaptive_quadrature_default_tolerances_derive_from_density_matrix_tol(
-    monkeypatch,
-):
-    from meanfi.density.integrate.common import filling_tolerance_estimator_factor
-
+def test_explicit_density_tolerance_does_not_redefine_other_error_budgets(monkeypatch):
     import meanfi.density.integrate.normal as integration
 
     captured = {}
@@ -170,10 +164,8 @@ def test_adaptive_quadrature_default_tolerances_derive_from_density_matrix_tol(
         integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
     )
 
-    assert captured["charge_tol"] == pytest.approx(1e-8)
-    assert captured["filling_tol"] == pytest.approx(
-        1e-8 / filling_tolerance_estimator_factor()
-    )
+    assert captured["charge_tol"] == pytest.approx(1e-5)
+    assert captured["filling_tol"] == pytest.approx(1e-4)
 
 
 def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():
@@ -201,9 +193,8 @@ def test_uniform_grid_accepts_zero_temperature_fixed_filling_controls():
         integration=UniformGrid(nk=9),
     )
 
-    assert isinstance(result.integration, UniformGrid)
     assert np.isfinite(result.mu)
-    assert result.target_filling == 1.0
+    assert result.filling == pytest.approx(1.0)
 
 
 def test_uniform_grid_default_filling_tol_matches_explicit_default():

@@ -78,6 +78,17 @@ def _evaluate_charge(
     return result, int(mesh.cached_vertices) - cached_vertices
 
 
+def _occupied_band_energy(
+    mesh: SpectralMesh,
+    *,
+    mu: float,
+) -> float | None:
+    if not hasattr(mesh, "occupied_weights"):
+        return None
+    weights = np.asarray(mesh.occupied_weights(float(mu)))
+    return float(np.sum(weights * np.asarray(mesh.eigenvalues)))
+
+
 def _integrate_density(
     mesh: SpectralMesh,
     density_coordinates: DensityCoordinates,
@@ -229,6 +240,7 @@ def _fixed_filling_info(
     density_atol: float,
     density_rtol: float,
     num_threads: int | None,
+    band_energy: float | None = None,
 ) -> FixedFillingInfo:
     return FixedFillingInfo(
         mu=float(root.mu),
@@ -254,6 +266,9 @@ def _fixed_filling_info(
         density_rtol=float(density_rtol),
         error_estimate_available=bool(density_info.error_estimate_available),
         num_threads=num_threads,
+        band_energy=band_energy,
+        band_energy_integration_calls=int(band_energy is not None),
+        band_energy_n_kernel_evals=0,
     )
 
 
@@ -272,6 +287,7 @@ def density_matrix_zero_temp(
     max_charge_evaluations: int | None,
     max_subdivisions: int | None = None,
     num_threads: int | None = None,
+    include_band_energy: bool = False,
 ):
     coordinates = _density_coordinates(
         h,
@@ -362,6 +378,11 @@ def density_matrix_zero_temp(
         density_matrix, density_matrix_error, density_info = _empty_density_result(
             mesh, coordinates, num_threads=num_threads
         )
+        band_energy = (
+            _occupied_band_energy(mesh, mu=float(root.mu))
+            if include_band_energy
+            else None
+        )
         return (
             density_matrix,
             density_matrix_error,
@@ -377,6 +398,7 @@ def density_matrix_zero_temp(
                 density_atol=density_atol,
                 density_rtol=density_rtol,
                 num_threads=num_threads,
+                band_energy=band_energy,
             ),
         )
 
@@ -397,6 +419,9 @@ def density_matrix_zero_temp(
         coordinates,
     )
     density_info = _density_info(density_result, num_threads=num_threads)
+    band_energy = (
+        _occupied_band_energy(mesh, mu=float(root.mu)) if include_band_energy else None
+    )
     return (
         density_matrix,
         density_matrix_error,
@@ -412,6 +437,7 @@ def density_matrix_zero_temp(
             density_atol=density_atol,
             density_rtol=density_rtol,
             num_threads=num_threads,
+            band_energy=band_energy,
         ),
     )
 

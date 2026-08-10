@@ -8,6 +8,8 @@ low-level matrix-function, quadrature, simplex, and uniform-grid evaluators.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 
 from meanfi.density.integrate.common import (
@@ -98,6 +100,7 @@ def _wrap_adaptive_payload(
         target_filling=target_filling,
         integration=integration,
         keys=request_context.solve_keys,
+        density_coordinates=request_context.density_coordinates,
     )
     return retarget_result_keys(result, keys=request_context.requested_keys)
 
@@ -118,6 +121,7 @@ def _normal_zero_dim_fixed_filling(
     density_coordinates: DensityCoordinates | None = None,
     matrix_function: object | None = None,
     workspace_dtype: np.dtype = np.dtype(complex),
+    include_band_energy: bool = False,
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
     resolved_matrix_function = resolve_matrix_function(matrix_function)
     eigenvalues = eigenvectors = None
@@ -158,6 +162,9 @@ def _normal_zero_dim_fixed_filling(
             density_atol=density_atol,
             density_rtol=density_rtol,
             error_estimate_available=True,
+            band_energy=(
+                float(np.sum(eigenvalues * occupation)) if include_band_energy else None
+            ),
         )
         return rho, error, mu, info
 
@@ -336,22 +343,40 @@ def _solve_quadrature_fixed_filling(
         use_derivative=backend.charge_has_derivative,
     )
 
-    density_integrator = charge_integrator.replace_evaluator(backend.density_evaluator)
-    density_max_subdivisions = 0 if backend.freeze_density_mesh else max_subdivisions
-    density_statuses = (
-        ("converged", "max_subdivisions")
-        if backend.freeze_density_mesh
-        else ("converged",)
-    )
-    density_result = run_integrator(
-        density_integrator,
-        root.mu,
-        atol=density_atol,
-        rtol=0.0,
-        max_subdivisions=density_max_subdivisions,
-        error_message=density_error_message,
-        accepted_statuses=density_statuses,
-    )
+    if backend.has_density_components:
+        density_integrator = charge_integrator.replace_evaluator(
+            backend.density_evaluator
+        )
+        density_max_subdivisions = (
+            0 if backend.freeze_density_mesh else max_subdivisions
+        )
+        density_statuses = (
+            ("converged", "max_subdivisions")
+            if backend.freeze_density_mesh
+            else ("converged",)
+        )
+        density_result = run_integrator(
+            density_integrator,
+            root.mu,
+            atol=density_atol,
+            rtol=0.0,
+            max_subdivisions=density_max_subdivisions,
+            error_message=density_error_message,
+            accepted_statuses=density_statuses,
+        )
+        density_integration_calls = 1
+    else:
+        density_result = SimpleNamespace(
+            estimate=np.empty(0, dtype=complex),
+            error=np.empty(0, dtype=float),
+            n_kernel_evals=0,
+            n_evaluator_evals=0,
+            n_cached_nodes=0,
+            n_leaves=0,
+            n_leaf_nodes=0,
+            subdivisions=0,
+        )
+        density_integration_calls = 0
     density_matrix, density_matrix_error = backend.split_density_result(
         density_result.estimate,
         density_result.error,
@@ -370,6 +395,7 @@ def _solve_quadrature_fixed_filling(
         charge_integral_atol=charge_integral_atol,
         density_atol=density_atol,
         density_rtol=0.0,
+        density_integration_calls=density_integration_calls,
     )
     return density_matrix, density_matrix_error, raw_info
 
@@ -529,6 +555,7 @@ def _adaptive_simplex_fixed_filling(
                 max_charge_evaluations=max_charge_evaluations,
                 density_atol=integration.density_matrix_tol,
                 density_rtol=0.0,
+                include_band_energy=context.include_band_energy,
             )
         )
     else:
@@ -546,6 +573,7 @@ def _adaptive_simplex_fixed_filling(
             max_charge_evaluations=max_charge_evaluations,
             max_subdivisions=integration.max_refinements,
             num_threads=integration.num_threads,
+            include_band_energy=context.include_band_energy,
         )
 
     return _wrap_adaptive_payload(
@@ -729,6 +757,7 @@ def _uniform_grid_fixed_filling(
                     error_estimate_available=False,
                 ),
                 keys=context.solve_keys,
+                density_coordinates=context.density_coordinates,
             ),
             keys=context.requested_keys,
         )
@@ -773,6 +802,7 @@ def _uniform_grid_fixed_filling(
             integration=integration,
             info=info,
             keys=context.solve_keys,
+            density_coordinates=context.density_coordinates,
         ),
         keys=context.requested_keys,
     )

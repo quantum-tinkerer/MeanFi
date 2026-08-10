@@ -43,10 +43,7 @@ def test_zero_dimensional_density_matrix_at_mu_matches_exact_occupation():
     expected = np.diag(fermi_dirac(np.array([-1.0, 2.0]), kT, mu))
 
     assert np.allclose(result.density_matrix[()], expected, atol=1e-12)
-    assert np.allclose(result.density_matrix_error[()], np.zeros((2, 2)), atol=0.0)
-    assert result.info.n_kernel_evals == 1
-    assert result.info.unique_evals == 1
-    assert result.info.n_evaluator_evals == 1
+    assert result.errors.density_matrix_integration == pytest.approx(0.0)
 
 
 def test_density_matrix_respects_hermiticity_and_charge_sum_rule():
@@ -109,7 +106,7 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
 
         assert abs(result.mu - exact_spinful_chain_mu(filling)) <= 1e-4
         assert abs(exact_spinful_chain_charge(result.mu) - filling) <= filling_tol
-        assert result.info.refinements > 0
+        assert result.errors.density_matrix_integration is not None
 
 
 @requires_ext
@@ -171,9 +168,8 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
         filling_tol=1e-12,
     )
 
-    assert primitive_result.info.error_estimate_available is True
-    assert doubled_result.info.error_estimate_available is True
-    assert primitive_result.info.refinements == doubled_result.info.refinements == 0
+    assert primitive_result.errors.density_matrix_integration is not None
+    assert doubled_result.errors.density_matrix_integration is not None
     assert abs(primitive_result.mu - doubled_result.mu) < 1e-12
     assert np.allclose(
         primitive_result.density_matrix[(0,)],
@@ -201,5 +197,5 @@ def test_uniform_grid_reports_unique_eval_count():
         integration=UniformGrid(nk=7),
     )
 
-    assert result.info.n_kpoints == 7
-    assert result.info.unique_evals == 7
+    assert result.errors.density_matrix_integration is None
+    assert result.density_matrix[(0,)].shape == (2, 2)

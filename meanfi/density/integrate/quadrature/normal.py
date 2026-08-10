@@ -442,4 +442,7 @@ def build_normal_backend(
         mu_bracket=lambda: mu_bracket(hamiltonian, kT),
         freeze_density_mesh=freeze_density_mesh,
         charge_has_derivative=charge_has_derivative,
+        has_density_components=(
+            density_coordinates is None or density_coordinates.value_count > 0
+        ),
     )

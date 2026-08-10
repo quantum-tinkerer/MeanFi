@@ -129,7 +129,7 @@ result = meanfi.solver(
 )
 mf_sol = {
     key: value.toarray() if hasattr(value, "toarray") else np.asarray(value)
-    for key, value in result.mf.items()
+    for key, value in result.mean_field.items()
 }
 ```
 

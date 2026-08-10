@@ -180,8 +180,8 @@ glide_result = meanfi.solver(
 
 print(f"unconstrained SCF variables: {model_free.scf_space.num_params}")
 print(f"glide-constrained variables: {model_glide.scf_space.num_params}")
-print(f"unconstrained residual:      {free_result.info.residual_norm:.2e}")
-print(f"glide residual:              {glide_result.info.residual_norm:.2e}")
+print(f"unconstrained residual:      {free_result.errors.scf_residual:.2e}")
+print(f"glide residual:              {glide_result.errors.scf_residual:.2e}")
 ```
 
 The plot below measures the glide mismatch of the converged mean-field Hamiltonian:
@@ -217,8 +217,8 @@ def glide_mismatch(model, meanfield):
     return grid, mismatch
 
 
-grid, free_mismatch = glide_mismatch(model_free, free_result.mf)
-_, glide_mismatch_values = glide_mismatch(model_glide, glide_result.mf)
+grid, free_mismatch = glide_mismatch(model_free, free_result.mean_field)
+_, glide_mismatch_values = glide_mismatch(model_glide, glide_result.mean_field)
 vmax = float(free_mismatch.max())
 
 fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.3), constrained_layout=True)

@@ -2,21 +2,24 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+from .errors import (
+    ErrorTolerances,
+    ErrorValues,
+    ToleranceFunction,
+    default_solver_tolerances,
+    resolve_error_tolerances,
+)
+
+
 try:
     from ._version import __version__, __version_tuple__
 except ImportError:
     __version__ = "unknown"
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
-from .results import (
-    AdaptiveQuadratureInfo,
-    AdaptiveSimplexInfo,
-    DensityMatrixResult,
-    SCFInfo,
-    SCFIterationInfo,
-    SolverResult,
-    UniformGridInfo,
-)
+from .results import DensityResult, SCFIteration, SCFResult
 from .density.density import (
     solve_density_matrix_at_mu as _solve_density_matrix_at_mu,
     solve_density_matrix_fixed_filling as _solve_density_matrix_fixed_filling,
@@ -37,8 +40,8 @@ from .density.kpoint.occupations import fermi_dirac
 from .model import Model
 from .meanfield import meanfield
 from .observables import expectation_value, total_energy
-from .scf.engine import NoConvergence
-from .scf.methods import AndersonMixing, LinearMixing, SCFMethod
+from .scf.engine import NoConvergence, SolverError, SolverFailure
+from .scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 from .scf.scf import solver
 from .space import SpatialSymmetry
 from .tb.tb import (
@@ -60,17 +63,21 @@ def density_matrix_at_mu(
     keys: list[tuple[int, ...]] | None = None,
     *,
     integration: IntegrationMethod | None = None,
-) -> DensityMatrixResult:
+    tol: float = 1e-3,
+    tolerance_policy: ToleranceFunction = default_solver_tolerances,
+) -> DensityResult:
     """Compute the real-space density matrix at a fixed chemical potential."""
 
     if keys is None:
         raise ValueError("keys must be provided")
+    tolerances = resolve_error_tolerances(tol, tolerance_policy)
     return _solve_density_matrix_at_mu(
         h,
         mu=mu,
         kT=kT,
         keys=keys,
         integration=integration,
+        tolerances=tolerances,
     )
 
 
@@ -81,21 +88,29 @@ def density_matrix(
     keys: list[tuple[int, ...]] | None = None,
     *,
     integration: IntegrationMethod | None = None,
+    tol: float = 1e-3,
+    tolerance_policy: ToleranceFunction = default_solver_tolerances,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
-) -> DensityMatrixResult:
+) -> DensityResult:
     """Compute the fixed-filling real-space density matrix."""
 
     if keys is None:
         raise ValueError("keys must be provided")
+    tolerances = resolve_error_tolerances(tol, tolerance_policy)
+    if filling_tol is not None:
+        tolerances = replace(
+            tolerances,
+            filling_residual=float(filling_tol),
+        )
     return _solve_density_matrix_fixed_filling(
         h,
         filling=filling,
         kT=kT,
         keys=keys,
         integration=integration,
-        filling_tol=filling_tol,
+        tolerances=tolerances,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
     )
@@ -103,28 +118,30 @@ def density_matrix(
 
 __all__ = [
     "AdaptiveQuadrature",
-    "AdaptiveQuadratureInfo",
     "AdaptiveSimplex",
-    "AdaptiveSimplexInfo",
     "AndersonMixing",
     "BdGMatrixFunction",
-    "DensityMatrixResult",
+    "EnergyDIIS",
+    "ErrorTolerances",
+    "ErrorValues",
+    "DensityResult",
     "DirectDiagonalization",
     "IntegrationMethod",
     "LinearMixing",
     "Model",
     "NoConvergence",
     "RationalFOE",
-    "SCFInfo",
-    "SCFIterationInfo",
+    "SCFIteration",
     "SCFMethod",
-    "SolverResult",
+    "SCFResult",
+    "SolverError",
+    "SolverFailure",
     "SpatialSymmetry",
     "UniformGrid",
-    "UniformGridInfo",
     "__version__",
     "__version_tuple__",
     "add_tb",
+    "default_solver_tolerances",
     "density_matrix",
     "density_matrix_at_mu",
     "expectation_value",

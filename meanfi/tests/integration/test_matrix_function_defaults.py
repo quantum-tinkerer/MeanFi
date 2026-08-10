@@ -10,10 +10,8 @@ import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
-    AdaptiveQuadratureInfo,
     AdaptiveSimplex,
     AndersonMixing,
-    DensityMatrixResult,
     DirectDiagonalization,
     LinearMixing,
     Model,
@@ -24,6 +22,7 @@ from meanfi import (
     solver,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
+from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
@@ -71,37 +70,23 @@ def test_dense_uniform_grid_defaults_to_direct_diagonalization():
 
 
 def test_dense_finite_temperature_defaults_to_adaptive_quadrature_with_exact_diagonalization():
-    result = density_matrix(
-        spinful_chain(),
-        filling=1.0,
-        kT=0.15,
-        keys=[(0,)],
-    )
+    resolved = select_default_integration(spinful_chain(), kT=0.15)
 
-    assert isinstance(result.integration, AdaptiveQuadrature)
-    assert isinstance(result.integration.matrix_function, DirectDiagonalization)
+    assert isinstance(resolved, AdaptiveQuadrature)
+    assert isinstance(resolved.matrix_function, DirectDiagonalization)
 
 
 def test_sparse_finite_temperature_defaults_to_adaptive_quadrature_with_sparse_rational():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
-    result = density_matrix(
-        sparse_tb,
-        filling=1.0,
-        kT=0.15,
-        keys=[(0,)],
-    )
+    resolved = select_default_integration(sparse_tb, kT=0.15)
 
-    assert isinstance(result.integration, AdaptiveQuadrature)
-    assert isinstance(result.integration.matrix_function, RationalFOE)
-    assert result.integration.matrix_function.rational_scheme == "aaa"
+    assert isinstance(resolved, AdaptiveQuadrature)
+    assert isinstance(resolved.matrix_function, RationalFOE)
+    assert resolved.matrix_function.rational_scheme == "aaa"
 
 
 @requires_ext
 def test_zero_temperature_defaults_to_adaptive_simplex():
-    result = density_matrix(
-        spinful_chain(),
-        filling=1.0,
-        keys=[(0,)],
-    )
+    resolved = select_default_integration(spinful_chain(), kT=0.0)
 
-    assert isinstance(result.integration, AdaptiveSimplex)
+    assert isinstance(resolved, AdaptiveSimplex)

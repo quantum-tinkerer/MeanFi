@@ -15,14 +15,14 @@ class IntegrationMethod:
 class AdaptiveSimplex(IntegrationMethod):
     """Adaptive zero-temperature simplicial integration."""
 
-    density_matrix_tol: float = 1e-2
+    density_matrix_tol: float | None = None
     max_refinements: int | None = None
     num_threads: int | None = None
     charge_tol: float | None = None
 
     def __post_init__(self) -> None:
-        if self.density_matrix_tol <= 0:
-            raise ValueError("density_matrix_tol must be positive")
+        if self.density_matrix_tol is not None and self.density_matrix_tol <= 0:
+            raise ValueError("density_matrix_tol must be positive when provided")
         if self.charge_tol is not None and self.charge_tol <= 0:
             raise ValueError("charge_tol must be positive when provided")
         if self.max_refinements is not None and self.max_refinements < 0:
@@ -35,7 +35,7 @@ class AdaptiveSimplex(IntegrationMethod):
 class AdaptiveQuadrature(IntegrationMethod):
     """Adaptive finite-temperature quadrature."""
 
-    density_matrix_tol: float = 1e-2
+    density_matrix_tol: float | None = None
     max_refinements: int | None = None
     rule: str = "auto"
     batch_size: int | None = None
@@ -44,8 +44,8 @@ class AdaptiveQuadrature(IntegrationMethod):
     charge_tol: float | None = None
 
     def __post_init__(self) -> None:
-        if self.density_matrix_tol <= 0:
-            raise ValueError("density_matrix_tol must be positive")
+        if self.density_matrix_tol is not None and self.density_matrix_tol <= 0:
+            raise ValueError("density_matrix_tol must be positive when provided")
         if self.charge_tol is not None and self.charge_tol <= 0:
             raise ValueError("charge_tol must be positive when provided")
         if self.max_refinements is not None and self.max_refinements < 0:
@@ -61,7 +61,7 @@ class UniformGrid(IntegrationMethod):
     """Uniform k-grid point sampling."""
 
     nk: int
-    density_matrix_tol: float = 1e-2
+    density_matrix_tol: float | None = None
     matrix_function: object | None = None
     workspace_precision: int = 128
     charge_tol: float | None = None
@@ -69,8 +69,8 @@ class UniformGrid(IntegrationMethod):
     def __post_init__(self) -> None:
         if self.nk <= 0:
             raise ValueError("nk must be positive")
-        if self.density_matrix_tol <= 0:
-            raise ValueError("density_matrix_tol must be positive")
+        if self.density_matrix_tol is not None and self.density_matrix_tol <= 0:
+            raise ValueError("density_matrix_tol must be positive when provided")
         if self.charge_tol is not None and self.charge_tol <= 0:
             raise ValueError("charge_tol must be positive when provided")
         if self.workspace_precision not in (64, 128):

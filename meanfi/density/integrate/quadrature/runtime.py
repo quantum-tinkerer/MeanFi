@@ -26,6 +26,7 @@ class QuadratureBackend:
     mu_bracket: Callable[[], tuple[float, float]]
     freeze_density_mesh: bool = False
     charge_has_derivative: bool = True
+    has_density_components: bool = True
 
 
 def density_integration_info(result) -> DensityIntegrationInfo:
@@ -59,6 +60,7 @@ def fixed_filling_info(
     charge_integral_atol: float,
     density_atol: float,
     density_rtol: float,
+    density_integration_calls: int = 1,
 ) -> FixedFillingInfo:
     """Combine charge-root and density-integration stats."""
 
@@ -72,7 +74,7 @@ def fixed_filling_info(
         dcharge_dmu=derivative,
         charge_evaluations=charge_evaluations,
         charge_integration_calls=charge_integration_calls,
-        density_integration_calls=1,
+        density_integration_calls=density_integration_calls,
         charge_n_kernel_evals=charge_kernel_evals,
         density_n_kernel_evals=density_kernel_evals,
         n_kernel_evals=charge_kernel_evals + density_kernel_evals,
