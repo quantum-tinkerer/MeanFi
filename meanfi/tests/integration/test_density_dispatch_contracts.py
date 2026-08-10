@@ -17,6 +17,7 @@ from meanfi import (
     DensityMatrixResult,
     DirectDiagonalization,
     LinearMixing,
+    default_solver_tolerances,
     Model,
     RationalFOE,
     UniformGrid,
@@ -171,7 +172,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     )
 
     assert called["kwargs"]["density_atol"] == 1e-4
-    assert called["kwargs"]["charge_tol"] == 1e-4
+    assert called["kwargs"]["charge_tol"] == 1e-5
     assert called["kwargs"]["filling_tol"] == 2e-3
     assert called["kwargs"]["num_threads"] == 3
     assert np.allclose(result.density_matrix[(0,)], np.array([[1.0]]))
@@ -262,7 +263,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
         FakeModel(),
         SolverRuntime(
             integration=AdaptiveSimplex(),
-            filling_tol=None,
+            tolerances=default_solver_tolerances(1e-3),
             mu_tol=1e-10,
             max_charge_evaluations=None,
         ),

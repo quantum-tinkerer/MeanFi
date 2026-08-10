@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from meanfi.errors import (
+    ErrorTolerances,
+    resolve_integration_tolerances,
+)
 from meanfi.density.integrate.common import (
     prepare_keys,
     validate_integration_method,
@@ -26,7 +30,9 @@ class DensityProblem:
     integration: IntegrationMethod
     requested_keys: list[tuple[int, ...]]
     solve_keys: list[tuple[int, ...]]
+    tolerances: ErrorTolerances
     density_coordinates: DensityCoordinates | None = None
+    include_band_energy: bool = False
 
 
 @dataclass(frozen=True)
@@ -53,7 +59,9 @@ def build_normal_problem(
     kT: float,
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod | None,
+    tolerances: ErrorTolerances,
     density_coordinates: DensityCoordinates | None = None,
+    include_band_energy: bool = False,
 ) -> DensityProblem:
     """Normalize public normal-density inputs into one pipeline problem."""
 
@@ -61,6 +69,9 @@ def build_normal_problem(
         integration
         if integration is not None
         else select_default_integration(hamiltonian, kT=kT)
+    )
+    selected_integration, resolved_tolerances = resolve_integration_tolerances(
+        selected_integration, tolerances
     )
     validate_integration_method(selected_integration, kT=kT)
     requested_keys, working_keys, _local_key = prepare_keys(hamiltonian, keys)
@@ -71,7 +82,9 @@ def build_normal_problem(
         integration=selected_integration,
         requested_keys=requested_keys,
         solve_keys=working_keys,
+        tolerances=resolved_tolerances,
         density_coordinates=density_coordinates,
+        include_band_energy=include_band_energy,
     )
 
 

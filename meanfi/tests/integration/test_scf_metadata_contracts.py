@@ -129,7 +129,7 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
         *,
         keys,
         integration,
-        filling_tol,
+        tolerances,
         mu_tol,
         max_charge_evaluations,
         mu_guess,
@@ -138,7 +138,7 @@ def test_solver_info_residual_norm_uses_max_norm_and_is_not_extensive(monkeypatc
         del (
             keys,
             integration,
-            filling_tol,
+            tolerances,
             mu_tol,
             max_charge_evaluations,
             mu_guess,

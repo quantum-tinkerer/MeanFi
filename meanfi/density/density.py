@@ -7,6 +7,9 @@ the fixed-filling nested solve, and then return the public result object.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+from meanfi.errors import ErrorTolerances
 from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
 from meanfi.density.plan import (
@@ -34,6 +37,7 @@ def solve_density_matrix_at_mu(
     kT: float,
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod | None,
+    tolerances: ErrorTolerances,
     density_coordinates: DensityCoordinates | None = None,
 ) -> DensityMatrixResult:
     problem = build_normal_problem(
@@ -41,11 +45,15 @@ def solve_density_matrix_at_mu(
         kT=kT,
         keys=keys,
         integration=integration,
+        tolerances=tolerances,
         density_coordinates=density_coordinates,
     )
     plan = build_plan(problem)
     evaluation = evaluate_at_mu(problem, plan, mu)
-    return wrap_density_evaluation(problem, plan, evaluation)
+    return replace(
+        wrap_density_evaluation(problem, plan, evaluation),
+        tolerances=problem.tolerances,
+    )
 
 
 def solve_density_matrix_fixed_filling(
@@ -55,30 +63,36 @@ def solve_density_matrix_fixed_filling(
     kT: float,
     keys: list[tuple[int, ...]],
     integration: IntegrationMethod | None,
-    filling_tol: float | None,
+    tolerances: ErrorTolerances,
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float = 0.0,
     density_coordinates: DensityCoordinates | None = None,
+    include_band_energy: bool = False,
 ) -> DensityMatrixResult:
     problem = build_normal_problem(
         hamiltonian,
         kT=kT,
         keys=keys,
         integration=integration,
+        tolerances=tolerances,
         density_coordinates=density_coordinates,
+        include_band_energy=include_band_energy,
     )
     plan = build_plan(problem)
     evaluation = evaluate_fixed_filling(
         problem,
         plan,
         filling=filling,
-        filling_tol=filling_tol,
+        filling_tol=problem.tolerances.filling_residual,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
     )
-    return wrap_density_evaluation(problem, plan, evaluation, target_filling=filling)
+    return replace(
+        wrap_density_evaluation(problem, plan, evaluation, target_filling=filling),
+        tolerances=problem.tolerances,
+    )
 
 
 __all__ = [

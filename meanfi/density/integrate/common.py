@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 
+from meanfi.errors import (
+    ErrorValues,
+    density_matrix_error_value,
+)
+
 from meanfi.results import (
     AdaptiveQuadratureInfo,
     AdaptiveSimplexInfo,
@@ -180,6 +185,12 @@ def translate_adaptive_info(
     )
     if isinstance(integration, AdaptiveSimplex):
         kwargs["num_threads"] = getattr(raw_info, "num_threads", None)
+        kwargs["band_energy_integration_calls"] = int(
+            getattr(raw_info, "band_energy_integration_calls", 0)
+        )
+        kwargs["band_energy_n_kernel_evals"] = int(
+            getattr(raw_info, "band_energy_n_kernel_evals", 0)
+        )
     return info_type(**kwargs)
 
 
@@ -231,6 +242,7 @@ def wrap_density_result(
     integration: IntegrationMethod,
     info,
     keys: list[tuple[int, ...]],
+    band_energy: float | None = None,
 ) -> DensityMatrixResult:
     trimmed_density_matrix = trim_density_matrix(density_matrix, keys=keys)
     trimmed_density_matrix_error = trim_density_matrix_error(
@@ -239,6 +251,20 @@ def wrap_density_result(
     )
     filling_residual = (
         None if target_filling is None else abs(float(filling) - float(target_filling))
+    )
+    error_estimate_available = bool(getattr(info, "error_estimate_available", False))
+    errors = ErrorValues(
+        density_matrix_integration=(
+            density_matrix_error_value(trimmed_density_matrix_error)
+            if error_estimate_available
+            else None
+        ),
+        filling_residual=filling_residual,
+        charge_integration=(
+            getattr(info, "charge_error", None)
+            if target_filling is not None and error_estimate_available
+            else None
+        ),
     )
     return DensityMatrixResult(
         density_matrix=trimmed_density_matrix,
@@ -249,6 +275,8 @@ def wrap_density_result(
         filling_residual=filling_residual,
         integration=integration,
         info=info,
+        errors=errors,
+        band_energy=None if band_energy is None else float(band_energy),
     )
 
 
@@ -274,6 +302,7 @@ def wrap_adaptive_result(
         integration=integration,
         info=public_info,
         keys=keys,
+        band_energy=getattr(raw_info, "band_energy", None),
     )
 
 
@@ -296,4 +325,8 @@ def retarget_result_keys(
         filling_residual=result.filling_residual,
         integration=result.integration,
         info=result.info,
+        tolerances=result.tolerances,
+        errors=result.errors,
+        band_energy=result.band_energy,
+        energy=result.energy,
     )

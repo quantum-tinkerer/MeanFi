@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from meanfi.results import DensityMatrixResult, SCFInfo, SCFIterationInfo
-from meanfi.scf.methods import AndersonMixing, LinearMixing, SCFMethod
+from meanfi.scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 
 
 @dataclass
@@ -65,6 +65,7 @@ def record_scf_iteration(
     *,
     residual_norm: float,
     line_search_norm: float,
+    energy: float | None = None,
 ) -> SCFIterationInfo:
     (
         _charge_calls,
@@ -94,6 +95,7 @@ def record_scf_iteration(
             if getattr(result.info, "charge_error", None) is None
             else float(result.info.charge_error)
         ),
+        energy=None if energy is None else float(energy),
     )
     history.append(info)
     state.history = history
@@ -105,6 +107,8 @@ def scf_method_name(scf: SCFMethod) -> str:
         return "anderson_mixing"
     if isinstance(scf, LinearMixing):
         return "linear_mixing"
+    if isinstance(scf, EnergyDIIS):
+        return "energy_diis"
     return scf.__class__.__name__
 
 

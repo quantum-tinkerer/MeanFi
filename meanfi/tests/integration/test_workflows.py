@@ -10,8 +10,6 @@ from meanfi import (
     solver,
 )
 from meanfi.interop import kwant as utils
-from meanfi.density.integrate.common import effective_filling_tol
-from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.tests.fixtures import kwant_examples
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import spinful_chain
@@ -42,14 +40,12 @@ def test_graphene_kwant_end_to_end_regression():
         kT=model.kT,
         keys=list(h_int),
     )
-    expected_filling_tol = effective_filling_tol(
-        select_default_integration(h_0, kT=model.kT, superconducting=False),
-        hamiltonian=add_tb(h_0, result.mf),
-        filling_tol=None,
-    )
 
     assert result.info.residual_norm <= 2.0 * 5e-4
-    assert abs(density_result.filling - model.filling) <= expected_filling_tol
+    assert (
+        density_result.errors.filling_residual
+        <= density_result.tolerances.filling_residual
+    )
     for key, matrix in result.mf.items():
         opposite = tuple(-np.array(key))
         assert np.allclose(matrix, result.mf[opposite].conj().T)

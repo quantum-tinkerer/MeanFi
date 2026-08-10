@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 
 from meanfi.density.density import solve_bdg_density_fixed_filling
@@ -42,16 +44,21 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
         *,
         mu_guess: float,
     ) -> DensityMatrixResult:
-        return solve_bdg_density_fixed_filling(
-            model,
-            meanfield_guess,
-            keys=space.density_keys,
-            integration=runtime.integration,
-            filling_tol=runtime.filling_tol,
-            mu_tol=runtime.mu_tol,
-            max_charge_evaluations=runtime.max_charge_evaluations,
-            mu_guess=mu_guess,
-            density_coordinates=space.required_density_coordinates_for(meanfield_guess),
+        return replace(
+            solve_bdg_density_fixed_filling(
+                model,
+                meanfield_guess,
+                keys=space.density_keys,
+                integration=runtime.integration,
+                filling_tol=runtime.tolerances.filling_residual,
+                mu_tol=runtime.mu_tol,
+                max_charge_evaluations=runtime.max_charge_evaluations,
+                mu_guess=mu_guess,
+                density_coordinates=space.required_density_coordinates_for(
+                    meanfield_guess
+                ),
+            ),
+            tolerances=runtime.tolerances,
         )
 
     def evaluate_projected_guess(projected_guess: _tb_type) -> DensityMatrixResult:

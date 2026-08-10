@@ -34,19 +34,56 @@ def test_total_energy_half_counts_normal_mean_field_interaction():
     )
 
 
+def test_total_energy_uses_reference_subtracted_interaction_functional():
+    h_0 = {(): np.diag([0.2, -0.3]).astype(complex)}
+    h_int = {(): np.array([[0.0, 1.7], [1.7, 0.0]], dtype=complex)}
+    reference = {(): np.diag([0.6, 0.4]).astype(complex)}
+    density = {(): np.diag([0.25, 0.75]).astype(complex)}
+    model = Model(
+        h_0,
+        h_int,
+        filling=1.0,
+        reference_density_matrix=reference,
+    )
+    difference = {(): density[()] - reference[()]}
+    correction = meanfield(difference, h_int)
+    expected = expectation_value(density, h_0)
+    expected += 0.5 * expectation_value(difference, correction)
+
+    assert total_energy(model, density) == pytest.approx(float(np.real(expected)))
+
+
+def test_total_energy_rejects_missing_one_body_density_keys():
+    model = Model(
+        {
+            (0,): np.zeros((1, 1), dtype=complex),
+            (1,): np.ones((1, 1), dtype=complex),
+            (-1,): np.ones((1, 1), dtype=complex),
+        },
+        {(0,): np.zeros((1, 1), dtype=complex)},
+        filling=0.5,
+    )
+
+    with pytest.raises(ValueError, match="missing keys required for total energy"):
+        total_energy(model, {(0,): np.array([[0.5]], dtype=complex)})
+
+
 def test_total_energy_gradient_matches_hubbard_mean_field_hamiltonian():
     model = Model(*bipartite_hubbard_2d(U=3.7), filling=2.0, kT=0.2)
     rng = np.random.default_rng(1123)
     occupied, _ = np.linalg.qr(
         rng.standard_normal((4, 2)) + 1j * rng.standard_normal((4, 2))
     )
-    rho = {(0, 0): occupied @ occupied.conj().T}
+    zero = np.zeros((4, 4), dtype=complex)
+    rho = {key: np.array(zero, copy=True) for key in model.h_0}
+    rho[(0, 0)] = occupied @ occupied.conj().T
     raw_direction = rng.standard_normal((4, 4)) + 1j * rng.standard_normal((4, 4))
-    direction = {(0, 0): raw_direction + raw_direction.conj().T}
+    direction = {key: np.array(zero, copy=True) for key in model.h_0}
+    direction[(0, 0)] = raw_direction + raw_direction.conj().T
     epsilon = 1e-6
 
     def shifted(scale):
-        return {(0, 0): rho[(0, 0)] + scale * direction[(0, 0)]}
+        return {key: rho[key] + scale * direction[key] for key in rho}
 
     def slater_energy():
         h_0 = model.h_0[(0, 0)]

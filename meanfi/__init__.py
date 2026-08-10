@@ -2,6 +2,17 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+from .errors import (
+    ErrorTolerances,
+    ErrorValues,
+    ToleranceFunction,
+    default_solver_tolerances,
+    resolve_error_tolerances,
+)
+
+
 try:
     from ._version import __version__, __version_tuple__
 except ImportError:
@@ -38,7 +49,7 @@ from .model import Model
 from .meanfield import meanfield
 from .observables import expectation_value, total_energy
 from .scf.engine import NoConvergence
-from .scf.methods import AndersonMixing, LinearMixing, SCFMethod
+from .scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 from .scf.scf import solver
 from .space import SpatialSymmetry
 from .tb.tb import (
@@ -60,17 +71,21 @@ def density_matrix_at_mu(
     keys: list[tuple[int, ...]] | None = None,
     *,
     integration: IntegrationMethod | None = None,
+    tol: float = 1e-3,
+    tolerance_policy: ToleranceFunction = default_solver_tolerances,
 ) -> DensityMatrixResult:
     """Compute the real-space density matrix at a fixed chemical potential."""
 
     if keys is None:
         raise ValueError("keys must be provided")
+    tolerances = resolve_error_tolerances(tol, tolerance_policy)
     return _solve_density_matrix_at_mu(
         h,
         mu=mu,
         kT=kT,
         keys=keys,
         integration=integration,
+        tolerances=tolerances,
     )
 
 
@@ -81,6 +96,8 @@ def density_matrix(
     keys: list[tuple[int, ...]] | None = None,
     *,
     integration: IntegrationMethod | None = None,
+    tol: float = 1e-3,
+    tolerance_policy: ToleranceFunction = default_solver_tolerances,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
@@ -89,13 +106,19 @@ def density_matrix(
 
     if keys is None:
         raise ValueError("keys must be provided")
+    tolerances = resolve_error_tolerances(tol, tolerance_policy)
+    if filling_tol is not None:
+        tolerances = replace(
+            tolerances,
+            filling_residual=float(filling_tol),
+        )
     return _solve_density_matrix_fixed_filling(
         h,
         filling=filling,
         kT=kT,
         keys=keys,
         integration=integration,
-        filling_tol=filling_tol,
+        tolerances=tolerances,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
     )
@@ -108,7 +131,10 @@ __all__ = [
     "AdaptiveSimplexInfo",
     "AndersonMixing",
     "BdGMatrixFunction",
+    "EnergyDIIS",
     "DensityMatrixResult",
+    "ErrorTolerances",
+    "ErrorValues",
     "DirectDiagonalization",
     "IntegrationMethod",
     "LinearMixing",
@@ -125,6 +151,7 @@ __all__ = [
     "__version__",
     "__version_tuple__",
     "add_tb",
+    "default_solver_tolerances",
     "density_matrix",
     "density_matrix_at_mu",
     "expectation_value",

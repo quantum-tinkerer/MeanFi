@@ -5,6 +5,7 @@ from meanfi.meanfield import (
     extract_anomalous_density,
     extract_electron_density,
     meanfield,
+    reference_subtracted_density,
 )
 from meanfi.model import Model
 from meanfi.tb.ops import _tb_type
@@ -31,6 +32,15 @@ def expectation_value(density_matrix: _tb_type, observable: _tb_type) -> complex
             for k in frozenset(density_matrix) & frozenset(observable)
         ]
     )
+
+
+def _validate_total_energy_density(model: Model, density_matrix: _tb_type) -> None:
+    required = set(model.h_0) | set(model.scf_space.interaction_keys)
+    missing = sorted(required - set(density_matrix))
+    if missing:
+        raise ValueError(
+            f"density_matrix is missing keys required for total energy: {missing}"
+        )
 
 
 def total_energy(model: Model, density_matrix: _tb_type) -> float:
@@ -60,9 +70,18 @@ def total_energy(model: Model, density_matrix: _tb_type) -> float:
     """
 
     if not model.superconducting:
-        correction = meanfield(density_matrix, model.h_int)
+        _validate_total_energy_density(model, density_matrix)
+        active_density = model.scf_space.project_meanfield_input(density_matrix)
+        density_difference = reference_subtracted_density(
+            active_density,
+            getattr(model, "reference_density_matrix", None),
+            interaction_keys=model.scf_space.interaction_keys,
+            onsite=model.scf_space.onsite,
+            ndof=model._ndof,
+        )
+        correction = meanfield(density_difference, model.h_int)
         energy = expectation_value(density_matrix, model.h_0)
-        energy += 0.5 * expectation_value(density_matrix, correction)
+        energy += 0.5 * expectation_value(density_difference, correction)
         return float(np.real(energy))
 
     electron_density = extract_electron_density(density_matrix, model)

@@ -54,3 +54,15 @@ class AndersonMixing(SCFMethod):
             raise ValueError("x_rtol must be positive when provided")
         if self.line_search not in (None, "armijo", "wolfe"):
             raise ValueError("line_search must be None, 'armijo', or 'wolfe'")
+
+
+@dataclass(frozen=True)
+class EnergyDIIS(SCFMethod):
+    """Energy-DIIS minimization over a convex density history."""
+
+    history_size: int = 6
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.history_size <= 0:
+            raise ValueError("history_size must be positive")

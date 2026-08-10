@@ -62,6 +62,8 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     for name in (
         "integration",
         "scf",
+        "tol",
+        "tolerance_policy",
         "scf_tol",
         "filling_tol",
         "mu_tol",
@@ -69,6 +71,9 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     ):
         assert solver_params[name].kind is inspect.Parameter.KEYWORD_ONLY
     assert solver_params["integration"].default is None
+    assert isinstance(solver_params["scf"].default, AndersonMixing)
+    assert "accuracy" not in solver_params
+    assert solver_params["tol"].default == 1e-3
     assert solver_params["scf_tol"].default is None
     assert "optimizer" not in solver_params
     assert "optimizer_kwargs" not in solver_params
@@ -77,6 +82,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_params["kT"].default == 0.0
     assert density_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
     assert density_params["integration"].default is None
+    assert density_params["tol"].default == 1e-3
     assert density_params["filling_tol"].default is None
     assert density_params["mu_tol"].default == 1e-10
     assert density_params["max_charge_evaluations"].default is None
@@ -94,6 +100,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     for method in (AdaptiveSimplex, AdaptiveQuadrature, UniformGrid):
         params = inspect.signature(method).parameters
         assert params["charge_tol"].default is None
+        assert params["density_matrix_tol"].default is None
 
 
 def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
@@ -101,10 +108,9 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
 
     captured = {}
 
-    def fake_run_scf_loop(guess, *, scf, scf_tol, problem, verbose=False):
+    def fake_run_scf_loop(guess, *, scf, problem, verbose=False):
         captured["guess"] = guess
         captured["scf"] = scf
-        captured["scf_tol"] = scf_tol
         captured["problem"] = problem
         captured["verbose"] = verbose
         return SimpleNamespace()
@@ -118,7 +124,11 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
     result = solver(model, guess, integration=integration)
 
     assert result == SimpleNamespace()
-    assert captured["scf_tol"] == pytest.approx(1e-3)
+    tolerances = captured["problem"].runtime.tolerances
+    assert tolerances.scf_residual == pytest.approx(1e-3)
+    assert tolerances.density_matrix_integration == pytest.approx(5.4e-4)
+    assert tolerances.filling_residual == pytest.approx(1e-4)
+    assert tolerances.charge_integration == pytest.approx(1e-5)
 
 
 @pytest.mark.parametrize(
@@ -132,6 +142,7 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
         "meanfi.mf",
         "meanfi.zero_temp",
         "meanfi.bdg",
+        "meanfi.scf.accuracy",
     ],
 )
 def test_removed_shim_modules_are_no_longer_importable(module_name):
@@ -146,6 +157,9 @@ def test_top_level_exports_only_supported_diagonalization_names():
     assert not hasattr(meanfi, "guess_tb")
     assert not hasattr(meanfi, "tb_to_vertex_cache")
     assert not hasattr(meanfi, "tb_to_tight_binding_model")
+    assert not hasattr(meanfi, "FixedAccuracy")
+    assert not hasattr(meanfi, "ResidualDrivenAccuracy")
+    assert not hasattr(meanfi, "SCFAccuracy")
 
 
 def test_guess_tb_is_removed_from_public_tb_api():

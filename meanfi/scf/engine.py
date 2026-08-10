@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 import numpy as np
 
+from meanfi.errors import ErrorTolerances
+
+from meanfi.density.integrate.methods import AdaptiveSimplex
 from meanfi.results import DensityMatrixResult, SCFIterationInfo, SolverResult
+from meanfi.scf.ediis import EDIISPoint, ediis_coefficients
 from meanfi.scf.fixed_point import NoConvergence, max_norm, solve_fixed_point
 from meanfi.scf.info import (
     SCFRunState,
@@ -15,7 +19,7 @@ from meanfi.scf.info import (
     record_density_result,
     record_scf_iteration,
 )
-from meanfi.scf.methods import SCFMethod
+from meanfi.scf.methods import EnergyDIIS, SCFMethod
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import tb_entries_changed
 
@@ -23,7 +27,7 @@ from meanfi.tb.storage import tb_entries_changed
 @dataclass(frozen=True)
 class SolverRuntime:
     integration: object
-    filling_tol: float | None
+    tolerances: ErrorTolerances
     mu_tol: float
     max_charge_evaluations: int | None
 
@@ -46,13 +50,25 @@ class _ResidualEvaluation:
 
 
 @dataclass(frozen=True)
+class EnergyEvaluation:
+    params: np.ndarray
+    one_body_energy: float
+    energy: float
+
+
+@dataclass(frozen=True)
 class SCFProblem:
     runtime: SolverRuntime
     project_guess: Callable[[_tb_type], _tb_type]
     evaluate_projected_guess: Callable[[_tb_type], DensityMatrixResult]
     compress_density: Callable[[_tb_type], np.ndarray]
-    density_result_from_params: Callable[[np.ndarray, float], DensityMatrixResult]
+    density_result_from_params: Callable[..., DensityMatrixResult]
     finalize_meanfield: Callable[[DensityMatrixResult], _tb_type]
+    energy_from_result: (
+        Callable[[np.ndarray, DensityMatrixResult], EnergyEvaluation] | None
+    ) = None
+    interaction_energy: Callable[[np.ndarray], float] | None = None
+    interaction_gradient: Callable[[np.ndarray, np.ndarray], float] | None = None
 
 
 def warn_on_projection(original: _tb_type, projected: _tb_type, *, label: str) -> None:
@@ -81,6 +97,8 @@ def _format_scf_progress(info: SCFIterationInfo) -> str:
         parts.append(f"filling_residual={info.filling_residual:.6e}")
     if info.charge_error is not None:
         parts.append(f"charge_error={info.charge_error:.6e}")
+    if info.energy is not None:
+        parts.append(f"energy={info.energy:.12g}")
     return " ".join(parts)
 
 
@@ -204,16 +222,96 @@ def iterate_density_fixed_point(
     )
 
 
+def iterate_energy_ediis(
+    params0: np.ndarray,
+    *,
+    problem: SCFProblem,
+    scf: EnergyDIIS,
+    verbose: bool,
+    state: SCFRunState,
+) -> SCFRunResult:
+    if not isinstance(problem.runtime.integration, AdaptiveSimplex):
+        raise ValueError("EnergyDIIS requires AdaptiveSimplex integration")
+    if (
+        problem.energy_from_result is None
+        or problem.interaction_energy is None
+        or problem.interaction_gradient is None
+    ):
+        raise ValueError("EnergyDIIS requires a normal-state energy functional")
+
+    scf_tol = problem.runtime.tolerances.scf_residual
+    params = np.asarray(params0, dtype=float)
+    history: list[EDIISPoint] = []
+
+    for iteration in range(1, int(scf.max_iterations) + 1):
+        density_result = problem.density_result_from_params(
+            params,
+            state.mu,
+            include_band_energy=True,
+        )
+        energy = problem.energy_from_result(params, density_result)
+        density_result = replace(
+            density_result,
+            energy=energy.energy,
+        )
+        residual = energy.params - params
+        residual_norm = max_norm(residual)
+        line_search_norm = float(np.linalg.norm(np.ravel(residual)))
+        converged = residual_norm <= scf_tol
+
+        state.iterations = iteration
+        state.residual_norm = residual_norm
+        if not converged:
+            record_density_evaluation(state, density_result)
+        accept_density_result(state, density_result)
+        iteration_info = record_scf_iteration(
+            state,
+            density_result,
+            residual_norm=residual_norm,
+            line_search_norm=line_search_norm,
+            energy=energy.energy,
+        )
+        if verbose:
+            print(_format_scf_progress(iteration_info))
+        if converged:
+            return SCFRunResult(
+                params=params,
+                final_density_result=density_result,
+                state=state,
+                residual_norm=residual_norm,
+            )
+
+        history.append(
+            EDIISPoint(
+                params=np.array(energy.params, copy=True),
+                one_body_energy=energy.one_body_energy,
+                energy=energy.energy,
+            )
+        )
+        if len(history) > scf.history_size:
+            history.pop(0)
+        coefficients = ediis_coefficients(
+            history,
+            interaction_energy=problem.interaction_energy,
+            interaction_gradient=problem.interaction_gradient,
+        )
+        params = np.tensordot(
+            coefficients,
+            np.stack([point.params for point in history]),
+            axes=1,
+        )
+
+    raise NoConvergence(params)
+
+
 def run_scf_loop(
     guess: _tb_type,
     *,
     scf: SCFMethod,
-    scf_tol: float,
     problem: SCFProblem,
     verbose: bool = False,
 ) -> SolverResult:
-    if scf_tol <= 0:
-        raise ValueError("scf_tol must be positive")
+    scf_tol = problem.runtime.tolerances.scf_residual
 
     projected_guess = problem.project_guess(guess)
     initial_density_result = problem.evaluate_projected_guess(projected_guess)
@@ -225,17 +323,30 @@ def run_scf_loop(
     state = SCFRunState()
     record_density_result(state, initial_density_result)
 
-    run = iterate_density_fixed_point(
-        params0,
-        density_result_from_params=problem.density_result_from_params,
-        compress_density=problem.compress_density,
-        scf=scf,
-        scf_tol=scf_tol,
-        verbose=verbose,
-        state=state,
-    )
+    if isinstance(scf, EnergyDIIS):
+        run = iterate_energy_ediis(
+            params0,
+            problem=problem,
+            scf=scf,
+            verbose=verbose,
+            state=state,
+        )
+    else:
+        run = iterate_density_fixed_point(
+            params0,
+            density_result_from_params=problem.density_result_from_params,
+            compress_density=problem.compress_density,
+            scf=scf,
+            scf_tol=scf_tol,
+            verbose=verbose,
+            state=state,
+        )
 
     density_matrix_result = run.final_density_result
+    errors = replace(
+        density_matrix_result.errors,
+        scf_residual=run.residual_norm,
+    )
     info = build_scf_info(
         run.state,
         final_result=density_matrix_result,
@@ -245,17 +356,21 @@ def run_scf_loop(
     return SolverResult(
         mf=problem.finalize_meanfield(density_matrix_result),
         density_matrix_result=density_matrix_result,
-        integration=problem.runtime.integration,
+        integration=density_matrix_result.integration,
         scf=scf,
         info=info,
+        tolerances=problem.runtime.tolerances,
+        errors=errors,
     )
 
 
 __all__ = [
+    "EnergyEvaluation",
     "NoConvergence",
     "SCFProblem",
     "SolverRuntime",
     "iterate_density_fixed_point",
+    "iterate_energy_ediis",
     "run_scf_loop",
     "warn_on_projection",
 ]

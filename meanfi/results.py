@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from meanfi.errors import ErrorTolerances, ErrorValues
+
 
 @dataclass(frozen=True)
 class DensityIntegrationInfo:
@@ -46,6 +48,9 @@ class FixedFillingInfo:
     density_rtol: float
     error_estimate_available: bool
     num_threads: int | None = None
+    band_energy: float | None = None
+    band_energy_integration_calls: int = 0
+    band_energy_n_kernel_evals: int = 0
 
 
 @dataclass(frozen=True)
@@ -65,6 +70,8 @@ class AdaptiveSimplexInfo:
     density_integration_calls: int | None = None
     charge_error: float | None = None
     num_threads: int | None = None
+    band_energy_integration_calls: int = 0
+    band_energy_n_kernel_evals: int = 0
 
 
 @dataclass(frozen=True)
@@ -113,6 +120,7 @@ class SCFIterationInfo:
     mu: float
     filling_residual: float | None
     charge_error: float | None
+    energy: float | None = None
 
 
 @dataclass(frozen=True)
@@ -142,6 +150,10 @@ class DensityMatrixResult:
     filling_residual: float | None
     integration: object
     info: AdaptiveSimplexInfo | AdaptiveQuadratureInfo | UniformGridInfo
+    tolerances: ErrorTolerances | None = None
+    errors: ErrorValues = ErrorValues()
+    band_energy: float | None = None
+    energy: float | None = None
 
 
 @dataclass(frozen=True)
@@ -153,3 +165,5 @@ class SolverResult:
     integration: object
     scf: object
     info: SCFInfo
+    tolerances: ErrorTolerances
+    errors: ErrorValues

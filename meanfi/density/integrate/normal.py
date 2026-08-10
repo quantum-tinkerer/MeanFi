@@ -118,6 +118,7 @@ def _normal_zero_dim_fixed_filling(
     density_coordinates: DensityCoordinates | None = None,
     matrix_function: object | None = None,
     workspace_dtype: np.dtype = np.dtype(complex),
+    include_band_energy: bool = False,
 ) -> tuple[_tb_type, _tb_type, float, FixedFillingInfo]:
     resolved_matrix_function = resolve_matrix_function(matrix_function)
     eigenvalues = eigenvectors = None
@@ -158,6 +159,9 @@ def _normal_zero_dim_fixed_filling(
             density_atol=density_atol,
             density_rtol=density_rtol,
             error_estimate_available=True,
+            band_energy=(
+                float(np.sum(eigenvalues * occupation)) if include_band_energy else None
+            ),
         )
         return rho, error, mu, info
 
@@ -529,6 +533,7 @@ def _adaptive_simplex_fixed_filling(
                 max_charge_evaluations=max_charge_evaluations,
                 density_atol=integration.density_matrix_tol,
                 density_rtol=0.0,
+                include_band_energy=context.include_band_energy,
             )
         )
     else:
@@ -546,6 +551,7 @@ def _adaptive_simplex_fixed_filling(
             max_charge_evaluations=max_charge_evaluations,
             max_subdivisions=integration.max_refinements,
             num_threads=integration.num_threads,
+            include_band_energy=context.include_band_energy,
         )
 
     return _wrap_adaptive_payload(
