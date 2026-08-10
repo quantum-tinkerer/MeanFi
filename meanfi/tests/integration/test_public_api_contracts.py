@@ -10,10 +10,9 @@ import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
-    AdaptiveQuadratureInfo,
     AdaptiveSimplex,
     AndersonMixing,
-    DensityMatrixResult,
+    DensityResult,
     DirectDiagonalization,
     LinearMixing,
     Model,
@@ -139,7 +138,7 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
         "meanfi._info",
         "meanfi._validation",
         "meanfi._zero_dim",
-        "meanfi.mf",
+        "meanfi.mean_field",
         "meanfi.zero_temp",
         "meanfi.bdg",
         "meanfi.scf.accuracy",
@@ -194,7 +193,7 @@ def test_internal_matrix_function_package_root_exposes_shared_symbols():
     assert hasattr(matrix_functions, "shift_by_mu")
 
 
-def test_density_matrix_result_uses_fully_explicit_field_names():
+def test_density_result_has_only_physical_values_and_achieved_errors():
     result = density_matrix(
         {(): np.diag([-1.0, 1.0])},
         filling=1.0,
@@ -203,33 +202,17 @@ def test_density_matrix_result_uses_fully_explicit_field_names():
         integration=AdaptiveQuadrature(),
     )
 
-    assert isinstance(result, DensityMatrixResult)
-    assert hasattr(result, "density_matrix")
-    assert hasattr(result, "density_matrix_error")
-    assert not hasattr(result, "rho")
-    assert not hasattr(result, "rho_error")
-    assert result.info.unique_evals == result.info.n_kernel_evals
-
-
-def test_public_info_exposes_unique_eval_counters():
-    adaptive = density_matrix(
-        spinful_chain(),
-        filling=1.0,
-        kT=0.1,
-        keys=[(0,)],
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-6),
+    assert isinstance(result, DensityResult)
+    assert tuple(result.__dataclass_fields__) == (
+        "density_matrix",
+        "mu",
+        "filling",
+        "errors",
     )
-    uniform = density_matrix_at_mu(
-        spinful_chain(),
-        mu=0.0,
-        kT=0.0,
-        keys=[(0,)],
-        integration=UniformGrid(nk=9),
-    )
-
-    assert adaptive.info.unique_evals == adaptive.info.n_kernel_evals
-    assert adaptive.info.unique_evals > 0
-    assert uniform.info.unique_evals == uniform.info.n_kpoints == 9
+    assert not hasattr(result, "density_matrix_error")
+    assert not hasattr(result, "info")
+    assert not hasattr(result, "integration")
+    assert not hasattr(result, "tolerances")
 
 
 @pytest.mark.parametrize(

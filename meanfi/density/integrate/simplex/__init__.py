@@ -82,7 +82,9 @@ def _occupied_band_energy(
     mesh: SpectralMesh,
     *,
     mu: float,
-) -> float:
+) -> float | None:
+    if not hasattr(mesh, "occupied_weights"):
+        return None
     weights = np.asarray(mesh.occupied_weights(float(mu)))
     return float(np.sum(weights * np.asarray(mesh.eigenvalues)))
 

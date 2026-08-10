@@ -120,7 +120,7 @@ def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
                     scf_tol=1e-7,
                     filling_tol=1e-3,
                 )
-            values.append(_sdw_measure(h0, result.mf, sz))
+            values.append(_sdw_measure(h0, result.mean_field, sz))
         return values
 
     values = solve_sdw_measure()

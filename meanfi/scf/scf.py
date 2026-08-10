@@ -14,7 +14,7 @@ from meanfi.errors import (
 from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
 from meanfi.model import Model
-from meanfi.results import SolverResult
+from meanfi.results import SCFResult
 from meanfi.scf.bdg import build_bdg_scf_problem
 from meanfi.scf.engine import SolverRuntime, run_scf_loop
 from meanfi.scf.methods import AndersonMixing, EnergyDIIS, SCFMethod
@@ -35,7 +35,7 @@ def solver(
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
     verbose: bool = False,
-) -> SolverResult:
+) -> SCFResult:
     """Run mean-field update -> density update -> SCF mixing."""
 
     resolved_integration = (

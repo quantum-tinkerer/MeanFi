@@ -85,9 +85,8 @@ The default solver path uses Anderson mixing with conservative settings.
 
 ## Output
 
-Once the fixed point converges, `MeanFi` converts the converged density result back into a mean-field correction and returns that as `result.mf`.
+Once the fixed point converges, `MeanFi` returns the physical mean-field correction as `result.mean_field`; the chemical potential remains separate as `result.mu`. The final filling, total energy when supported by the integration backend, achieved errors, compact accepted-iteration history, and convergence flag are direct fields of `SCFResult`.
 
-The solve metadata is available as `result.info`.
-For convergence diagnostics, `result.info.history` contains one record per accepted SCF residual evaluation, including the convergence residual norm, the line-search residual norm, the chemical potential, the integration charge error, and the integration work for that evaluation.
-The convergence norm is the maximum absolute residual component; the Armijo/Wolfe line-search norm is the Euclidean norm whose square is used by SciPy's line-search objective.
-Passing `verbose=True` to `meanfi.solver(...)` prints the same progress records while the solve runs.
+`result.history` contains one `SCFIteration` per accepted residual evaluation. Each record contains only its step, chemical potential, filling, total energy, and unified `ErrorValues`. The SCF residual is the maximum absolute residual component. Passing `verbose=True` prints these same physical values while the solve runs.
+
+`NoConvergence` and `SolverFailure` are exceptions rather than alternate result shapes. When at least one physical density evaluation succeeded, the exception carries the last valid state as `exception.result` with `converged=False`.

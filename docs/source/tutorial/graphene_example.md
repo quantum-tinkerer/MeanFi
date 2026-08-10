@@ -105,7 +105,7 @@ result = meanfi.solver(
     model,
     model.random_meanfield(rng=0, scale=0.05),
 )
-h_full = meanfi.add_tb(h_0, result.mf)
+h_full = meanfi.add_tb(h_0, result.mean_field)
 ```
 
 To investigate the effects of interaction on systems with more than one degree of freedom, it is more useful to consider the expectation values of various operators which serve as order parameters.
@@ -201,9 +201,9 @@ for U in Us:
             model.random_meanfield(rng=0, scale=0.05),
             scf=scf,
         )
-        mf_sols.append(result.mf)
+        mf_sols.append(result.mean_field)
 
-        gap = compute_gap(meanfi.add_tb(h_0, result.mf), fermi_energy=0, nk=100)
+        gap = compute_gap(meanfi.add_tb(h_0, result.mean_field), fermi_energy=result.mu, nk=100)
         gaps.append(gap)
 gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
 mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))

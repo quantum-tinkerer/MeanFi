@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from meanfi.density.integrate.integrate import build_integration_plan
-from meanfi.density.problem import DensityEvaluation, DensityPlan, DensityProblem
+from meanfi.density.internal import DensityEvaluation
+from meanfi.density.problem import DensityPlan, DensityProblem
 
 
 def build_plan(problem: DensityProblem) -> DensityPlan:
@@ -20,7 +21,7 @@ def evaluate_at_mu(
     """Evaluate the density once the chemical potential is fixed."""
 
     del problem
-    return DensityEvaluation(result=plan.evaluate_mu(mu))
+    return plan.evaluate_mu(mu)
 
 
 def evaluate_fixed_filling(
@@ -40,14 +41,12 @@ def evaluate_fixed_filling(
         raise ValueError("mu_tol must be positive")
     if max_charge_evaluations is not None and max_charge_evaluations <= 0:
         raise ValueError("max_charge_evaluations must be positive")
-    return DensityEvaluation(
-        result=plan.solve_filling(
-            filling,
-            filling_tol,
-            mu_tol,
-            max_charge_evaluations,
-            mu_guess,
-        )
+    return plan.solve_filling(
+        filling,
+        filling_tol,
+        mu_tol,
+        max_charge_evaluations,
+        mu_guess,
     )
 
 

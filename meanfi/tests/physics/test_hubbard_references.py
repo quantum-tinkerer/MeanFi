@@ -38,7 +38,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
         filling_tol=1e-6,
     )
     density_result = density_matrix(
-        model.hamiltonian_from_meanfield(result.mf),
+        model.hamiltonian_from_meanfield(result.mean_field),
         filling=2.0,
         kT=kT,
         keys=[(0,)],
@@ -46,7 +46,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
         filling_tol=1e-6,
     )
 
-    assert result.info.residual_norm <= scf_tol
+    assert result.errors.scf_residual <= scf_tol
     assert abs(density_result.filling - model.filling) <= 1e-6
     assert (
         abs(staggered_magnetization(density_result.density_matrix[(0,)]) - m_ref) < 5e-4
@@ -72,7 +72,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
         filling_tol=1e-5,
     )
     density_result = density_matrix(
-        model.hamiltonian_from_meanfield(result.mf),
+        model.hamiltonian_from_meanfield(result.mean_field),
         filling=2.0,
         kT=kT,
         keys=[(0, 0)],
@@ -80,7 +80,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
         filling_tol=1e-5,
     )
 
-    assert result.info.residual_norm <= scf_tol
+    assert result.errors.scf_residual <= scf_tol
     assert abs(density_result.filling - model.filling) <= 1e-5
     assert (
         abs(staggered_magnetization(density_result.density_matrix[(0, 0)]) - m_ref)

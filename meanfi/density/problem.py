@@ -15,9 +15,11 @@ from meanfi.density.integrate.common import (
 )
 from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.density.integrate.methods import IntegrationMethod
-from meanfi.results import DensityMatrixResult
+from meanfi.density.internal import DensityEvaluation
 from meanfi.space.coordinates import DensityCoordinates
+from meanfi.space.coordinates import full_density_coordinates
 from meanfi.tb.ops import _tb_type
+from meanfi.tb.validate import tb_orbital_count
 
 
 @dataclass(frozen=True)
@@ -31,7 +33,7 @@ class DensityProblem:
     requested_keys: list[tuple[int, ...]]
     solve_keys: list[tuple[int, ...]]
     tolerances: ErrorTolerances
-    density_coordinates: DensityCoordinates | None = None
+    density_coordinates: DensityCoordinates
     include_band_energy: bool = False
 
 
@@ -40,17 +42,10 @@ class DensityPlan:
     """Numerical plan for evaluating a density problem."""
 
     integration: IntegrationMethod
-    evaluate_mu: Callable[[float], DensityMatrixResult]
+    evaluate_mu: Callable[[float], DensityEvaluation]
     solve_filling: Callable[
-        [float, float | None, float, int | None, float], DensityMatrixResult
+        [float, float | None, float, int | None, float], DensityEvaluation
     ]
-
-
-@dataclass(frozen=True)
-class DensityEvaluation:
-    """Internal density evaluation payload before public result handoff."""
-
-    result: DensityMatrixResult
 
 
 def build_normal_problem(
@@ -75,6 +70,14 @@ def build_normal_problem(
     )
     validate_integration_method(selected_integration, kT=kT)
     requested_keys, working_keys, _local_key = prepare_keys(hamiltonian, keys)
+    resolved_coordinates = (
+        density_coordinates
+        if density_coordinates is not None
+        else full_density_coordinates(
+            working_keys,
+            size=tb_orbital_count(hamiltonian),
+        )
+    )
     return DensityProblem(
         family="normal",
         hamiltonian=hamiltonian,
@@ -83,13 +86,12 @@ def build_normal_problem(
         requested_keys=requested_keys,
         solve_keys=working_keys,
         tolerances=resolved_tolerances,
-        density_coordinates=density_coordinates,
+        density_coordinates=resolved_coordinates,
         include_band_energy=include_band_energy,
     )
 
 
 __all__ = [
-    "DensityEvaluation",
     "DensityPlan",
     "DensityProblem",
     "build_normal_problem",

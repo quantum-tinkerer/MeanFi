@@ -35,20 +35,17 @@ def test_graphene_kwant_end_to_end_regression():
         scf_tol=5e-4,
     )
     density_result = density_matrix(
-        add_tb(h_0, result.mf),
+        add_tb(h_0, result.mean_field),
         filling=2.0,
         kT=model.kT,
         keys=list(h_int),
     )
 
-    assert result.info.residual_norm <= 2.0 * 5e-4
-    assert (
-        density_result.errors.filling_residual
-        <= density_result.tolerances.filling_residual
-    )
-    for key, matrix in result.mf.items():
+    assert result.errors.scf_residual <= 2.0 * 5e-4
+    assert density_result.errors.filling_residual <= 1e-4
+    for key, matrix in result.mean_field.items():
         opposite = tuple(-np.array(key))
-        assert np.allclose(matrix, result.mf[opposite].conj().T)
+        assert np.allclose(matrix, result.mean_field[opposite].conj().T)
         assert np.all(np.isfinite(density_result.density_matrix[key]))
 
 
@@ -65,11 +62,11 @@ def test_solver_supports_anderson_mixing():
         scf_tol=1e-8,
     )
 
-    assert result.info.method == "anderson_mixing"
-    assert result.info.residual_norm <= 1e-8
+    assert result.history
+    assert result.errors.scf_residual <= 1e-8
     assert np.allclose(
-        result.mf[(0,)],
-        -result.density_matrix_result.mu * np.eye(2),
+        result.mean_field[(0,)],
+        np.zeros((2, 2)),
         atol=1e-6,
     )
 
@@ -187,9 +184,9 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
         scf_tol=1e-3,
     )
 
-    assert abs(result.density_matrix_result.mu) < 1e-3
+    assert abs(result.mu) < 1e-3
     assert np.allclose(
-        result.mf[(0,)],
-        -result.density_matrix_result.mu * np.eye(2),
+        result.mean_field[(0,)],
+        np.zeros((2, 2)),
         atol=1e-3,
     )

@@ -10,10 +10,8 @@ import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
-    AdaptiveQuadratureInfo,
     AdaptiveSimplex,
     AndersonMixing,
-    DensityMatrixResult,
     DirectDiagonalization,
     LinearMixing,
     Model,
@@ -195,9 +193,8 @@ def test_uniform_grid_accepts_zero_temperature_fixed_filling_controls():
         integration=UniformGrid(nk=9),
     )
 
-    assert isinstance(result.integration, UniformGrid)
     assert np.isfinite(result.mu)
-    assert result.target_filling == 1.0
+    assert result.filling == pytest.approx(1.0)
 
 
 def test_uniform_grid_default_filling_tol_matches_explicit_default():

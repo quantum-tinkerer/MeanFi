@@ -198,7 +198,7 @@ def graphene_reference_suite() -> dict[str, dict[str, float]]:
     for label, params in GRAPHENE_REFERENCE_POINTS.items():
         h_int = utils.builder_to_tb(builder_int, params)
         model = meanfi.Model(h_0, h_int, filling=2)
-        guess = meanfi.guess_tb(int_keys, ndof)
+        guess = model.random_meanfield(rng=0, scale=0.05)
         solver_result = meanfi.solver(
             model,
             guess,
@@ -206,7 +206,7 @@ def graphene_reference_suite() -> dict[str, dict[str, float]]:
             scf_tol=2e-2,
             filling_tol=1e-2,
         )
-        h_full = meanfi.add_tb(h_0, solver_result.mf)
+        h_full = meanfi.add_tb(h_0, solver_result.mean_field)
         density_result = meanfi.density_matrix(
             h_full,
             filling=2,
@@ -225,7 +225,7 @@ def graphene_reference_suite() -> dict[str, dict[str, float]]:
         results[label] = {
             "U": float(params["U"]),
             "V": float(params["V"]),
-            "residual_norm": float(solver_result.info.residual_norm),
+            "residual_norm": float(solver_result.errors.scf_residual),
             "charge_error": float(abs(density_result.filling - 2.0)),
             "cdw": float(cdw),
             "sdw_sq": float(sdw_sq),
@@ -296,11 +296,10 @@ def solve_strained_graphene_reference(
         scf_tol=2e-2,
         filling_tol=2.0,
     )
-    mf_ham = meanfi.add_tb(h0, solver_result.mf)
+    mf_ham = meanfi.add_tb(h0, solver_result.mean_field)
     return {
-        "residual_norm": float(solver_result.info.residual_norm),
-        "charge_integrations": float(solver_result.info.total_charge_integration_calls),
-        "gap_nk_40": band_gap(mf_ham, nk=40),
+        "residual_norm": float(solver_result.errors.scf_residual),
+        "gap_nk_40": band_gap(mf_ham, fermi_energy=solver_result.mu, nk=40),
     }
 
 
@@ -308,8 +307,7 @@ def _build_hubbard_inputs(U: float):
     hop = np.kron(np.array([[0, 1], [0, 0]], dtype=complex), np.eye(2))
     h_0 = {(0,): hop + hop.T.conj(), (1,): hop, (-1,): hop.T.conj()}
     h_int = {(0,): U * np.kron(np.eye(2), np.ones((2, 2)))}
-    guess = meanfi.guess_tb(frozenset(h_int), 4)
-    return h_0, h_int, guess
+    return h_0, h_int
 
 
 def solve_hubbard_reference(
@@ -319,8 +317,9 @@ def solve_hubbard_reference(
     """Run the 1D Hubbard zero-temperature reference point used by the regression tests."""
 
     np.random.seed(0)
-    h_0, h_int, guess = _build_hubbard_inputs(U)
+    h_0, h_int = _build_hubbard_inputs(U)
     model = meanfi.Model(h_0, h_int, filling=2.0)
+    guess = model.random_meanfield(rng=0, scale=0.05)
     solver_result = meanfi.solver(
         model,
         guess,
@@ -328,7 +327,7 @@ def solve_hubbard_reference(
         scf_tol=2e-3,
         filling_tol=1e-3,
     )
-    h_full = meanfi.add_tb(h_0, solver_result.mf)
+    h_full = meanfi.add_tb(h_0, solver_result.mean_field)
     density_result = meanfi.density_matrix(
         h_full,
         filling=2.0,
@@ -339,9 +338,10 @@ def solve_hubbard_reference(
         h_full,
         U=U,
         local_density=density_result.density_matrix[(0,)],
+        fermi_energy=solver_result.mu,
     )
     return {
-        "residual_norm": float(solver_result.info.residual_norm),
+        "residual_norm": float(solver_result.errors.scf_residual),
         "charge_error": float(abs(density_result.filling - 2.0)),
         "staggered_magnetization": staggered_magnetization(
             density_result.density_matrix[(0,)]

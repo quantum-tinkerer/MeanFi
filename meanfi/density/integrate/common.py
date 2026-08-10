@@ -1,20 +1,20 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 
-from meanfi.errors import (
-    ErrorValues,
-    density_matrix_error_value,
-)
+from meanfi.errors import ErrorValues
 
 from meanfi.results import (
     AdaptiveQuadratureInfo,
     AdaptiveSimplexInfo,
     DensityIntegrationInfo,
-    DensityMatrixResult,
     FixedFillingInfo,
     UniformGridInfo,
 )
+from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
 from meanfi.tb.validate import (
     normalize_keys,
     tb_dimension,
@@ -232,6 +232,14 @@ def uniform_grid_info(
     )
 
 
+def _density_error_value(density: DensitySlice) -> float | None:
+    if density.errors is None:
+        return None
+    if density.errors.size == 0:
+        return 0.0
+    return float(np.max(density.errors))
+
+
 def wrap_density_result(
     *,
     density_matrix: _tb_type,
@@ -242,23 +250,26 @@ def wrap_density_result(
     integration: IntegrationMethod,
     info,
     keys: list[tuple[int, ...]],
+    density_coordinates: DensityCoordinates | None = None,
     band_energy: float | None = None,
-) -> DensityMatrixResult:
-    trimmed_density_matrix = trim_density_matrix(density_matrix, keys=keys)
-    trimmed_density_matrix_error = trim_density_matrix_error(
-        density_matrix_error,
-        keys=keys,
+) -> DensityEvaluation:
+    if density_coordinates is None:
+        sample = next(iter(density_matrix.values()))
+        density_coordinates = full_density_coordinates(
+            keys,
+            size=int(sample.shape[0]),
+        )
+    error_estimate_available = bool(getattr(info, "error_estimate_available", False))
+    density = DensitySlice.from_tb(
+        density_coordinates,
+        density_matrix,
+        density_matrix_error if error_estimate_available else None,
     )
     filling_residual = (
         None if target_filling is None else abs(float(filling) - float(target_filling))
     )
-    error_estimate_available = bool(getattr(info, "error_estimate_available", False))
     errors = ErrorValues(
-        density_matrix_integration=(
-            density_matrix_error_value(trimmed_density_matrix_error)
-            if error_estimate_available
-            else None
-        ),
+        density_matrix_integration=_density_error_value(density),
         filling_residual=filling_residual,
         charge_integration=(
             getattr(info, "charge_error", None)
@@ -266,15 +277,12 @@ def wrap_density_result(
             else None
         ),
     )
-    return DensityMatrixResult(
-        density_matrix=trimmed_density_matrix,
-        density_matrix_error=trimmed_density_matrix_error,
+    return DensityEvaluation(
+        density=density,
         mu=float(mu),
         filling=float(filling),
-        target_filling=None if target_filling is None else float(target_filling),
-        filling_residual=filling_residual,
         integration=integration,
-        info=info,
+        statistics=info,
         errors=errors,
         band_energy=None if band_energy is None else float(band_energy),
     )
@@ -290,43 +298,36 @@ def wrap_adaptive_result(
     target_filling: float | None,
     integration: AdaptiveSimplex | AdaptiveQuadrature,
     keys: list[tuple[int, ...]],
-) -> DensityMatrixResult:
-    public_info = translate_adaptive_info(integration, raw_info)
-    error = density_matrix_error if public_info.error_estimate_available else None
+    density_coordinates: DensityCoordinates | None = None,
+) -> DensityEvaluation:
+    statistics = translate_adaptive_info(integration, raw_info)
     return wrap_density_result(
         density_matrix=density_matrix,
-        density_matrix_error=error,
+        density_matrix_error=density_matrix_error,
         mu=mu,
         filling=filling,
         target_filling=target_filling,
         integration=integration,
-        info=public_info,
+        info=statistics,
         keys=keys,
+        density_coordinates=density_coordinates,
         band_energy=getattr(raw_info, "band_energy", None),
     )
 
 
 def retarget_result_keys(
-    result: DensityMatrixResult,
+    result: DensityEvaluation,
     *,
     keys: list[tuple[int, ...]],
-) -> DensityMatrixResult:
-    if list(result.density_matrix) == list(keys):
+) -> DensityEvaluation:
+    if list(result.density.coordinates.keys) == list(keys):
         return result
-    return DensityMatrixResult(
-        density_matrix=trim_density_matrix(result.density_matrix, keys=keys),
-        density_matrix_error=trim_density_matrix_error(
-            result.density_matrix_error,
-            keys=keys,
+    density = result.density.select_keys(keys)
+    return replace(
+        result,
+        density=density,
+        errors=replace(
+            result.errors,
+            density_matrix_integration=_density_error_value(density),
         ),
-        mu=result.mu,
-        filling=result.filling,
-        target_filling=result.target_filling,
-        filling_residual=result.filling_residual,
-        integration=result.integration,
-        info=result.info,
-        tolerances=result.tolerances,
-        errors=result.errors,
-        band_energy=result.band_energy,
-        energy=result.energy,
     )

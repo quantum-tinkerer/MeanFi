@@ -100,6 +100,59 @@ class DensityCoordinates:
     cols_by_key: tuple[np.ndarray, ...]
     value_slices: tuple[slice, ...]
 
+    def __post_init__(self) -> None:
+        if self.size <= 0:
+            raise ValueError("density coordinate size must be positive")
+        count = len(self.keys)
+        if not (
+            len(self.rows_by_key)
+            == len(self.cols_by_key)
+            == len(self.value_slices)
+            == count
+        ):
+            raise ValueError("density coordinate arrays must match the key count")
+        rows_by_key = []
+        cols_by_key = []
+        offset = 0
+        for rows, cols, value_slice in zip(
+            self.rows_by_key,
+            self.cols_by_key,
+            self.value_slices,
+            strict=True,
+        ):
+            rows = np.array(rows, dtype=int, copy=True)
+            cols = np.array(cols, dtype=int, copy=True)
+            if rows.ndim != 1 or cols.ndim != 1 or rows.size != cols.size:
+                raise ValueError(
+                    "density row/column coordinates must be paired vectors"
+                )
+            if np.any(rows < 0) or np.any(rows >= self.size):
+                raise ValueError("density row coordinate is out of bounds")
+            if np.any(cols < 0) or np.any(cols >= self.size):
+                raise ValueError("density column coordinate is out of bounds")
+            if value_slice.start != offset or value_slice.stop != offset + rows.size:
+                raise ValueError("density coordinate slices must be contiguous")
+            rows.setflags(write=False)
+            cols.setflags(write=False)
+            rows_by_key.append(rows)
+            cols_by_key.append(cols)
+            offset += rows.size
+        object.__setattr__(self, "rows_by_key", tuple(rows_by_key))
+        object.__setattr__(self, "cols_by_key", tuple(cols_by_key))
+
+    @property
+    def is_full(self) -> bool:
+        """Whether every matrix entry is present for every listed key."""
+
+        expected = self.size * self.size
+        target = {(row, col) for row in range(self.size) for col in range(self.size)}
+        for rows, cols in zip(self.rows_by_key, self.cols_by_key, strict=True):
+            if rows.size != expected:
+                return False
+            if set(zip(rows.tolist(), cols.tolist(), strict=True)) != target:
+                return False
+        return True
+
     @property
     def value_count(self) -> int:
         if not self.value_slices:

@@ -5,7 +5,6 @@ from meanfi.meanfield import (
     extract_anomalous_density,
     extract_electron_density,
     meanfield,
-    reference_subtracted_density,
 )
 from meanfi.model import Model
 from meanfi.tb.ops import _tb_type
@@ -71,13 +70,8 @@ def total_energy(model: Model, density_matrix: _tb_type) -> float:
 
     if not model.superconducting:
         _validate_total_energy_density(model, density_matrix)
-        active_density = model.scf_space.project_meanfield_input(density_matrix)
-        density_difference = reference_subtracted_density(
-            active_density,
-            getattr(model, "reference_density_matrix", None),
-            interaction_keys=model.scf_space.interaction_keys,
-            onsite=model.scf_space.onsite,
-            ndof=model._ndof,
+        density_difference = model._active_density_from_state(
+            model._reference_difference(model._density_state(density_matrix))
         )
         correction = meanfield(density_difference, model.h_int)
         energy = expectation_value(density_matrix, model.h_0)

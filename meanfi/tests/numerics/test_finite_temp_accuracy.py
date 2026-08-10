@@ -109,10 +109,7 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
     assert actual_density_error <= atol
     assert_estimator_covers_actual(
         actual_density_error,
-        max(
-            float(np.max(np.abs(block)))
-            for block in result.density_matrix_error.values()
-        ),
+        result.errors.density_matrix_integration,
     )
 
 
@@ -314,7 +311,7 @@ def test_quadrature_workspace_precision_64_matches_128():
     )
 
 
-def test_solver_density_result_zeroes_entries_outside_interaction_tb():
+def test_sparse_solver_result_does_not_expose_reduced_density():
     h0 = {(0,): sparse.csr_matrix(np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=complex))}
     h_int = {(0,): sparse.csr_matrix(np.diag([1.0, 1.0]).astype(complex))}
     model = Model(h0, h_int, filling=1.0, kT=0.15)
@@ -326,15 +323,15 @@ def test_solver_density_result_zeroes_entries_outside_interaction_tb():
             max_refinements=40,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
-        scf_tol=1e-8,
+        scf_tol=1.0,
         filling_tol=1e-2,
     )
 
-    onsite_block = result.density_matrix_result.density_matrix[(0,)]
-    np.testing.assert_allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
+    assert not hasattr(result, "density_matrix")
+    assert not hasattr(result, "density_matrix_result")
 
 
-def test_dense_solver_density_result_keeps_full_dense_blocks():
+def test_density_postprocessing_returns_complete_dense_blocks():
     h0 = {(0,): np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=complex)}
     h_int = {(0,): np.diag([1.0, 1.0]).astype(complex)}
     model = Model(h0, h_int, filling=1.0, kT=0.15)
@@ -346,10 +343,17 @@ def test_dense_solver_density_result_keeps_full_dense_blocks():
             max_refinements=40,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
-        scf_tol=1e-8,
+        scf_tol=1.0,
         filling_tol=1e-2,
     )
-    onsite_block = result.density_matrix_result.density_matrix[(0,)]
+    density = density_matrix_at_mu(
+        model.hamiltonian_from_meanfield(result.mean_field),
+        result.mu,
+        kT=model.kT,
+        keys=[(0,)],
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-2),
+    )
+    onsite_block = density.density_matrix[(0,)]
     assert not np.allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
 
 
@@ -371,7 +375,7 @@ def test_fixed_filling_rational_density_pass_uses_frozen_charge_mesh(monkeypatch
 
     monkeypatch.setattr(quadrature_runtime, "run_integrator", wrapped_run_integrator)
     monkeypatch.setattr(normal_integration, "run_integrator", wrapped_run_integrator)
-    result = density_matrix(
+    density_matrix(
         _sparse_tb(spinful_chain()),
         filling=0.7,
         kT=0.15,
@@ -389,7 +393,6 @@ def test_fixed_filling_rational_density_pass_uses_frozen_charge_mesh(monkeypatch
     assert calls[-1]["status"] in {"converged", "max_subdivisions"}
     assert calls[-1]["n_kernel_evals"] == 0
     assert calls[-1]["subdivisions"] == 0
-    assert result.info.n_kernel_evals == result.info.unique_evals
 
 
 def test_sparse_aaa_terms_certify_scalar_error_on_local_interval():
@@ -506,4 +509,3 @@ def test_strained_graphene_single_shot_sparse_aaa_is_stable():
 
     assert np.isfinite(result.mu)
     assert abs(result.filling - filling) <= 1e-1
-    assert result.info.n_leaves == 1

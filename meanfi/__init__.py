@@ -19,15 +19,7 @@ except ImportError:
     __version__ = "unknown"
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
-from .results import (
-    AdaptiveQuadratureInfo,
-    AdaptiveSimplexInfo,
-    DensityMatrixResult,
-    SCFInfo,
-    SCFIterationInfo,
-    SolverResult,
-    UniformGridInfo,
-)
+from .results import DensityResult, SCFIteration, SCFResult
 from .density.density import (
     solve_density_matrix_at_mu as _solve_density_matrix_at_mu,
     solve_density_matrix_fixed_filling as _solve_density_matrix_fixed_filling,
@@ -48,7 +40,7 @@ from .density.kpoint.occupations import fermi_dirac
 from .model import Model
 from .meanfield import meanfield
 from .observables import expectation_value, total_energy
-from .scf.engine import NoConvergence
+from .scf.engine import NoConvergence, SolverError, SolverFailure
 from .scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 from .scf.scf import solver
 from .space import SpatialSymmetry
@@ -73,7 +65,7 @@ def density_matrix_at_mu(
     integration: IntegrationMethod | None = None,
     tol: float = 1e-3,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
-) -> DensityMatrixResult:
+) -> DensityResult:
     """Compute the real-space density matrix at a fixed chemical potential."""
 
     if keys is None:
@@ -101,7 +93,7 @@ def density_matrix(
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
-) -> DensityMatrixResult:
+) -> DensityResult:
     """Compute the fixed-filling real-space density matrix."""
 
     if keys is None:
@@ -126,28 +118,26 @@ def density_matrix(
 
 __all__ = [
     "AdaptiveQuadrature",
-    "AdaptiveQuadratureInfo",
     "AdaptiveSimplex",
-    "AdaptiveSimplexInfo",
     "AndersonMixing",
     "BdGMatrixFunction",
     "EnergyDIIS",
-    "DensityMatrixResult",
     "ErrorTolerances",
     "ErrorValues",
+    "DensityResult",
     "DirectDiagonalization",
     "IntegrationMethod",
     "LinearMixing",
     "Model",
     "NoConvergence",
     "RationalFOE",
-    "SCFInfo",
-    "SCFIterationInfo",
+    "SCFIteration",
     "SCFMethod",
-    "SolverResult",
+    "SCFResult",
+    "SolverError",
+    "SolverFailure",
     "SpatialSymmetry",
     "UniformGrid",
-    "UniformGridInfo",
     "__version__",
     "__version_tuple__",
     "add_tb",

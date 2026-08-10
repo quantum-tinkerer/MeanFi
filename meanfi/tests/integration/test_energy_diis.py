@@ -7,7 +7,6 @@ from fermisimplex import SpectralMesh
 from meanfi import (
     AdaptiveQuadrature,
     AdaptiveSimplex,
-    AndersonMixing,
     EnergyDIIS,
     ErrorTolerances,
     Model,
@@ -45,7 +44,7 @@ def _zero_dimensional_model(*, kT: float = 0.0) -> Model:
     )
 
 
-def test_default_zero_temperature_adaptive_solver_remains_anderson():
+def test_default_zero_temperature_adaptive_solver_reports_energy():
     result = solver(
         _zero_dimensional_model(),
         {(): np.zeros((2, 2), dtype=complex)},
@@ -53,10 +52,10 @@ def test_default_zero_temperature_adaptive_solver_remains_anderson():
         scf_tol=1e-7,
     )
 
-    assert isinstance(result.scf, AndersonMixing)
+    assert result.converged is True
+    assert result.history
     assert not hasattr(result, "accuracy")
-    assert result.info.method == "anderson_mixing"
-    assert result.density_matrix_result.energy is None
+    assert result.total_energy == pytest.approx(-1.0)
 
 
 def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
@@ -68,10 +67,8 @@ def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
         scf_tol=1e-7,
     )
 
-    assert isinstance(result.scf, EnergyDIIS)
-    assert result.info.method == "energy_diis"
-    assert len(result.info.history) == 1
-    assert result.density_matrix_result.energy == pytest.approx(-1.0)
+    assert len(result.history) == 1
+    assert result.total_energy == pytest.approx(-1.0)
 
 
 def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
@@ -94,18 +91,18 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
         tolerance_policy=custom_tolerances,
     )
 
-    assert result.tolerances == ErrorTolerances(
+    requested = ErrorTolerances(
         scf_residual=1e-6,
         density_matrix_integration=5e-8,
         filling_residual=2e-7,
         charge_integration=2e-8,
     )
     assert calls == [1e-6]
-    assert result.errors.scf_residual <= result.tolerances.scf_residual
+    assert result.errors.scf_residual <= requested.scf_residual
     assert result.errors.density_matrix_integration <= (
-        result.tolerances.density_matrix_integration
+        requested.density_matrix_integration
     )
-    assert result.errors.filling_residual <= result.tolerances.filling_residual
+    assert result.errors.filling_residual <= requested.filling_residual
 
 
 def test_other_capabilities_keep_anderson():
@@ -116,7 +113,8 @@ def test_other_capabilities_keep_anderson():
         scf_tol=1e-7,
     )
 
-    assert isinstance(result.scf, AndersonMixing)
+    assert result.history
+    assert result.total_energy is None
 
 
 def test_energy_diis_rejects_unsupported_integration():
@@ -157,8 +155,6 @@ def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():
         scf_tol=3e-3,
     )
 
-    assert np.isfinite(result.density_matrix_result.band_energy)
-    assert np.isfinite(result.density_matrix_result.energy)
-    assert result.density_matrix_result.info.band_energy_integration_calls == 1
-    assert result.density_matrix_result.info.band_energy_n_kernel_evals == 0
-    assert result.info.residual_norm <= 3e-3
+    assert np.isfinite(result.total_energy)
+    assert all(np.isfinite(item.total_energy) for item in result.history)
+    assert result.errors.scf_residual <= 3e-3

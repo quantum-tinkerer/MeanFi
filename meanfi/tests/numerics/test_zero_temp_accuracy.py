@@ -9,7 +9,6 @@ from meanfi.tests.fixtures.models import (
     converged_dense_reference,
     dimerized_chain,
     max_density_error,
-    max_density_estimate,
     qiwuzhang,
     shifted_spinful_chain,
 )
@@ -80,10 +79,10 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
         actual_density_error = max_density_error(result.density_matrix, reference.rho)
 
         assert actual_density_error <= 2.0 * density_atol
-        assert result.info.error_estimate_available is True
+        assert result.errors.density_matrix_integration is not None
         assert_estimator_covers_actual(
             actual_density_error,
-            max_density_estimate(result.density_matrix_error),
+            result.errors.density_matrix_integration,
         )
 
 
@@ -134,11 +133,11 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
         assert actual_density_error <= 2.0 * density_atol
         assert_estimator_covers_actual(
             actual_density_error,
-            max_density_estimate(result.density_matrix_error),
+            result.errors.density_matrix_integration,
         )
         assert actual_charge_error <= scalar_tol
         assert actual_mu_error <= scalar_tol
-        assert result.info.error_estimate_available is True
+        assert result.errors.density_matrix_integration is not None
 
 
 @requires_ext
@@ -168,10 +167,10 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
     actual_density_error = max_density_error(result.density_matrix, reference.rho)
 
     assert actual_density_error <= 2e-3
-    assert result.info.error_estimate_available is True
+    assert result.errors.density_matrix_integration is not None
     assert_estimator_covers_actual(
         actual_density_error,
-        max_density_estimate(result.density_matrix_error),
+        result.errors.density_matrix_integration,
     )
 
 
@@ -200,7 +199,7 @@ def test_uniform_grid_density_at_mu_converges_against_dense_reference(case):
         )
         records.append(
             (
-                result.info.unique_evals,
+                nk,
                 max_density_error(result.density_matrix, reference.rho),
             )
         )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from meanfi.errors import ErrorTolerances, ErrorValues
+from meanfi.errors import ErrorValues
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,7 @@ class FixedFillingInfo:
 
 @dataclass(frozen=True)
 class AdaptiveSimplexInfo:
-    """Public runtime metadata for adaptive zero-temperature simplicial integration."""
+    """Internal statistics for adaptive zero-temperature simplicial integration."""
 
     n_kernel_evals: int
     unique_evals: int
@@ -76,7 +76,7 @@ class AdaptiveSimplexInfo:
 
 @dataclass(frozen=True)
 class AdaptiveQuadratureInfo:
-    """Public runtime metadata for adaptive finite-temperature quadrature."""
+    """Internal statistics for adaptive finite-temperature quadrature."""
 
     n_kernel_evals: int
     unique_evals: int
@@ -94,7 +94,7 @@ class AdaptiveQuadratureInfo:
 
 @dataclass(frozen=True)
 class UniformGridInfo:
-    """Public runtime metadata for uniform-grid integration."""
+    """Internal statistics for uniform-grid integration."""
 
     nk: int
     n_kpoints: int
@@ -109,61 +109,34 @@ class UniformGridInfo:
 
 
 @dataclass(frozen=True)
-class SCFIterationInfo:
-    """Public runtime metadata for one accepted SCF residual evaluation."""
-
-    step: int
-    residual_norm: float
-    line_search_norm: float
-    integration_evals: int
-    cumulative_integration_evals: int
-    mu: float
-    filling_residual: float | None
-    charge_error: float | None
-    energy: float | None = None
-
-
-@dataclass(frozen=True)
-class SCFInfo:
-    """Public runtime metadata for an SCF solve."""
-
-    method: str
-    iterations: int
-    residual_norm: float
-    total_charge_integration_calls: int
-    total_density_integration_calls: int
-    total_kernel_evals: int
-    total_unique_evals: int
-    total_evaluator_evals: int
-    history: tuple[SCFIterationInfo, ...] = ()
-
-
-@dataclass(frozen=True)
-class DensityMatrixResult:
-    """Public result for a density-matrix evaluation."""
+class DensityResult:
+    """A complete density matrix on the real-space keys requested by the user."""
 
     density_matrix: dict[tuple[int, ...], Any]
-    density_matrix_error: dict[tuple[int, ...], Any] | None
     mu: float
     filling: float
-    target_filling: float | None
-    filling_residual: float | None
-    integration: object
-    info: AdaptiveSimplexInfo | AdaptiveQuadratureInfo | UniformGridInfo
-    tolerances: ErrorTolerances | None = None
-    errors: ErrorValues = ErrorValues()
-    band_energy: float | None = None
-    energy: float | None = None
+    errors: ErrorValues
 
 
 @dataclass(frozen=True)
-class SolverResult:
-    """Public result for an SCF mean-field solve."""
+class SCFIteration:
+    """Physical and numerical values from one successful SCF evaluation."""
 
-    mf: dict[tuple[int, ...], Any]
-    density_matrix_result: DensityMatrixResult
-    integration: object
-    scf: object
-    info: SCFInfo
-    tolerances: ErrorTolerances
+    step: int
+    mu: float
+    filling: float
+    total_energy: float | None
     errors: ErrorValues
+
+
+@dataclass(frozen=True)
+class SCFResult:
+    """A self-consistent mean-field state, or the last valid partial state."""
+
+    mean_field: dict[tuple[int, ...], Any]
+    mu: float
+    filling: float
+    total_energy: float | None
+    errors: ErrorValues
+    history: tuple[SCFIteration, ...]
+    converged: bool

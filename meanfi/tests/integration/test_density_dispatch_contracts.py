@@ -10,11 +10,8 @@ import scipy.sparse as sp
 
 from meanfi import (
     AdaptiveQuadrature,
-    AdaptiveQuadratureInfo,
     AdaptiveSimplex,
-    AdaptiveSimplexInfo,
     AndersonMixing,
-    DensityMatrixResult,
     DirectDiagonalization,
     LinearMixing,
     default_solver_tolerances,
@@ -26,12 +23,15 @@ from meanfi import (
     solver,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
+from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.errors import ErrorValues
 from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
 from meanfi.scf.engine import NoConvergence
 from meanfi.scf.engine import SolverRuntime
 from meanfi.scf.normal import build_normal_scf_problem
+from meanfi.space.state import ActiveDensityState
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
@@ -60,7 +60,7 @@ def test_normal_solver_warns_when_guess_is_projected_to_structural_selection():
             scf_tol=1e-8,
         )
 
-    assert result.info.iterations >= 1
+    assert result.history
 
 
 def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
@@ -176,10 +176,9 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     assert called["kwargs"]["filling_tol"] == 2e-3
     assert called["kwargs"]["num_threads"] == 3
     assert np.allclose(result.density_matrix[(0,)], np.array([[1.0]]))
-    assert np.allclose(result.density_matrix_error[(0,)], np.array([[0.0]]))
+    assert result.errors.density_matrix_integration == 0.0
     assert result.mu == 0.0
     assert result.filling == 1.0
-    assert result.info.num_threads == 3
 
 
 def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
@@ -197,6 +196,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
 
     class FakeSpace:
         interaction_keys = [(0,)]
+        density_keys = [(0,)]
         onsite = (0,)
         required_coordinates = required
 
@@ -231,27 +231,22 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
     def fake_density_update(*args, **kwargs):
         del args
         captured["density_coordinates"] = kwargs["density_coordinates"]
-        return DensityMatrixResult(
-            density_matrix={(0,): np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex)},
-            density_matrix_error=None,
+        return DensityEvaluation(
+            density=DensitySlice(
+                required,
+                np.array([1.0], dtype=complex),
+                np.array([0.0]),
+            ),
             mu=0.0,
             filling=1.0,
-            target_filling=1.0,
-            filling_residual=0.0,
-            integration=AdaptiveSimplex(),
-            info=AdaptiveSimplexInfo(
-                n_kernel_evals=0,
-                unique_evals=0,
-                n_evaluator_evals=0,
-                n_cached_nodes=0,
-                n_leaves=0,
-                n_leaf_nodes=0,
-                refinements=0,
-                error_estimate_available=True,
-                charge_evaluations=0,
-                charge_integration_calls=0,
-                density_integration_calls=1,
+            errors=ErrorValues(
+                density_matrix_integration=0.0,
+                filling_residual=0.0,
+                charge_integration=0.0,
             ),
+            integration=AdaptiveSimplex(),
+            statistics=SimpleNamespace(),
+            band_energy=0.0,
         )
 
     monkeypatch.setattr(
@@ -269,7 +264,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
         ),
     )
 
-    problem.density_result_from_params(np.zeros(1), 0.0)
+    problem.evaluate_state(ActiveDensityState(problem.state_space, np.zeros(1)), 0.0)
 
     assert captured["density_coordinates"] is required
 
@@ -485,4 +480,4 @@ def test_zero_temperature_backend_supports_higher_dimensions(ndim):
         np.diag([1.0, 0.0]),
         atol=1e-12,
     )
-    assert result.info.n_leaves > 0
+    assert result.errors.density_matrix_integration is not None

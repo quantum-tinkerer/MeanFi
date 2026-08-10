@@ -144,13 +144,17 @@ def test_bdg_solver_matches_1d_nonlocal_odd_parity_reference():
         filling_tol=2e-4,
     )
 
-    assert result.info.residual_norm <= 2e-4
-    assert abs(result.density_matrix_result.filling - filling) <= 2e-4
-    assert result.mf[(1,)][0, 1].real * result.mf[(-1,)][0, 1].real < 0.0
+    assert result.errors.scf_residual <= 2e-4
+    assert abs(result.filling - filling) <= 2e-4
     assert (
-        abs(result.mf[(1,)][0, 1].real - reference_meanfield[(1,)][0, 1].real) <= 3e-3
+        result.mean_field[(1,)][0, 1].real * result.mean_field[(-1,)][0, 1].real < 0.0
     )
     assert (
-        abs(result.mf[(-1,)][0, 1].real - reference_meanfield[(-1,)][0, 1].real) <= 3e-3
+        abs(result.mean_field[(1,)][0, 1].real - reference_meanfield[(1,)][0, 1].real)
+        <= 3e-3
     )
-    assert abs(result.density_matrix_result.mu - reference_mu) <= 2e-3
+    assert (
+        abs(result.mean_field[(-1,)][0, 1].real - reference_meanfield[(-1,)][0, 1].real)
+        <= 3e-3
+    )
+    assert abs(result.mu - reference_mu) <= 2e-3

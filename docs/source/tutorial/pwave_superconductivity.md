@@ -82,11 +82,11 @@ result = meanfi.solver(
     guess,
 )
 
-delta_x = result.mf[(1, 0)][0, 1]
-delta_y = result.mf[(0, 1)][0, 1]
+delta_x = result.mean_field[(1, 0)][0, 1]
+delta_y = result.mean_field[(0, 1)][0, 1]
 
-print(f"residual norm: {result.info.residual_norm:.3e}")
-print(f"chemical potential: {result.density_matrix_result.mu:.6f}")
+print(f"residual norm: {result.errors.scf_residual:.3e}")
+print(f"chemical potential: {result.mu:.6f}")
 print(f"Delta_x = {delta_x:.6f}")
 print(f"Delta_y = {delta_y:.6f}")
 ```
@@ -103,7 +103,7 @@ def gap_texture(result, *, nk=81):
 
     electron_tb = {key: np.array(value, dtype=complex) for key, value in h_0.items()}
     gap = np.zeros_like(kx, dtype=complex)
-    for key, matrix in result.mf.items():
+    for key, matrix in result.mean_field.items():
         array = np.asarray(matrix, dtype=complex)
         electron_tb[key] = electron_tb.get(key, np.zeros((1, 1), dtype=complex)) + array[:1, :1]
         phase = np.exp(
@@ -120,7 +120,7 @@ def gap_texture(result, *, nk=81):
         )
         dispersion += matrix[0, 0] * phase
 
-    xi = dispersion.real - result.density_matrix_result.mu
+    xi = dispersion.real - result.mu
     return axis, xi, gap
 
 
@@ -202,12 +202,12 @@ random_result = meanfi.solver(
     random_guess,
 )
 
-random_delta_x = random_result.mf[(1, 0)][0, 1]
-random_delta_y = random_result.mf[(0, 1)][0, 1]
+random_delta_x = random_result.mean_field[(1, 0)][0, 1]
+random_delta_y = random_result.mean_field[(0, 1)][0, 1]
 
 print(f"Delta_x (random) = {random_delta_x:.6f}")
 print(f"Delta_y (random) = {random_delta_y:.6f}")
-print(f"random residual norm: {random_result.info.residual_norm:.3e}")
+print(f"random residual norm: {random_result.errors.scf_residual:.3e}")
 ```
 
 With this seed, the random initial condition converges to a more nematic superconducting solution.
@@ -267,18 +267,10 @@ plt.show()
 ```
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-
-def mean_field_energy_density(result):
-    return meanfi.total_energy(model, result.density_matrix_result.density_matrix)
-
-
-print(f"chiral energy density: {mean_field_energy_density(result):.6f}")
-print(f"random energy density: {mean_field_energy_density(random_result):.6f}")
+print(f"chiral residual: {result.errors.scf_residual:.3e}")
+print(f"random residual: {random_result.errors.scf_residual:.3e}")
 print(f"chiral winding: {phase_winding(result):+.1f}")
 print(f"random winding: {phase_winding(random_result):+.1f}")
 ```
 
-For this parameter set, the symmetry-informed $p_x + i p_y$ solution has the lower mean-field energy density.
-This is why guesses are not just a convenience in superconducting calculations: they can decide which self-consistent state you reach.
-When several pairing patterns are possible, it is worth comparing the energies of competing converged solutions rather than trusting the first one that appears.
+The two guesses converge to distinct pairing patterns. This backend does not yet provide a trustworthy BdG total-energy estimator, so `result.total_energy` is `None` and convergence alone must not be used to claim an energy ordering. Once such an estimator is available, competing converged solutions should be compared through the direct `SCFResult.total_energy` field.

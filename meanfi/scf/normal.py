@@ -2,19 +2,20 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.density.density import solve_density_matrix_fixed_filling
-from meanfi.errors import ErrorTolerances
+from meanfi.density.density import evaluate_density_matrix_fixed_filling
 from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
-from meanfi.meanfield import meanfield, reference_subtracted_density
+from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.errors import ErrorTolerances
+from meanfi.meanfield import meanfield
 from meanfi.model import Model
 from meanfi.observables import expectation_value
-from meanfi.results import DensityMatrixResult
 from meanfi.scf.engine import (
     EnergyEvaluation,
     SCFProblem,
     SolverRuntime,
     warn_on_projection,
 )
+from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import match_tb_storage, prefers_sparse_storage
 
@@ -29,10 +30,10 @@ def _density_update_for_normal_hamiltonian(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
-    density_coordinates=None,
-    include_band_energy: bool = False,
-) -> DensityMatrixResult:
-    return solve_density_matrix_fixed_filling(
+    density_coordinates,
+    include_band_energy: bool,
+) -> DensityEvaluation:
+    _plan, evaluation = evaluate_density_matrix_fixed_filling(
         hamiltonian,
         filling=model.filling,
         kT=model.kT,
@@ -45,13 +46,15 @@ def _density_update_for_normal_hamiltonian(
         density_coordinates=density_coordinates,
         include_band_energy=include_band_energy,
     )
+    return evaluation
 
 
 def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     """Build the normal-state map consumed by the generic SCF engine."""
 
     space = model.scf_space
-    keys = space.interaction_keys
+    keys = space.density_keys
+    include_band_energy = isinstance(runtime.integration, AdaptiveSimplex)
 
     def project_guess(guess: _tb_type) -> _tb_type:
         projected = space.project_meanfield_input(guess)
@@ -70,55 +73,50 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         hamiltonian: _tb_type,
         *,
         mu_guess: float,
-        include_band_energy: bool = False,
-    ) -> DensityMatrixResult:
-        kwargs = dict(
+    ) -> DensityEvaluation:
+        return _density_update_for_normal_hamiltonian(
+            model,
+            hamiltonian,
             keys=keys,
             integration=runtime.integration,
             tolerances=runtime.tolerances,
             mu_tol=runtime.mu_tol,
             max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
+            density_coordinates=space.required_coordinates,
+            include_band_energy=include_band_energy,
         )
-        if include_band_energy:
-            kwargs["include_band_energy"] = True
-        if isinstance(runtime.integration, AdaptiveSimplex):
-            kwargs["density_coordinates"] = space.required_coordinates
-        else:
-            kwargs["density_coordinates"] = space.required_density_coordinates_for(
-                hamiltonian
-            )
-        return _density_update_for_normal_hamiltonian(model, hamiltonian, **kwargs)
 
-    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityMatrixResult:
+    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityEvaluation:
         return evaluate_hamiltonian(
             model.hamiltonian_from_meanfield(projected_guess),
             mu_guess=0.0,
         )
 
-    def density_result_from_params(
-        params: np.ndarray,
-        mu_guess: float,
-        *,
-        include_band_energy: bool = False,
-    ) -> DensityMatrixResult:
+    def state_from_density(density: DensitySlice) -> ActiveDensityState:
+        if density.coordinates.entries != space.required_coordinates.entries:
+            raise ValueError("density slice does not match the normal SCF space")
+        return ActiveDensityState(
+            space,
+            space.params_from_required_entries(density.values),
+        )
+
+    def active_density(state: ActiveDensityState) -> _tb_type:
+        require_same_space(state, space)
+        return space.meanfield_input_from_params(state.values)
+
+    def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityEvaluation:
         return evaluate_hamiltonian(
-            model.hamiltonian_from_rho(space.meanfield_input_from_params(params)),
+            model.hamiltonian_from_rho(active_density(state)),
             mu_guess=mu_guess,
-            include_band_energy=include_band_energy,
         )
 
-    def density_difference(params: np.ndarray) -> _tb_type:
-        return reference_subtracted_density(
-            space.meanfield_input_from_params(params),
-            getattr(model, "reference_density_matrix", None),
-            interaction_keys=space.interaction_keys,
-            onsite=space.onsite,
-            ndof=model._ndof,
-        )
+    def density_difference(state: ActiveDensityState) -> _tb_type:
+        return model._active_density_from_state(model._reference_difference(state))
 
-    def interaction_energy(params: np.ndarray) -> float:
-        difference = density_difference(params)
+    def interaction_energy_values(params: np.ndarray) -> float:
+        state = ActiveDensityState(space, params)
+        difference = density_difference(state)
         correction = meanfield(difference, model.h_int)
         return float(0.5 * np.real(expectation_value(difference, correction)))
 
@@ -126,73 +124,44 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         params: np.ndarray,
         direction: np.ndarray,
     ) -> float:
-        correction = meanfield(density_difference(params), model.h_int)
-        direction_density = space.meanfield_input_from_params(direction)
+        state = ActiveDensityState(space, params)
+        correction = meanfield(density_difference(state), model.h_int)
+        direction_density = active_density(ActiveDensityState(space, direction))
         return float(np.real(expectation_value(direction_density, correction)))
 
-    def energy_from_result(
-        input_params: np.ndarray,
-        density_result: DensityMatrixResult,
-    ) -> EnergyEvaluation:
-        if density_result.band_energy is None:
-            raise RuntimeError("EnergyDIIS requires an occupied band-energy result")
-        output_params = np.asarray(
-            space.params_from_meanfield_input(density_result.density_matrix),
-            dtype=float,
-        )
-        output_density = space.meanfield_input_from_params(output_params)
-        input_correction = meanfield(density_difference(input_params), model.h_int)
+    def energy_from_evaluation(
+        input_state: ActiveDensityState,
+        density: DensityEvaluation,
+    ) -> EnergyEvaluation | None:
+        if density.band_energy is None:
+            return None
+        output_state = state_from_density(density.density)
+        output_density = active_density(output_state)
+        input_correction = meanfield(density_difference(input_state), model.h_int)
         one_body = float(
-            density_result.band_energy
+            density.band_energy
             - np.real(expectation_value(output_density, input_correction))
         )
-        energy = one_body + interaction_energy(output_params)
+        total_energy = one_body + interaction_energy_values(output_state.values)
         return EnergyEvaluation(
-            params=output_params,
+            output_state=output_state,
             one_body_energy=one_body,
-            energy=energy,
+            total_energy=total_energy,
         )
 
-    def finalize_meanfield(density_result: DensityMatrixResult) -> _tb_type:
-        return _meanfield_from_active_density(
-            space.project_meanfield_input(density_result.density_matrix),
-            model=model,
-            interaction_keys=space.interaction_keys,
-            onsite=space.onsite,
-            mu=density_result.mu,
-        )
+    def mean_field_from_state(state: ActiveDensityState) -> _tb_type:
+        difference = density_difference(state)
+        return dict(meanfield(difference, model.h_int))
 
     return SCFProblem(
         runtime=runtime,
+        state_space=space,
         project_guess=project_guess,
         evaluate_projected_guess=evaluate_projected_guess,
-        compress_density=space.params_from_meanfield_input,
-        density_result_from_params=density_result_from_params,
-        finalize_meanfield=finalize_meanfield,
-        energy_from_result=energy_from_result,
-        interaction_energy=interaction_energy,
+        state_from_density=state_from_density,
+        evaluate_state=evaluate_state,
+        mean_field_from_state=mean_field_from_state,
+        energy_from_evaluation=energy_from_evaluation,
+        interaction_energy=interaction_energy_values,
         interaction_gradient=interaction_gradient,
     )
-
-
-def _meanfield_from_active_density(
-    active_density: _tb_type,
-    *,
-    model: Model,
-    interaction_keys: list[tuple[int, ...]],
-    onsite: tuple[int, ...],
-    mu: float,
-) -> _tb_type:
-    density_reduced = reference_subtracted_density(
-        active_density,
-        getattr(model, "reference_density_matrix", None),
-        interaction_keys=interaction_keys,
-        onsite=onsite,
-        ndof=model._ndof,
-    )
-    result = dict(meanfield(density_reduced, model.h_int))
-    result[onsite] = result.get(
-        onsite,
-        np.zeros((model._ndof, model._ndof), dtype=complex),
-    ) - float(mu) * np.eye(model._ndof)
-    return result
