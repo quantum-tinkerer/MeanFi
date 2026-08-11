@@ -1,7 +1,15 @@
 import numpy as np
 import pytest
 
-from meanfi import Model, add_tb, expectation_value, total_energy
+from meanfi import (
+    DensityCoordinates,
+    DensityResult,
+    ErrorValues,
+    Model,
+    add_tb,
+    expectation_value,
+    total_energy,
+)
 from meanfi.meanfield import (
     bdg_correction_from_density,
     extract_anomalous_density,
@@ -12,6 +20,49 @@ from meanfi.tests.fixtures.models import bipartite_hubbard_2d
 
 
 pytestmark = pytest.mark.integration
+
+
+def test_selected_density_supports_covered_observables_and_total_energy():
+    model = Model(
+        {(): np.diag([1.0, 3.0]).astype(complex)},
+        {(): np.array([[0.0, 2.0], [2.0, 0.0]], dtype=complex)},
+        filling=1.0,
+    )
+    matrix = {(): np.array([[0.25, 0.1], [0.1, 0.75]], dtype=complex)}
+    coordinates = model.scf_space.required_coordinates
+    density = DensityResult(
+        coordinates=coordinates,
+        values=coordinates.values_from_tb(matrix),
+        mu=0.0,
+        filling=1.0,
+        errors=ErrorValues(),
+    )
+
+    assert density.is_complete is False
+    assert expectation_value(density, model.h_0) == pytest.approx(
+        expectation_value(matrix, model.h_0)
+    )
+    assert total_energy(model, density) == pytest.approx(total_energy(model, matrix))
+
+
+def test_selected_density_rejects_uncovered_observable_coordinate():
+    coordinates = DensityCoordinates.from_entries(
+        size=2,
+        keys=[()],
+        entries=(((), 0, 0),),
+        allow_empty=False,
+    )
+    assert coordinates is not None
+    density = DensityResult(
+        coordinates=coordinates,
+        values=np.array([0.25]),
+        mu=0.0,
+        filling=0.25,
+        errors=ErrorValues(),
+    )
+
+    with pytest.raises(ValueError, match="required by the observable"):
+        expectation_value(density, {(): np.eye(2, dtype=complex)})
 
 
 def test_total_energy_half_counts_normal_mean_field_interaction():

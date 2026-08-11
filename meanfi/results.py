@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
+
 from meanfi.errors import ErrorValues
+from meanfi.space.coordinates import DensityCoordinates
+from meanfi.tb.ops import _tb_type
 
 
 @dataclass(frozen=True)
@@ -110,12 +114,90 @@ class UniformGridInfo:
 
 @dataclass(frozen=True)
 class DensityResult:
-    """A complete density matrix on the real-space keys requested by the user."""
+    """Density values tied to an explicit, possibly incomplete coordinate layout.
 
-    density_matrix: dict[tuple[int, ...], Any]
+    Entries outside ``coordinates`` were not evaluated. Consequently a density
+    can be converted to tight-binding matrix blocks only when every entry of each
+    listed block is present.
+    """
+
+    coordinates: DensityCoordinates
+    values: np.ndarray
     mu: float
     filling: float
     errors: ErrorValues
+
+    def __post_init__(self) -> None:
+        values = np.array(self.values, dtype=complex, copy=True)
+        if values.ndim != 1:
+            raise ValueError("density values must be one-dimensional")
+        if values.size != self.coordinates.value_count:
+            raise ValueError("density values do not match their coordinate layout")
+        values.setflags(write=False)
+        object.__setattr__(self, "values", values)
+
+    @property
+    def is_complete(self) -> bool:
+        """Whether every matrix entry is present for every listed key."""
+
+        return self.coordinates.is_full
+
+    def covers(self, coordinates: DensityCoordinates) -> bool:
+        """Whether all entries in ``coordinates`` are available in this result."""
+
+        if self.coordinates.size != coordinates.size:
+            return False
+        return set(coordinates.entries) <= set(self.coordinates.entries)
+
+    def values_for(self, coordinates: DensityCoordinates) -> np.ndarray:
+        """Return values in another covered coordinate layout's order."""
+
+        if self.coordinates.size != coordinates.size:
+            raise ValueError("density coordinate matrix sizes do not match")
+        indices = {entry: index for index, entry in enumerate(self.coordinates.entries)}
+        missing = [entry for entry in coordinates.entries if entry not in indices]
+        if missing:
+            preview = ", ".join(map(str, missing[:3]))
+            suffix = "" if len(missing) <= 3 else ", ..."
+            raise ValueError(
+                f"density is missing {len(missing)} required coordinate(s): "
+                f"{preview}{suffix}"
+            )
+        return np.asarray(
+            [self.values[indices[entry]] for entry in coordinates.entries],
+            dtype=complex,
+        )
+
+    def select(self, coordinates: DensityCoordinates) -> DensityResult:
+        """Return the same density restricted to a covered coordinate layout."""
+
+        return DensityResult(
+            coordinates=coordinates,
+            values=self.values_for(coordinates),
+            mu=self.mu,
+            filling=self.filling,
+            errors=self.errors,
+        )
+
+    def to_matrix(self) -> _tb_type:
+        """Materialize complete tight-binding matrix blocks.
+
+        Selected layouts deliberately cannot be materialized because filling
+        uncomputed entries with zeros would change their physical meaning.
+        """
+
+        if not self.is_complete:
+            raise ValueError(
+                "cannot convert selected density coordinates to complete matrix "
+                "blocks; request complete keys or use coordinates and values"
+            )
+        return self.coordinates.values_to_tb(self.values)
+
+    @property
+    def density_matrix(self) -> _tb_type:
+        """Complete matrix blocks (compatibility alias for :meth:`to_matrix`)."""
+
+        return self.to_matrix()
 
 
 @dataclass(frozen=True)
@@ -133,10 +215,21 @@ class SCFIteration:
 class SCFResult:
     """A self-consistent mean-field state, or the last valid partial state."""
 
+    density: DensityResult
     mean_field: dict[tuple[int, ...], Any]
-    mu: float
-    filling: float
     total_energy: float | None
     errors: ErrorValues
     history: tuple[SCFIteration, ...]
     converged: bool
+
+    @property
+    def mu(self) -> float:
+        """Chemical potential of the final density evaluation."""
+
+        return self.density.mu
+
+    @property
+    def filling(self) -> float:
+        """Filling of the final density evaluation."""
+
+        return self.density.filling

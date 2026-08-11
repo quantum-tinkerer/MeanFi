@@ -11,13 +11,18 @@ def wrap_density_evaluation(
     problem: DensityProblem,
     plan: DensityPlan,
     evaluation: DensityEvaluation,
+    *,
+    preserve_layout: bool = False,
 ) -> DensityResult:
-    """Expose only a complete density on the keys explicitly requested."""
+    """Expose evaluated values without inventing values outside their layout."""
 
     del plan
-    density = evaluation.density.select_keys(problem.requested_keys)
+    density = evaluation.density
+    if not preserve_layout:
+        density = density.select_keys(problem.requested_keys)
     return DensityResult(
-        density_matrix=density.to_full_tb(),
+        coordinates=density.coordinates,
+        values=density.values,
         mu=evaluation.mu,
         filling=evaluation.filling,
         errors=evaluation.errors,

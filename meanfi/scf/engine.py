@@ -8,7 +8,7 @@ import numpy as np
 from meanfi.density.integrate.methods import AdaptiveSimplex
 from meanfi.density.internal import DensityEvaluation, DensitySlice
 from meanfi.errors import ErrorTolerances
-from meanfi.results import SCFIteration, SCFResult
+from meanfi.results import DensityResult, SCFIteration, SCFResult
 from meanfi.scf.ediis import EDIISPoint, ediis_coefficients
 from meanfi.scf.fixed_point import (
     NoConvergence,
@@ -335,10 +335,16 @@ def _build_result(
     errors = state.evaluation.errors
     if state.residual_norm is not None:
         errors = replace(errors, scf_residual=state.residual_norm)
-    return SCFResult(
-        mean_field=problem.mean_field_from_state(state.output_state),
+    density = DensityResult(
+        coordinates=state.evaluation.density.coordinates,
+        values=state.evaluation.density.values,
         mu=float(state.evaluation.mu),
         filling=float(state.evaluation.filling),
+        errors=errors,
+    )
+    return SCFResult(
+        density=density,
+        mean_field=problem.mean_field_from_state(state.output_state),
         total_energy=state.total_energy,
         errors=errors,
         history=tuple(state.history or ()),

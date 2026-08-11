@@ -3,6 +3,9 @@ import pytest
 
 from meanfi import (
     AdaptiveQuadrature,
+    DensityCoordinates,
+    DensityResult,
+    ErrorValues,
     LinearMixing,
     Model,
     density_matrix,
@@ -14,6 +17,54 @@ from meanfi.space.state import ActiveDensityState
 
 
 pytestmark = pytest.mark.integration
+
+
+def test_selected_density_is_an_efficient_reference_without_zero_filling():
+    h_0 = {(): np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)}
+    h_int = {(): np.array([[0.5, 1.2], [1.2, 0.8]], dtype=complex)}
+    reference = density_matrix(
+        h_0,
+        filling=1.0,
+        kT=0.2,
+        interaction=h_int,
+        integration=AdaptiveQuadrature(density_matrix_tol=1e-10),
+        filling_tol=1e-10,
+    )
+    model = Model(h_0, h_int, filling=1.0, kT=0.2, reference=reference)
+
+    assert reference.is_complete is False
+    assert reference.coordinates.entries == model.scf_space.required_coordinates.entries
+    assert reference.coordinates.value_count < 2**2
+    assert model.reference is reference
+    with pytest.raises(ValueError, match="selected density coordinates"):
+        reference.to_matrix()
+    np.testing.assert_allclose(
+        model.hamiltonian_from_rho(reference)[()],
+        h_0[()],
+        atol=1e-12,
+    )
+
+
+def test_model_rejects_selected_reference_missing_an_interaction_coordinate():
+    h_0 = {(): np.zeros((2, 2), dtype=complex)}
+    h_int = {(): np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)}
+    coordinates = DensityCoordinates.from_entries(
+        size=2,
+        keys=[()],
+        entries=(((), 0, 0),),
+        allow_empty=False,
+    )
+    assert coordinates is not None
+    reference = DensityResult(
+        coordinates=coordinates,
+        values=np.array([0.5]),
+        mu=0.0,
+        filling=1.0,
+        errors=ErrorValues(),
+    )
+
+    with pytest.raises(ValueError, match="missing .* required coordinate"):
+        Model(h_0, h_int, filling=1.0, reference=reference)
 
 
 def test_reference_density_subtracts_full_mean_field_correction():
