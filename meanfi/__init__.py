@@ -43,7 +43,7 @@ from .observables import expectation_value, total_energy
 from .scf.engine import NoConvergence, SolverError, SolverFailure
 from .scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 from .scf.scf import solver
-from .space import SpatialSymmetry
+from .space import DensityCoordinates, SpatialSymmetry
 from .tb.tb import (
     add_tb,
     fermi_energy,
@@ -87,6 +87,9 @@ def density_matrix(
     kT: float = DEFAULT_KT,
     keys: list[tuple[int, ...]] | None = None,
     *,
+    coordinates: DensityCoordinates | None = None,
+    interaction=None,
+    spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
     tol: float = 1e-3,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
@@ -94,10 +97,39 @@ def density_matrix(
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
 ) -> DensityResult:
-    """Compute the fixed-filling real-space density matrix."""
+    """Compute density values on one explicit layout.
 
-    if keys is None:
-        raise ValueError("keys must be provided")
+    Exactly one selection mode must be supplied: ``keys`` requests complete
+    matrix blocks, ``coordinates`` requests an exact advanced layout, and
+    ``interaction`` requests only the entries needed by that interaction's SCF
+    space.  The latter is the efficient way to construct a reference density.
+    """
+
+    selection_count = sum(
+        selection is not None for selection in (keys, coordinates, interaction)
+    )
+    if selection_count != 1:
+        raise ValueError(
+            "exactly one of keys, coordinates, or interaction must be provided"
+        )
+
+    selected_coordinates = coordinates
+    selected_keys = None if keys is None else [tuple(key) for key in keys]
+    if interaction is not None:
+        layout_model = Model(
+            h,
+            interaction,
+            filling,
+            kT=kT,
+            spatial_symmetries=spatial_symmetries,
+        )
+        selected_coordinates = layout_model.scf_space.required_coordinates
+        selected_keys = layout_model.scf_space.density_keys
+    elif coordinates is not None:
+        selected_keys = list(coordinates.keys)
+
+    if selected_keys is None:  # pragma: no cover - selection validation guarantees it
+        raise RuntimeError("density selection did not provide integration keys")
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
     if filling_tol is not None:
         tolerances = replace(
@@ -108,11 +140,12 @@ def density_matrix(
         h,
         filling=filling,
         kT=kT,
-        keys=keys,
+        keys=selected_keys,
         integration=integration,
         tolerances=tolerances,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
+        density_coordinates=selected_coordinates,
     )
 
 
@@ -124,6 +157,7 @@ __all__ = [
     "EnergyDIIS",
     "ErrorTolerances",
     "ErrorValues",
+    "DensityCoordinates",
     "DensityResult",
     "DirectDiagonalization",
     "IntegrationMethod",

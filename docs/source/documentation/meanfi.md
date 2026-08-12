@@ -7,34 +7,42 @@
    :members: hamiltonian_from_rho, hamiltonian_from_meanfield, bdg_hamiltonian_from_meanfield
 ```
 
-`Model(..., reference_density_matrix=rho_ref)` enables full reference-state
-subtraction for normal calculations. The effective Hamiltonian is built as
+`Model(..., reference=reference)` enables full reference-state subtraction for
+normal calculations. The effective Hamiltonian is built as
 `h_0 + W[rho - rho_ref]`, where `W` is the complete density-density mean-field
 correction, including both Hartree and exchange-like terms. This is not a
-Hartree-only background subtraction. Internally, the reference is copied into
-a private, read-only coordinate state tied to the model's active SCF space; it
-is never exposed as a zero-filled reduced density matrix.
+Hartree-only background subtraction. `reference` is a layout-aware
+`DensityResult`: it may contain only the entries required by the interaction,
+but every required coordinate is validated when the model is constructed.
+Missing entries are never interpreted as zeros.
 
 If the reference should be the non-interacting density at a chosen filling,
-compute it explicitly and pass the density matrix to the model:
+compute it explicitly and pass the result to the model:
 
 ```python
-onsite = (0,) * len(next(iter(h_0)))
-reference_keys = list(dict.fromkeys([*h_int, onsite]))
-rho_ref = meanfi.density_matrix(
+reference = meanfi.density_matrix(
     h_0,
     filling=reference_filling,
     kT=kT,
-    keys=reference_keys,
-).density_matrix
+    interaction=h_int,
+    tol=tol,
+)
 model = meanfi.Model(
     h_0,
     h_int,
     filling=filling,
     kT=kT,
-    reference_density_matrix=rho_ref,
+    reference=reference,
 )
 ```
+
+`density_matrix(..., keys=keys)` requests complete blocks and preserves the
+existing `.density_matrix` compatibility property.
+`density_matrix(..., coordinates=coordinates)` requests an exact advanced
+selection. `keys`, `coordinates`, and `interaction` are mutually exclusive.
+Selected results expose their read-only `coordinates` and `values`; converting
+one to complete matrix blocks raises instead of filling uncomputed entries with
+zeros.
 
 ## Mean-field and density matrix
 
@@ -108,11 +116,13 @@ model = meanfi.Model(
    :show-inheritance:
 ```
 
-`total_energy` expects a density matrix containing every key needed by both the
-non-interacting Hamiltonian and the interaction. For normal calculations where
-the solver only requested interaction keys, evaluate the density with energy
-keys first, for example `keys=list(set(h_0) | set(h_int))`, then pass that
-density matrix to `meanfi.total_energy(model, density_matrix)`.
+`expectation_value` and `total_energy` accept either complete tight-binding
+matrix dictionaries or layout-aware `DensityResult` objects. Selected results
+must cover every coordinate used by the observable; otherwise the operation
+raises with the missing coordinates. For an SCF solution, use
+`solution.total_energy` directly. If a separate density must be evaluated for
+an energy, request complete energy keys and pass the result itself, for example
+`meanfi.total_energy(model, meanfi.density_matrix(..., keys=energy_keys))`.
 
 ## Tight-binding dictionary utilities
 

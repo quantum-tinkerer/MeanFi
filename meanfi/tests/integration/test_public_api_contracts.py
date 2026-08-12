@@ -48,6 +48,8 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     model_params = inspect.signature(Model).parameters
     assert model_params["kT"].kind is inspect.Parameter.KEYWORD_ONLY
     assert model_params["kT"].default == 0.0
+    assert model_params["reference"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert model_params["reference"].default is None
     assert (
         model_params["reference_density_matrix"].kind is inspect.Parameter.KEYWORD_ONLY
     )
@@ -85,6 +87,13 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_params["filling_tol"].default is None
     assert density_params["mu_tol"].default == 1e-10
     assert density_params["max_charge_evaluations"].default is None
+
+    selected_density_params = inspect.signature(density_matrix).parameters
+    for name in ("coordinates", "interaction", "spatial_symmetries"):
+        assert selected_density_params[name].kind is inspect.Parameter.KEYWORD_ONLY
+    assert selected_density_params["keys"].default is None
+    assert selected_density_params["coordinates"].default is None
+    assert selected_density_params["interaction"].default is None
 
     density_at_mu_params = inspect.signature(density_matrix_at_mu).parameters
     assert density_at_mu_params["kT"].default == 0.0
@@ -204,7 +213,8 @@ def test_density_result_has_only_physical_values_and_achieved_errors():
 
     assert isinstance(result, DensityResult)
     assert tuple(result.__dataclass_fields__) == (
-        "density_matrix",
+        "coordinates",
+        "values",
         "mu",
         "filling",
         "errors",
@@ -247,6 +257,14 @@ def test_model_rejects_invalid_reference_density_matrix_shape():
     kwargs["reference_density_matrix"] = {(0,): np.zeros((3, 3))}
 
     with pytest.raises(ValueError, match="reference_density_matrix matrices"):
+        Model(**kwargs)
+
+
+def test_model_reference_requires_a_density_result():
+    kwargs = _base_model_kwargs()
+    kwargs["reference"] = {(0,): np.eye(2)}
+
+    with pytest.raises(TypeError, match="DensityResult"):
         Model(**kwargs)
 
 

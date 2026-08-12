@@ -109,8 +109,9 @@ def solve_density_matrix_fixed_filling(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float = 0.0,
+    density_coordinates: DensityCoordinates | None = None,
 ) -> DensityResult:
-    """Return a complete public density matrix at fixed filling."""
+    """Return a public density at fixed filling."""
 
     problem = build_normal_problem(
         hamiltonian,
@@ -118,6 +119,7 @@ def solve_density_matrix_fixed_filling(
         keys=keys,
         integration=integration,
         tolerances=tolerances,
+        density_coordinates=density_coordinates,
     )
     plan = build_plan(problem)
     evaluation = evaluate_fixed_filling(
@@ -129,7 +131,12 @@ def solve_density_matrix_fixed_filling(
         max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
     )
-    return wrap_density_evaluation(problem, plan, evaluation)
+    return wrap_density_evaluation(
+        problem,
+        plan,
+        evaluation,
+        preserve_layout=density_coordinates is not None,
+    )
 
 
 __all__ = [

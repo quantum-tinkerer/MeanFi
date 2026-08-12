@@ -70,14 +70,19 @@ def build_normal_problem(
     )
     validate_integration_method(selected_integration, kT=kT)
     requested_keys, working_keys, _local_key = prepare_keys(hamiltonian, keys)
+    orbital_count = tb_orbital_count(hamiltonian)
     resolved_coordinates = (
         density_coordinates
         if density_coordinates is not None
         else full_density_coordinates(
             working_keys,
-            size=tb_orbital_count(hamiltonian),
+            size=orbital_count,
         )
     )
+    if resolved_coordinates.size != orbital_count:
+        raise ValueError(
+            "density coordinate matrix size must match the Hamiltonian shape"
+        )
     return DensityProblem(
         family="normal",
         hamiltonian=hamiltonian,

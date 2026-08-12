@@ -85,7 +85,19 @@ The default solver path uses Anderson mixing with conservative settings.
 
 ## Output
 
-Once the fixed point converges, `MeanFi` returns the physical mean-field correction as `result.mean_field`; the chemical potential remains separate as `result.mu`. The final filling, total energy when supported by the integration backend, achieved errors, compact accepted-iteration history, and convergence flag are direct fields of `SCFResult`.
+Once the fixed point converges, `MeanFi` returns two useful state views: the
+layout-aware final `result.density` and the physical interaction correction
+`result.mean_field`. It does not store a redundant effective Hamiltonian. The
+chemical potential and filling remain available as `result.mu` and
+`result.filling`, backed by the final density result. Total energy when
+supported by the integration backend, achieved errors, compact
+accepted-iteration history, and the convergence flag are direct fields of
+`SCFResult`.
+
+The SCF density uses the same selected coordinates that drove the solve, so it
+does not trigger a second full-matrix integration. It can be passed directly as
+`Model(..., reference=result.density)` when the new model has a compatible
+interaction layout.
 
 `result.history` contains one `SCFIteration` per accepted residual evaluation. Each record contains only its step, chemical potential, filling, total energy, and unified `ErrorValues`. The SCF residual is the maximum absolute residual component. Passing `verbose=True` prints these same physical values while the solve runs.
 
