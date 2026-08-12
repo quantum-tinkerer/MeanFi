@@ -17,7 +17,7 @@ class AdaptiveSimplex(IntegrationMethod):
 
     density_matrix_tol: float | None = None
     max_refinements: int | None = None
-    num_threads: int | None = None
+    num_threads: int | None = 1
     charge_tol: float | None = None
 
     def __post_init__(self) -> None:

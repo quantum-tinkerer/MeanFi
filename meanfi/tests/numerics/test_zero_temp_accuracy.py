@@ -213,6 +213,10 @@ def test_adaptive_simplex_rejects_negative_max_refinements():
         AdaptiveSimplex(max_refinements=-1)
 
 
+def test_adaptive_simplex_defaults_to_one_thread():
+    assert AdaptiveSimplex().num_threads == 1
+
+
 def test_adaptive_simplex_rejects_nonpositive_num_threads():
     with pytest.raises(ValueError, match="num_threads must be positive"):
         AdaptiveSimplex(num_threads=0)

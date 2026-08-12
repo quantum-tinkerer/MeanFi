@@ -69,6 +69,8 @@ This method is specialized but efficient when the zero-temperature integrand is 
 MeanFi uses the density preview depth of `1` when calling the
 `FermiSimplex` backend. `num_threads` requests the OpenMP thread limit for the
 native integration call, which is useful in notebooks and task workers where setting
-environment variables before process startup is inconvenient.
+environment variables before process startup is inconvenient. It defaults to `1` to
+avoid unexpectedly oversubscribing worker processes. Pass `num_threads=None` to leave
+the backend thread count unrestricted, or set an explicit larger value when desired.
 
 It requires `kT = 0` and is the default normal-state integration family at zero temperature.
