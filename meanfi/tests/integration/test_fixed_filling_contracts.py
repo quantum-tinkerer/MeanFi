@@ -164,7 +164,7 @@ def test_explicit_density_tolerance_does_not_redefine_other_error_budgets(monkey
         integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
     )
 
-    assert captured["charge_tol"] == pytest.approx(1e-5)
+    assert captured["charge_tol"] == pytest.approx(2e-4)
     assert captured["filling_tol"] == pytest.approx(1e-4)
 
 

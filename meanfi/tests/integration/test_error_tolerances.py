@@ -27,9 +27,9 @@ def test_default_solver_tolerances_define_the_public_error_hierarchy():
 
     assert tolerances == ErrorTolerances(
         scf_residual=1e-3,
-        density_matrix_integration=1e-4,
+        density_matrix_integration=2e-4,
         filling_residual=1e-4,
-        charge_integration=1e-5,
+        charge_integration=2e-4,
     )
     with pytest.raises(FrozenInstanceError):
         tolerances.scf_residual = 1e-2

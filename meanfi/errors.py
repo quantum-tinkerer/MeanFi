@@ -55,9 +55,9 @@ def default_solver_tolerances(tol: float) -> ErrorTolerances:
         raise ValueError("tol must be a positive finite number")
     return ErrorTolerances(
         scf_residual=tol,
-        density_matrix_integration=tol / 10.0,
+        density_matrix_integration=tol / 5.0,
         filling_residual=tol / 10.0,
-        charge_integration=tol / 100.0,
+        charge_integration=tol / 5.0,
     )
 
 

@@ -172,7 +172,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     )
 
     assert called["kwargs"]["density_atol"] == 1e-4
-    assert called["kwargs"]["charge_tol"] == 1e-5
+    assert called["kwargs"]["charge_tol"] == 2e-4
     assert called["kwargs"]["filling_tol"] == 2e-3
     assert called["kwargs"]["num_threads"] == 3
     assert np.allclose(result.density_matrix[(0,)], np.array([[1.0]]))

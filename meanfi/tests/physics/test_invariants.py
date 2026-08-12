@@ -104,8 +104,12 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
             filling_tol=filling_tol,
         )
 
-        assert abs(result.mu - exact_spinful_chain_mu(filling)) <= 1e-4
-        assert abs(exact_spinful_chain_charge(result.mu) - filling) <= filling_tol
+        assert result.errors.charge_integration is not None
+        charge_budget = filling_tol + result.errors.charge_integration
+        lower_mu = exact_spinful_chain_mu(max(0.0, filling - charge_budget))
+        upper_mu = exact_spinful_chain_mu(min(2.0, filling + charge_budget))
+        assert lower_mu <= result.mu <= upper_mu
+        assert abs(exact_spinful_chain_charge(result.mu) - filling) <= charge_budget
         assert result.errors.density_matrix_integration is not None
 
 

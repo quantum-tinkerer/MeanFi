@@ -136,7 +136,7 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
     assert tolerances.scf_residual == pytest.approx(1e-3)
     assert tolerances.density_matrix_integration == pytest.approx(5.4e-4)
     assert tolerances.filling_residual == pytest.approx(1e-4)
-    assert tolerances.charge_integration == pytest.approx(1e-5)
+    assert tolerances.charge_integration == pytest.approx(2e-4)
 
 
 @pytest.mark.parametrize(
