@@ -1,0 +1,2098 @@
+{
+  "schema_version": 1,
+  "manifests": [
+    "manifest.json",
+    "optimizations.json",
+    "lean-manifest.json",
+    "targets-manifest.json",
+    "wire-manifest.json",
+    "extended-manifest.json",
+    "repeat-manifest.json",
+    "limits-control-manifest.json",
+    "cold-adaptive-followup.json",
+    "wire-repeats.json"
+  ],
+  "contract": {
+    "density": "max absolute selected complex entry",
+    "filling": "absolute particles per supercell",
+    "root_residual": "tolerance/4",
+    "charge_integration": "tolerance/4",
+    "threads": 1,
+    "timing": "imports/model construction/reference generation excluded; all quadrature and mu work included",
+    "references": "at least two independent shifted non-dyadic grids with change < tolerance/10"
+  },
+  "jobs": [
+    {
+      "stage": "controls",
+      "model": "chain1",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "chain1",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "chain1",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "chain1",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "square1",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "square1",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "square1",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "square1",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "pocket1",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "pocket1",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "pocket1",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "pocket1",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "alias1",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "alias1",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "alias1",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "controls",
+      "model": "alias1",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "chain48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "chain48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "chain48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "square48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "square48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "square48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "vanhove48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "vanhove48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "vanhove48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "vanhove48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "anisotropic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "anisotropic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "anisotropic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "anisotropic48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "gapped48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "gapped48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "gapped48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "cubic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "cubic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "cubic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "cubic48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_chain48",
+      "method": "gm-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_chain48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_chain48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_nodal48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_nodal48",
+      "method": "gm-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_nodal48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_nodal48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_gapped48",
+      "method": "gm-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_gapped48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "baseline",
+      "model": "bdg_gapped48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "square48",
+      "method": "gm",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "square48",
+      "method": "gk21",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "square48",
+      "method": "gm-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "square48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "square48",
+      "method": "gm-fresh",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "square48",
+      "method": "gk21-fresh",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "anisotropic48",
+      "method": "gm",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "anisotropic48",
+      "method": "gk21",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "anisotropic48",
+      "method": "gm-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "anisotropic48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "anisotropic48",
+      "method": "gm-fresh",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "anisotropic48",
+      "method": "gk21-fresh",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "bdg_nodal48",
+      "method": "gm",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "bdg_nodal48",
+      "method": "gk21",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "bdg_nodal48",
+      "method": "gm-fresh",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "bdg_nodal48",
+      "method": "gk21-fresh",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "chain48",
+      "method": "periodic",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "chain48",
+      "method": "gm-derivative",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "chain48",
+      "method": "gk21-derivative",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "chain48",
+      "method": "periodic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "chain48",
+      "method": "gm-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "chain48",
+      "method": "gk21-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "square48",
+      "method": "gm-derivative",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "square48",
+      "method": "gk21-derivative",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "square48",
+      "method": "gm-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "square48",
+      "method": "gk21-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "anisotropic48",
+      "method": "periodic",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "anisotropic48",
+      "method": "gm-derivative",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "anisotropic48",
+      "method": "gk21-derivative",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "anisotropic48",
+      "method": "periodic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "anisotropic48",
+      "method": "gm-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "anisotropic48",
+      "method": "gk21-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "bdg_nodal48",
+      "method": "periodic",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "bdg_nodal48",
+      "method": "gm-charge-only",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "bdg_nodal48",
+      "method": "gk21-charge-only",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "bdg_nodal48",
+      "method": "periodic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "bdg_nodal48",
+      "method": "gm-charge-only",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "temperature",
+      "model": "bdg_nodal48",
+      "method": "gk21-charge-only",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "square48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "square48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "square48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "square48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "anisotropic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "anisotropic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "anisotropic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "anisotropic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "anisotropic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "anisotropic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "cubic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "cubic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "cubic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "cubic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "cubic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "cubic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "bdg_gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "bdg_gapped48",
+      "method": "gm-charge-only",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "bdg_gapped48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "bdg_gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "bdg_gapped48",
+      "method": "gm-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "tolerance",
+      "model": "bdg_gapped48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "square1",
+      "method": "periodic",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "square1",
+      "method": "gm-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "square1",
+      "method": "gk21-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "square1",
+      "method": "gauss",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "pocket1",
+      "method": "periodic",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "pocket1",
+      "method": "gm-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "pocket1",
+      "method": "gk21-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "pocket1",
+      "method": "gauss",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "alias1",
+      "method": "periodic",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "alias1",
+      "method": "gm-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "alias1",
+      "method": "gk21-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-controls",
+      "model": "alias1",
+      "method": "gauss",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "zero-temperature-context",
+      "model": "chain48",
+      "method": "fermi",
+      "temperature": 0.0,
+      "tolerance": 0.0001,
+      "timeout_s": 90,
+      "max_refinements": 100000
+    },
+    {
+      "stage": "zero-temperature-context",
+      "model": "square48",
+      "method": "fermi",
+      "temperature": 0.0,
+      "tolerance": 0.0001,
+      "timeout_s": 90,
+      "max_refinements": 100000
+    },
+    {
+      "stage": "zero-temperature-context",
+      "model": "anisotropic48",
+      "method": "fermi",
+      "temperature": 0.0,
+      "tolerance": 0.0001,
+      "timeout_s": 90,
+      "max_refinements": 100000
+    },
+    {
+      "stage": "optimizations",
+      "model": "bdg_nodal48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "optimizations",
+      "model": "bdg_nodal48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "anisotropic-refinement",
+      "model": "anisotropic48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_refinements": 30
+    },
+    {
+      "stage": "anisotropic-refinement",
+      "model": "anisotropic48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 120,
+      "max_refinements": 30
+    },
+    {
+      "stage": "anisotropic-refinement",
+      "model": "anisotropic48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 120,
+      "max_refinements": 30
+    },
+    {
+      "stage": "anisotropic-refinement",
+      "model": "square48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_refinements": 30
+    },
+    {
+      "stage": "anisotropic-refinement",
+      "model": "cubic48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 180,
+      "max_refinements": 30
+    },
+    {
+      "stage": "anisotropic-refinement",
+      "model": "bdg_nodal48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 120,
+      "max_refinements": 30
+    },
+    {
+      "stage": "bounded-gauss",
+      "model": "cubic48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 240
+    },
+    {
+      "stage": "bounded-gauss",
+      "model": "square48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "gauss-temperature",
+      "model": "square48",
+      "method": "gauss-bounded",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 120
+    },
+    {
+      "stage": "gauss-temperature",
+      "model": "square48",
+      "method": "gauss-bounded",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "gauss-tolerance",
+      "model": "square48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "gauss-tolerance",
+      "model": "square48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 120
+    },
+    {
+      "stage": "bounded-gauss",
+      "model": "anisotropic48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "gauss-temperature",
+      "model": "anisotropic48",
+      "method": "gauss-bounded",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 120
+    },
+    {
+      "stage": "gauss-temperature",
+      "model": "anisotropic48",
+      "method": "gauss-bounded",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "gauss-tolerance",
+      "model": "anisotropic48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "gauss-tolerance",
+      "model": "anisotropic48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-07,
+      "timeout_s": 120
+    },
+    {
+      "stage": "initial-grid",
+      "model": "gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "initial_order": 2,
+      "repeat": "nk2"
+    },
+    {
+      "stage": "initial-grid",
+      "model": "gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "initial_order": 4,
+      "repeat": "nk4"
+    },
+    {
+      "stage": "initial-grid",
+      "model": "chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "initial_order": 2,
+      "repeat": "nk2"
+    },
+    {
+      "stage": "initial-grid",
+      "model": "chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "initial_order": 4,
+      "repeat": "nk4"
+    },
+    {
+      "stage": "alias-guard",
+      "model": "alias1",
+      "method": "periodic-unvalidated",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "alias-guard",
+      "model": "alias1",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 8192,
+      "repeat": "max8192"
+    },
+    {
+      "stage": "cache-policy",
+      "model": "cubic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 240,
+      "cache_mib": 512,
+      "repeat": "cache512-pair"
+    },
+    {
+      "stage": "cache-policy",
+      "model": "cubic48",
+      "method": "periodic-eigenvalue-priority",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 240,
+      "cache_mib": 512,
+      "repeat": "cache512-pair"
+    },
+    {
+      "stage": "cache-policy",
+      "model": "cubic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 120,
+      "cache_mib": 128,
+      "repeat": "cache128-pair"
+    },
+    {
+      "stage": "cache-policy",
+      "model": "cubic48",
+      "method": "periodic-eigenvalue-priority",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 120,
+      "cache_mib": 128,
+      "repeat": "cache128-pair"
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "square48",
+      "method": "gm-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "square48",
+      "method": "gk21-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "anisotropic48",
+      "method": "gm-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "anisotropic48",
+      "method": "gk21-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "cubic48",
+      "method": "gm-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 180
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "cubic48",
+      "method": "gk21-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 180
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "bdg_nodal48",
+      "method": "gm-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 120
+    },
+    {
+      "stage": "lean-adaptive",
+      "model": "bdg_nodal48",
+      "method": "gk21-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 120
+    },
+    {
+      "stage": "lean-cold",
+      "model": "anisotropic48",
+      "method": "gm-lean",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 120
+    },
+    {
+      "stage": "lean-cold",
+      "model": "anisotropic48",
+      "method": "gk21-lean",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 120
+    },
+    {
+      "stage": "cold-cache-policy",
+      "model": "anisotropic48",
+      "method": "periodic-eigenvalue-priority",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 120,
+      "cache_mib": 512
+    },
+    {
+      "stage": "lean-cubic-loose",
+      "model": "cubic48",
+      "method": "gm-lean",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 120
+    },
+    {
+      "stage": "lean-cubic-loose",
+      "model": "cubic48",
+      "method": "gk21-lean",
+      "temperature": 0.05,
+      "tolerance": 0.001,
+      "timeout_s": 120
+    },
+    {
+      "stage": "independent-filling-target",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "filling_target": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "independent-filling-target",
+      "model": "square48",
+      "method": "gk21-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "filling_target": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "independent-filling-target",
+      "model": "square48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "filling_target": 0.001,
+      "timeout_s": 90
+    },
+    {
+      "stage": "independent-filling-target",
+      "model": "cubic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "filling_target": 0.001,
+      "timeout_s": 120
+    },
+    {
+      "stage": "independent-filling-target",
+      "model": "cubic48",
+      "method": "gk21-lean",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "filling_target": 0.001,
+      "timeout_s": 120
+    },
+    {
+      "stage": "independent-filling-target",
+      "model": "cubic48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "filling_target": 0.001,
+      "timeout_s": 120
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "periodic",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "gk21-derivative",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "gauss-bounded",
+      "temperature": 0.2,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "periodic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "gk21-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "multichannel-wire",
+      "model": "wire48",
+      "method": "gauss-bounded",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096
+    },
+    {
+      "stage": "cold-bdg-extended",
+      "model": "bdg_nodal48",
+      "method": "periodic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 240,
+      "repeat": "extended"
+    },
+    {
+      "stage": "cold-bdg-extended",
+      "model": "bdg_nodal48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 240,
+      "repeat": "extended",
+      "max_refinements": 30
+    },
+    {
+      "stage": "cold-bdg-extended",
+      "model": "bdg_nodal48",
+      "method": "gauss-bounded",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 240,
+      "repeat": "extended"
+    },
+    {
+      "stage": "repeatability",
+      "model": "chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "chain48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "chain48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "chain48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "chain48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "bdg_chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "bdg_chain48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "bdg_chain48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "bdg_chain48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "bdg_chain48",
+      "method": "gk21-charge-only",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "bdg_chain48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "gapped48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2,
+      "max_refinements": 30
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "gauss",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "square48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3,
+      "max_refinements": 30
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2,
+      "max_refinements": 30
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 2
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "periodic-anisotropic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3,
+      "max_refinements": 30
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "gm-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "repeatability",
+      "model": "anisotropic48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "repeat": 3
+    },
+    {
+      "stage": "extended-point-limits",
+      "model": "square1",
+      "method": "periodic",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "max_order": 4096,
+      "max_points": 16777216,
+      "repeat": "extended-points",
+      "timeout_s": 90
+    },
+    {
+      "stage": "extended-point-limits",
+      "model": "square1",
+      "method": "gauss-bounded",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "max_order": 4096,
+      "max_points": 16777216,
+      "repeat": "extended-points",
+      "timeout_s": 90
+    },
+    {
+      "stage": "extended-refinement-limits",
+      "model": "square1",
+      "method": "gm-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "max_refinements": 32768,
+      "repeat": "extended-refinements",
+      "timeout_s": 90
+    },
+    {
+      "stage": "extended-point-limits",
+      "model": "pocket1",
+      "method": "periodic",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "max_order": 4096,
+      "max_points": 16777216,
+      "repeat": "extended-points",
+      "timeout_s": 90
+    },
+    {
+      "stage": "extended-point-limits",
+      "model": "pocket1",
+      "method": "gauss-bounded",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "max_order": 4096,
+      "max_points": 16777216,
+      "repeat": "extended-points",
+      "timeout_s": 90
+    },
+    {
+      "stage": "extended-refinement-limits",
+      "model": "pocket1",
+      "method": "gm-derivative",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "max_refinements": 32768,
+      "repeat": "extended-refinements",
+      "timeout_s": 90
+    },
+    {
+      "stage": "extended-point-limits",
+      "model": "alias1",
+      "method": "periodic",
+      "temperature": 0.002,
+      "tolerance": 1e-05,
+      "max_order": 65536,
+      "max_points": 262144,
+      "repeat": "extended-points",
+      "timeout_s": 90
+    },
+    {
+      "stage": "cold-adaptive-followup",
+      "model": "bdg_nodal48",
+      "method": "gm-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 240
+    },
+    {
+      "stage": "cold-adaptive-followup",
+      "model": "bdg_nodal48",
+      "method": "gk21-derivative",
+      "temperature": 0.01,
+      "tolerance": 1e-05,
+      "timeout_s": 240
+    },
+    {
+      "stage": "wire-timing-repeats",
+      "model": "wire48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096,
+      "repeat": 2
+    },
+    {
+      "stage": "wire-timing-repeats",
+      "model": "wire48",
+      "method": "periodic",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096,
+      "repeat": 3
+    },
+    {
+      "stage": "wire-timing-repeats",
+      "model": "wire48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096,
+      "repeat": 2
+    },
+    {
+      "stage": "wire-timing-repeats",
+      "model": "wire48",
+      "method": "gk21-derivative",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096,
+      "repeat": 3
+    },
+    {
+      "stage": "wire-timing-repeats",
+      "model": "wire48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096,
+      "repeat": 2
+    },
+    {
+      "stage": "wire-timing-repeats",
+      "model": "wire48",
+      "method": "gauss-bounded",
+      "temperature": 0.05,
+      "tolerance": 1e-05,
+      "timeout_s": 90,
+      "max_order": 4096,
+      "repeat": 3
+    }
+  ]
+}

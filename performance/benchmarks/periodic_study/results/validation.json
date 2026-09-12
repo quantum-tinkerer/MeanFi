@@ -1,0 +1,11 @@
+{
+  "pytest_passed": 283,
+  "pytest_deselected": 40,
+  "pytest_seconds": 11.49,
+  "pytest_random_seed": 1418081851,
+  "pytest_command": "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_DYNAMIC=FALSE MKL_NUM_THREADS=1 .pixi/envs/mid/bin/python -m pytest -m 'not performance and not perf_slow' -W error -W ignore:ast.NameConstant:DeprecationWarning",
+  "docs_status": "passed",
+  "docs_command": "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .pixi/envs/docs/bin/python -m sphinx -WT --keep-going -n -b html -D nb_execution_mode=off docs/source build/periodic-study/docs",
+  "docs_note": "Global notebook execution off; strained_graphene file metadata overrides to auto and executed successfully.",
+  "reference_crosschecks": "20passed; maxrho5.56e-16"
+}

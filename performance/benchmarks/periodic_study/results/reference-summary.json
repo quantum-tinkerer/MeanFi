@@ -1,0 +1,793 @@
+{
+  "schema_version": 1,
+  "manifest": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/all-manifest.json",
+  "runs_dir": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/runs",
+  "pairs": [
+    {
+      "model": "chain1",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 1.3324240499850199e-14,
+      "charge_change": 5.773159728050814e-15,
+      "candidate_mu_count": 5,
+      "candidate_mus": [
+        -0.4495314900705478,
+        -0.44953127553449373,
+        -0.4495312752984663,
+        -0.44953127529841663,
+        -0.44951207252762315
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain1-T0.05-n513.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain1-T0.05-n1025.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain1-T0.05-n1025.json",
+      "best_n_points": 1025
+    },
+    {
+      "model": "square1",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 3.4239351083932293e-12,
+      "charge_change": 3.0253577421035516e-14,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        -0.2265042653960712,
+        -0.22650417387090752,
+        -0.2265041626247755,
+        -0.22650416086201589,
+        -0.2265041608618856,
+        -0.22650200083904373
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square1-T0.05-n257.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square1-T0.05-n513.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square1-T0.05-n513.json",
+      "best_n_points": 263169
+    },
+    {
+      "model": "pocket1",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 1.3877787807814457e-17,
+      "charge_change": 1.734723475976807e-17,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        0.10110768565482516,
+        0.10111243912058832,
+        0.10111253762079854,
+        0.10111253762079866,
+        0.10111255524511109,
+        0.10111574046371652
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/pocket1-T0.05-n257.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/pocket1-T0.05-n513.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/pocket1-T0.05-n513.json",
+      "best_n_points": 263169
+    },
+    {
+      "model": "alias1",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 2.080150526487336e-16,
+      "charge_change": 5.551115123125783e-17,
+      "candidate_mu_count": 5,
+      "candidate_mus": [
+        -0.24513290035387286,
+        -0.24513290029029003,
+        -0.24513290029028995,
+        -0.2451269687766297,
+        1.1233888652996569
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/alias1-T0.05-n513.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/alias1-T0.05-n1025.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/alias1-T0.05-n1025.json",
+      "best_n_points": 1025
+    },
+    {
+      "model": "chain48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 12,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 3.8860963328261607e-16,
+      "charge_change": 3.552713678800501e-15,
+      "candidate_mu_count": 7,
+      "candidate_mus": [
+        -0.48792600000990854,
+        -0.48792599373890616,
+        -0.4879259789805817,
+        -0.4879259785031949,
+        -0.4879259785031947,
+        -0.48792597849070146,
+        -0.4879259784907013
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.05-n129.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.05-n257.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.05-n257.json",
+      "best_n_points": 257
+    },
+    {
+      "model": "square48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-07,
+      "reference_threshold": 1e-08,
+      "successful_candidate_count": 35,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 4.440892254438494e-16,
+      "charge_change": 7.105427357601002e-15,
+      "candidate_mu_count": 20,
+      "candidate_mus": [
+        -0.2843324180737479,
+        -0.28433241807374776,
+        -0.284332089527162,
+        -0.284317940354532,
+        -0.28431794033684055,
+        -0.2843179402189942,
+        -0.2843179402189935,
+        -0.28431794021899326,
+        -0.2843179402189932,
+        -0.28431794021879675,
+        -0.28431794021827317,
+        -0.28431794020405354,
+        -0.28431794020402645,
+        -0.2843179402040263,
+        -0.28431793985633774,
+        -0.28431793980040193,
+        -0.28431793980040143,
+        -0.2843179397086947,
+        -0.28431793289400153,
+        -0.2843160890737662
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.05-n65.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.05-n129.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.05-n129.json",
+      "best_n_points": 16641
+    },
+    {
+      "model": "vanhove48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 3.330669252380062e-16,
+      "charge_change": 3.552713678800501e-15,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        -0.016766509696199073,
+        -0.016766505377033634,
+        -0.01676650537653951,
+        -0.016766505376539207,
+        -0.016766505319809086,
+        -0.016766505255423458
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/vanhove48-T0.05-n65.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/vanhove48-T0.05-n129.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/vanhove48-T0.05-n129.json",
+      "best_n_points": 16641
+    },
+    {
+      "model": "anisotropic48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-07,
+      "reference_threshold": 1e-08,
+      "successful_candidate_count": 31,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 6.084713528791088e-16,
+      "charge_change": 1.0658141036401503e-14,
+      "candidate_mu_count": 22,
+      "candidate_mus": [
+        -0.4206689247716313,
+        -0.4206689247676161,
+        -0.4206689247676153,
+        -0.4206689148003192,
+        -0.4206689147994113,
+        -0.42066891479884727,
+        -0.4206689147987176,
+        -0.4206689147987172,
+        -0.42066891479870444,
+        -0.42066891479870416,
+        -0.4206689145024163,
+        -0.4206689145024156,
+        -0.42066891450172483,
+        -0.4206689145017247,
+        -0.4206689145017203,
+        -0.4206689145017191,
+        -0.42066891372705834,
+        -0.4206689137270564,
+        -0.42066880918080696,
+        -0.4206688082283862,
+        -0.4206686762297721,
+        -0.42066842891998996
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.05-n65.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.05-n129.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.05-n129.json",
+      "best_n_points": 16641
+    },
+    {
+      "model": "gapped48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 14,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 3.330669260497549e-16,
+      "charge_change": 0.0,
+      "candidate_mu_count": 2,
+      "candidate_mus": [
+        -1.7763568394002505e-15,
+        0.0
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/gapped48-T0.05-n65.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/gapped48-T0.05-n129.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/gapped48-T0.05-n129.json",
+      "best_n_points": 16641
+    },
+    {
+      "model": "cubic48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-07,
+      "reference_threshold": 1e-08,
+      "successful_candidate_count": 2,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 1.685609699093786e-11,
+      "charge_change": 3.766480460853927e-10,
+      "candidate_mu_count": 4,
+      "candidate_mus": [
+        -0.3975318100816275,
+        -0.39751004179676397,
+        -0.3975099576851155,
+        -0.3975099576417589
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/cubic48-T0.05-n65.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/cubic48-T0.05-n81.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/cubic48-T0.05-n81.json",
+      "best_n_points": 531441
+    },
+    {
+      "model": "bdg_chain48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 10,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 1.1102230246251565e-16,
+      "charge_change": 7.105427357601002e-15,
+      "candidate_mu_count": 5,
+      "candidate_mus": [
+        -0.45036013799653807,
+        -0.4503601379965374,
+        -0.4503601060056566,
+        -0.45036010600565624,
+        -0.45036010600565496
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_chain48-T0.05-primitive-n1025.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_chain48-T0.05-primitive-n2049.json"
+      ],
+      "reference_backend": "primitive",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_chain48-T0.05-primitive-n2049.json",
+      "best_n_points": 2049
+    },
+    {
+      "model": "bdg_nodal48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 11,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 1.131409202063331e-16,
+      "charge_change": 1.0658141036401503e-14,
+      "candidate_mu_count": 10,
+      "candidate_mus": [
+        -0.28606710785083733,
+        -0.2860671078489552,
+        -0.2860670846544068,
+        -0.2860670676451198,
+        -0.2860670674716935,
+        -0.28606706747169264,
+        -0.28606706747162064,
+        -0.2860670674716172,
+        -0.2860670674414347,
+        -0.2860669057200556
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.05-primitive-n257.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.05-primitive-n513.json"
+      ],
+      "reference_backend": "primitive",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.05-primitive-n513.json",
+      "best_n_points": 263169
+    },
+    {
+      "model": "bdg_gapped48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-07,
+      "reference_threshold": 1e-08,
+      "successful_candidate_count": 9,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 8.503766239064246e-17,
+      "charge_change": 1.0658141036401503e-14,
+      "candidate_mu_count": 11,
+      "candidate_mus": [
+        -0.7206123905316754,
+        -0.7206121123092147,
+        -0.7206120405197181,
+        -0.7205949370626303,
+        -0.7205949369679449,
+        -0.7205949311769818,
+        -0.7205949311769814,
+        -0.7205949311769813,
+        -0.7205949311746452,
+        -0.7205949311746426,
+        -0.7205948964303691
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_gapped48-T0.05-primitive-n257.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_gapped48-T0.05-primitive-n513.json"
+      ],
+      "reference_backend": "primitive",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_gapped48-T0.05-primitive-n513.json",
+      "best_n_points": 263169
+    },
+    {
+      "model": "chain48",
+      "temperature": 0.2,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 3,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 6.661338950546739e-16,
+      "charge_change": 3.552713678800501e-15,
+      "candidate_mu_count": 4,
+      "candidate_mus": [
+        -0.4697276701335584,
+        -0.46972767013355793,
+        -0.46972766757852336,
+        -0.4697276675785231
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.2-n129.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.2-n257.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.2-n257.json",
+      "best_n_points": 257
+    },
+    {
+      "model": "chain48",
+      "temperature": 0.01,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 3,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 6.661338290942727e-16,
+      "charge_change": 3.552713678800501e-15,
+      "candidate_mu_count": 4,
+      "candidate_mus": [
+        -0.5067829425240854,
+        -0.5067829424695542,
+        -0.5067829424590395,
+        -0.5067829424590393
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.01-n129.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.01-n257.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/chain48-T0.01-n257.json",
+      "best_n_points": 257
+    },
+    {
+      "model": "square48",
+      "temperature": 0.2,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 2.2204462783717213e-16,
+      "charge_change": 3.552713678800501e-15,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        -0.29435774259778796,
+        -0.2943577425951373,
+        -0.294357742595025,
+        -0.2943577425950249,
+        -0.2943577425742862,
+        -0.2943577405621075
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.2-n65.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.2-n129.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.2-n129.json",
+      "best_n_points": 16641
+    },
+    {
+      "model": "square48",
+      "temperature": 0.01,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 2.487782589231027e-11,
+      "charge_change": 4.083808846644388e-10,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        -0.2839062769798199,
+        -0.28390627089427056,
+        -0.2839062708933691,
+        -0.2839062708760897,
+        -0.28390627086041365,
+        -0.2839062476385947
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.01-n129.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.01-n257.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square48-T0.01-n257.json",
+      "best_n_points": 66049
+    },
+    {
+      "model": "anisotropic48",
+      "temperature": 0.2,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 3.885780608999734e-16,
+      "charge_change": 3.552713678800501e-15,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        -0.4119068458885206,
+        -0.4119068179829835,
+        -0.411906817907393,
+        -0.41190681790702693,
+        -0.41190681790702655,
+        -0.41190681790131334
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.2-n65.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.2-n129.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.2-n129.json",
+      "best_n_points": 16641
+    },
+    {
+      "model": "anisotropic48",
+      "temperature": 0.01,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 6,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 1.3369290586297618e-08,
+      "charge_change": 3.6909731804257717e-07,
+      "candidate_mu_count": 7,
+      "candidate_mus": [
+        -0.42110849621026436,
+        -0.4211084958812177,
+        -0.4211084958812156,
+        -0.42110846353619097,
+        -0.42110842938126364,
+        -0.4211084293812389,
+        -0.42110841728259246
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.01-n129.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.01-n257.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/anisotropic48-T0.01-n257.json",
+      "best_n_points": 66049
+    },
+    {
+      "model": "bdg_nodal48",
+      "temperature": 0.2,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 3,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 1.136732320758903e-16,
+      "charge_change": 7.105427357601002e-15,
+      "candidate_mu_count": 5,
+      "candidate_mus": [
+        -0.3215444727802858,
+        -0.32154447277745496,
+        -0.32154447277328624,
+        -0.3215443851069268,
+        -0.3215443851069259
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.2-primitive-n257.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.2-primitive-n513.json"
+      ],
+      "reference_backend": "primitive",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.2-primitive-n513.json",
+      "best_n_points": 263169
+    },
+    {
+      "model": "bdg_nodal48",
+      "temperature": 0.01,
+      "target_tolerance": 1e-10,
+      "reference_threshold": 1.0000000000000001e-11,
+      "successful_candidate_count": 5,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 4.440892098500626e-16,
+      "charge_change": 7.105427357601002e-15,
+      "candidate_mu_count": 7,
+      "candidate_mus": [
+        -0.2849125771259146,
+        -0.28491257293503736,
+        -0.2849125728120577,
+        -0.2849125728120576,
+        -0.28491257280738935,
+        -0.28491257264266784,
+        -0.2849125638429959
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.01-primitive-n1025.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.01-primitive-n2049.json"
+      ],
+      "reference_backend": "primitive",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/bdg_nodal48-T0.01-primitive-n2049.json",
+      "best_n_points": 4198401
+    },
+    {
+      "model": "square1",
+      "temperature": 0.002,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 4,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 5.3936573800601276e-08,
+      "charge_change": 4.3466715504703046e-08,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        -0.23184268077864656,
+        -0.23183750373404943,
+        -0.23183736259090468,
+        -0.23183736124394486,
+        -0.23183731593545362,
+        -0.23182810194065837
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square1-T0.002-n2049.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square1-T0.002-n4097.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/square1-T0.002-n4097.json",
+      "best_n_points": 16785409
+    },
+    {
+      "model": "pocket1",
+      "temperature": 0.002,
+      "target_tolerance": 1e-10,
+      "reference_threshold": 1.0000000000000001e-11,
+      "successful_candidate_count": 4,
+      "attempts": [
+        {
+          "file": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/pocket1-T0.002-n2049.json",
+          "status": "success"
+        }
+      ],
+      "qualified": true,
+      "density_change": 1.5911955813889488e-12,
+      "charge_change": 1.7356081849495553e-13,
+      "candidate_mu_count": 6,
+      "candidate_mus": [
+        0.11467467928701157,
+        0.11468814153584113,
+        0.11468814153687613,
+        0.11468818782223439,
+        0.11468825240764614,
+        0.11469232098899332
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/pocket1-T0.002-n1025.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/pocket1-T0.002-n2049.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/pocket1-T0.002-n2049.json",
+      "best_n_points": 4198401
+    },
+    {
+      "model": "alias1",
+      "temperature": 0.002,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 3,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 2.2954156323331077e-09,
+      "charge_change": 2.7229645760407095e-09,
+      "candidate_mu_count": 4,
+      "candidate_mus": [
+        -0.24715177684077136,
+        -0.24714478805059886,
+        -0.2471447880000518,
+        -0.24714478014925376
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/alias1-T0.002-n2049.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/alias1-T0.002-n4097.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/alias1-T0.002-n4097.json",
+      "best_n_points": 4097
+    },
+    {
+      "model": "wire48",
+      "temperature": 0.2,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 3,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 6.106226635438361e-16,
+      "charge_change": 7.105427357601002e-15,
+      "candidate_mu_count": 5,
+      "candidate_mus": [
+        -0.40291460979413524,
+        -0.4029145788870881,
+        -0.4029145787300231,
+        -0.4029145787295265,
+        -0.40291457872952646
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.2-n129.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.2-n257.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.2-n257.json",
+      "best_n_points": 257
+    },
+    {
+      "model": "wire48",
+      "temperature": 0.05,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 3,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 3.8509705123107225e-11,
+      "charge_change": 3.3569591550985933e-10,
+      "candidate_mu_count": 5,
+      "candidate_mus": [
+        -0.416171589380796,
+        -0.41617157567849533,
+        -0.4161715756414246,
+        -0.4161715756396331,
+        -0.4161715755394688
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.05-n257.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.05-n513.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.05-n513.json",
+      "best_n_points": 513
+    },
+    {
+      "model": "wire48",
+      "temperature": 0.01,
+      "target_tolerance": 1e-05,
+      "reference_threshold": 1.0000000000000002e-06,
+      "successful_candidate_count": 3,
+      "attempts": [],
+      "qualified": true,
+      "density_change": 5.21344692631767e-10,
+      "charge_change": 1.576843544626172e-09,
+      "candidate_mu_count": 5,
+      "candidate_mus": [
+        -0.41715411707917577,
+        -0.4171541154923115,
+        -0.41715411531018215,
+        -0.4171541153090064,
+        -0.4171541079608285
+      ],
+      "reason": "empirically converged independent references",
+      "reference_files": [
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.01-n1025.json",
+        "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.01-n2049.json"
+      ],
+      "reference_backend": "direct",
+      "best_reference": "/home/tinkerer/.codex/worktrees/a93c/meanfi/build/periodic-study/references/wire48-T0.01-n2049.json",
+      "best_n_points": 2049
+    }
+  ],
+  "dry_run": false,
+  "caveat": "Empirical grid convergence; not a rigorous bound against all unresolved Fourier aliasing."
+}

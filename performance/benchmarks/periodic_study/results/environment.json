@@ -1,0 +1,34 @@
+{
+  "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+  "cpu": "Intel Xeon Gold 5418Y",
+  "python": "3.12.13",
+  "dependencies": {
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "stateful-quadrature": "0.2.1",
+    "meanfi": "0.0.dev0",
+    "FermiSimplex": "0.2.0"
+  },
+  "threadpools": [
+    {
+      "user_api": "blas",
+      "internal_api": "openblas",
+      "num_threads": 1,
+      "prefix": "libopenblas",
+      "filepath": "/home/tinkerer/.codex/worktrees/a93c/meanfi/.pixi/envs/mid/lib/libopenblasp-r0.3.33.so",
+      "version": "0.3.33",
+      "threading_layer": "openmp",
+      "architecture": "SapphireRapids"
+    },
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 1,
+      "prefix": "libomp",
+      "filepath": "/home/tinkerer/.codex/worktrees/a93c/meanfi/.pixi/envs/mid/lib/libomp.so",
+      "version": null
+    }
+  ],
+  "git_head": "d78208f0dfab546a6640d5e376cc0865ec7b2620",
+  "timing_notes": "Sequential subprocess jobs, one BLAS/OpenMP thread; no CPU affinity pinning; imports/model setup excluded from solve times"
+}

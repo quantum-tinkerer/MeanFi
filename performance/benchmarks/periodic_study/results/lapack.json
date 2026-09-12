@@ -1,0 +1,1038 @@
+[
+  {
+    "model": "chain48",
+    "matrix_size": 48,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.00019699856056831777,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.00019699856056831777,
+        "repeats_s": [
+          0.0001978913278435357,
+          0.00019673020142363384,
+          0.00019699856056831777
+        ],
+        "residual": 1.3659761797560687e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.00020061609393451363,
+        "repeats_s": [
+          0.00020089450117666274,
+          0.00019942720246035606,
+          0.00020061609393451363
+        ],
+        "residual": 1.3659761797560687e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.00022708527831127867,
+        "repeats_s": [
+          0.00022635781351709738,
+          0.00022744995658285916,
+          0.00022708527831127867
+        ],
+        "residual": 2.689699280247048e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.00046057749568717554,
+        "repeats_s": [
+          0.00046057749568717554,
+          0.0004608513554558158,
+          0.0004596045328071341
+        ],
+        "residual": 1.6480778773048872e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.00046324324648594484,
+        "repeats_s": [
+          0.00046324324648594484,
+          0.00047352137335110456,
+          0.00046281208051368594
+        ],
+        "residual": 1.6480778773048872e-15
+      }
+    ],
+    "eigenvalues_only_s": 9.622991638025269e-05,
+    "eigenvalues_only_drivers": {
+      "zheev": 9.763976413523778e-05,
+      "zheevd": 9.622991638025269e-05,
+      "zheevr": 9.667070116847754e-05,
+      "zheevx": 9.766074799699709e-05,
+      "numpy": 9.786676673684269e-05
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "square48",
+    "matrix_size": 48,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.00019637779769254848,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.00019637779769254848,
+        "repeats_s": [
+          0.00019686584710143507,
+          0.00019499000336509198,
+          0.00019637779769254848
+        ],
+        "residual": 1.5295469907040275e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.0002074755320791155,
+        "repeats_s": [
+          0.0002074755320791155,
+          0.0002113247028319165,
+          0.00019928596884710714
+        ],
+        "residual": 1.5295469907040275e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.0002382847378612496,
+        "repeats_s": [
+          0.0002396878771833144,
+          0.0002382847378612496,
+          0.0002379278594162315
+        ],
+        "residual": 3.1505226946173185e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.0004529126817942597,
+        "repeats_s": [
+          0.0004529126817942597,
+          0.0004529919970082119,
+          0.0004519426584010944
+        ],
+        "residual": 1.7778426856103823e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.0004586250433931127,
+        "repeats_s": [
+          0.0004586250433931127,
+          0.00045655986468773335,
+          0.00047813483979552984
+        ],
+        "residual": 1.7778426856103823e-15
+      }
+    ],
+    "eigenvalues_only_s": 9.627696999814361e-05,
+    "eigenvalues_only_drivers": {
+      "zheev": 9.627696999814361e-05,
+      "zheevd": 9.67826708802022e-05,
+      "zheevr": 9.764718561200425e-05,
+      "zheevx": 9.68154490692541e-05,
+      "numpy": 9.726361167849973e-05
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "vanhove48",
+    "matrix_size": 48,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.00019429546955507249,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.00019429546955507249,
+        "repeats_s": [
+          0.00019470131519483402,
+          0.0001935047475853935,
+          0.00019429546955507249
+        ],
+        "residual": 1.495554604347776e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.000205869298952166,
+        "repeats_s": [
+          0.000205869298952166,
+          0.00020909497106913477,
+          0.00019773945678025484
+        ],
+        "residual": 1.495554604347776e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.0002468095044605434,
+        "repeats_s": [
+          0.00024835465592332184,
+          0.00024640498304506764,
+          0.0002468095044605434
+        ],
+        "residual": 3.0916666986487706e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.00046441415906883776,
+        "repeats_s": [
+          0.00046426660992437974,
+          0.00046441415906883776,
+          0.00046526745427399874
+        ],
+        "residual": 2.0412899318745856e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.0004675204254454002,
+        "repeats_s": [
+          0.00046895759442122653,
+          0.0004673670482588932,
+          0.0004675204254454002
+        ],
+        "residual": 2.0412899318745856e-15
+      }
+    ],
+    "eigenvalues_only_s": 9.678170317783952e-05,
+    "eigenvalues_only_drivers": {
+      "zheev": 9.750299795996398e-05,
+      "zheevd": 9.678170317783952e-05,
+      "zheevr": 9.758974920259789e-05,
+      "zheevx": 9.766073344508186e-05,
+      "numpy": 9.784712892724201e-05
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "anisotropic48",
+    "matrix_size": 48,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.00019601790700107813,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.00019601790700107813,
+        "repeats_s": [
+          0.0001961966117960401,
+          0.00019601790700107813,
+          0.000195918015378993
+        ],
+        "residual": 1.6059238227884071e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.00020793302974198014,
+        "repeats_s": [
+          0.00020795243472093716,
+          0.00020793302974198014,
+          0.00020057667279615998
+        ],
+        "residual": 1.6059238227884071e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.0002346462497371249,
+        "repeats_s": [
+          0.0002343354281038046,
+          0.0002346462497371249,
+          0.00023470988526241854
+        ],
+        "residual": 2.701404023997402e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.0004479888448258862,
+        "repeats_s": [
+          0.00044920368964085355,
+          0.00044729756336892024,
+          0.0004479888448258862
+        ],
+        "residual": 1.8288045393555965e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.0004514736356213689,
+        "repeats_s": [
+          0.00045231162948766723,
+          0.0004513160019996576,
+          0.0004514736356213689
+        ],
+        "residual": 1.8288045393555965e-15
+      }
+    ],
+    "eigenvalues_only_s": 9.633726585889235e-05,
+    "eigenvalues_only_drivers": {
+      "zheev": 9.636871982365847e-05,
+      "zheevd": 9.633726585889235e-05,
+      "zheevr": 9.724634583108127e-05,
+      "zheevx": 9.695804328657687e-05,
+      "numpy": 0.00010808349907165393
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "gapped48",
+    "matrix_size": 48,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.0001969111108337529,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.0001969111108337529,
+        "repeats_s": [
+          0.0001971218007383868,
+          0.0001969111108337529,
+          0.00019689319015014917
+        ],
+        "residual": 1.3162595404486438e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.00021324284170987085,
+        "repeats_s": [
+          0.0002154916073777713,
+          0.00021324284170987085,
+          0.00020122830028412864
+        ],
+        "residual": 1.3162595404486438e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.0002420567543595098,
+        "repeats_s": [
+          0.00024222867068601772,
+          0.0002420567543595098,
+          0.00024144120106939226
+        ],
+        "residual": 2.7215385709889274e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.00043321860721334815,
+        "repeats_s": [
+          0.0004356469798949547,
+          0.00043305189319653437,
+          0.00043321860721334815
+        ],
+        "residual": 1.676081297427416e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.00043678517249645665,
+        "repeats_s": [
+          0.000436405542131979,
+          0.00043678517249645665,
+          0.0004376211727503687
+        ],
+        "residual": 1.676081297427416e-15
+      }
+    ],
+    "eigenvalues_only_s": 9.42601400311105e-05,
+    "eigenvalues_only_drivers": {
+      "zheev": 9.52985355979763e-05,
+      "zheevd": 9.42601400311105e-05,
+      "zheevr": 9.485014015808702e-05,
+      "zheevx": 9.46476066019386e-05,
+      "numpy": 9.600722842151299e-05
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "cubic48",
+    "matrix_size": 48,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.00019810107914963737,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.00019810107914963737,
+        "repeats_s": [
+          0.00019945023086620495,
+          0.00019810107914963737,
+          0.00019655498181236908
+        ],
+        "residual": 1.4012534912325469e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.00019939720368711278,
+        "repeats_s": [
+          0.000198606590856798,
+          0.00019939720368711278,
+          0.0002055916702374816
+        ],
+        "residual": 1.4012534912325469e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.00023824624076951295,
+        "repeats_s": [
+          0.00023824624076951295,
+          0.0002374581090407446,
+          0.0002410925371805206
+        ],
+        "residual": 3.112792082211361e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.0004655881566577591,
+        "repeats_s": [
+          0.0004655881566577591,
+          0.00046335781371453777,
+          0.00046663026296300814
+        ],
+        "residual": 1.927566338851562e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.00046701295650564134,
+        "repeats_s": [
+          0.00046701295650564134,
+          0.00046652957826154307,
+          0.0004689695924753323
+        ],
+        "residual": 1.927566338851562e-15
+      }
+    ],
+    "eigenvalues_only_s": 9.763770503923297e-05,
+    "eigenvalues_only_drivers": {
+      "zheev": 9.763770503923297e-05,
+      "zheevd": 9.837538527790457e-05,
+      "zheevr": 9.79171454673633e-05,
+      "zheevx": 9.818893886404112e-05,
+      "numpy": 9.974007843993604e-05
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "bdg_chain48",
+    "matrix_size": 96,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.000936358846956864,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.000936358846956864,
+        "repeats_s": [
+          0.000936358846956864,
+          0.0009590578119968995,
+          0.0009301522368332371
+        ],
+        "residual": 1.6636189274154384e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.0009871889997157268,
+        "repeats_s": [
+          0.0009871889997157268,
+          0.0010003818388213404,
+          0.0009648380291764624
+        ],
+        "residual": 1.6636189274154384e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.0011747053140425123,
+        "repeats_s": [
+          0.0012959567320649512,
+          0.0011747053140425123,
+          0.0011688414961099625
+        ],
+        "residual": 2.9907679988180283e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.003137029219942633,
+        "repeats_s": [
+          0.003136327344691381,
+          0.0032295547644025646,
+          0.003137029219942633
+        ],
+        "residual": 2.5436641321974025e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.0031676699363742955,
+        "repeats_s": [
+          0.0031676699363742955,
+          0.0031502078272751532,
+          0.003276227325841319
+        ],
+        "residual": 2.5436641321974025e-15
+      }
+    ],
+    "eigenvalues_only_s": 0.0004363487460068427,
+    "eigenvalues_only_drivers": {
+      "zheev": 0.0004387215813039802,
+      "zheevd": 0.0004363487460068427,
+      "zheevr": 0.00043715078209061176,
+      "zheevx": 0.0004384130734251812,
+      "numpy": 0.0004470476269489154
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "bdg_nodal48",
+    "matrix_size": 96,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.0009288109940825962,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.0009288109940825962,
+        "repeats_s": [
+          0.0009422204675502144,
+          0.000928235545870848,
+          0.0009288109940825962
+        ],
+        "residual": 1.6054155013569421e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.000985181592113804,
+        "repeats_s": [
+          0.000985181592113804,
+          0.0009708213910926133,
+          0.0009887633277685381
+        ],
+        "residual": 1.6054155013569421e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.0012101372922188602,
+        "repeats_s": [
+          0.0012056790947099216,
+          0.0012101372922188602,
+          0.0012541949399746954
+        ],
+        "residual": 3.0608275299014347e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.003137680971121881,
+        "repeats_s": [
+          0.0031321621863753535,
+          0.003140998385788407,
+          0.003137680971121881
+        ],
+        "residual": 2.5997348631239768e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.003152312900056131,
+        "repeats_s": [
+          0.0031310232006944716,
+          0.003152312900056131,
+          0.003153459016175475
+        ],
+        "residual": 2.5997348631239768e-15
+      }
+    ],
+    "eigenvalues_only_s": 0.0004414351933519356,
+    "eigenvalues_only_drivers": {
+      "zheev": 0.00044170259934617206,
+      "zheevd": 0.0004414351933519356,
+      "zheevr": 0.00044235362292965874,
+      "zheevx": 0.0004424363578436896,
+      "numpy": 0.0004499885471886955
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "bdg_gapped48",
+    "matrix_size": 96,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.0009325470746261999,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.0009325470746261999,
+        "repeats_s": [
+          0.0011010752787115052,
+          0.0009314083872595802,
+          0.0009325470746261999
+        ],
+        "residual": 1.5969917471167114e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.0009929215302690864,
+        "repeats_s": [
+          0.0009929215302690864,
+          0.0009758163287187926,
+          0.0009957362635759637
+        ],
+        "residual": 1.5969917471167114e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.0012359005268081091,
+        "repeats_s": [
+          0.0012632759098778479,
+          0.0012359005268081091,
+          0.0012053805257892236
+        ],
+        "residual": 2.8683019028699637e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.003150575576000847,
+        "repeats_s": [
+          0.003150575576000847,
+          0.003145830392895732,
+          0.0031713718417449854
+        ],
+        "residual": 2.5778196455215296e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.003202782907465007,
+        "repeats_s": [
+          0.003202782907465007,
+          0.0031948161777108908,
+          0.0032288559959852137
+        ],
+        "residual": 2.5778196455215296e-15
+      }
+    ],
+    "eigenvalues_only_s": 0.0004418163443915546,
+    "eigenvalues_only_drivers": {
+      "zheev": 0.0004441017226781696,
+      "zheevd": 0.0004418163443915546,
+      "zheevr": 0.00044184392027091235,
+      "zheevx": 0.00044310530938673764,
+      "numpy": 0.00045159529690863565
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "chain1",
+    "matrix_size": 1,
+    "physical_sites": 1,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 1.0822986951097846e-07,
+    "fastest_driver": "numpy",
+    "drivers": [
+      {
+        "driver": "numpy",
+        "median_s": 1.0822986951097846e-07,
+        "repeats_s": [
+          1.8798891687765718e-07,
+          1.0822986951097846e-07,
+          9.404175216332078e-08
+        ],
+        "residual": 4.85722573273506e-17
+      },
+      {
+        "driver": "zheev",
+        "median_s": 6.379996193572879e-07,
+        "repeats_s": [
+          6.379996193572879e-07,
+          6.79297954775393e-07,
+          6.355621735565364e-07
+        ],
+        "residual": 4.85722573273506e-17
+      },
+      {
+        "driver": "zheevd",
+        "median_s": 7.853232091292739e-07,
+        "repeats_s": [
+          8.147690095938742e-07,
+          7.822964107617736e-07,
+          7.853232091292739e-07
+        ],
+        "residual": 4.85722573273506e-17
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 1.1336087482050061e-06,
+        "repeats_s": [
+          1.1336087482050061e-06,
+          1.1452357284724712e-06,
+          1.0895819286815822e-06
+        ],
+        "residual": 4.85722573273506e-17
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 1.2705131666734815e-06,
+        "repeats_s": [
+          1.2796735973097384e-06,
+          1.2692980817519128e-06,
+          1.2705131666734815e-06
+        ],
+        "residual": 4.85722573273506e-17
+      }
+    ],
+    "eigenvalues_only_s": 8.185452315956354e-08,
+    "eigenvalues_only_drivers": {
+      "zheev": 6.79494405630976e-07,
+      "zheevd": 8.272691047750413e-07,
+      "zheevr": 1.312386302743107e-06,
+      "zheevx": 1.1576121323741972e-06,
+      "numpy": 8.185452315956354e-08
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "square1",
+    "matrix_size": 1,
+    "physical_sites": 1,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 1.1968950275331736e-07,
+    "fastest_driver": "numpy",
+    "drivers": [
+      {
+        "driver": "numpy",
+        "median_s": 1.1968950275331736e-07,
+        "repeats_s": [
+          2.0061270333826542e-07,
+          1.1968950275331736e-07,
+          9.474024409428239e-08
+        ],
+        "residual": 1.1102230246251565e-16
+      },
+      {
+        "driver": "zheev",
+        "median_s": 6.281552487052977e-07,
+        "repeats_s": [
+          6.281552487052977e-07,
+          6.205809768289328e-07,
+          6.845293682999909e-07
+        ],
+        "residual": 1.1102230246251565e-16
+      },
+      {
+        "driver": "zheevd",
+        "median_s": 8.055358193814754e-07,
+        "repeats_s": [
+          8.362476364709437e-07,
+          8.055358193814754e-07,
+          7.874041330069304e-07
+        ],
+        "residual": 1.1102230246251565e-16
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 1.122934918384999e-06,
+        "repeats_s": [
+          1.115949999075383e-06,
+          1.1244264896959066e-06,
+          1.122934918384999e-06
+        ],
+        "residual": 1.1102230246251565e-16
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 1.285174221266061e-06,
+        "repeats_s": [
+          1.2832024367526174e-06,
+          1.285174221266061e-06,
+          1.2884556781500578e-06
+        ],
+        "residual": 1.1102230246251565e-16
+      }
+    ],
+    "eigenvalues_only_s": 7.915514288470149e-08,
+    "eigenvalues_only_drivers": {
+      "zheev": 6.532281986437738e-07,
+      "zheevd": 8.145652827806771e-07,
+      "zheevr": 1.3372191460803151e-06,
+      "zheevx": 1.1687225196510553e-06,
+      "numpy": 7.915514288470149e-08
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "pocket1",
+    "matrix_size": 1,
+    "physical_sites": 1,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 1.2687814887613058e-07,
+    "fastest_driver": "numpy",
+    "drivers": [
+      {
+        "driver": "numpy",
+        "median_s": 1.2687814887613058e-07,
+        "repeats_s": [
+          1.795488060452044e-07,
+          1.2687814887613058e-07,
+          9.610812412574887e-08
+        ],
+        "residual": 2.1980901745522857e-17
+      },
+      {
+        "driver": "zheev",
+        "median_s": 6.253249011933804e-07,
+        "repeats_s": [
+          7.214694051072001e-07,
+          6.253249011933804e-07,
+          6.164482329040766e-07
+        ],
+        "residual": 2.1980901745522857e-17
+      },
+      {
+        "driver": "zheevd",
+        "median_s": 7.908456609584391e-07,
+        "repeats_s": [
+          8.063143468461931e-07,
+          7.908456609584391e-07,
+          7.767448551021516e-07
+        ],
+        "residual": 2.1980901745522857e-17
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 1.1387310223653913e-06,
+        "repeats_s": [
+          1.1656738934107125e-06,
+          1.1098964023403823e-06,
+          1.1387310223653913e-06
+        ],
+        "residual": 2.1980901745522857e-17
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 1.2698437785729766e-06,
+        "repeats_s": [
+          1.2698437785729766e-06,
+          1.2490054359659553e-06,
+          1.2875461834482849e-06
+        ],
+        "residual": 2.1980901745522857e-17
+      }
+    ],
+    "eigenvalues_only_s": 8.439383236691356e-08,
+    "eigenvalues_only_drivers": {
+      "zheev": 6.685149855911732e-07,
+      "zheevd": 8.088318281807005e-07,
+      "zheevr": 1.338485162705183e-06,
+      "zheevx": 1.162363332696259e-06,
+      "numpy": 8.439383236691356e-08
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "alias1",
+    "matrix_size": 1,
+    "physical_sites": 1,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 1.2768578017130494e-07,
+    "fastest_driver": "numpy",
+    "drivers": [
+      {
+        "driver": "numpy",
+        "median_s": 1.2768578017130494e-07,
+        "repeats_s": [
+          1.952212187461555e-07,
+          1.2768578017130494e-07,
+          1.1158408597111702e-07
+        ],
+        "residual": 0.0
+      },
+      {
+        "driver": "zheev",
+        "median_s": 6.269547156989574e-07,
+        "repeats_s": [
+          6.317859515547752e-07,
+          6.223781383596361e-07,
+          6.269547156989574e-07
+        ],
+        "residual": 0.0
+      },
+      {
+        "driver": "zheevd",
+        "median_s": 7.903290679678321e-07,
+        "repeats_s": [
+          8.155620889738202e-07,
+          7.903290679678321e-07,
+          7.827984518371522e-07
+        ],
+        "residual": 0.0
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 1.1246447684243321e-06,
+        "repeats_s": [
+          1.1246447684243321e-06,
+          1.1471420293673873e-06,
+          1.1010924936272204e-06
+        ],
+        "residual": 0.0
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 1.2679083738476038e-06,
+        "repeats_s": [
+          1.274536771234125e-06,
+          1.2679083738476038e-06,
+          1.2632808648049831e-06
+        ],
+        "residual": 0.0
+      }
+    ],
+    "eigenvalues_only_s": 9.181530913338065e-08,
+    "eigenvalues_only_drivers": {
+      "zheev": 6.633563316427171e-07,
+      "zheevd": 8.292845450341702e-07,
+      "zheevr": 1.2938398867845535e-06,
+      "zheevx": 1.1312513379380107e-06,
+      "numpy": 9.181530913338065e-08
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  },
+  {
+    "model": "wire48",
+    "matrix_size": 48,
+    "physical_sites": 48,
+    "sample_count": 64,
+    "repeats": 3,
+    "threads": 1,
+    "dtype": "complex128",
+    "all_eigenvectors": true,
+    "input_preparation_timed": false,
+    "fastest_s": 0.00019418224837863818,
+    "fastest_driver": "zheevd",
+    "drivers": [
+      {
+        "driver": "zheevd",
+        "median_s": 0.00019418224837863818,
+        "repeats_s": [
+          0.00019535262254066765,
+          0.00019291335047455505,
+          0.00019418224837863818
+        ],
+        "residual": 1.0809517008617917e-15
+      },
+      {
+        "driver": "numpy",
+        "median_s": 0.00019803985924227163,
+        "repeats_s": [
+          0.00019803985924227163,
+          0.00019706165767274797,
+          0.00020066847355337813
+        ],
+        "residual": 1.0809517008617917e-15
+      },
+      {
+        "driver": "zheevr",
+        "median_s": 0.000252631951298099,
+        "repeats_s": [
+          0.000252631951298099,
+          0.0002518903638701886,
+          0.0002553770609665662
+        ],
+        "residual": 1.6689697816847233e-15
+      },
+      {
+        "driver": "zheevx",
+        "median_s": 0.0004690190762630664,
+        "repeats_s": [
+          0.00046771607594564557,
+          0.0004690190762630664,
+          0.0004696866890299134
+        ],
+        "residual": 1.2923005246087084e-15
+      },
+      {
+        "driver": "zheev",
+        "median_s": 0.00047021514183143154,
+        "repeats_s": [
+          0.00046634863974759355,
+          0.0004855296720052138,
+          0.00047021514183143154
+        ],
+        "residual": 1.2923005246087084e-15
+      }
+    ],
+    "eigenvalues_only_s": 9.781042172107846e-05,
+    "eigenvalues_only_drivers": {
+      "zheev": 9.827524627326056e-05,
+      "zheevd": 9.841637802310288e-05,
+      "zheevr": 9.781042172107846e-05,
+      "zheevx": 9.786409646039829e-05,
+      "numpy": 9.797715756576508e-05
+    },
+    "note": "Representative matrix sample, not exact replay of every adaptive (k,mu) solve."
+  }
+]

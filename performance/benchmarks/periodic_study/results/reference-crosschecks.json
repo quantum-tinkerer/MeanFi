@@ -1,0 +1,613 @@
+{
+  "status": "success",
+  "check_count": 20,
+  "threads": 1,
+  "models": [
+    "vanhove48",
+    "gapped48",
+    "bdg_chain48",
+    "bdg_nodal48",
+    "bdg_gapped48"
+  ],
+  "temperatures": [
+    0.05,
+    0.01
+  ],
+  "chemical_potentials": [
+    -0.37,
+    0.19
+  ],
+  "maximum_density_difference": 5.551117922506937e-16,
+  "maximum_charge_difference": 7.105427357601002e-15,
+  "interpretation": "Equivalent folded-grid reference implementations agree; this does not qualify continuum quadrature convergence.",
+  "results": [
+    {
+      "model": "vanhove48",
+      "temperature": 0.05,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 1.6984849766818738e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 19.810591241103275,
+      "primitive_charge": 19.81059124110328,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004997412674129009
+    },
+    {
+      "model": "vanhove48",
+      "temperature": 0.05,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 2.4121259782823886e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 26.48865168164129,
+      "primitive_charge": 26.488651681641294,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004170713014900684
+    },
+    {
+      "model": "vanhove48",
+      "temperature": 0.01,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 2.3107510123664473e-16,
+      "charge_difference": 7.105427357601002e-15,
+      "full_charge": 19.82148499794781,
+      "primitive_charge": 19.821484997947817,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004082965664565563
+    },
+    {
+      "model": "vanhove48",
+      "temperature": 0.01,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.3306690787772807e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 26.644159805054077,
+      "primitive_charge": 26.644159805054073,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004212446976453066
+    },
+    {
+      "model": "gapped48",
+      "temperature": 0.05,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.330752066189346e-16,
+      "charge_difference": 7.105427357601002e-15,
+      "full_charge": 23.99999999944917,
+      "primitive_charge": 23.999999999449162,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004273381549865007
+    },
+    {
+      "model": "gapped48",
+      "temperature": 0.05,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.3307047675828933e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 24.000000000015046,
+      "primitive_charge": 24.000000000015042,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004254679661244154
+    },
+    {
+      "model": "gapped48",
+      "temperature": 0.01,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.3306690738754696e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 24.000000000000004,
+      "primitive_charge": 24.0,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004356483928859234
+    },
+    {
+      "model": "gapped48",
+      "temperature": 0.01,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 48,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.3306690738754696e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 24.000000000000004,
+      "primitive_charge": 24.0,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.004273798782378435
+    },
+    {
+      "model": "bdg_chain48",
+      "temperature": 0.05,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        48
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        144
+      ],
+      "primitive_shift": [
+        0.8709999999999951
+      ],
+      "density_difference": 3.886005507221493e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 21.246992429280162,
+      "primitive_charge": 21.246992429280166,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.006624744273722172
+    },
+    {
+      "model": "bdg_chain48",
+      "temperature": 0.05,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        48
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        144
+      ],
+      "primitive_shift": [
+        0.8709999999999951
+      ],
+      "density_difference": 5.551117922506937e-16,
+      "charge_difference": 7.105427357601002e-15,
+      "full_charge": 25.407964994641194,
+      "primitive_charge": 25.4079649946412,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.006630214862525463
+    },
+    {
+      "model": "bdg_chain48",
+      "temperature": 0.01,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        48
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        144
+      ],
+      "primitive_shift": [
+        0.8709999999999951
+      ],
+      "density_difference": 3.885780586188048e-16,
+      "charge_difference": 0.0,
+      "full_charge": 21.247040441171887,
+      "primitive_charge": 21.247040441171887,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.006474814843386412
+    },
+    {
+      "model": "bdg_chain48",
+      "temperature": 0.01,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 144,
+      "supercell_shape": [
+        48
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        144
+      ],
+      "primitive_shift": [
+        0.8709999999999951
+      ],
+      "density_difference": 5.551115123125783e-16,
+      "charge_difference": 0.0,
+      "full_charge": 25.407943327080954,
+      "primitive_charge": 25.407943327080954,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.006450428161770105
+    },
+    {
+      "model": "bdg_nodal48",
+      "temperature": 0.05,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 2.220446049250313e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 19.860431292468967,
+      "primitive_charge": 19.86043129246897,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.016320412047207355
+    },
+    {
+      "model": "bdg_nodal48",
+      "temperature": 0.05,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.3307291063588724e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 26.378280364356808,
+      "primitive_charge": 26.37828036435681,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.014161447994410992
+    },
+    {
+      "model": "bdg_nodal48",
+      "temperature": 0.01,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.885780586188048e-16,
+      "charge_difference": 7.105427357601002e-15,
+      "full_charge": 19.839392365748445,
+      "primitive_charge": 19.839392365748452,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.013963148929178715
+    },
+    {
+      "model": "bdg_nodal48",
+      "temperature": 0.01,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.3306692672720145e-16,
+      "charge_difference": 0.0,
+      "full_charge": 26.378651567583653,
+      "primitive_charge": 26.378651567583653,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.013937689829617739
+    },
+    {
+      "model": "bdg_gapped48",
+      "temperature": 0.05,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 2.7755575615628914e-16,
+      "charge_difference": 0.0,
+      "full_charge": 20.267762803415575,
+      "primitive_charge": 20.267762803415575,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.014024006202816963
+    },
+    {
+      "model": "bdg_gapped48",
+      "temperature": 0.05,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 2.4992339675444845e-16,
+      "charge_difference": 7.105427357601002e-15,
+      "full_charge": 25.840371365576623,
+      "primitive_charge": 25.84037136557663,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.013976115267723799
+    },
+    {
+      "model": "bdg_gapped48",
+      "temperature": 0.01,
+      "mu": -0.37,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 2.7755608678426786e-16,
+      "charge_difference": 7.105427357601002e-15,
+      "full_charge": 20.29783154018162,
+      "primitive_charge": 20.297831540181626,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.013993739150464535
+    },
+    {
+      "model": "bdg_gapped48",
+      "temperature": 0.01,
+      "mu": 0.19,
+      "physical_sites": 48,
+      "matrix_size": 96,
+      "coordinate_count": 240,
+      "supercell_shape": [
+        6,
+        8
+      ],
+      "supercell_nk": 3,
+      "supercell_shift": 0.371,
+      "primitive_shape": [
+        18,
+        24
+      ],
+      "primitive_shift": [
+        0.8710000000000004,
+        0.8710000000000004
+      ],
+      "density_difference": 3.33066910299912e-16,
+      "charge_difference": 3.552713678800501e-15,
+      "full_charge": 25.831839638454543,
+      "primitive_charge": 25.831839638454547,
+      "density_atol": 2e-12,
+      "charge_atol": 1e-10,
+      "passed": true,
+      "wall_s": 0.013963984791189432
+    }
+  ]
+}

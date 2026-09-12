@@ -1,0 +1,25 @@
+{
+  "recorded_date": "2026-09-11",
+  "base_revision": "d78208f0dfab546a6640d5e376cc0865ec7b2620",
+  "full_solve_records": 244,
+  "retained_convergence_records": 558,
+  "raw_archive_files": 1905,
+  "final_source_files": 152,
+  "raw_record_paths": "Relative to build/periodic-study; embedded JSON paths are original historical paths.",
+  "source_note": "Original measured snapshot predates later helper and manifest additions. Raw records preserve their aggregate source hashes. Final snapshot preserves completed implementation and harness; historical hashes need not all be equal.",
+  "excluded": "Large reference-spectrum NPZ arrays and generated HTML documentation.",
+  "archives": {
+    "raw-records.tar.gz": {
+      "bytes": 2111368,
+      "sha256": "210ade3258a22a0f754dd0676df0d99304e4fff986395db86e36098ef7244967"
+    },
+    "measured-source-snapshot.tar.gz": {
+      "bytes": 203811,
+      "sha256": "3867ffd17dc55e4a965d6353febf11939e92c46ab2e92c5120a7261c57e6431f"
+    },
+    "final-source-snapshot.tar.gz": {
+      "bytes": 352208,
+      "sha256": "00099670d0b9d75dc2105681ee522344f30d1845b2493e3fc0254987aeabcf05"
+    }
+  }
+}
