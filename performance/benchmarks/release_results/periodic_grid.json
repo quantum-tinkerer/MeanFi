@@ -1,0 +1,251 @@
+{
+  "checkout": "/home/tinkerer/.codex/worktrees/fe65/meanfi",
+  "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+  "numpy": "2.4.6",
+  "threadpools": [
+    {
+      "user_api": "blas",
+      "internal_api": "openblas",
+      "num_threads": 1,
+      "prefix": "libopenblas",
+      "filepath": "/tmp/release-meanfi-docs-env-before-pin/lib/libopenblasp-r0.3.33.so",
+      "version": "0.3.33",
+      "threading_layer": "openmp",
+      "architecture": "SapphireRapids"
+    },
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 1,
+      "prefix": "libomp",
+      "filepath": "/tmp/release-meanfi-docs-env-before-pin/lib/libomp.so",
+      "version": null
+    },
+    {
+      "user_api": "blas",
+      "internal_api": "openblas",
+      "num_threads": 1,
+      "prefix": "libscipy_openblas",
+      "filepath": "/tmp/release-meanfi-docs-env-before-pin/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+      "version": "0.3.34.0.0",
+      "threading_layer": "pthreads",
+      "architecture": "SkylakeX"
+    }
+  ],
+  "results": [
+    {
+      "case": "square_metal",
+      "temperature": 0.2,
+      "matrix_size": 16,
+      "seconds": 0.03537096967920661,
+      "timings": [
+        0.050915694795548916,
+        0.03537096967920661,
+        0.027871761936694384
+      ],
+      "mu": -0.31588339374655733,
+      "filling": 6.879996512245215,
+      "statistics": {
+        "requested_nk": null,
+        "n_kpoints": 256,
+        "grid_shape": [
+          16,
+          16
+        ],
+        "n_kernel_evals": 848,
+        "unique_evals": 512,
+        "n_evaluator_evals": 1696,
+        "n_diagonalizations": 848,
+        "refinements": 2,
+        "validation_evaluations": 256,
+        "charge_evaluations": 12,
+        "charge_integration_calls": 12,
+        "density_integration_calls": 4,
+        "charge_error": 3.5185161593176417e-06,
+        "error_estimate_available": true,
+        "spectrum_bytes": 40960
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 6.204844507640139e-07,
+        "filling_residual": 3.4877547845368895e-06,
+        "charge_integration": 3.5185161593176417e-06
+      },
+      "density_error": 1.3895051775847378e-11,
+      "charge_error": 3.487710833915969e-06,
+      "reference_density_change": 2.220447236023595e-16,
+      "reference_charge_change": 1.7763568394002505e-15
+    },
+    {
+      "case": "gapped",
+      "temperature": 0.05,
+      "matrix_size": 16,
+      "seconds": 0.0065824119374156,
+      "timings": [
+        0.006662585772573948,
+        0.0065824119374156,
+        0.006574426777660847
+      ],
+      "mu": 0.0,
+      "filling": 8.0,
+      "statistics": {
+        "requested_nk": null,
+        "n_kpoints": 64,
+        "grid_shape": [
+          8,
+          8
+        ],
+        "n_kernel_evals": 208,
+        "unique_evals": 128,
+        "n_evaluator_evals": 384,
+        "n_diagonalizations": 208,
+        "refinements": 1,
+        "validation_evaluations": 64,
+        "charge_evaluations": 6,
+        "charge_integration_calls": 6,
+        "density_integration_calls": 3,
+        "charge_error": 0.0,
+        "error_estimate_available": true,
+        "spectrum_bytes": 10240
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 3.448784155479778e-08,
+        "filling_residual": 0.0,
+        "charge_integration": 0.0
+      },
+      "density_error": 9.137135492666586e-14,
+      "charge_error": 0.0,
+      "reference_density_change": 2.220447651160692e-16,
+      "reference_charge_change": 0.0
+    },
+    {
+      "case": "cold_bdg",
+      "temperature": 0.01,
+      "matrix_size": 16,
+      "seconds": 0.008251479361206293,
+      "timings": [
+        0.008800897281616926,
+        0.008248123805969954,
+        0.008251479361206293
+      ],
+      "mu": -0.4503679791155525,
+      "filling": 3.4400006979044293,
+      "statistics": {
+        "requested_nk": null,
+        "n_kpoints": 16,
+        "grid_shape": [
+          16
+        ],
+        "n_kernel_evals": 160,
+        "unique_evals": 32,
+        "n_evaluator_evals": 160,
+        "n_diagonalizations": 160,
+        "refinements": 2,
+        "validation_evaluations": 16,
+        "charge_evaluations": 15,
+        "charge_integration_calls": 15,
+        "density_integration_calls": 4,
+        "charge_error": 6.743272318310289e-07,
+        "error_estimate_available": true,
+        "spectrum_bytes": 0
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 8.429090403438977e-08,
+        "filling_residual": 6.979044293586867e-07,
+        "charge_integration": 6.743272318310289e-07
+      },
+      "density_error": 1.7258416917798058e-13,
+      "charge_error": 6.979030495735117e-07,
+      "reference_density_change": 1.1131449777526375e-16,
+      "reference_charge_change": 0.0
+    },
+    {
+      "case": "wire",
+      "temperature": 0.05,
+      "matrix_size": 16,
+      "seconds": 0.03400840610265732,
+      "timings": [
+        0.03400840610265732,
+        0.034380674827843904,
+        0.03399128280580044
+      ],
+      "mu": -0.4129061986768721,
+      "filling": 6.87998008012915,
+      "statistics": {
+        "requested_nk": null,
+        "n_kpoints": 256,
+        "grid_shape": [
+          256
+        ],
+        "n_kernel_evals": 1020,
+        "unique_evals": 512,
+        "n_evaluator_evals": 2600,
+        "n_diagonalizations": 1020,
+        "refinements": 6,
+        "validation_evaluations": 256,
+        "charge_evaluations": 35,
+        "charge_integration_calls": 35,
+        "density_integration_calls": 8,
+        "charge_error": 1.991574202886426e-05,
+        "error_estimate_available": true,
+        "spectrum_bytes": 49152
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 2.20046806842511e-06,
+        "filling_residual": 1.9919870849705035e-05,
+        "charge_integration": 1.991574202886426e-05
+      },
+      "density_error": 9.31456925479246e-11,
+      "charge_error": 1.9920073921042558e-05,
+      "reference_density_change": 1.672776946659816e-16,
+      "reference_charge_change": 0.0
+    },
+    {
+      "case": "bounded_3d",
+      "temperature": 0.2,
+      "matrix_size": 8,
+      "seconds": 0.8120110970921814,
+      "timings": [
+        0.8120110970921814,
+        0.8092144196853042,
+        0.8285252377390862
+      ],
+      "mu": -0.37512298442232156,
+      "filling": 3.43999956542036,
+      "statistics": {
+        "requested_nk": null,
+        "n_kpoints": 32768,
+        "grid_shape": [
+          32,
+          32,
+          32
+        ],
+        "n_kernel_evals": 102976,
+        "unique_evals": 65536,
+        "n_evaluator_evals": 187264,
+        "n_diagonalizations": 102976,
+        "refinements": 3,
+        "validation_evaluations": 32768,
+        "charge_evaluations": 16,
+        "charge_integration_calls": 16,
+        "density_integration_calls": 5,
+        "charge_error": 4.346339572691704e-07,
+        "error_estimate_available": true,
+        "spectrum_bytes": 2359296
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 1.97568813087301e-07,
+        "filling_residual": 4.3457963982973524e-07,
+        "charge_integration": 4.346339572691704e-07
+      },
+      "density_error": 6.498801496945816e-12,
+      "charge_error": 4.345938933170146e-07,
+      "reference_density_change": 1.3267165144820785e-14,
+      "reference_charge_change": 4.440892098500626e-16
+    }
+  ]
+}

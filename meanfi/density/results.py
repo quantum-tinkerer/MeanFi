@@ -26,6 +26,7 @@ def wrap_density_evaluation(
         mu=evaluation.mu,
         filling=evaluation.filling,
         errors=evaluation.errors,
+        statistics=evaluation.statistics,
     )
 
 

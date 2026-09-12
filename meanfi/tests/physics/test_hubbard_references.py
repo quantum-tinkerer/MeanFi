@@ -1,7 +1,7 @@
 import pytest
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     AndersonMixing,
     Model,
     density_matrix,
@@ -25,7 +25,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
     h_0, h_int = bipartite_hubbard_1d(U)
     delta_ref = solve_antiferromagnetic_gap(h_0, U=U, kT=kT, ndim=1, nk=4000)
     m_ref = 2.0 * delta_ref / U
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-6)
+    integration = PeriodicGrid(density_matrix_tol=1e-6)
     scf_tol = 1e-5
 
     model = Model(h_0, h_int, filling=2.0, kT=kT)
@@ -59,7 +59,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
     h_0, h_int = bipartite_hubbard_2d(U)
     delta_ref = solve_antiferromagnetic_gap(h_0, U=U, kT=kT, ndim=2, nk=140)
     m_ref = 2.0 * delta_ref / U
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-5)
+    integration = PeriodicGrid(density_matrix_tol=1e-5)
     scf_tol = 5e-5
 
     model = Model(h_0, h_int, filling=2.0, kT=kT)

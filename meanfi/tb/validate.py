@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.tb.ops import _tb_type, to_dense
+from meanfi.tb.ops import _tb_type, to_dense, matrix_shape
 
 
 def matrix_array(value) -> np.ndarray:
@@ -21,10 +21,10 @@ def tb_dimension(tb: _tb_type) -> int:
 
 
 def tb_orbital_count(tb: _tb_type) -> int:
-    matrix = matrix_array(next(iter(tb.values())))
-    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+    rows, cols = matrix_shape(next(iter(tb.values())))
+    if rows != cols:
         raise ValueError("Tight-binding values must be square matrices")
-    return int(matrix.shape[0])
+    return rows
 
 
 def zero_key(ndim: int) -> tuple[int, ...]:
@@ -38,8 +38,7 @@ def validate_tb_dict(tb: _tb_type) -> None:
     for key, value in tb.items():
         if len(key) != ndim:
             raise ValueError("All hopping keys need to have the same length")
-        matrix = matrix_array(value)
-        if matrix.shape != (n_orbitals, n_orbitals):
+        if matrix_shape(value) != (n_orbitals, n_orbitals):
             raise ValueError("All hopping matrices need to have the same shape")
 
 

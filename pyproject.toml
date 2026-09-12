@@ -27,7 +27,6 @@ dependencies = [
     "packaging>=22.0",
     "python-mumps",
     "scipy>=1.13",
-    "stateful-quadrature>=0.2.1",
     "threadpoolctl>=3.0",
 ]
 
@@ -37,15 +36,19 @@ path = "meanfi/_version.py"
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.hatch.build.targets.wheel]
+packages = ["meanfi"]
+exclude = ["/meanfi/tests"]
+
 [tool.hatch.build.targets.sdist]
 include = [
   "/meanfi",
   "/examples",
-  "/performance",
   "/README.md",
   "/LICENSE",
   "/pyproject.toml",
   "/AUTHORS.md",
+  "/CHANGELOG.md",
 ]
 
 [project.urls]
@@ -148,17 +151,8 @@ pyinstrument = "*"
 [tool.pixi.feature.performance.pypi-dependencies]
 memray = "*"
 
-[tool.pixi.feature.native-build.dependencies]
-cmake = ">=3.25"
-git = ">=2.47.1,<3"
-ninja = ">=1.11"
-
-[tool.pixi.feature.native-build.target.linux-64.dependencies]
-cxx-compiler = ">=1.11.0,<2"
-
 [tool.pixi.pypi-dependencies]
 meanfi = { path = ".", editable = true }
-stateful-quadrature = ">=0.2.1"
 
 
 [tool.pixi.environments]
@@ -171,7 +165,6 @@ latest = { features = ["latest", "test"], solve-group = "default" }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"], no-default-feature = true }
 empty = { features = ["empty"], no-default-feature = true }
-native-build = { features = ["native-build"], no-default-feature = true }
 zip = { features = ["zip"], no-default-feature = true }
 
 [tool.pixi.feature.test.tasks]
@@ -200,9 +193,6 @@ performance-profile-qwz-density = "python -m memray run -o performance/results/q
 [tool.pixi.feature.precommit.tasks]
 git = "git"
 pre-commit = "pre-commit"
-
-[tool.pixi.feature.native-build.tasks]
-install-adaptivesimplex-cmake = "tools/install_adaptivesimplex_cmake.sh"
 
 [tool.pixi.feature.publish.tasks]
 build = "hatch build"

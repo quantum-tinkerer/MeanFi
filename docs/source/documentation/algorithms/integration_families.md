@@ -1,88 +1,64 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 # Integration families
 
-The Brillouin-zone integral and the single-$k$ density evaluation are two different choices in `MeanFi`.
-This page focuses only on the **k-space integration family**.
+MeanFi has two integration families: `AdaptiveSimplex` uses FermiSimplex for
+normal systems at zero temperature; `PeriodicGrid` samples an isotropic periodic
+grid for normal and superconducting systems.
 
 ```{toctree}
 :hidden:
 :maxdepth: 1
 
-method_notes/adaptive_quadrature.md
-method_notes/uniform_grid.md
 method_notes/adaptive_simplex.md
+method_notes/periodic_grid.md
 ```
 
-## The three families
+Both use the same input-driven contract:
 
-### `AdaptiveQuadrature`
+```python
+meanfi.AdaptiveSimplex(nk=4096)
+meanfi.PeriodicGrid(nk=4096)
 
-This is the finite-temperature adaptive cubature path.
-It chooses evaluation nodes in the Brillouin zone adaptively and is the default family for `kT > 0`.
-For implementation details, see the
-[stateful_quadrature package](https://github.com/Kostusas/stateful_quadrature).
+meanfi.AdaptiveSimplex(density_matrix_tol=1e-5, charge_tol=1e-6)
+meanfi.PeriodicGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
+```
 
-### `UniformGrid`
+An explicit `nk` requests a prescribed final mesh size. Omitting `nk` requests
+accuracy control, using explicit targets or MeanFi's public tolerance policy.
+Passing both `nk` and an integration target is an error. Safety limits such as
+`max_points` and `max_refinements` do not select the mode. The top-level `tol`
+continues to control filling roots and SCF convergence on a prescribed mesh.
 
-This evaluates the problem on a fixed `nk` grid in each momentum direction.
-It is simple, predictable, and useful for explicit coarse-grid workflows and for the zero-temperature BdG path.
+`nk` is the requested **total number of mesh nodes**, with backend-dependent
+rounding. It is never a per-axis resolution or a cumulative work count.
+`result.statistics.requested_nk` and `result.statistics.n_kpoints` distinguish requested
+and actual mesh sizes; cumulative diagonalizations are reported separately.
 
-### `AdaptiveSimplex`
-
-This is the dedicated zero-temperature adaptive simplicial backend.
-It refines a simplicial partition of the Brillouin zone and is the default normal-state family for `kT = 0`.
-The physics integration backend is
-[FermiSimplex](https://gitlab.kwant-project.org/qt/lineartetrahedron),
-which uses the generic mesh engine from
-[adaptivesimplex](https://gitlab.kwant-project.org/qt/adaptivesimplex).
-
-## What the family controls
-
-The integration family determines:
-
-- where in k-space the Hamiltonian is sampled,
-- how errors are estimated, if at all,
-- how work is reused as the fixed-filling solver tries new values of $\mu$.
-
-It does **not** by itself determine how the density matrix is computed at one sampled $k$ point.
-That is the job of the matrix-function backend.
-
-## Main tradeoffs
-
-| Family | Strength | Limitation |
+| Request | Periodic grid | Simplex mesh |
 | --- | --- | --- |
-| `AdaptiveQuadrature` | Efficient finite-temperature adaptivity | Requires `kT > 0` |
-| `UniformGrid` | Simple and explicit | No adaptive error control |
-| `AdaptiveSimplex` | Native zero-temperature adaptive path | Normal-state only by default |
+| `nk=1000`, 2D | 32 × 32 = 1024 | 33 × 33 = 1089 |
+| `nk=4096`, 2D | 64 × 64 = 4096 | 65 × 65 = 4225 |
+| `nk=4096`, 3D | 16 × 16 × 16 = 4096 | 17 × 17 × 17 = 4913 |
 
-## Cost versus error scaling
+A prescribed calculation evaluates that discretization without hidden refinement
+or shifted validation. Integration errors are unavailable (`None`), and a
+converged filling root does not establish Brillouin-zone integration accuracy.
+In accuracy-controlled mode, failure to meet a target within a budget raises a
+convergence error. Reported error estimates are empirical, not certificates.
 
-The generic pattern is
+Keep density error at the returned chemical potential, uncertainty transferred
+from the chemical potential, charge-integration error, root residual and SCF
+residual distinct. See [fixed filling](fixed_filling.md).
 
-:::{math}
-\text{cost} \sim N_k \times C_k,
-:::
+## Migration
 
-where $N_k$ is the number of sampled momentum points or effective adaptive cells, and $C_k$ is the cost of one single-$k$ matrix-function evaluation.
-The family-specific pages below make that more explicit as cost-versus-error relations of the form
+`PeriodicGrid` replaces `UniformGrid`, `PeriodicQuadrature` and
+`AdaptiveQuadrature`; the old names are removed. Convert an old
+`UniformGrid(nk=n)` in dimension `d` to `PeriodicGrid(nk=n**d)` to preserve its
+per-axis resolution. Replace adaptive quadrature with
+`PeriodicGrid(density_matrix_tol=..., charge_tol=...)`. Remove old quadrature
+rules, per-axis caps, derivative-accuracy and cache-policy options.
 
-:::{math}
-\text{cost} \sim \varepsilon^{-\gamma} C_k
-:::
-
-when an algebraic convergence law is available.
-
-- [Adaptive quadrature](./method_notes/adaptive_quadrature.md): adaptive cubature, typically with algebraic work-vs-tolerance scaling for smooth finite-temperature integrands
-- [Uniform grid](./method_notes/uniform_grid.md): fixed-grid sampling with work determined directly by the chosen grid size
-- [Adaptive simplex](./method_notes/adaptive_simplex.md): adaptive simplicial refinement with problem-dependent algebraic work-vs-error behavior
+Prescribed finite-temperature sparse `RationalFOE` remains available with
+`PeriodicGrid(nk=..., matrix_function=RationalFOE(...))`. Adaptive rational
+integration is unsupported. Sparse calculations require an explicit supported
+method rather than silently switching to a dense adaptive calculation.

@@ -1,32 +1,14 @@
-# ruff: noqa: F401
-import importlib
-import inspect
-from types import SimpleNamespace
-
-import meanfi
 import numpy as np
 import pytest
-import scipy.sparse as sp
 
 from meanfi import (
-    AdaptiveQuadrature,
-    AdaptiveSimplex,
     AndersonMixing,
-    DirectDiagonalization,
     LinearMixing,
     Model,
-    RationalFOE,
-    UniformGrid,
-    density_matrix,
-    density_matrix_at_mu,
+    PeriodicGrid,
     solver,
 )
-from meanfi.density.filling import mu_bracket, solve_mu
-from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
-from meanfi.scf.engine import NoConvergence
-from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
@@ -65,7 +47,7 @@ def test_bdg_solver_validates_guess_shape_before_running_density():
         solver(
             model,
             {(0,): np.zeros((2, 2), dtype=complex)},
-            integration=AdaptiveQuadrature(),
+            integration=PeriodicGrid(),
         )
 
 
@@ -86,7 +68,7 @@ def test_bdg_solver_rejects_guess_without_opposite_key():
         solver(
             model,
             {(1,): np.zeros((2, 2), dtype=complex)},
-            integration=AdaptiveQuadrature(),
+            integration=PeriodicGrid(),
         )
 
 
@@ -106,7 +88,7 @@ def test_bdg_solver_rejects_guess_with_invalid_block_structure():
         solver(
             model,
             guess,
-            integration=AdaptiveQuadrature(),
+            integration=PeriodicGrid(),
         )
 
 
@@ -122,7 +104,7 @@ def test_bdg_solver_supports_anderson_mixing():
     result = solver(
         model,
         {(0,): np.zeros((4, 4), dtype=complex)},
-        integration=AdaptiveQuadrature(),
+        integration=PeriodicGrid(),
         scf=AndersonMixing(M=0, max_iterations=4),
     )
 
@@ -130,7 +112,7 @@ def test_bdg_solver_supports_anderson_mixing():
     assert result.errors.scf_residual is not None
 
 
-def test_zero_temperature_bdg_requires_explicit_uniform_grid_default_override():
+def test_zero_temperature_bdg_requires_explicit_periodic_grid_default_override():
     model = Model(
         {(0,): np.array([[0.0]], dtype=complex)},
         {(0,): np.array([[0.0]], dtype=complex)},
@@ -138,14 +120,14 @@ def test_zero_temperature_bdg_requires_explicit_uniform_grid_default_override():
         superconducting=True,
     )
 
-    with pytest.raises(NotImplementedError, match="UniformGrid"):
+    with pytest.raises(NotImplementedError, match="PeriodicGrid"):
         solver(
             model,
             {(0,): np.zeros((2, 2), dtype=complex)},
         )
 
 
-def test_zero_temperature_bdg_supports_explicit_uniform_grid():
+def test_zero_temperature_bdg_supports_explicit_periodic_grid():
     model = Model(
         {(0,): np.array([[0.0]], dtype=complex)},
         {(0,): np.array([[0.0]], dtype=complex)},
@@ -156,7 +138,7 @@ def test_zero_temperature_bdg_supports_explicit_uniform_grid():
     result = solver(
         model,
         {(0,): np.zeros((2, 2), dtype=complex)},
-        integration=UniformGrid(nk=1),
+        integration=PeriodicGrid(nk=1),
         scf=LinearMixing(max_iterations=2),
         scf_tol=1e-6,
     )
@@ -186,7 +168,7 @@ def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():
         result = solver(
             model,
             guess,
-            integration=AdaptiveQuadrature(density_matrix_tol=1e-2),
+            integration=PeriodicGrid(density_matrix_tol=1e-2),
             scf=LinearMixing(max_iterations=1),
             scf_tol=1e-8,
         )

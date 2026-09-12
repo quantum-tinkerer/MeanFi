@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from numbers import Integral
 
 import numpy as np
 from scipy.optimize import brentq
@@ -203,18 +204,11 @@ class _ChargeRootSolver:
 
         lower_mu, upper_mu = bracket.pair
         mu0 = self.last.mu if self.last is not None else 0.5 * (lower_mu + upper_mu)
-        try:
-            final = (
-                self._solve_with_newton(bracket, mu0=mu0)
-                if self.use_derivative
-                else self._solve_with_brent(bracket)
-            )
-        except _MaxRootIterations as exc:
-            self._fail(
-                "maximum charge-evaluation budget reached before satisfying the filling tolerance",
-                self.best if self.best is not None else self.last,
-            )
-            raise AssertionError("unreachable") from exc
+        final = (
+            self._solve_with_newton(bracket, mu0=mu0)
+            if self.use_derivative
+            else self._solve_with_brent(bracket)
+        )
 
         if not self.accepted(final):
             self._fail(
@@ -234,13 +228,13 @@ class _ChargeRootSolver:
             and sample.charge_error <= charge_error_tol
         )
 
-    def sample(self, mu: float, *, enforce_limit: bool = True) -> _ChargeSample:
+    def sample(self, mu: float) -> _ChargeSample:
         mu_value = float(mu)
         if mu_value in self.cache:
             sample = self.cache[mu_value]
             self.last = sample
             return sample
-        if enforce_limit and self.max_charge_evaluations is not None:
+        if self.max_charge_evaluations is not None:
             if self.charge_evaluations >= self.max_charge_evaluations:
                 raise _MaxRootIterations
         sample = _evaluate_charge_sample(
@@ -319,7 +313,7 @@ class _ChargeRootSolver:
                 return self._solve_with_brent(bracket)
 
             if abs(next_mu - sample.mu) <= self.mu_xtol:
-                final = self.sample(next_mu, enforce_limit=False)
+                final = self.sample(next_mu)
                 bracket.update(final)
                 if self.accepted(final):
                     return final
@@ -346,14 +340,8 @@ class _ChargeRootSolver:
             )
         except _AcceptedSample as exc:
             return exc.sample
-        except RuntimeError as exc:
-            self._fail(
-                "Brent search reached its internal iteration limit before satisfying the filling tolerance",
-                self.best if self.best is not None else self.last,
-            )
-            raise AssertionError("unreachable") from exc
 
-        sample = self.sample(float(root), enforce_limit=False)
+        sample = self.sample(float(root))
         bracket.update(sample)
         return sample
 
@@ -404,8 +392,14 @@ def _validate_root_inputs(
         raise ValueError("filling_tol must be a positive finite number")
     if not np.isfinite(mu_xtol) or mu_xtol <= 0.0:
         raise ValueError("mu_tol must be a positive finite number")
-    if max_charge_evaluations is not None and max_charge_evaluations <= 0:
-        raise ValueError("max_charge_evaluations must be positive when provided")
+    if max_charge_evaluations is not None and (
+        isinstance(max_charge_evaluations, bool)
+        or not isinstance(max_charge_evaluations, Integral)
+        or max_charge_evaluations <= 0
+    ):
+        raise ValueError(
+            "max_charge_evaluations must be a positive integer when provided"
+        )
     if charge_error_tol is not None:
         if not np.isfinite(charge_error_tol) or charge_error_tol <= 0.0:
             raise ValueError("charge_error_tol must be positive when provided")
@@ -442,7 +436,7 @@ def solve_mu_in_bracket(
         max_charge_evaluations=max_charge_evaluations,
         charge_error_tol=charge_error_tol,
     )
-    return _ChargeRootSolver(
+    solver = _ChargeRootSolver(
         evaluate_charge,
         filling=filling,
         filling_tol=filling_tol,
@@ -450,11 +444,14 @@ def solve_mu_in_bracket(
         max_charge_evaluations=max_charge_evaluations,
         charge_error_tol=charge_error_tol,
         use_derivative=use_derivative,
-    ).solve_in_bracket(
-        lower=lower,
-        upper=upper,
-        mu_guess=mu_guess,
     )
+    try:
+        return solver.solve_in_bracket(lower=lower, upper=upper, mu_guess=mu_guess)
+    except _MaxRootIterations:
+        solver._fail(
+            "maximum charge-evaluation budget reached before satisfying the filling tolerance",
+            solver.best if solver.best is not None else solver.last,
+        )
 
 
 def solve_mu(
@@ -488,7 +485,7 @@ def solve_mu(
         max_charge_evaluations=max_charge_evaluations,
         charge_error_tol=charge_error_tol,
     )
-    return _ChargeRootSolver(
+    solver = _ChargeRootSolver(
         evaluate_charge,
         filling=filling,
         filling_tol=filling_tol,
@@ -496,8 +493,11 @@ def solve_mu(
         max_charge_evaluations=max_charge_evaluations,
         charge_error_tol=charge_error_tol,
         use_derivative=use_derivative,
-    ).solve_with_expansion(
-        lower=lower,
-        upper=upper,
-        mu_guess=mu_guess,
     )
+    try:
+        return solver.solve_with_expansion(lower=lower, upper=upper, mu_guess=mu_guess)
+    except _MaxRootIterations:
+        solver._fail(
+            "maximum charge-evaluation budget reached before satisfying the filling tolerance",
+            solver.best if solver.best is not None else solver.last,
+        )

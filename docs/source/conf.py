@@ -13,16 +13,18 @@
 import os
 import requests
 import sys
+from pathlib import Path
 from importlib.metadata import version as check_version
 
 import sphinx_tippy
 
-import meanfi  # noqa: F401
+package_path = str(Path(__file__).resolve().parents[2])
+sys.path.insert(0, package_path)
 
-package_path = os.path.abspath("../meanfi")
+import meanfi  # noqa: E402, F401
+
 # Suppress superfluous frozen modules warning.
 os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
-sys.path.insert(0, package_path)
 
 
 # -- Project information -----------------------------------------------------

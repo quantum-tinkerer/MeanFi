@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     DensityResult,
     ErrorValues,
     SCFIteration,
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.integration
 
 def test_density_selection_modes_preserve_the_explicit_layout():
     hamiltonian = {(): np.diag([-0.5, 0.5]).astype(complex)}
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-10)
+    integration = PeriodicGrid(density_matrix_tol=1e-10)
     coordinates = DensityCoordinates.from_entries(
         size=2,
         keys=[()],
@@ -78,13 +78,14 @@ def test_density_rejects_coordinates_for_a_different_matrix_size():
         )
 
 
-def test_public_result_objects_have_only_physical_values_and_achieved_errors():
+def test_public_result_objects_report_physics_errors_and_density_statistics():
     assert [field.name for field in fields(DensityResult)] == [
         "coordinates",
         "values",
         "mu",
         "filling",
         "errors",
+        "statistics",
     ]
     assert [field.name for field in fields(SCFIteration)] == [
         "step",

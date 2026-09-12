@@ -1,32 +1,15 @@
-# ruff: noqa: F401
-import importlib
-import inspect
-from types import SimpleNamespace
-
-import meanfi
 import numpy as np
 import pytest
 import scipy.sparse as sp
 
 from meanfi import (
-    AdaptiveQuadrature,
-    AdaptiveSimplex,
-    AndersonMixing,
     DirectDiagonalization,
-    LinearMixing,
-    Model,
     RationalFOE,
-    UniformGrid,
+    PeriodicGrid,
     density_matrix,
     density_matrix_at_mu,
-    solver,
 )
-from meanfi.density.filling import mu_bracket, solve_mu
-from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
-from meanfi.scf.engine import NoConvergence
-from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
@@ -45,9 +28,8 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
         filling=1.0,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=20,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=DirectDiagonalization(),
         ),
         filling_tol=1e-2,
@@ -58,9 +40,8 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
         filling=1.0,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=20,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=RationalFOE(initial_poles=4, max_poles=64),
         ),
         filling_tol=1e-2,
@@ -89,9 +70,8 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
         mu=0.05,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=20,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=DirectDiagonalization(),
         ),
     )
@@ -100,9 +80,8 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
         mu=0.05,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=20,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=RationalFOE(initial_poles=4, max_poles=64),
         ),
     )

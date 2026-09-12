@@ -94,6 +94,10 @@ That is why this approach is attractive primarily for sparse problems: sparse sh
 
 ## Current practical notes
 
-- sparse finite-temperature defaults choose `RationalFOE(rational_scheme="aaa")`,
-- dense and sparse rational paths do not expose exactly the same capabilities,
+- supported only for sparse matrices at positive temperature with prescribed
+  `PeriodicGrid(nk=...)`,
+- an omitted matrix function on that explicit sparse grid selects
+  `RationalFOE(rational_scheme="aaa")`; automatic integration-family selection
+  raises migration guidance,
+- dense and accuracy-controlled rational integration are unsupported,
 - this is a single-node matrix-function backend, not a Brillouin-zone integration method by itself.

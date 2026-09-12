@@ -1,0 +1,227 @@
+{
+  "checkout": "/home/tinkerer/.codex/worktrees/a93c/meanfi",
+  "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+  "numpy": "2.4.6",
+  "threadpools": [
+    {
+      "user_api": "blas",
+      "internal_api": "openblas",
+      "num_threads": 1,
+      "prefix": "libopenblas",
+      "filepath": "/tmp/release-meanfi-docs-env-before-pin/lib/libopenblasp-r0.3.33.so",
+      "version": "0.3.33",
+      "threading_layer": "openmp",
+      "architecture": "SapphireRapids"
+    },
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 1,
+      "prefix": "libomp",
+      "filepath": "/tmp/release-meanfi-docs-env-before-pin/lib/libomp.so",
+      "version": null
+    },
+    {
+      "user_api": "blas",
+      "internal_api": "openblas",
+      "num_threads": 1,
+      "prefix": "libscipy_openblas",
+      "filepath": "/tmp/release-meanfi-docs-env-before-pin/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+      "version": "0.3.34.0.0",
+      "threading_layer": "pthreads",
+      "architecture": "SkylakeX"
+    }
+  ],
+  "results": [
+    {
+      "case": "square_metal",
+      "temperature": 0.2,
+      "matrix_size": 16,
+      "seconds": 0.04619753826409578,
+      "timings": [
+        0.04642183938995004,
+        0.045896580908447504,
+        0.04619753826409578
+      ],
+      "mu": -0.3158834023680837,
+      "filling": 6.879996483117874,
+      "statistics": {
+        "nk": 16,
+        "n_kpoints": 256,
+        "n_diagonalizations": 512,
+        "n_kernel_evals": 512,
+        "unique_evals": 512,
+        "n_evaluator_evals": 1664,
+        "n_cached_nodes": 256,
+        "cache_bytes": 1081344,
+        "refinements": 1,
+        "validation_points": 256,
+        "charge_evaluations": 8,
+        "charge_integration_calls": 8,
+        "density_integration_calls": 3,
+        "charge_error": 3.5185160589534803e-06,
+        "error_estimate_available": true,
+        "status": "converged",
+        "error_estimate_kind": "nested_and_shifted_grid_difference"
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 6.204844822388367e-07,
+        "filling_residual": 3.516882125964571e-06,
+        "charge_integration": 3.5185160589534803e-06
+      }
+    },
+    {
+      "case": "gapped",
+      "temperature": 0.05,
+      "matrix_size": 16,
+      "seconds": 0.027935350313782692,
+      "timings": [
+        0.04463245440274477,
+        0.027935350313782692,
+        0.02461157040670514
+      ],
+      "mu": 0.0,
+      "filling": 8.0,
+      "statistics": {
+        "nk": 16,
+        "n_kpoints": 256,
+        "n_diagonalizations": 512,
+        "n_kernel_evals": 512,
+        "unique_evals": 512,
+        "n_evaluator_evals": 1536,
+        "n_cached_nodes": 256,
+        "cache_bytes": 1081344,
+        "refinements": 1,
+        "validation_points": 256,
+        "charge_evaluations": 6,
+        "charge_integration_calls": 6,
+        "density_integration_calls": 3,
+        "charge_error": 0.0,
+        "error_estimate_available": true,
+        "status": "converged",
+        "error_estimate_kind": "nested_and_shifted_grid_difference"
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 9.159339953373024e-14,
+        "filling_residual": 0.0,
+        "charge_integration": 0.0
+      }
+    },
+    {
+      "case": "cold_bdg",
+      "temperature": 0.01,
+      "matrix_size": 16,
+      "seconds": 0.006468625273555517,
+      "timings": [
+        0.00648346496745944,
+        0.0064198169857263565,
+        0.006468625273555517
+      ],
+      "mu": -0.450367965170251,
+      "filling": 3.440000715534329,
+      "statistics": {
+        "nk": 16,
+        "n_kpoints": 16,
+        "n_diagonalizations": 120,
+        "n_kernel_evals": 120,
+        "unique_evals": 32,
+        "n_evaluator_evals": 144,
+        "n_cached_nodes": 16,
+        "cache_bytes": 67584,
+        "refinements": 1,
+        "validation_points": 16,
+        "charge_evaluations": 10,
+        "charge_integration_calls": 10,
+        "density_integration_calls": 3,
+        "charge_error": 6.743274871823246e-07,
+        "error_estimate_available": true,
+        "status": "converged",
+        "error_estimate_kind": "nested_and_shifted_grid_difference"
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 8.429093600881288e-08,
+        "filling_residual": 7.155343291209704e-07,
+        "charge_integration": 6.743274871823246e-07
+      }
+    },
+    {
+      "case": "wire",
+      "temperature": 0.05,
+      "matrix_size": 16,
+      "seconds": 0.028899386059492826,
+      "timings": [
+        0.028859298676252365,
+        0.030215797014534473,
+        0.028899386059492826
+      ],
+      "mu": -0.412906198676872,
+      "filling": 6.879980080129151,
+      "statistics": {
+        "nk": 256,
+        "n_kpoints": 256,
+        "n_diagonalizations": 512,
+        "n_kernel_evals": 512,
+        "unique_evals": 512,
+        "n_evaluator_evals": 2560,
+        "n_cached_nodes": 256,
+        "cache_bytes": 1081344,
+        "refinements": 5,
+        "validation_points": 256,
+        "charge_evaluations": 27,
+        "charge_integration_calls": 27,
+        "density_integration_calls": 7,
+        "charge_error": 1.9915742029752437e-05,
+        "error_estimate_available": true,
+        "status": "converged",
+        "error_estimate_kind": "nested_and_shifted_grid_difference"
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 2.2004680685916433e-06,
+        "filling_residual": 1.9919870848816856e-05,
+        "charge_integration": 1.9915742029752437e-05
+      }
+    },
+    {
+      "case": "bounded_3d",
+      "temperature": 0.2,
+      "matrix_size": 8,
+      "seconds": 0.8880696552805603,
+      "timings": [
+        0.8906851173378527,
+        0.8880696552805603,
+        0.8837880259379745
+      ],
+      "mu": -0.37512298442209346,
+      "filling": 3.4399995654206874,
+      "statistics": {
+        "nk": 32,
+        "n_kpoints": 32768,
+        "n_diagonalizations": 65536,
+        "n_kernel_evals": 65536,
+        "unique_evals": 65536,
+        "n_evaluator_evals": 187392,
+        "n_cached_nodes": 32768,
+        "cache_bytes": 35651584,
+        "refinements": 2,
+        "validation_points": 32768,
+        "charge_evaluations": 12,
+        "charge_integration_calls": 12,
+        "density_integration_calls": 4,
+        "charge_error": 4.346339554928136e-07,
+        "error_estimate_available": true,
+        "status": "converged",
+        "error_estimate_kind": "nested_and_shifted_grid_difference"
+      },
+      "errors": {
+        "scf_residual": null,
+        "density_matrix_integration": 1.9756881314281216e-07,
+        "filling_residual": 4.345793125359876e-07,
+        "charge_integration": 4.346339554928136e-07
+      }
+    }
+  ]
+}

@@ -1,64 +1,31 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 # Defaults and capabilities
 
-This page summarizes how `MeanFi` chooses defaults today and which method combinations are supported.
+When `integration=None`, MeanFi uses:
 
-## Default integration selection
-
-When `integration=None`, the code currently chooses:
-
-| Condition | Default |
+| System | Default |
 | --- | --- |
-| `kT = 0`, normal | `AdaptiveSimplex()` |
-| `kT > 0`, dense, normal | `AdaptiveQuadrature(matrix_function=DirectDiagonalization())` |
-| `kT > 0`, sparse, normal | `AdaptiveQuadrature(matrix_function=RationalFOE(rational_scheme="aaa"))` |
-| `kT > 0`, dense, superconducting | `AdaptiveQuadrature(matrix_function=DirectDiagonalization())` |
-| `kT > 0`, sparse, superconducting | `AdaptiveQuadrature(matrix_function=RationalFOE(rational_scheme="aaa"))` |
-| `kT = 0`, superconducting | no default; explicit `UniformGrid(...)` required |
+| Dense normal, `kT=0` | `AdaptiveSimplex()` |
+| Dense normal or BdG, `kT>0` | `PeriodicGrid()` with direct diagonalization and global refinement |
+| BdG, `kT=0` | Explicit `PeriodicGrid(nk=...)` required |
+| Sparse, automatic finite-temperature selection | Error with migration guidance; choose an explicit supported method |
 
-## Capability table
+| Family and mode | Normal, `kT=0` | BdG, `kT=0` | Normal/BdG, `kT>0` |
+| --- | --- | --- | --- |
+| `AdaptiveSimplex`, prescribed or accuracy-controlled | Yes | No | No |
+| `PeriodicGrid(nk=...)` | Yes | Yes | Yes |
+| `PeriodicGrid()` or explicit integration targets | No | No | Yes |
 
-The main supported combinations are:
+Direct diagonalization is the main periodic path. Fixed periodic grids also
+support explicit `RationalFOE` for sparse matrices at positive temperature. No adaptive rational path
+is provided. Choosing dense evaluation for a sparse input must be explicit.
 
-| Family | `kT = 0` normal | `kT = 0` BdG | `kT > 0` normal | `kT > 0` BdG |
-| --- | --- | --- | --- | --- |
-| `AdaptiveSimplex` | Yes | No | No | No |
-| `UniformGrid` | Yes | Yes | Yes | Yes |
-| `AdaptiveQuadrature` | No | No | Yes | Yes |
+`Model` defaults to `kT=0.0`; `solver` uses `AndersonMixing()`. The top-level `tol`
+provides a convenient shared accuracy policy, while `scf_tol`, `filling_tol`,
+`mu_tol`, `density_matrix_tol` and `charge_tol` separate individual budgets.
+Integration targets are populated only after the prescribed/accuracy-controlled
+mode has been resolved. An explicit `nk` always retains prescribed-size semantics.
 
-`AdaptiveSimplex` uses the `FermiSimplex` backend for normal-state zero-temperature problems. MeanFi reuses the charge-refined spectral mesh, requests only the density components needed by the SCF parametrization, and evaluates them with `preview_depth=1`.
-
-## Matrix-function defaults
-
-At finite temperature:
-
-- dense problems default to `DirectDiagonalization()`,
-- sparse problems default to `RationalFOE(rational_scheme="aaa")`.
-
-For `UniformGrid`, the same dense/sparse distinction is still relevant when the matrix-function backend is omitted.
-
-## Other current defaults
-
-Some other public defaults that affect algorithm behavior are:
-
-- `Model(..., kT=0.0)`
-- `solver(..., scf=AndersonMixing(), scf_tol=None)`, where omitted
-  `scf_tol` resolves to `1e-3`
-- `AdaptiveSimplex` defaults to `density_matrix_tol=1e-2`
-- omitted `filling_tol` is derived from `density_matrix_tol` using the internal
-  estimator factor `5.4`
-- integration methods accept `charge_tol`; when omitted, it uses
-  `density_matrix_tol`
-
-These defaults live in the runtime code, so this page should be updated whenever those policies change.
+FermiSimplex provides the normal zero-temperature band-energy calculation used
+by energy-based SCF. Finite-temperature density integration does not provide a
+thermodynamic energy or free-energy method; periodic results report unavailable
+energy as `None`. Use the supported residual-based SCF methods for those workflows.

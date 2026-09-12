@@ -23,6 +23,12 @@ class DensityIntegrationInfo:
     subdivisions: int
     error_estimate_available: bool
     num_threads: int | None = None
+    charge: float | None = None
+    charge_error: float | None = None
+
+    requested_nk: int | None = None
+    n_kpoints: int | None = None
+    n_diagonalizations: int | None = None
 
 
 @dataclass(frozen=True)
@@ -31,7 +37,7 @@ class FixedFillingInfo:
 
     mu: float
     charge: float
-    charge_error: float
+    charge_error: float | None
     dcharge_dmu: float
     charge_evaluations: int
     charge_integration_calls: int
@@ -56,10 +62,14 @@ class FixedFillingInfo:
     band_energy_integration_calls: int = 0
     band_energy_n_kernel_evals: int = 0
 
+    requested_nk: int | None = None
+    n_kpoints: int | None = None
+    n_diagonalizations: int | None = None
+
 
 @dataclass(frozen=True)
 class AdaptiveSimplexInfo:
-    """Internal statistics for adaptive zero-temperature simplicial integration."""
+    """Mesh size and cumulative work for FermiSimplex integration."""
 
     n_kernel_evals: int
     unique_evals: int
@@ -77,39 +87,30 @@ class AdaptiveSimplexInfo:
     band_energy_integration_calls: int = 0
     band_energy_n_kernel_evals: int = 0
 
+    requested_nk: int | None = None
+    n_kpoints: int | None = None
+    n_diagonalizations: int | None = None
+
 
 @dataclass(frozen=True)
-class AdaptiveQuadratureInfo:
-    """Internal statistics for adaptive finite-temperature quadrature."""
+class PeriodicGridInfo:
+    """Mesh size, retained storage, and cumulative work for periodic integration."""
 
+    requested_nk: int | None
+    n_kpoints: int
+    grid_shape: tuple[int, ...]
     n_kernel_evals: int
     unique_evals: int
     n_evaluator_evals: int
-    n_cached_nodes: int
-    n_leaves: int
-    n_leaf_nodes: int
-    refinements: int
-    error_estimate_available: bool
-    charge_evaluations: int | None = None
-    charge_integration_calls: int | None = None
-    density_integration_calls: int | None = None
-    charge_error: float | None = None
-
-
-@dataclass(frozen=True)
-class UniformGridInfo:
-    """Internal statistics for uniform-grid integration."""
-
-    nk: int
-    n_kpoints: int
-    unique_evals: int
-    n_kernel_evals: int | None = None
-    n_evaluator_evals: int | None = None
-    charge_evaluations: int | None = None
-    charge_integration_calls: int | None = None
-    density_integration_calls: int | None = None
+    n_diagonalizations: int | None = None
+    refinements: int = 0
+    validation_evaluations: int = 0
+    charge_evaluations: int = 0
+    charge_integration_calls: int = 0
+    density_integration_calls: int = 0
     charge_error: float | None = None
     error_estimate_available: bool = False
+    spectrum_bytes: int = 0
 
 
 @dataclass(frozen=True)
@@ -126,6 +127,7 @@ class DensityResult:
     mu: float
     filling: float
     errors: ErrorValues
+    statistics: AdaptiveSimplexInfo | PeriodicGridInfo | None = None
 
     def __post_init__(self) -> None:
         values = np.array(self.values, dtype=complex, copy=True)
@@ -177,6 +179,7 @@ class DensityResult:
             mu=self.mu,
             filling=self.filling,
             errors=self.errors,
+            statistics=self.statistics,
         )
 
     def to_matrix(self) -> _tb_type:

@@ -63,7 +63,34 @@ For examples, see the [tutorials](https://meanfi.readthedocs.io/en/latest/tutori
 - tight-binding dictionary workflows,
 - optional `kwant` conversion helpers.
 
-Zero-temperature BdG calculations are not part of the main package workflow.
+Zero-temperature BdG calculations require an explicit `PeriodicGrid(nk=...)`.
+
+## Integration
+
+MeanFi has two integration families. Normal zero-temperature calculations default
+to `AdaptiveSimplex()` backed by FermiSimplex. Dense finite-temperature normal
+and BdG calculations default to `PeriodicGrid()` with direct diagonalization,
+global refinement and mandatory shifted-grid validation.
+
+```python
+# Prescribed final mesh size (total points, with documented rounding).
+integration = meanfi.PeriodicGrid(nk=4096)
+integration = meanfi.AdaptiveSimplex(nk=4096)
+
+# Accuracy control; omit nk.
+integration = meanfi.PeriodicGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
+```
+
+Do not combine `nk` with integration targets. The top-level `tol` still controls
+root finding and SCF on a prescribed mesh; integration errors then remain
+unavailable. `nk=4096` means 64² periodic points in 2D or 16³ in 3D, with simplex
+rounding explained in the [integration guide](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html).
+
+`UniformGrid`, `PeriodicQuadrature` and `AdaptiveQuadrature` have been removed.
+To preserve an old `UniformGrid(nk=n)` mesh in dimension `d`, use
+`PeriodicGrid(nk=n**d)`. Prescribed positive-temperature sparse `RationalFOE` remains
+available; automatic sparse integration requires explicit migration and never
+silently selects dense evaluation. See [migration notes](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html#migration).
 
 ## Installation
 

@@ -282,7 +282,7 @@ def solve_strained_graphene_reference(
     """Run the strained-graphene tutorial reference point."""
 
     h0, h_int, guess, filling, _, _ = _build_strained_graphene_inputs()
-    integration = meanfi.UniformGrid(nk=2, density_matrix_tol=1e-1)
+    integration = meanfi.PeriodicGrid(nk=4, matrix_function=meanfi.RationalFOE())
     model = meanfi.Model(h0, h_int, filling=filling, kT=0.01)
     solver_result = meanfi.solver(
         model,

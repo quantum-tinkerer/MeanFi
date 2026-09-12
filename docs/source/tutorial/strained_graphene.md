@@ -82,7 +82,7 @@ int_builder = utils.build_interacting_syst(
 After we have created the interacting system we can use MeanFi again for getting the solution. We turn both the non-interacting and interacting systems into tight binding dictionaries using the kwant utils. Then we combine them into a mean-field model.
 
 ```{code-cell} ipython3
-integration = meanfi.UniformGrid(nk=2, density_matrix_tol=density_atol)
+integration = meanfi.PeriodicGrid(nk=4, matrix_function=meanfi.RationalFOE())
 
 h0_dense, data = utils.builder_to_tb(h0_builder, params={"xi": xi}, return_data=True)
 h0 = utils.builder_to_tb(h0_builder, params={"xi": xi}, sparse=True)

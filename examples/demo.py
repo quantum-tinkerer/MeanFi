@@ -28,7 +28,7 @@ def plot_bands(tb, *, nk: int = 150):
 if __name__ == "__main__":
     h_0, h_int = hubbard_chain(U=2.0)
     model = meanfi.Model(h_0, h_int, filling=2.0, kT=0.0)
-    guess = meanfi.guess_tb(frozenset(h_int), ndof=4)
+    guess = model.random_meanfield(rng=0, scale=0.1)
 
     solution = meanfi.solver(
         model,
@@ -38,10 +38,9 @@ if __name__ == "__main__":
         scf_tol=1e-6,
     )
 
-    h_mf = meanfi.add_tb(h_0, solution.mf)
-    print(f"method: {solution.info.method}")
-    print(f"iterations: {solution.info.iterations}")
-    print(f"residual norm: {solution.info.residual_norm:.3e}")
-    print(f"mu: {solution.density_matrix_result.mu:.6f}")
+    h_mf = meanfi.add_tb(h_0, solution.mean_field)
+    print(f"iterations: {len(solution.history)}")
+    print(f"residual norm: {solution.errors.scf_residual:.3e}")
+    print(f"mu: {solution.mu:.6f}")
 
     plot_bands(h_mf)

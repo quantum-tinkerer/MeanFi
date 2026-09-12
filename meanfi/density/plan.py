@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from meanfi.density.integrate.integrate import build_integration_plan
 from meanfi.density.internal import DensityEvaluation
 from meanfi.density.problem import DensityPlan, DensityProblem
@@ -21,6 +23,8 @@ def evaluate_at_mu(
     """Evaluate the density once the chemical potential is fixed."""
 
     del problem
+    if not math.isfinite(mu):
+        raise ValueError("mu must be finite")
     return plan.evaluate_mu(mu)
 
 

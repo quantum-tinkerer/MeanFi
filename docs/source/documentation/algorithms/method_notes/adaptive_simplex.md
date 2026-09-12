@@ -1,76 +1,39 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 # `AdaptiveSimplex`
 
-`AdaptiveSimplex` is the dedicated zero-temperature adaptive integration backend for normal-state calculations.
-Its physics-specific native implementation lives in the separate
-[FermiSimplex package](https://gitlab.kwant-project.org/qt/lineartetrahedron),
-while the generic adaptive mesh engine lives in
+`AdaptiveSimplex` is MeanFi's main integration method for normal systems at zero
+temperature. [FermiSimplex](https://gitlab.kwant-project.org/qt/lineartetrahedron)
+provides the native physics integration; its generic mesh engine is
 [adaptivesimplex](https://gitlab.kwant-project.org/qt/adaptivesimplex).
-MeanFi keeps the public integration API and dispatch logic.
 
-At zero temperature, the occupation becomes discontinuous, so the finite-temperature quadrature machinery is no longer the natural default.
-Instead, `AdaptiveSimplex` refines a simplicial partition of the Brillouin zone and estimates the integral from local simplex contributions.
+## Accuracy control
 
-## Main idea
+With no `nk`, the backend refines a simplicial partition, comparing each simplex
+contribution with a preview on refined descendants. It focuses refinement where
+the estimated error is largest. The density stage reuses the charge-refined
+mesh and computes only the required real-space entries, using preview depth one.
+Density and charge tolerances are separate integration targets.
 
-The Brillouin zone is partitioned into simplices.
-For each active simplex $\sigma$, the backend compares:
+## Prescribed mesh
 
-- a coarse contribution on that simplex,
-- a preview contribution on refined descendants.
+`AdaptiveSimplex(nk=N)` uses the native `SpectralMesh(root_level=L)` constructor.
+It chooses the smallest nonnegative `L` whose node count
+`(2**L + 1)**dimension` reaches `N`. Both reduced-coordinate boundary nodes `0`
+and `1` are counted, even though they are periodically equivalent. Native mesh
+granularity can therefore overshoot the request substantially.
 
-The difference between the two is used as an error indicator.
-Refinement then focuses on the simplices with the largest contribution to the total estimated error.
+For example, a request for 4096 total nodes produces 4225 nodes (65²) in 2D and
+4913 nodes (17³) in 3D. Requested and actual counts are reported separately.
+The backend still integrates over simplices; it does not replace them with point
+sampling. Charge is estimated on the current mesh and density uses preview depth
+zero, without subsequent adaptive refinement. Integration errors are unavailable.
 
-## Fixed-filling workflow
+`max_points` is a separate hard limit on retained spectral nodes, including
+density-preview vertices. An initial mesh that would exceed it fails clearly.
+Adaptive refinement reserves a conservative native work bound before each call;
+shared vertices can make it stop below the limit. `max_refinements` independently
+limits accuracy-controlled refinement.
+`num_threads` limits native OpenMP threads and defaults to one; pass `None` to
+leave the backend thread count unrestricted.
 
-At zero temperature the backend uses the same geometric infrastructure for both:
-
-- the charge solve $N(\mu)=\nu$,
-- and the final density integral at the converged $\mu$.
-
-The density stage starts from the charge-converged refined mesh rather than rebuilding from scratch. MeanFi passes only the real-space matrix components required by its SCF parametrization, and `FermiSimplex` returns those values in the requested order.
-
-## Cost versus error scaling
-
-The exact cost depends on how many simplices are activated by refinement.
-Very roughly,
-
-:::{math}
-\text{cost} \sim N_{\sigma} \times C_{\sigma},
-:::
-
-where $N_{\sigma}$ is the number of active simplices visited by the adaptive controller.
-For the linear tetrahedron type behavior that this method is designed around, a useful rule of thumb is
-
-:::{math}
-\text{cost} \sim \varepsilon^{-d/2} C_{\sigma}.
-:::
-
-This method is specialized but efficient when the zero-temperature integrand is difficult enough that a fixed grid would need many points.
-
-## Practical knobs
-
-- `density_matrix_tol`
-- `max_refinements`
-- `num_threads`
-
-MeanFi uses the density preview depth of `1` when calling the
-`FermiSimplex` backend. `num_threads` requests the OpenMP thread limit for the
-native integration call, which is useful in notebooks and task workers where setting
-environment variables before process startup is inconvenient. It defaults to `1` to
-avoid unexpectedly oversubscribing worker processes. Pass `num_threads=None` to leave
-the backend thread count unrestricted, or set an explicit larger value when desired.
-
-It requires `kT = 0` and is the default normal-state integration family at zero temperature.
+FermiSimplex band-energy results and normal zero-temperature SCF remain supported.
+This family does not support finite temperature or superconducting BdG systems.

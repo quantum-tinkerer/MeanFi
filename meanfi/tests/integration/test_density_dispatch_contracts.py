@@ -1,39 +1,25 @@
-# ruff: noqa: F401
-import importlib
-import inspect
 from types import SimpleNamespace
 
-import meanfi
 import numpy as np
 import pytest
-import scipy.sparse as sp
 
 from meanfi import (
-    AdaptiveQuadrature,
     AdaptiveSimplex,
-    AndersonMixing,
-    DirectDiagonalization,
     LinearMixing,
     default_solver_tolerances,
     Model,
-    RationalFOE,
-    UniformGrid,
+    PeriodicGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
 )
-from meanfi.density.filling import mu_bracket, solve_mu
 from meanfi.density.internal import DensityEvaluation, DensitySlice
 from meanfi.errors import ErrorValues
-from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
-from meanfi.scf.engine import NoConvergence
 from meanfi.scf.engine import SolverRuntime
 from meanfi.scf.normal import build_normal_scf_problem
 from meanfi.space.state import ActiveDensityState
 from meanfi.space.coordinates import DensityCoordinates
-from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
@@ -55,7 +41,7 @@ def test_normal_solver_warns_when_guess_is_projected_to_structural_selection():
         result = solver(
             model,
             {(0,): np.array([[0.0, 0.3], [0.3, 0.0]], dtype=complex)},
-            integration=AdaptiveQuadrature(density_matrix_tol=1e-2),
+            integration=PeriodicGrid(density_matrix_tol=1e-2),
             scf=LinearMixing(max_iterations=1),
             scf_tol=1e-8,
         )
@@ -70,7 +56,7 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
             mu=0.0,
             kT=0.1,
             keys=[()],
-            integration=AdaptiveQuadrature(),
+            integration=PeriodicGrid(),
         )
 
 
@@ -108,7 +94,7 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
 
     def fail(*args, **kwargs):  # pragma: no cover - executed only on regression
         raise AssertionError(
-            "AdaptiveQuadrature should not call the zero-temperature backend"
+            "PeriodicGrid should not call the zero-temperature backend"
         )
 
     monkeypatch.setattr(integration, "density_matrix_zero_temp", fail)
@@ -117,7 +103,7 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
         filling=1.0,
         kT=0.1,
         keys=[(0,)],
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-4),
+        integration=PeriodicGrid(density_matrix_tol=1e-4),
     )
 
     assert np.isfinite(result.mu)
@@ -328,7 +314,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
         error_stats=SimpleNamespace(hamiltonian_evaluations=3),
     )
 
-    monkeypatch.setattr(simplex_integration, "_spectral_mesh", lambda h: mesh)
+    monkeypatch.setattr(simplex_integration, "_spectral_mesh", lambda h, **kwargs: mesh)
     monkeypatch.setattr(
         simplex_integration,
         "solve_mu",

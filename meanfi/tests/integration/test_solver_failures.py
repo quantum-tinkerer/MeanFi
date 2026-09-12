@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     LinearMixing,
     Model,
     SCFResult,
@@ -44,7 +44,7 @@ def test_numerical_failure_attaches_last_valid_physical_result(monkeypatch):
         solver(
             model,
             {(0,): np.zeros((2, 2))},
-            integration=AdaptiveQuadrature(density_matrix_tol=1e-4),
+            integration=PeriodicGrid(density_matrix_tol=1e-4),
             scf=LinearMixing(max_iterations=3),
         )
 

@@ -8,9 +8,8 @@ from typing import Any
 def canonical_method_name(method: object) -> str:
     name = method.__class__.__name__
     return {
-        "AdaptiveQuadrature": "adaptive_quadrature",
         "AdaptiveSimplex": "adaptive_simplex",
-        "UniformGrid": "uniform_grid",
+        "PeriodicGrid": "periodic_grid",
         "LinearMixing": "linear_mixing",
         "AndersonMixing": "anderson_mixing",
     }.get(name, name.lower())
@@ -76,7 +75,7 @@ def density_record(
     filling_error: float | None,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    info = density_result.info
+    info = density_result.statistics
     record = _base_record(
         scenario=scenario,
         method=canonical_method_name(integration),
@@ -118,7 +117,7 @@ def scf_record(
     solver_result,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    info = solver_result.info
+    info = solver_result.density.statistics
     record = _base_record(
         scenario=scenario,
         method=canonical_method_name(integration),
@@ -127,28 +126,29 @@ def scf_record(
         ndof=ndof,
         wall_s=benchmark_result.median_s,
         peak_memory_bytes=benchmark_result.peak_traced_bytes,
-        unique_evals=unique_eval_count(info, total=True),
+        unique_evals=unique_eval_count(info),
     )
     record.update(
         {
             "n_kernel_evals": getattr(
-                solver_result.density_matrix_result.info,
+                solver_result.density.statistics,
                 "n_kernel_evals",
                 None,
             ),
             "n_evaluator_evals": getattr(info, "total_evaluator_evals", None),
             "root_iterations": None,
-            "scf_iterations": getattr(info, "iterations", None),
+            "scf_iterations": len(solver_result.history),
             "n_kpoints": getattr(
-                solver_result.density_matrix_result.info,
+                solver_result.density.statistics,
                 "n_kpoints",
                 None,
             ),
             "total_unique_evals": getattr(info, "total_unique_evals", None),
             "density_matrix_error": None,
             "filling_error": None,
-            "scf_residual": float(info.residual_norm),
+            "scf_residual": float(solver_result.errors.scf_residual),
             "scf_method": canonical_method_name(scf_method),
+            "unique_evals_scope": "final_density",
         }
     )
     if extra:

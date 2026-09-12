@@ -19,7 +19,11 @@ from meanfi.density.internal import DensityEvaluation
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.space.coordinates import full_density_coordinates
 from meanfi.tb.ops import _tb_type
-from meanfi.tb.validate import tb_orbital_count
+from meanfi.tb.validate import (
+    tb_orbital_count,
+    tb_dimension,
+    require_zero_dim_local_key_only,
+)
 
 
 @dataclass(frozen=True)
@@ -60,6 +64,8 @@ def build_normal_problem(
 ) -> DensityProblem:
     """Normalize public normal-density inputs into one pipeline problem."""
 
+    if tb_dimension(hamiltonian) == 0:
+        require_zero_dim_local_key_only(hamiltonian)
     selected_integration = (
         integration
         if integration is not None

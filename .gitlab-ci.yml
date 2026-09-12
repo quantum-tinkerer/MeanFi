@@ -1,7 +1,6 @@
 image: ghcr.io/prefix-dev/pixi:0.70.2
 
 variables:
-  ADAPTIVESIMPLEX_PREFIX : $CI_PROJECT_DIR/.pixi/adaptivesimplex-prefix
   PIXI_LOCKED : "true"
   OPENBLAS_NUM_THREADS : 1
   OMP_NUM_THREADS : 1
@@ -10,11 +9,8 @@ variables:
 
 before_script:
   - pixi global install git
-  - pixi run -e native-build install-adaptivesimplex-cmake
-  - export CMAKE_PREFIX_PATH="$ADAPTIVESIMPLEX_PREFIX${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
 
 run tests:
-  when: manual # delete when tests implemented and uncomment pages commands
   parallel:
     matrix:
       - PIXI_ENV:
@@ -75,7 +71,7 @@ run performance profiles:
 
 run docs:
   script:
-    - pixi run docs-build
+    - pixi run -e docs docs-build
   artifacts:
     paths:
       - docs/build

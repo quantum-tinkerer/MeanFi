@@ -81,6 +81,9 @@ def resolve_error_tolerances(
 def resolve_integration_tolerances(integration, tolerances: ErrorTolerances):
     """Fill automatic integration tolerances and retain explicit overrides."""
 
+    if getattr(integration, "nk", None) is not None:
+        return integration, tolerances
+
     density_setting = getattr(integration, "density_matrix_tol", None)
     charge_setting = getattr(integration, "charge_tol", None)
     density_tolerance = (

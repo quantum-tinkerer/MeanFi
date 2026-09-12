@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import math
+
 from meanfi.tb.ops import is_sparse_like, _tb_type
 
-from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
-from .methods import AdaptiveQuadrature, AdaptiveSimplex, IntegrationMethod
+from meanfi.density.kpoint.matrix_functions import DirectDiagonalization
+from .methods import PeriodicGrid, AdaptiveSimplex, IntegrationMethod
 
 
 DEFAULT_KT = 0.0
@@ -19,23 +21,28 @@ def select_default_integration(
     kT: float,
     superconducting: bool = False,
 ) -> IntegrationMethod:
-    if kT < 0:
-        raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
+    if not math.isfinite(kT) or kT < 0:
+        raise ValueError(
+            "meanfi supports only finite non-negative temperatures (kT >= 0)"
+        )
 
     if kT == 0:
         if superconducting:
             raise NotImplementedError(
                 "Zero-temperature superconducting calculations require an explicit "
-                "UniformGrid(...) integration setting."
+                "PeriodicGrid(nk=...) integration setting."
             )
         return AdaptiveSimplex()
 
     if uses_sparse_matrices(hamiltonian):
-        return AdaptiveQuadrature(
-            matrix_function=RationalFOE(rational_scheme="aaa"),
+        raise ValueError(
+            "Automatic finite-temperature sparse integration is no longer supported. "
+            "Use PeriodicGrid(nk=..., matrix_function=RationalFOE()) for a prescribed "
+            "sparse mesh, or explicitly select PeriodicGrid(matrix_function="
+            "DirectDiagonalization()) if dense diagonalization fits in memory."
         )
 
-    return AdaptiveQuadrature(
+    return PeriodicGrid(
         matrix_function=DirectDiagonalization(),
     )
 

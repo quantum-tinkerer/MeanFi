@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from meanfi import AdaptiveSimplex, UniformGrid, density_matrix, density_matrix_at_mu
+from meanfi import AdaptiveSimplex, PeriodicGrid, density_matrix, density_matrix_at_mu
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import (
     assert_estimator_covers_actual,
@@ -176,7 +176,7 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
 
 @requires_ext
 @pytest.mark.parametrize("case", ZERO_TEMP_CASES, ids=lambda case: case.name)
-def test_uniform_grid_density_at_mu_converges_against_dense_reference(case):
+def test_periodic_grid_density_at_mu_converges_against_dense_reference(case):
     tb = case.builder()
     reference = converged_dense_reference(
         tb,
@@ -195,7 +195,7 @@ def test_uniform_grid_density_at_mu_converges_against_dense_reference(case):
             mu=0.0,
             kT=0.0,
             keys=case.keys,
-            integration=UniformGrid(nk=nk),
+            integration=PeriodicGrid(nk=nk ** len(next(iter(tb)))),
         )
         records.append(
             (
@@ -209,7 +209,7 @@ def test_uniform_grid_density_at_mu_converges_against_dense_reference(case):
 
 
 def test_adaptive_simplex_rejects_negative_max_refinements():
-    with pytest.raises(ValueError, match="max_refinements must be non-negative"):
+    with pytest.raises(ValueError, match="max_refinements must be an integer"):
         AdaptiveSimplex(max_refinements=-1)
 
 
@@ -218,5 +218,5 @@ def test_adaptive_simplex_defaults_to_one_thread():
 
 
 def test_adaptive_simplex_rejects_nonpositive_num_threads():
-    with pytest.raises(ValueError, match="num_threads must be positive"):
+    with pytest.raises(ValueError, match="num_threads must be an integer"):
         AdaptiveSimplex(num_threads=0)

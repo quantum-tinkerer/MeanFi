@@ -1,9 +1,24 @@
+"""The two public Brillouin-zone integration families.
+
+An explicit ``nk`` selects a prescribed mesh; otherwise tolerances control
+refinement. Resource limits never select a mode.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
+from numbers import Integral
+import math
 
 
-FILLING_TOLERANCE_ESTIMATOR_FACTOR = 5.4
+def _positive_integer(name, value, *, allow_none=False, minimum=1):
+    if value is None and allow_none:
+        return
+    if isinstance(value, bool) or not isinstance(value, Integral) or value < minimum:
+        raise ValueError(
+            f"{name} must be an integer >= {minimum}"
+            + (" or None" if allow_none else "")
+        )
 
 
 @dataclass(frozen=True)
@@ -11,67 +26,68 @@ class IntegrationMethod:
     """Base class for Brillouin-zone integration strategies."""
 
 
+def _validate_mesh_settings(method):
+    _positive_integer("nk", method.nk, allow_none=True)
+    for name in ("density_matrix_tol", "charge_tol"):
+        value = getattr(method, name)
+        if value is not None and (not math.isfinite(value) or value <= 0):
+            raise ValueError(f"{name} must be positive and finite when provided")
+    if method.nk is not None and (
+        method.density_matrix_tol is not None or method.charge_tol is not None
+    ):
+        raise ValueError(
+            "nk cannot be combined with explicit integration accuracy targets"
+        )
+    _positive_integer("max_points", method.max_points)
+    _positive_integer(
+        "max_refinements", method.max_refinements, allow_none=True, minimum=0
+    )
+
+
 @dataclass(frozen=True)
 class AdaptiveSimplex(IntegrationMethod):
-    """Adaptive zero-temperature simplicial integration."""
+    """FermiSimplex integration of normal systems at zero temperature.
+
+    ``nk`` requests a total number of native mesh vertices, including distinct
+    boundary vertices. Native dyadic construction may overshoot this request.
+    Without ``nk``, use empirical integration targets and adaptive refinement.
+    """
 
     density_matrix_tol: float | None = None
     max_refinements: int | None = None
     num_threads: int | None = 1
     charge_tol: float | None = None
+    nk: int | None = None
+    max_points: int = 1_048_576
 
-    def __post_init__(self) -> None:
-        if self.density_matrix_tol is not None and self.density_matrix_tol <= 0:
-            raise ValueError("density_matrix_tol must be positive when provided")
-        if self.charge_tol is not None and self.charge_tol <= 0:
-            raise ValueError("charge_tol must be positive when provided")
-        if self.max_refinements is not None and self.max_refinements < 0:
-            raise ValueError("max_refinements must be non-negative or None")
-        if self.num_threads is not None and self.num_threads <= 0:
-            raise ValueError("num_threads must be positive or None")
+    def __post_init__(self):
+        _validate_mesh_settings(self)
+        _positive_integer("num_threads", self.num_threads, allow_none=True)
 
 
 @dataclass(frozen=True)
-class AdaptiveQuadrature(IntegrationMethod):
-    """Adaptive finite-temperature quadrature."""
+class PeriodicGrid(IntegrationMethod):
+    """Isotropic periodic point sampling with optional global refinement.
 
+    ``nk`` requests TOTAL mesh points, rounded up to ``n**dimension``. Without
+    ``nk``, finite-temperature integration doubles each axis and validates
+    convergence with a shifted grid. ``batch_size`` bounds transient matrix
+    storage; ``max_spectrum_bytes`` bounds retained normal-state eigenvalues.
+    """
+
+    nk: int | None = None
     density_matrix_tol: float | None = None
-    max_refinements: int | None = None
-    rule: str = "auto"
-    batch_size: int | None = None
+    charge_tol: float | None = None
+    max_points: int = 1_048_576
+    max_refinements: int | None = 12
+    batch_size: int = 128
+    max_spectrum_bytes: int = 256 * 1024 * 1024
     matrix_function: object | None = None
     workspace_precision: int = 128
-    charge_tol: float | None = None
 
-    def __post_init__(self) -> None:
-        if self.density_matrix_tol is not None and self.density_matrix_tol <= 0:
-            raise ValueError("density_matrix_tol must be positive when provided")
-        if self.charge_tol is not None and self.charge_tol <= 0:
-            raise ValueError("charge_tol must be positive when provided")
-        if self.max_refinements is not None and self.max_refinements < 0:
-            raise ValueError("max_refinements must be non-negative or None")
-        if self.batch_size is not None and self.batch_size <= 0:
-            raise ValueError("batch_size must be positive when provided")
-        if self.workspace_precision not in (64, 128):
-            raise ValueError("workspace_precision must be 64 or 128")
-
-
-@dataclass(frozen=True)
-class UniformGrid(IntegrationMethod):
-    """Uniform k-grid point sampling."""
-
-    nk: int
-    density_matrix_tol: float | None = None
-    matrix_function: object | None = None
-    workspace_precision: int = 128
-    charge_tol: float | None = None
-
-    def __post_init__(self) -> None:
-        if self.nk <= 0:
-            raise ValueError("nk must be positive")
-        if self.density_matrix_tol is not None and self.density_matrix_tol <= 0:
-            raise ValueError("density_matrix_tol must be positive when provided")
-        if self.charge_tol is not None and self.charge_tol <= 0:
-            raise ValueError("charge_tol must be positive when provided")
+    def __post_init__(self):
+        _validate_mesh_settings(self)
+        _positive_integer("batch_size", self.batch_size)
+        _positive_integer("max_spectrum_bytes", self.max_spectrum_bytes)
         if self.workspace_precision not in (64, 128):
             raise ValueError("workspace_precision must be 64 or 128")

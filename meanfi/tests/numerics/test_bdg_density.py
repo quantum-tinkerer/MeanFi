@@ -1,16 +1,13 @@
 import numpy as np
 import pytest
 import scipy.sparse as sparse
-import warnings
 
 import meanfi.density.kpoint.matrix_functions.direct as bdg_matrix_direct
-import meanfi.density.integrate.quadrature.bdg as bdg_quadrature
 from meanfi import (
-    AdaptiveQuadrature,
     DirectDiagonalization,
     Model,
     RationalFOE,
-    UniformGrid,
+    PeriodicGrid,
     tb_to_kfunc,
 )
 from meanfi.density.filling import charge_diagonal
@@ -94,77 +91,6 @@ def _max_density_error(lhs, rhs) -> float:
     return max(float(np.max(np.abs(lhs[key] - rhs[key]))) for key in rhs)
 
 
-def test_bdg_charge_evaluator_allows_negative_local_derivative_contributions(
-    monkeypatch,
-):
-    def fake_density_block(*args, **kwargs):
-        del args, kwargs
-        return type(
-            "DensityBlockResult",
-            (),
-            {
-                "block": np.array([[0.25 + 0.0j]], dtype=complex),
-                "derivative_block": np.array([[-0.5 + 0.0j]], dtype=complex),
-            },
-        )()
-
-    monkeypatch.setattr(bdg_quadrature, "density_block", fake_density_block)
-    evaluator = bdg_quadrature._charge_evaluator(
-        ndim=1,
-        kT=0.2,
-        q_diag=np.array([1.0]),
-        matrix_function=DirectDiagonalization(),
-        tolerance=1e-3,
-        filling_indices=[0],
-        filling_weights=np.array([1.0]),
-        matrix_from_payload=lambda payload: np.asarray([[payload[0]]], dtype=complex),
-        workspace_dtype=np.dtype(np.complex128),
-    )
-
-    with warnings.catch_warnings(record=True) as record:
-        warnings.simplefilter("always")
-        values = evaluator(
-            np.array([[0.0], [np.pi]], dtype=float),
-            np.array([[0.0], [0.0]], dtype=float),
-            0.1,
-        )
-
-    assert len(record) == 0
-    assert np.all(values[:, 1] < 0.0)
-
-
-def test_bdg_split_charge_warns_only_for_nonpositive_integrated_derivative():
-    with warnings.catch_warnings(record=True) as record:
-        warnings.simplefilter("always")
-        charge, charge_error, derivative = bdg_quadrature._split_charge(
-            np.array([0.4, 0.25]),
-            np.array([1e-3, 2e-3]),
-        )
-
-    assert len(record) == 0
-    assert charge == pytest.approx(0.4)
-    assert charge_error == pytest.approx(1e-3)
-    assert derivative == pytest.approx(0.25)
-
-    with pytest.warns(RuntimeWarning, match="integrated dN/dmu was non-positive"):
-        charge, charge_error, derivative = bdg_quadrature._split_charge(
-            np.array([0.4, -0.25]),
-            np.array([1e-3, 2e-3]),
-        )
-
-    assert charge == pytest.approx(0.4)
-    assert charge_error == pytest.approx(1e-3)
-    assert derivative == 0.0
-
-    with pytest.warns(RuntimeWarning, match="integrated dN/dmu was non-positive"):
-        _charge, _charge_error, derivative = bdg_quadrature._split_charge(
-            np.array([0.4, np.nan]),
-            np.array([1e-3, 2e-3]),
-        )
-
-    assert derivative == 0.0
-
-
 def test_bdg_exact_density_matches_dense_2d_reference():
     keys = [(0, 0), (1, 0), (0, 1)]
     meanfield = _pairing(0.3)
@@ -186,9 +112,8 @@ def test_bdg_exact_density_matches_dense_2d_reference():
         model,
         meanfield,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=5e-4,
-            max_refinements=100,
+        integration=PeriodicGrid(
+            nk=256,
             matrix_function=DirectDiagonalization(),
         ),
         filling_tol=5e-4,
@@ -225,9 +150,8 @@ def test_bdg_dense_rational_is_rejected(matrix_function):
             model,
             meanfield,
             keys=keys,
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-3,
-                max_refinements=40,
+            integration=PeriodicGrid(
+                nk=256,
                 matrix_function=matrix_function,
             ),
             filling_tol=1e-3,
@@ -260,9 +184,8 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
         model,
         meanfield,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-3,
-            max_refinements=40,
+        integration=PeriodicGrid(
+            nk=256,
             matrix_function=DirectDiagonalization(),
         ),
         filling_tol=1e-3,
@@ -274,9 +197,8 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
         model,
         meanfield,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-3,
-            max_refinements=40,
+        integration=PeriodicGrid(
+            nk=256,
             matrix_function=matrix_function,
         ),
         filling_tol=1e-3,
@@ -310,9 +232,8 @@ def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
         model,
         meanfield,
         keys=[local],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-6,
-            max_refinements=8,
+        integration=PeriodicGrid(
+            nk=256,
         ),
         filling_tol=1e-6,
         mu_tol=1e-8,
@@ -348,9 +269,8 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
         model,
         meanfield,
         keys=[local],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-6,
-            max_refinements=8,
+        integration=PeriodicGrid(
+            nk=256,
         ),
         filling_tol=1e-6,
         mu_tol=1e-8,
@@ -383,9 +303,8 @@ def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
         model,
         meanfield,
         keys=[local],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-6,
-            max_refinements=8,
+        integration=PeriodicGrid(
+            nk=256,
         ),
         filling_tol=1e-6,
         mu_tol=1e-8,
@@ -412,9 +331,8 @@ def test_bdg_zero_dimensional_rational_density_rejects_dense_matrix():
             model,
             meanfield,
             keys=[local],
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-8,
-                max_refinements=8,
+            integration=PeriodicGrid(
+                nk=256,
                 matrix_function=RationalFOE(initial_poles=4, max_poles=256),
             ),
             filling_tol=1e-8,
@@ -437,9 +355,8 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
         Model(dense_h0, dense_hint, filling=0.5, kT=0.2, superconducting=True),
         meanfield,
         keys=[local],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-3,
-            max_refinements=16,
+        integration=PeriodicGrid(
+            nk=256,
         ),
         filling_tol=1e-3,
         mu_tol=1e-8,
@@ -450,9 +367,8 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
         Model(sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True),
         sparse_meanfield,
         keys=[local],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-3,
-            max_refinements=16,
+        integration=PeriodicGrid(
+            nk=256,
         ),
         filling_tol=1e-3,
         mu_tol=1e-8,
@@ -483,7 +399,7 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
-def test_bdg_sparse_uniform_grid_selected_density_matches_dense_reference(
+def test_bdg_sparse_periodic_grid_selected_density_matches_dense_reference(
     matrix_function,
 ):
     local = (0, 0)
@@ -504,9 +420,8 @@ def test_bdg_sparse_uniform_grid_selected_density_matches_dense_reference(
         dense_model,
         meanfield,
         keys=[local],
-        integration=UniformGrid(
+        integration=PeriodicGrid(
             nk=25,
-            density_matrix_tol=1e-8,
             matrix_function=DirectDiagonalization(),
         ),
         filling_tol=1e-8,
@@ -518,20 +433,19 @@ def test_bdg_sparse_uniform_grid_selected_density_matches_dense_reference(
         sparse_model,
         sparse_meanfield,
         keys=[local],
-        integration=UniformGrid(
+        integration=PeriodicGrid(
             nk=25,
-            density_matrix_tol=1e-3,
             matrix_function=matrix_function,
         ),
         filling_tol=1e-3,
         mu_tol=1e-8,
         max_charge_evaluations=80,
         mu_guess=0.0,
-        density_coordinates=None,
+        density_coordinates=space.required_coordinates,
     )
 
     np.testing.assert_allclose(
-        space.params_from_meanfield_input(dense_result.density.to_full_tb()),
-        space.params_from_meanfield_input(sparse_result.density.to_full_tb()),
+        space.required_coordinates.values_from_tb(dense_result.density.to_full_tb()),
+        sparse_result.density.values,
         atol=2e-3,
     )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from meanfi import AdaptiveQuadrature, density_matrix
+from meanfi import PeriodicGrid, density_matrix
 from performance._shared.fixtures import (
     benchmark,
     converged_dense_reference,
@@ -32,7 +32,7 @@ def main() -> None:
         nk_start=65,
         nk_max=513,
     )
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-6)
+    integration = PeriodicGrid(density_matrix_tol=1e-6)
     measurement = benchmark(
         lambda: density_matrix(
             tb,

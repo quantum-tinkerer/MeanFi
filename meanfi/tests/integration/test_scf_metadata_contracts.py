@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     LinearMixing,
     Model,
     NoConvergence,
@@ -27,7 +27,7 @@ def test_solver_raises_no_convergence_when_scf_budget_is_exhausted():
         solver(
             model,
             {(0,): 0.2 * np.eye(2)},
-            integration=AdaptiveQuadrature(density_matrix_tol=1e-6),
+            integration=PeriodicGrid(density_matrix_tol=1e-6),
             scf=LinearMixing(max_iterations=1, alpha=0.1),
             scf_tol=1e-30,
         )
@@ -52,7 +52,7 @@ def test_solver_result_exposes_compact_scf_iteration_history():
     result = solver(
         model,
         {(0,): np.zeros((2, 2))},
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-5),
+        integration=PeriodicGrid(density_matrix_tol=1e-5),
         scf=LinearMixing(max_iterations=3),
         scf_tol=1e-5,
     )
@@ -77,7 +77,7 @@ def test_solver_verbose_prints_scf_progress(capsys):
     result = solver(
         model,
         {(0,): np.zeros((2, 2))},
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-5),
+        integration=PeriodicGrid(density_matrix_tol=1e-5),
         scf=LinearMixing(max_iterations=3),
         scf_tol=1e-5,
         verbose=True,

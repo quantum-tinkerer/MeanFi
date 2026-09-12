@@ -30,17 +30,17 @@ _LEGACY_DENSITY_SCALING_PLOTS = (
 
 _METHOD_LABELS = {
     "adaptive_simplex": "AdaptiveSimplex",
-    "uniform_grid": "UniformGrid",
+    "periodic_grid": "PeriodicGrid",
 }
 
 _METHOD_STYLES = {
     "adaptive_simplex": {"linestyle": "-", "marker": "o"},
-    "uniform_grid": {"linestyle": "-.", "marker": "^"},
+    "periodic_grid": {"linestyle": "-.", "marker": "^"},
 }
 
 _METHOD_COLORS = {
     "adaptive_simplex": "tab:blue",
-    "uniform_grid": "tab:orange",
+    "periodic_grid": "tab:orange",
 }
 
 

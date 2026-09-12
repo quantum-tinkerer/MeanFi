@@ -48,6 +48,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
             meanfield_guess,
             keys=space.density_keys,
             integration=runtime.integration,
+            tolerances=runtime.tolerances,
             filling_tol=runtime.tolerances.filling_residual,
             mu_tol=runtime.mu_tol,
             max_charge_evaluations=runtime.max_charge_evaluations,

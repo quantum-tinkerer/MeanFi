@@ -4,7 +4,7 @@ import argparse
 
 import numpy as np
 
-from meanfi import AdaptiveQuadrature, add_tb, density_matrix, meanfield
+from meanfi import PeriodicGrid, add_tb, density_matrix, meanfield
 from performance._shared.fixtures import (
     benchmark,
     bipartite_hubbard_1d,
@@ -40,7 +40,7 @@ def main() -> None:
         nk_start=129,
         nk_max=1025,
     )
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-6)
+    integration = PeriodicGrid(density_matrix_tol=1e-6)
     measurement = benchmark(
         lambda: density_matrix(
             h,

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from scipy.optimize import brentq
 
-from meanfi import AdaptiveQuadrature, LinearMixing, Model, solver, tb_to_kfunc
+from meanfi import PeriodicGrid, LinearMixing, Model, solver, tb_to_kfunc
 from meanfi.meanfield import bdg_correction_from_density
 from meanfi.density.filling import charge_diagonal
 
@@ -135,7 +135,7 @@ def test_bdg_solver_matches_1d_nonlocal_odd_parity_reference():
     result = solver(
         model,
         guess,
-        integration=AdaptiveQuadrature(
+        integration=PeriodicGrid(
             density_matrix_tol=2e-4,
             max_refinements=120,
         ),

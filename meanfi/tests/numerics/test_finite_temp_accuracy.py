@@ -5,25 +5,18 @@ import pytest
 import scipy.sparse as sparse
 
 from meanfi import (
-    AdaptiveQuadrature,
     AdaptiveSimplex,
     DirectDiagonalization,
     LinearMixing,
     Model,
     RationalFOE,
-    UniformGrid,
+    PeriodicGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
 )
 import meanfi.density.kpoint.matrix_functions.rational as rational_matrix_functions
-import meanfi.density.integrate.normal as normal_integration
-import meanfi.density.integrate.quadrature.runtime as quadrature_runtime
-from meanfi.scf.normal import (
-    _density_update_for_normal_hamiltonian as _evaluate_density_for_hamiltonian,
-)
 from meanfi.tests.fixtures.models import (
-    assert_estimator_covers_actual,
     max_density_error,
     spinful_chain,
 )
@@ -47,8 +40,8 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
             mu=0.1,
             kT=0.15,
             keys=keys,
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-2,
+            integration=PeriodicGrid(
+                nk=128,
                 matrix_function=matrix_function,
             ),
         )
@@ -59,8 +52,8 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
             filling=0.9,
             kT=0.15,
             keys=keys,
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-2,
+            integration=PeriodicGrid(
+                nk=128,
                 matrix_function=matrix_function,
             ),
             filling_tol=1e-2,
@@ -85,8 +78,8 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-8,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=DirectDiagonalization(),
         ),
     )
@@ -95,9 +88,8 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=40,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=matrix_function,
         ),
     )
@@ -107,10 +99,7 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
     )
     assert abs(result.mu) <= 1e-12
     assert actual_density_error <= atol
-    assert_estimator_covers_actual(
-        actual_density_error,
-        result.errors.density_matrix_integration,
-    )
+    assert result.errors.density_matrix_integration is None
 
 
 def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
@@ -121,8 +110,8 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-8,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=DirectDiagonalization(),
         ),
         filling_tol=1e-8,
@@ -133,9 +122,8 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=40,
+        integration=PeriodicGrid(
+            nk=128,
         ),
         filling_tol=1e-2,
         mu_tol=1e-8,
@@ -155,7 +143,7 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
-def test_sparse_uniform_grid_matches_dense_reference_at_mu(matrix_function, atol):
+def test_sparse_periodic_grid_matches_dense_reference_at_mu(matrix_function, atol):
     sparse_tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
     reference = density_matrix_at_mu(
@@ -163,9 +151,8 @@ def test_sparse_uniform_grid_matches_dense_reference_at_mu(matrix_function, atol
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=UniformGrid(
+        integration=PeriodicGrid(
             nk=31,
-            density_matrix_tol=1e-8,
             matrix_function=DirectDiagonalization(),
         ),
     )
@@ -174,9 +161,8 @@ def test_sparse_uniform_grid_matches_dense_reference_at_mu(matrix_function, atol
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=UniformGrid(
+        integration=PeriodicGrid(
             nk=31,
-            density_matrix_tol=1e-2,
             matrix_function=matrix_function,
         ),
     )
@@ -185,7 +171,7 @@ def test_sparse_uniform_grid_matches_dense_reference_at_mu(matrix_function, atol
     assert max_density_error(result.density_matrix, reference.density_matrix) <= atol
 
 
-def test_sparse_uniform_grid_fixed_filling_matches_dense_reference():
+def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
     sparse_tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
     reference = density_matrix(
@@ -193,9 +179,8 @@ def test_sparse_uniform_grid_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=UniformGrid(
+        integration=PeriodicGrid(
             nk=31,
-            density_matrix_tol=1e-8,
             matrix_function=DirectDiagonalization(),
         ),
         filling_tol=1e-8,
@@ -206,9 +191,8 @@ def test_sparse_uniform_grid_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=UniformGrid(
+        integration=PeriodicGrid(
             nk=31,
-            density_matrix_tol=1e-2,
         ),
         filling_tol=1e-2,
         mu_tol=1e-8,
@@ -226,55 +210,46 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     sparse_h0 = _sparse_tb(dense_h0)
     sparse_hint = {(0,): sparse.csr_matrix(dense_hint[(0,)])}
 
-    integration = AdaptiveQuadrature(
-        density_matrix_tol=1e-2,
-        max_refinements=40,
+    integration = PeriodicGrid(
+        nk=128,
     )
-    model_dense = Model(dense_h0, dense_hint, filling=1.0, kT=0.15)
     model_sparse = Model(sparse_h0, sparse_hint, filling=1.0, kT=0.15)
 
     space = model_sparse.scf_space
 
-    dense_result = _evaluate_density_for_hamiltonian(
-        model_dense,
+    dense_result = density_matrix(
         dense_h0,
+        filling=1.0,
+        kT=0.15,
         keys=[(0,)],
         integration=integration,
         filling_tol=1e-2,
-        mu_tol=1e-8,
-        max_charge_evaluations=None,
-        mu_guess=0.0,
-        density_coordinates=None,
     )
-    sparse_result = _evaluate_density_for_hamiltonian(
-        model_sparse,
+    sparse_result = density_matrix(
         sparse_h0,
-        keys=[(0,)],
+        filling=1.0,
+        kT=0.15,
+        coordinates=space.required_coordinates,
         integration=integration,
         filling_tol=1e-2,
-        mu_tol=1e-8,
-        max_charge_evaluations=None,
-        mu_guess=0.0,
-        density_coordinates=space.required_coordinates,
     )
-
     assert abs(dense_result.mu - sparse_result.mu) <= 5e-4
     assert abs(dense_result.filling - sparse_result.filling) <= 5e-4
     np.testing.assert_allclose(
-        space.params_from_meanfield_input(dense_result.density_matrix),
-        space.params_from_meanfield_input(sparse_result.density_matrix),
+        sparse_result.values,
+        dense_result.values_for(space.required_coordinates),
         atol=5e-4,
     )
 
 
 def test_workspace_precision_controls_are_validated():
     with pytest.raises(ValueError, match="workspace_precision must be 64 or 128"):
-        AdaptiveQuadrature(workspace_precision=32)
+        PeriodicGrid(nk=128, workspace_precision=32)
 
     assert "workspace_precision" not in AdaptiveSimplex.__dataclass_fields__
 
 
-def test_quadrature_workspace_precision_64_matches_128():
+def test_periodic_workspace_precision_64_matches_128():
     tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
     high_precision = density_matrix(
@@ -282,9 +257,8 @@ def test_quadrature_workspace_precision_64_matches_128():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=60,
+        integration=PeriodicGrid(
+            nk=128,
             workspace_precision=128,
         ),
         filling_tol=1e-2,
@@ -295,9 +269,8 @@ def test_quadrature_workspace_precision_64_matches_128():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=60,
+        integration=PeriodicGrid(
+            nk=128,
             workspace_precision=64,
         ),
         filling_tol=1e-2,
@@ -318,9 +291,8 @@ def test_sparse_solver_result_does_not_expose_reduced_density():
     result = solver(
         model,
         {(0,): sparse.csr_matrix(np.zeros((2, 2), dtype=complex))},
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=40,
+        integration=PeriodicGrid(
+            nk=128,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
         scf_tol=1.0,
@@ -338,9 +310,8 @@ def test_density_postprocessing_returns_complete_dense_blocks():
     result = solver(
         model,
         {(0,): np.zeros((2, 2), dtype=complex)},
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=40,
+        integration=PeriodicGrid(
+            nk=128,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
         scf_tol=1.0,
@@ -351,48 +322,12 @@ def test_density_postprocessing_returns_complete_dense_blocks():
         result.mu,
         kT=model.kT,
         keys=[(0,)],
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-2),
+        integration=PeriodicGrid(
+            nk=128,
+        ),
     )
     onsite_block = density.density_matrix[(0,)]
     assert not np.allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
-
-
-def test_fixed_filling_rational_density_pass_uses_frozen_charge_mesh(monkeypatch):
-    calls = []
-    original_run_integrator = quadrature_runtime.run_integrator
-
-    def wrapped_run_integrator(*args, **kwargs):
-        result = original_run_integrator(*args, **kwargs)
-        calls.append(
-            {
-                "status": result.status,
-                "max_subdivisions": kwargs["max_subdivisions"],
-                "n_kernel_evals": int(result.n_kernel_evals),
-                "subdivisions": int(getattr(result, "subdivisions", 0)),
-            }
-        )
-        return result
-
-    monkeypatch.setattr(quadrature_runtime, "run_integrator", wrapped_run_integrator)
-    monkeypatch.setattr(normal_integration, "run_integrator", wrapped_run_integrator)
-    density_matrix(
-        _sparse_tb(spinful_chain()),
-        filling=0.7,
-        kT=0.15,
-        keys=[(0,), (1,), (-1,)],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
-            max_refinements=60,
-        ),
-        filling_tol=1e-2,
-        mu_tol=1e-8,
-    )
-
-    assert len(calls) >= 2
-    assert calls[-1]["max_subdivisions"] == 0
-    assert calls[-1]["status"] in {"converged", "max_subdivisions"}
-    assert calls[-1]["n_kernel_evals"] == 0
-    assert calls[-1]["subdivisions"] == 0
 
 
 def test_sparse_aaa_terms_certify_scalar_error_on_local_interval():
@@ -496,9 +431,8 @@ def test_strained_graphene_single_shot_sparse_aaa_is_stable():
         filling=filling,
         kT=0.2,
         keys=[(0, 0)],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-1,
-            max_refinements=20,
+        integration=PeriodicGrid(
+            nk=4,  # Large sparse smoke test; accuracy is checked on small models.
             matrix_function=RationalFOE(
                 initial_poles=4, max_poles=128, rational_scheme="aaa"
             ),

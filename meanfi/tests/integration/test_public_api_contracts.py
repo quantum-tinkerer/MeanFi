@@ -1,4 +1,3 @@
-# ruff: noqa: F401
 import importlib
 import inspect
 from types import SimpleNamespace
@@ -6,29 +5,20 @@ from types import SimpleNamespace
 import meanfi
 import numpy as np
 import pytest
-import scipy.sparse as sp
 
 from meanfi import (
-    AdaptiveQuadrature,
     AdaptiveSimplex,
     AndersonMixing,
     DensityResult,
     DirectDiagonalization,
-    LinearMixing,
     Model,
-    RationalFOE,
-    UniformGrid,
+    PeriodicGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
     total_energy,
 )
-from meanfi.density.filling import mu_bracket, solve_mu
-from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
-from meanfi.scf.engine import NoConvergence
-from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
@@ -105,7 +95,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert list(total_energy_params) == ["model", "density_matrix"]
     assert meanfi.total_energy is total_energy
 
-    for method in (AdaptiveSimplex, AdaptiveQuadrature, UniformGrid):
+    for method in (AdaptiveSimplex, PeriodicGrid, PeriodicGrid):
         params = inspect.signature(method).parameters
         assert params["charge_tol"].default is None
         assert params["density_matrix_tol"].default is None
@@ -127,7 +117,7 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
 
     model = Model(**_base_model_kwargs())
     guess = {(0,): np.zeros((2, 2))}
-    integration = AdaptiveQuadrature(density_matrix_tol=5.4e-4)
+    integration = PeriodicGrid(density_matrix_tol=5.4e-4)
 
     result = solver(model, guess, integration=integration)
 
@@ -151,6 +141,8 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
         "meanfi.zero_temp",
         "meanfi.bdg",
         "meanfi.scf.accuracy",
+        "meanfi.density.integrate.uniform",
+        "meanfi.density.integrate.quadrature.runtime",
     ],
 )
 def test_removed_shim_modules_are_no_longer_importable(module_name):
@@ -160,6 +152,9 @@ def test_removed_shim_modules_are_no_longer_importable(module_name):
 
 def test_top_level_exports_only_supported_diagonalization_names():
     assert DirectDiagonalization.__name__ == "DirectDiagonalization"
+    assert not hasattr(meanfi, "AdaptiveQuadrature")
+    assert not hasattr(meanfi, "UniformGrid")
+    assert not hasattr(meanfi, "PeriodicQuadrature")
     assert not hasattr(meanfi, "ExactDiagonalization")
     assert not hasattr(meanfi, "ChebyshevFOE")
     assert not hasattr(meanfi, "guess_tb")
@@ -202,13 +197,13 @@ def test_internal_matrix_function_package_root_exposes_shared_symbols():
     assert hasattr(matrix_functions, "shift_by_mu")
 
 
-def test_density_result_has_only_physical_values_and_achieved_errors():
+def test_density_result_exposes_physical_values_errors_and_mesh_statistics():
     result = density_matrix(
         {(): np.diag([-1.0, 1.0])},
         filling=1.0,
         kT=0.2,
         keys=[()],
-        integration=AdaptiveQuadrature(),
+        integration=PeriodicGrid(),
     )
 
     assert isinstance(result, DensityResult)
@@ -218,6 +213,7 @@ def test_density_result_has_only_physical_values_and_achieved_errors():
         "mu",
         "filling",
         "errors",
+        "statistics",
     )
     assert not hasattr(result, "density_matrix_error")
     assert not hasattr(result, "info")

@@ -2,16 +2,14 @@
 
 from meanfi.density.integrate.integrate import build_integration_plan
 from meanfi.density.integrate.methods import (
-    AdaptiveQuadrature,
     AdaptiveSimplex,
     IntegrationMethod,
-    UniformGrid,
+    PeriodicGrid,
 )
 
 __all__ = [
-    "AdaptiveQuadrature",
     "AdaptiveSimplex",
     "IntegrationMethod",
-    "UniformGrid",
+    "PeriodicGrid",
     "build_integration_plan",
 ]

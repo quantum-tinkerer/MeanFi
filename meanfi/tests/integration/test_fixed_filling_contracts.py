@@ -1,31 +1,13 @@
-# ruff: noqa: F401
-import importlib
-import inspect
-from types import SimpleNamespace
-
-import meanfi
 import numpy as np
 import pytest
 import scipy.sparse as sp
 
 from meanfi import (
-    AdaptiveQuadrature,
-    AdaptiveSimplex,
-    AndersonMixing,
-    DirectDiagonalization,
-    LinearMixing,
-    Model,
-    RationalFOE,
-    UniformGrid,
+    PeriodicGrid,
     density_matrix,
-    density_matrix_at_mu,
-    solver,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
-from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
-from meanfi.scf.engine import NoConvergence
 from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
 
@@ -113,68 +95,23 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
 
 
-def test_low_level_filling_fallback_uses_filling_tolerance_estimator_factor():
-    from meanfi.density.integrate.common import (
-        adaptive_simplex_charge_tol,
-        effective_charge_tol,
-        effective_filling_tol,
-        filling_tolerance_estimator_factor,
+def test_explicit_density_tolerance_does_not_redefine_other_error_budgets():
+    from meanfi.errors import resolve_integration_tolerances, default_solver_tolerances
+
+    integration, tolerances = resolve_integration_tolerances(
+        PeriodicGrid(density_matrix_tol=1e-8), default_solver_tolerances(1e-3)
     )
-
-    hamiltonian = spinful_chain()
-    integration = AdaptiveSimplex(density_matrix_tol=1e-2)
-    expected_filling_tol = (
-        integration.density_matrix_tol / filling_tolerance_estimator_factor()
-    )
-
-    assert effective_filling_tol(
-        integration,
-        hamiltonian=hamiltonian,
-        filling_tol=None,
-    ) == pytest.approx(expected_filling_tol)
-    assert effective_charge_tol(integration) == pytest.approx(1e-2)
-    assert adaptive_simplex_charge_tol(integration, hamiltonian=hamiltonian) == 1e-2
+    assert integration.charge_tol == pytest.approx(2e-4)
+    assert tolerances.filling_residual == pytest.approx(1e-4)
 
 
-def test_integration_charge_tol_overrides_density_matrix_tol():
-    from meanfi.density.integrate.common import effective_charge_tol
-
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-8, charge_tol=2e-7)
-
-    assert effective_charge_tol(integration) == pytest.approx(2e-7)
-
-
-def test_explicit_density_tolerance_does_not_redefine_other_error_budgets(monkeypatch):
-    import meanfi.density.integrate.normal as integration
-
-    captured = {}
-    original = integration._normal_zero_dim_fixed_filling
-
-    def wrapped(*args, **kwargs):
-        captured["charge_tol"] = kwargs["charge_tol"]
-        captured["filling_tol"] = kwargs["filling_tol"]
-        return original(*args, **kwargs)
-
-    monkeypatch.setattr(integration, "_normal_zero_dim_fixed_filling", wrapped)
-    density_matrix(
-        {(): np.diag([-1.0, 1.0])},
-        filling=1.0,
-        kT=0.2,
-        keys=[()],
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
-    )
-
-    assert captured["charge_tol"] == pytest.approx(2e-4)
-    assert captured["filling_tol"] == pytest.approx(1e-4)
-
-
-def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():
+def test_periodic_grid_accepts_finite_temperature_fixed_filling_controls():
     result = density_matrix(
         spinful_chain(),
         filling=1.0,
         kT=0.15,
         keys=[(0,)],
-        integration=UniformGrid(nk=8),
+        integration=PeriodicGrid(nk=8),
         filling_tol=1e-2,
         mu_tol=1e-8,
         max_charge_evaluations=80,
@@ -184,24 +121,24 @@ def test_uniform_grid_accepts_finite_temperature_fixed_filling_controls():
     assert abs(result.filling - 1.0) <= 1e-2
 
 
-def test_uniform_grid_accepts_zero_temperature_fixed_filling_controls():
+def test_periodic_grid_accepts_zero_temperature_fixed_filling_controls():
     result = density_matrix(
         spinful_chain(),
         filling=1.0,
         kT=0.0,
         keys=[(0,)],
-        integration=UniformGrid(nk=9),
+        integration=PeriodicGrid(nk=10),
     )
 
     assert np.isfinite(result.mu)
     assert result.filling == pytest.approx(1.0)
 
 
-def test_uniform_grid_default_filling_tol_matches_explicit_default():
-    from meanfi.density.integrate.common import filling_tolerance_estimator_factor
-
-    integration = UniformGrid(nk=8, density_matrix_tol=1e-4)
-    explicit_tol = integration.density_matrix_tol / filling_tolerance_estimator_factor()
+def test_periodic_grid_default_filling_tol_matches_explicit_default():
+    integration = PeriodicGrid(
+        nk=8,
+    )
+    explicit_tol = 1e-4
     implicit = density_matrix(
         spinful_chain(),
         filling=1.0,
@@ -224,3 +161,14 @@ def test_uniform_grid_default_filling_tol_matches_explicit_default():
 
     assert implicit.mu == pytest.approx(explicit.mu)
     assert implicit.filling == pytest.approx(explicit.filling)
+
+
+def test_prescribed_zero_temperature_mesh_rejects_unrepresentable_filling():
+    with pytest.raises(RuntimeError, match="filling tolerance"):
+        density_matrix(
+            spinful_chain(),
+            filling=1.0,
+            kT=0.0,
+            keys=[(0,)],
+            integration=PeriodicGrid(nk=9),
+        )

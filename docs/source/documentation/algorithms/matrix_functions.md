@@ -51,10 +51,13 @@ Dense and sparse backends are not just storage choices.
 They also affect which matrix-function strategies are practical:
 
 - dense problems default to direct diagonalization,
-- sparse finite-temperature problems default to `RationalFOE("aaa")`,
+- sparse finite-temperature problems require an explicit supported configuration,
 - some rational paths support more features on sparse matrices than on dense ones.
 
-That is why the integration-family choice and the matrix-function choice are documented separately.
+Explicit `RationalFOE` is supported for sparse matrices with `PeriodicGrid(nk=...)`
+at positive temperature. Adaptive rational integration is not supported. Selecting an
+automatic sparse calculation raises migration guidance instead of silently
+allocating dense matrices.
 
 ## Cost versus error scaling
 

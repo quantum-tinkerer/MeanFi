@@ -2,9 +2,8 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveQuadrature,
     AdaptiveSimplex,
-    UniformGrid,
+    PeriodicGrid,
     add_tb,
     density_matrix,
     density_matrix_at_mu,
@@ -38,7 +37,7 @@ def test_zero_dimensional_density_matrix_at_mu_matches_exact_occupation():
         mu=mu,
         kT=kT,
         keys=[()],
-        integration=AdaptiveQuadrature(),
+        integration=PeriodicGrid(),
     )
     expected = np.diag(fermi_dirac(np.array([-1.0, 2.0]), kT, mu))
 
@@ -55,7 +54,7 @@ def test_density_matrix_respects_hermiticity_and_charge_sum_rule():
         filling=2.0,
         kT=0.1,
         keys=[(0,), (1,), (-1,)],
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
+        integration=PeriodicGrid(density_matrix_tol=1e-8),
         filling_tol=1e-8,
     )
 
@@ -79,7 +78,7 @@ def test_half_filling_keeps_particle_hole_symmetry():
         filling=1.0,
         kT=0.2,
         keys=[(0,)],
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
+        integration=PeriodicGrid(density_matrix_tol=1e-8),
         filling_tol=1e-9,
     )
 
@@ -192,13 +191,13 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
     )
 
 
-def test_uniform_grid_reports_unique_eval_count():
+def test_periodic_grid_reports_unique_eval_count():
     result = density_matrix_at_mu(
         spinful_chain(),
         mu=0.0,
         kT=0.0,
         keys=[(0,)],
-        integration=UniformGrid(nk=7),
+        integration=PeriodicGrid(nk=7),
     )
 
     assert result.errors.density_matrix_integration is None

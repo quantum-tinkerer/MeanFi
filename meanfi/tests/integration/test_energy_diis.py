@@ -5,7 +5,7 @@ import pytest
 from fermisimplex import SpectralMesh
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     AdaptiveSimplex,
     EnergyDIIS,
     ErrorTolerances,
@@ -109,7 +109,7 @@ def test_other_capabilities_keep_anderson():
     result = solver(
         _zero_dimensional_model(kT=0.2),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-8),
+        integration=PeriodicGrid(density_matrix_tol=1e-8),
         scf_tol=1e-7,
     )
 
@@ -122,7 +122,7 @@ def test_energy_diis_rejects_unsupported_integration():
         solver(
             _zero_dimensional_model(kT=0.2),
             {(): np.zeros((2, 2), dtype=complex)},
-            integration=AdaptiveQuadrature(),
+            integration=PeriodicGrid(),
             scf=EnergyDIIS(),
         )
 

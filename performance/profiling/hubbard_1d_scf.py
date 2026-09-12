@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from meanfi import AdaptiveQuadrature, AndersonMixing, solver
+from meanfi import PeriodicGrid, AndersonMixing, solver
 from performance._shared.fixtures import benchmark
 from performance._shared.common import print_summary, scf_record, write_records
 from performance._shared.scenarios import hubbard_chain_scf_problem
@@ -16,7 +16,7 @@ def main() -> None:
     args = parser.parse_args()
 
     model, guess = hubbard_chain_scf_problem(U=2.0, kT=0.1)
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-4)
+    integration = PeriodicGrid(density_matrix_tol=1e-4)
     scf = AndersonMixing(M=0, max_iterations=40)
     measurement = benchmark(
         lambda: solver(

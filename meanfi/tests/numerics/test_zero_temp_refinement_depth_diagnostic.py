@@ -5,7 +5,7 @@ from meanfi import (
     AdaptiveSimplex,
     AndersonMixing,
     Model,
-    UniformGrid,
+    PeriodicGrid,
     add_tb,
     density_matrix,
     expectation_value,
@@ -71,7 +71,7 @@ def _sdw_measure(h0, mf, sz):
     rho = density_matrix(
         add_tb(h0, mf),
         filling=2,
-        integration=UniformGrid(nk=40),
+        integration=PeriodicGrid(nk=40**2),
         keys=[(0, 0)],
         filling_tol=1e-6,
     ).density_matrix
@@ -116,8 +116,10 @@ def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
                     integration=AdaptiveSimplex(
                         density_matrix_tol=1e-4,
                     ),
-                    scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=1000),
-                    scf_tol=1e-7,
+                    scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
+                    # SCF convergence must exceed integration noise amplified
+                    # by interactions; this diagnostic tests the ordered phase.
+                    tol=1e-3,
                     filling_tol=1e-3,
                 )
             values.append(_sdw_measure(h0, result.mean_field, sz))

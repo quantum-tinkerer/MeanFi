@@ -14,7 +14,6 @@ from meanfi.space import (
 from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import compare_dicts
 from meanfi.tb.transforms import ifftn_to_tb, tb_to_kfunc, tb_to_kgrid
-from meanfi.density.integrate.uniform import _selected_value_grid_to_tb
 from meanfi.tests.fixtures.models import qiwuzhang, spinful_chain
 
 
@@ -67,12 +66,6 @@ def test_density_coordinates_value_order_and_negative_grid_key():
         coords.values_from_tb({(0,): selected_tb[(0,)]}), [values[0], 0.0]
     )
     np.testing.assert_allclose(coords.values_from_tb(selected_tb), values)
-
-    real_space_values = np.zeros((4, coords.value_count), dtype=complex)
-    real_space_values[-1, coords.key_slice((-1,))] = values[1]
-    kgrid_values = np.fft.fftn(real_space_values, axes=(0,))
-    selected_from_grid = _selected_value_grid_to_tb(coords, kgrid_values, ndim=1)
-    assert selected_from_grid[(-1,)][1, 0] == pytest.approx(values[1])
 
 
 def test_active_density_space_required_entries_roundtrip():

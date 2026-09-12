@@ -7,11 +7,9 @@ import numpy as np
 from meanfi.errors import ErrorValues
 
 from meanfi.results import (
-    AdaptiveQuadratureInfo,
     AdaptiveSimplexInfo,
     DensityIntegrationInfo,
     FixedFillingInfo,
-    UniformGridInfo,
 )
 from meanfi.density.internal import DensityEvaluation, DensitySlice
 from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
@@ -24,52 +22,25 @@ from meanfi.tb.ops import _tb_type
 
 from meanfi.density.integrate.workspace import require_supported_workspace_precision
 from .methods import (
-    AdaptiveQuadrature,
     AdaptiveSimplex,
-    FILLING_TOLERANCE_ESTIMATOR_FACTOR,
     IntegrationMethod,
-    UniformGrid,
+    PeriodicGrid,
 )
-
-
-DEFAULT_SCF_TOL = 1e-3
-
-
-def filling_tolerance_estimator_factor() -> float:
-    return float(FILLING_TOLERANCE_ESTIMATOR_FACTOR)
-
-
-def estimated_error_from_density_tol(integration: IntegrationMethod) -> float:
-    return float(integration.density_matrix_tol) / filling_tolerance_estimator_factor()
-
-
-def effective_scf_tol(
-    integration: IntegrationMethod,
-    *,
-    scf_tol: float | None,
-) -> float:
-    if scf_tol is not None:
-        if scf_tol <= 0:
-            raise ValueError("scf_tol must be positive when provided")
-        return float(scf_tol)
-    return DEFAULT_SCF_TOL
 
 
 def validate_integration_method(integration: IntegrationMethod, *, kT: float) -> None:
     require_supported_workspace_precision(integration)
-    if kT < 0:
-        raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
+    if not np.isfinite(kT) or kT < 0:
+        raise ValueError(
+            "meanfi supports only finite non-negative temperatures (kT >= 0)"
+        )
     if isinstance(integration, AdaptiveSimplex):
         if kT != 0:
             raise ValueError("AdaptiveSimplex requires kT == 0")
         return
-    if isinstance(integration, AdaptiveQuadrature):
-        if kT <= 0:
-            raise ValueError("AdaptiveQuadrature requires kT > 0")
-        return
-    if isinstance(integration, UniformGrid):
-        if kT < 0:
-            raise ValueError("UniformGrid requires kT >= 0")
+    if isinstance(integration, PeriodicGrid):
+        if kT == 0 and integration.nk is None:
+            raise ValueError("Zero-temperature PeriodicGrid requires explicit nk")
         return
     raise TypeError("integration must be an IntegrationMethod instance")
 
@@ -87,30 +58,6 @@ def prepare_keys(
     return requested_keys, working_keys, local_key
 
 
-def trim_density_matrix(
-    density_matrix: _tb_type,
-    *,
-    keys: list[tuple[int, ...]],
-) -> _tb_type:
-    sample = next(iter(density_matrix.values()))
-    zeros = np.zeros_like(sample)
-    return {key: np.array(density_matrix.get(key, zeros), copy=True) for key in keys}
-
-
-def trim_density_matrix_error(
-    density_matrix_error: _tb_type | None,
-    *,
-    keys: list[tuple[int, ...]],
-) -> _tb_type | None:
-    if density_matrix_error is None:
-        return None
-    sample = next(iter(density_matrix_error.values()))
-    zeros = np.zeros_like(sample)
-    return {
-        key: np.array(density_matrix_error.get(key, zeros), copy=True) for key in keys
-    }
-
-
 def local_density_filling(
     density_matrix: _tb_type,
     *,
@@ -119,57 +66,8 @@ def local_density_filling(
     return float(np.trace(density_matrix[local_key]).real)
 
 
-def adaptive_simplex_charge_tol(
-    integration: AdaptiveSimplex,
-    *,
-    hamiltonian: _tb_type,
-) -> float:
-    del hamiltonian
-    return effective_charge_tol(integration)
-
-
-def effective_charge_tol(
-    integration: IntegrationMethod,
-) -> float:
-    charge_tol = getattr(integration, "charge_tol", None)
-    if charge_tol is not None:
-        if charge_tol <= 0:
-            raise ValueError("charge_tol must be positive when provided")
-        return float(charge_tol)
-    return float(integration.density_matrix_tol)
-
-
-def effective_filling_tol(
-    integration: IntegrationMethod,
-    *,
-    hamiltonian: _tb_type,
-    filling_tol: float | None,
-) -> float:
-    if filling_tol is not None:
-        if filling_tol <= 0:
-            raise ValueError("filling_tol must be positive when provided")
-        return float(filling_tol)
-
-    if isinstance(integration, AdaptiveSimplex):
-        return estimated_error_from_density_tol(integration)
-
-    if isinstance(integration, (AdaptiveQuadrature, UniformGrid)):
-        del hamiltonian
-        return estimated_error_from_density_tol(integration)
-
-    raise ValueError("UniformGrid requires an implicit grid-resolved filling target")
-
-
-def translate_adaptive_info(
-    integration: AdaptiveSimplex | AdaptiveQuadrature,
-    raw_info: DensityIntegrationInfo | FixedFillingInfo,
-):
-    info_type = (
-        AdaptiveSimplexInfo
-        if isinstance(integration, AdaptiveSimplex)
-        else AdaptiveQuadratureInfo
-    )
-    kwargs = dict(
+def translate_adaptive_info(integration: AdaptiveSimplex, raw_info):
+    return AdaptiveSimplexInfo(
         n_kernel_evals=int(raw_info.n_kernel_evals),
         unique_evals=int(getattr(raw_info, "unique_evals", raw_info.n_kernel_evals)),
         n_evaluator_evals=int(raw_info.n_evaluator_evals),
@@ -182,53 +80,14 @@ def translate_adaptive_info(
         charge_integration_calls=getattr(raw_info, "charge_integration_calls", None),
         density_integration_calls=getattr(raw_info, "density_integration_calls", None),
         charge_error=getattr(raw_info, "charge_error", None),
-    )
-    if isinstance(integration, AdaptiveSimplex):
-        kwargs["num_threads"] = getattr(raw_info, "num_threads", None)
-        kwargs["band_energy_integration_calls"] = int(
-            getattr(raw_info, "band_energy_integration_calls", 0)
-        )
-        kwargs["band_energy_n_kernel_evals"] = int(
-            getattr(raw_info, "band_energy_n_kernel_evals", 0)
-        )
-    return info_type(**kwargs)
-
-
-def uniform_grid_info(
-    *,
-    integration: UniformGrid,
-    hamiltonian: _tb_type,
-    n_kernel_evals: int | None = None,
-    n_evaluator_evals: int | None = None,
-    charge_evaluations: int | None = None,
-    charge_integration_calls: int | None = None,
-    density_integration_calls: int | None = None,
-    charge_error: float | None = None,
-    error_estimate_available: bool = False,
-) -> UniformGridInfo:
-    ndim = tb_dimension(hamiltonian)
-    n_kpoints = 1 if ndim == 0 else int(integration.nk**ndim)
-    return UniformGridInfo(
-        nk=int(integration.nk),
-        n_kpoints=n_kpoints,
-        unique_evals=n_kpoints,
-        n_kernel_evals=n_kpoints if n_kernel_evals is None else int(n_kernel_evals),
-        n_evaluator_evals=(
-            n_kpoints if n_evaluator_evals is None else int(n_evaluator_evals)
+        num_threads=getattr(raw_info, "num_threads", None),
+        band_energy_integration_calls=getattr(
+            raw_info, "band_energy_integration_calls", 0
         ),
-        charge_evaluations=(
-            None if charge_evaluations is None else int(charge_evaluations)
-        ),
-        charge_integration_calls=(
-            None if charge_integration_calls is None else int(charge_integration_calls)
-        ),
-        density_integration_calls=(
-            None
-            if density_integration_calls is None
-            else int(density_integration_calls)
-        ),
-        charge_error=None if charge_error is None else float(charge_error),
-        error_estimate_available=bool(error_estimate_available),
+        band_energy_n_kernel_evals=getattr(raw_info, "band_energy_n_kernel_evals", 0),
+        requested_nk=integration.nk,
+        n_kpoints=getattr(raw_info, "n_kpoints", None) or int(raw_info.n_leaf_nodes),
+        n_diagonalizations=getattr(raw_info, "n_diagonalizations", None),
     )
 
 
@@ -272,9 +131,7 @@ def wrap_density_result(
         density_matrix_integration=_density_error_value(density),
         filling_residual=filling_residual,
         charge_integration=(
-            getattr(info, "charge_error", None)
-            if target_filling is not None and error_estimate_available
-            else None
+            getattr(info, "charge_error", None) if error_estimate_available else None
         ),
     )
     return DensityEvaluation(
@@ -296,7 +153,7 @@ def wrap_adaptive_result(
     mu: float,
     filling: float,
     target_filling: float | None,
-    integration: AdaptiveSimplex | AdaptiveQuadrature,
+    integration: AdaptiveSimplex,
     keys: list[tuple[int, ...]],
     density_coordinates: DensityCoordinates | None = None,
 ) -> DensityEvaluation:

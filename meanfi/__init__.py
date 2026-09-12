@@ -26,10 +26,9 @@ from .density.density import (
 )
 from .density.integrate.defaults import DEFAULT_KT
 from .density.integrate.methods import (
-    AdaptiveQuadrature,
     AdaptiveSimplex,
     IntegrationMethod,
-    UniformGrid,
+    PeriodicGrid,
 )
 from .density.kpoint.matrix_functions import (
     BdGMatrixFunction,
@@ -150,7 +149,6 @@ def density_matrix(
 
 
 __all__ = [
-    "AdaptiveQuadrature",
     "AdaptiveSimplex",
     "AndersonMixing",
     "BdGMatrixFunction",
@@ -171,7 +169,7 @@ __all__ = [
     "SolverError",
     "SolverFailure",
     "SpatialSymmetry",
-    "UniformGrid",
+    "PeriodicGrid",
     "__version__",
     "__version_tuple__",
     "add_tb",

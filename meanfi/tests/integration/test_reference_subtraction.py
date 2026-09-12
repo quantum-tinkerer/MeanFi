@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     DensityCoordinates,
     DensityResult,
     ErrorValues,
@@ -27,7 +27,7 @@ def test_selected_density_is_an_efficient_reference_without_zero_filling():
         filling=1.0,
         kT=0.2,
         interaction=h_int,
-        integration=AdaptiveQuadrature(density_matrix_tol=1e-10),
+        integration=PeriodicGrid(density_matrix_tol=1e-10),
         filling_tol=1e-10,
     )
     model = Model(h_0, h_int, filling=1.0, kT=0.2, reference=reference)
@@ -94,7 +94,7 @@ def test_reference_density_subtracts_full_mean_field_correction():
 def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
     h_0 = {(): np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)}
     h_int = {(): np.array([[0.4, 1.1], [1.1, 0.6]], dtype=complex)}
-    integration = AdaptiveQuadrature(density_matrix_tol=1e-10)
+    integration = PeriodicGrid(density_matrix_tol=1e-10)
     rho_ref = density_matrix(
         h_0,
         filling=1.0,

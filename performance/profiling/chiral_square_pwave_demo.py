@@ -8,11 +8,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     LinearMixing,
     Model,
     solver,
-    guess_tb,
 )
 
 # %%
@@ -55,30 +54,21 @@ def chiral_square_problem():
         kT=kT,
         superconducting=True,
     )
-    integration = AdaptiveQuadrature()
+    integration = PeriodicGrid()
     scf = LinearMixing(max_iterations=220, alpha=0.2)
     return model, guess, integration, scf, h_int
 
 
 def solve_chiral_square_state():
     model, guess, integration, scf, h_int = chiral_square_problem()
-    guess_random = guess_tb(frozenset(h_int), ndof=1, scale=0.5, superconducting=True)
-    np.random.seed(11)
-    guess_random = guess_tb(
-        frozenset(h_int),
-        ndof=1,
-        scale=0.5,
-        superconducting=True,
-    )
-
-    print(guess_random)
+    guess_random = model.random_meanfield(rng=11, scale=0.5)
     result = solver(
         model,
         guess_random,
-        # integration=integration,
-        # scf=scf,
-        # scf_tol=1e-3,
-        # filling_tol=1e-3,
+        integration=integration,
+        scf=scf,
+        scf_tol=1e-3,
+        filling_tol=1e-3,
     )
     return model, result
 
@@ -97,7 +87,7 @@ def _electron_and_pairing_symbols(model: Model, result, *, nk: int):
         key: np.array(value, dtype=complex) for key, value in model.h_0.items()
     }
     pairing_tb = {}
-    for key, matrix in result.mf.items():
+    for key, matrix in result.mean_field.items():
         array = np.asarray(matrix, dtype=complex)
         electron_tb[key] = (
             electron_tb.get(key, np.zeros((1, 1), dtype=complex)) + array[:1, :1]
@@ -119,7 +109,7 @@ def _electron_and_pairing_symbols(model: Model, result, *, nk: int):
         )
         gap += matrix[0, 0] * phase
 
-    xi = dispersion.real - result.density_matrix_result.mu
+    xi = dispersion.real - result.mu
     gap_abs = np.abs(gap)
     quasiparticle = np.sqrt(xi**2 + gap_abs**2)
     return axis, xi, gap, gap_abs, quasiparticle
@@ -152,8 +142,8 @@ axis, xi, gap, gap_abs, quasiparticle = _electron_and_pairing_symbols(
 )
 winding = _phase_winding(gap)
 
-delta_x = result.mf[(1, 0)][0, 1]
-delta_y = result.mf[(0, 1)][0, 1]
+delta_x = result.mean_field[(1, 0)][0, 1]
+delta_y = result.mean_field[(0, 1)][0, 1]
 
 with plt.style.context("dark_background"):
     fig, axes = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
@@ -239,11 +229,11 @@ with plt.style.context("dark_background"):
         0.5,
         0.01,
         (
-            f"$\\mu={result.density_matrix_result.mu:.3f}$, "
+            f"$\\mu={result.mu:.3f}$, "
             f"$\\Delta_x={delta_x.real:.4f}$, "
             f"$\\Delta_y={delta_y.imag:.4f}i$, "
             f"winding $\\approx {winding:+.2f}$, "
-            f"SCF residual $={result.info.residual_norm:.2e}$"
+            f"SCF residual $={result.errors.scf_residual:.2e}$"
         ),
         ha="center",
         fontsize=11,

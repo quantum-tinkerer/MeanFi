@@ -1,136 +1,46 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
-# Fixed-filling solve
+# Fixed filling and fixed chemical potential
 
-Every density update in `MeanFi` is done at fixed filling.
-That means the code must solve
+`density_matrix(..., filling=...)` finds the chemical potential satisfying
+`N(mu) = filling`, then integrates the requested density entries.
+`density_matrix_at_mu(..., mu=...)` uses the supplied value directly and omits
+the filling-root search.
 
-:::{math}
-N(\mu) = \nu
-:::
+The filling solver brackets the root using spectral bounds and expands the
+bracket when necessary. It uses safeguarded Newton steps when a supported
+backend supplies useful derivatives, and bracketed interpolation with midpoint
+fallback otherwise. `filling_tol`, `mu_tol` and `max_charge_evaluations` control this
+solve. Periodic integration adds no derivative-integration accuracy controls.
 
-for the chemical potential before it can return the density matrix.
-Here $\nu$ is the target filling per unit cell, while the computed filling is obtained from a Brillouin-zone integral of the local-in-$k$ charge density,
+Normal periodic spectra do not change with chemical potential. Retaining their
+eigenvalues makes repeated charge evaluations inexpensive; density evaluation
+streams eigenvectors. BdG uses `H(k) - mu Q`, where the charge operator generally
+does not commute with the Hamiltonian. A changed `mu` therefore requires a new
+spectral evaluation.
 
-:::{math}
-N(\mu) = \int_{\mathrm{BZ}} n(\mu,k)\, dk,
-:::
+Accuracy-controlled periodic integration solves the filling on each new grid.
+Coarse/fine and shifted-grid comparisons are all evaluated at that grid's same
+returned chemical potential. Simplex integration reuses its native spectral mesh
+through charge and density refinement.
 
-with
+## Interpreting results
 
-:::{math}
-n(\mu,k) = \operatorname{tr}\!\bigl(W\,\rho(k,\mu)\bigr),
-:::
+The public result separates:
 
-where $W$ selects the local orbitals and weights that define the filling convention.
-So the root solve is nested inside the same single-$k$ evaluation and Brillouin-zone integration machinery used for the density matrix itself.
+- the filling root residual on the evaluated mesh;
+- charge and density integration error estimates;
+- the outer SCF residual.
 
-## Bracketing and root solve
+`density_matrix_integration` estimates integration error at the returned chemical
+potential. It does not include density uncertainty caused by uncertainty in that
+chemical potential. Root residual and charge-integration error are reported
+separately; no chemical-potential error bound is estimated.
 
-The inner fixed-filling solver:
+A small root residual on a prescribed mesh does not establish continuous
+Brillouin-zone accuracy. Prescribed integration errors are `None`, not fabricated
+zeros. Accuracy-controlled calls fail when targets cannot be met within their
+budgets. Error estimates and reference comparisons are empirical.
 
-1. builds an initial bracket for $\mu$ from a spectral bound,
-2. expands the bracket until the target filling is enclosed,
-3. solves for $\mu$ with safeguarded Newton steps when derivative information is available, and otherwise with safeguarded bracketed interpolation plus midpoint fallback.
-
-If derivative information is unavailable or unusable, the solve falls back to bracketed updates only.
-When the derivative can be computed, Newton uses
-
-:::{math}
-\mu_{j+1}
-=
-\mu_j - \frac{N(\mu_j)-\nu}{N'(\mu_j)},
-\qquad
-N'(\mu) = \int_{\mathrm{BZ}} \partial_\mu n(\mu,k)\, dk.
-:::
-
-So the same local-in-$k$ machinery that evaluates $n(\mu,k)$ may also supply the derivative information needed for faster root updates.
-The derivative-aware path is safeguarded Newton, while the derivative-free path is a Brent-style bracketed solver with interpolation and midpoint fallback.
-
-## Which paths use which root update?
-
-The root solver depends on whether the underlying density-evaluation stack can provide $N'(\mu)$.
-
-- `AdaptiveQuadrature` with `DirectDiagonalization`: safeguarded Newton
-- `AdaptiveQuadrature` with derivative-aware rational evaluation: safeguarded Newton
-- `AdaptiveQuadrature` with `RationalFOE(rational_scheme="aaa")`: Brent-style bracketed solve
-- `UniformGrid` at finite temperature with `DirectDiagonalization`: safeguarded Newton
-- `UniformGrid` at finite temperature with derivative-aware rational evaluation: safeguarded Newton
-- `UniformGrid` with `RationalFOE(rational_scheme="aaa")`: Brent-style bracketed solve
-- zero-temperature `AdaptiveSimplex`: Brent-style bracketed solve
-- zero-temperature `UniformGrid`: Brent-style bracketed solve
-
-So the practical distinction is not the integrator alone.
-It is whether the full stack can evaluate both $N(\mu)$ and $N'(\mu)$, or only $N(\mu)$.
-
-## Cost versus error scaling
-
-If one charge evaluation has work $W_N$, then one root iteration costs roughly
-
-:::{math}
-\text{cost per root step} \sim C_N.
-:::
-
-For safeguarded Newton, once the iteration is in its local regime,
-
-:::{math}
-| \mu_{j+1} - \mu_\ast | \approx C |\mu_j - \mu_\ast|^2,
-:::
-
-so the error contracts quadratically in the ideal derivative-aware regime.
-
-For a bracketed root solve on $[\mu_-,\mu_+]$, the worst-case bracket shrinking remains logarithmic,
-
-:::{math}
-|\mu_j-\mu_\ast|
-\le
-\frac{\mu_+ - \mu_-}{2^{j+1}},
-\qquad
-j \sim \log_2\!\frac{\mu_+ - \mu_-}{\varepsilon_\mu}.
-:::
-
-So the total derivative-free cost scales like
-
-:::{math}
-\text{cost} \sim C_N \log\!\frac{1}{\varepsilon_\mu}.
-:::
-
-The derivative-free branch used in `MeanFi` is usually better than midpoint-only shrinking when interpolation helps, but it retains the same logarithmic worst-case bracket-shrinking behavior.
-So, at the level of asymptotic work versus root accuracy,
-
-:::{math}
-\text{Newton:}\quad \text{cost} \sim C_N \log\log\!\frac{1}{\varepsilon_\mu}
-\qquad\text{(local ideal regime)},
-:::
-
-while
-
-:::{math}
-\text{Brent-style:}\quad \text{cost} \sim C_N \log\!\frac{1}{\varepsilon_\mu}.
-:::
-
-## Why this is coupled to the integrator
-
-Each trial value of $\mu$ requires a charge evaluation.
-That charge evaluation is produced by the same Brillouin-zone backend used for the density matrix itself, so:
-
-- adaptive quadrature reuses its quadrature tree and cached payloads,
-- adaptive simplex reuses its refined simplicial structure,
-- uniform grids reuse the same fixed nodes.
-
-## Why BdG is heavier
-
-In BdG calculations, the chemical potential enters as a shift by the charge operator $Q$, not by the identity.
-Since $Q$ does not generally commute with the BdG Hamiltonian, changing $\mu$ changes the effective matrix in a way that requires repeated backend evaluation.
-
-So the fixed-filling solve is more expensive in superconducting calculations because it repeatedly re-diagonalizes or re-evaluates the BdG matrix as $\mu$ changes.
+At zero temperature a point-sampled charge is discontinuous in chemical
+potential, so a requested filling may not be realizable on a prescribed periodic
+mesh. Use FermiSimplex for normal systems or choose a suitable manual mesh and
+filling tolerance for zero-temperature BdG.

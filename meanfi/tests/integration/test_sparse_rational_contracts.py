@@ -1,32 +1,13 @@
-# ruff: noqa: F401
-import importlib
-import inspect
-from types import SimpleNamespace
-
-import meanfi
 import numpy as np
 import pytest
 import scipy.sparse as sp
 
 from meanfi import (
-    AdaptiveQuadrature,
-    AdaptiveSimplex,
-    AndersonMixing,
-    DirectDiagonalization,
-    LinearMixing,
-    Model,
     RationalFOE,
-    UniformGrid,
-    density_matrix,
+    PeriodicGrid,
     density_matrix_at_mu,
-    solver,
 )
-from meanfi.density.filling import mu_bracket, solve_mu
-from meanfi.density.integrate.quadrature.normal import resolve_normal_matrix_function
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.density.integrate.uniform import resolve_uniform_grid_matrix_function
-from meanfi.scf.engine import NoConvergence
-from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
@@ -43,8 +24,8 @@ def test_sparse_rational_dense_input_is_rejected():
             mu=0.0,
             kT=0.15,
             keys=[(0,), (1,), (-1,)],
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-2,
+            integration=PeriodicGrid(
+                nk=128,
                 matrix_function=RationalFOE(),
             ),
         )
@@ -57,14 +38,14 @@ def test_sparse_rational_sparse_input_uses_required_mumps_path():
         mu=0.0,
         kT=0.15,
         keys=[(0,), (1,), (-1,)],
-        integration=AdaptiveQuadrature(
-            density_matrix_tol=1e-2,
+        integration=PeriodicGrid(
+            nk=128,
             matrix_function=RationalFOE(),
         ),
     )
 
     assert result.mu == 0.0
-    assert result.errors.density_matrix_integration is not None
+    assert result.errors.density_matrix_integration is None
 
 
 def test_dense_rational_rejects_aaa_scheme():
@@ -74,8 +55,8 @@ def test_dense_rational_rejects_aaa_scheme():
             mu=0.0,
             kT=0.15,
             keys=[(0,), (1,), (-1,)],
-            integration=AdaptiveQuadrature(
-                density_matrix_tol=1e-2,
+            integration=PeriodicGrid(
+                nk=128,
                 matrix_function=RationalFOE(rational_scheme="aaa"),
             ),
         )

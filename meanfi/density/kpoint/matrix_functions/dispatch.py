@@ -15,9 +15,7 @@ def resolve_matrix_function(selected: object | None) -> BdGMatrixFunction:
     if selected is None:
         return DirectDiagonalization()
     if not isinstance(selected, BdGMatrixFunction):
-        raise TypeError(
-            "AdaptiveQuadrature.matrix_function must be a BdGMatrixFunction"
-        )
+        raise TypeError("PeriodicGrid.matrix_function must be a BdGMatrixFunction")
     return selected
 
 

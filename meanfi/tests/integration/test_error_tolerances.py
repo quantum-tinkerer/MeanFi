@@ -6,10 +6,9 @@ import pytest
 from meanfi.density.problem import build_normal_problem
 
 from meanfi import (
-    AdaptiveQuadrature,
     ErrorTolerances,
     ErrorValues,
-    UniformGrid,
+    PeriodicGrid,
     default_solver_tolerances,
     density_matrix,
 )
@@ -63,7 +62,7 @@ def test_explicit_integration_tolerances_are_effective_internal_requests():
         _two_level_hamiltonian(),
         kT=0.2,
         keys=[()],
-        integration=AdaptiveQuadrature(
+        integration=PeriodicGrid(
             density_matrix_tol=5e-7,
             charge_tol=2e-7,
         ),
@@ -78,13 +77,13 @@ def test_explicit_integration_tolerances_are_effective_internal_requests():
     )
 
 
-def test_unavailable_uniform_grid_estimators_are_none():
+def test_unavailable_periodic_grid_estimators_are_none():
     result = density_matrix(
         _two_level_hamiltonian(),
         filling=1.0,
         kT=0.2,
         keys=[()],
-        integration=UniformGrid(nk=8),
+        integration=PeriodicGrid(nk=8),
         tol=1e-3,
     )
 

@@ -3,10 +3,9 @@ from __future__ import annotations
 import argparse
 
 from meanfi import (
-    AdaptiveQuadrature,
+    PeriodicGrid,
     AdaptiveSimplex,
     AndersonMixing,
-    UniformGrid,
     solver,
 )
 from performance._shared.fixtures import benchmark
@@ -47,7 +46,7 @@ def main() -> None:
             "hubbard_chain_ft_scf",
             ft_model,
             ft_guess,
-            AdaptiveQuadrature(density_matrix_tol=1e-4),
+            PeriodicGrid(density_matrix_tol=1e-4),
             {
                 "problem_family": "hubbard_chain",
                 "held_constant": "U=2.0,filling=2.0,kT=0.1",
@@ -72,7 +71,7 @@ def main() -> None:
             "hubbard_chain_zt_scf",
             zt_model,
             zt_guess,
-            UniformGrid(nk=65),
+            PeriodicGrid(nk=65),
             {
                 "problem_family": "hubbard_chain",
                 "held_constant": "U=2.0,filling=2.0,kT=0.0",

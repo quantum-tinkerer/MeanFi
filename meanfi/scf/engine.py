@@ -341,6 +341,7 @@ def _build_result(
         mu=float(state.evaluation.mu),
         filling=float(state.evaluation.filling),
         errors=errors,
+        statistics=state.evaluation.statistics,
     )
     return SCFResult(
         density=density,
