@@ -46,3 +46,34 @@ The historical baseline was run with `--checkout` pointing to recovered worktree
 starting resolution of eight points per axis; the release starts at four. The
 recorded counts include discovery, filling roots, density passes and validation.
 The benchmark files are excluded from both wheel and source distribution.
+
+## Further streamlining
+
+The second pass compares commit `595a8f2` with the simplified code using the same
+five cases and independent references. Runs were sequential, pinned to one CPU,
+with one BLAS/OpenMP thread, three repetitions and one warmup per case. Python,
+NumPy, timings and work counts are recorded in [streamlining.json](streamlining.json).
+
+| Case | Before (s) | After (s) |
+| --- | ---: | ---: |
+| Square metal | 0.0511 | 0.0283 |
+| Gapped system | 0.0120 | 0.0067 |
+| Cold BdG | 0.0159 | 0.0083 |
+| Multichannel wire | 0.0640 | 0.0332 |
+| Bounded 3D | 0.8846 | 0.8824 |
+| Sparse chain, fixed 128 points, AAA | 7.7332 | 3.2190 |
+
+All five dense cases produced identical chemical potentials, filling and
+reference discrepancies before and after the change. The reference assertions
+pass; no measured slowdown appeared. Short-call timing ratios are sensitive to
+CPU state and should not be interpreted as universal speedups.
+
+The sparse case used three fresh processes per version on CPU 0, with one BLAS
+thread. It used two identical nearest-neighbor chains (`h(0)=0`, `h(±1)=-I`),
+`kT=0.15`, filling `0.7`, `filling_tol=0.01`, `mu_tol=1e-8`, and keys `0, ±1`.
+`PeriodicGrid(nk=128)` selects AAA for this explicit sparse grid. Chemical
+potential changed by `1.39e-5` and reported filling by `2.94e-6`; both solves met
+the requested filling tolerance. Independent sparse reference tests passed at
+tighter tolerances. This benchmark measures removing spectral setup work and
+simplifying retained state; it does not establish integration convergence on a
+prescribed mesh.

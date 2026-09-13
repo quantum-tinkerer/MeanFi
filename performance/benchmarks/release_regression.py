@@ -34,7 +34,8 @@ from scipy.special import expit  # noqa: E402
 from threadpoolctl import threadpool_limits, threadpool_info  # noqa: E402
 
 import meanfi  # noqa: E402
-from meanfi.density.density import evaluate_density_matrix_fixed_filling  # noqa: E402
+from meanfi.density import density as density_module  # noqa: E402
+from meanfi.density.problem import build_normal_problem  # noqa: E402
 from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling  # noqa: E402
 from meanfi.tb.bdg import assemble_bdg_tb  # noqa: E402
 
@@ -135,11 +136,27 @@ def evaluate(model, mf):
     )
     if mf is not None:
         return solve_bdg_density_fixed_filling(model, mf, filling_tol=2.5e-5, **common)
-    return evaluate_density_matrix_fixed_filling(
+    tolerances = meanfi.ErrorTolerances(1e-3, 1e-4, 2.5e-5, 2.5e-5)
+    if hasattr(density_module, "evaluate_density"):
+        normal = build_normal_problem(
+            model.h_0,
+            kT=model.kT,
+            keys=list(coordinates.keys),
+            integration=integration,
+            tolerances=tolerances,
+            density_coordinates=coordinates,
+        )
+        return density_module.evaluate_density(
+            normal,
+            filling=model.filling,
+            mu_tol=1e-12,
+            max_charge_evaluations=200,
+        )
+    return density_module.evaluate_density_matrix_fixed_filling(
         model.h_0,
         filling=model.filling,
         kT=model.kT,
-        tolerances=meanfi.ErrorTolerances(1e-3, 1e-4, 2.5e-5, 2.5e-5),
+        tolerances=tolerances,
         **common,
     )[1]
 
@@ -220,6 +237,11 @@ with threadpool_limits(1):
                 reference_density_change=float(np.max(abs(coarse - fine))),
                 reference_charge_change=abs(charge_coarse - charge_fine),
             )
+            # Check density at the returned mu and physical filling separately.
+            assert record["density_error"] <= 1e-4, record
+            assert record["charge_error"] <= 5e-5, record
+            assert record["reference_density_change"] <= 1e-5, record
+            assert record["reference_charge_change"] <= 2.5e-6, record
         records.append(record)
         print(f"{name}: {record['seconds']:.3f} s", flush=True)
     output = dict(
