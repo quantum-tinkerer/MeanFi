@@ -109,18 +109,3 @@ def resolve_integration_tolerances(integration, tolerances: ErrorTolerances):
         ),
         resolved_tolerances,
     )
-
-
-def density_matrix_error_value(error_matrices) -> float | None:
-    """Reduce detailed density errors using the public max-element norm."""
-
-    if error_matrices is None:
-        return None
-    maxima = [
-        float(np.max(np.abs(np.asarray(matrix))))
-        for matrix in error_matrices.values()
-        if np.asarray(matrix).size
-    ]
-    if not maxima:
-        return 0.0
-    return max(maxima)

@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 from scipy.special import expit
 
-from meanfi.density.filling import solve_mu, solve_mu_in_bracket
+from meanfi.density.filling import solve_mu
 
 
-def run_root(evaluate, *, bracketed=False, **overrides):
+def run_root(evaluate, **overrides):
     kwargs = dict(
         filling=0.73,
         mu_guess=0.0,
@@ -16,10 +16,6 @@ def run_root(evaluate, *, bracketed=False, **overrides):
         use_derivative=True,
     )
     kwargs.update(overrides)
-    if bracketed:
-        return solve_mu_in_bracket(
-            evaluate, lower=-4.0, upper=4.0, mu_xtol=1e-10, **kwargs
-        )
     return solve_mu(
         evaluate_charge=evaluate,
         initial_bracket=lambda: (-4.0, 4.0),
@@ -28,10 +24,9 @@ def run_root(evaluate, *, bracketed=False, **overrides):
     )
 
 
-@pytest.mark.parametrize("bracketed", [False, True])
 @pytest.mark.parametrize("use_derivative", [False, True])
 @pytest.mark.parametrize("budget", [1, 2, 3, 4])
-def test_root_budget_is_hard_and_failure_has_context(bracketed, use_derivative, budget):
+def test_root_budget_is_hard_and_failure_has_context(use_derivative, budget):
     calls = []
 
     def evaluate(mu):
@@ -45,7 +40,6 @@ def test_root_budget_is_hard_and_failure_has_context(bracketed, use_derivative, 
     ):
         run_root(
             evaluate,
-            bracketed=bracketed,
             max_charge_evaluations=budget,
             use_derivative=use_derivative,
         )

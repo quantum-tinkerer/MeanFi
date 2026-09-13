@@ -15,7 +15,8 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-import meanfi.density.kpoint.matrix_functions.rational as rational_matrix_functions
+import meanfi.density.kpoint.matrix_functions.rational.scheme as rational_matrix_functions
+from meanfi.density.kpoint.matrix_functions.rational import PreparedMumpsRationalNode
 from meanfi.tests.fixtures.models import (
     max_density_error,
     spinful_chain,
@@ -70,6 +71,7 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, atol):
     sparse_tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
@@ -102,6 +104,7 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
     assert result.errors.density_matrix_integration is None
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
     sparse_tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
@@ -143,6 +146,7 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_periodic_grid_matches_dense_reference_at_mu(matrix_function, atol):
     sparse_tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
@@ -171,6 +175,7 @@ def test_sparse_periodic_grid_matches_dense_reference_at_mu(matrix_function, ato
     assert max_density_error(result.density_matrix, reference.density_matrix) <= atol
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
     sparse_tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
@@ -204,6 +209,7 @@ def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
     assert max_density_error(result.density_matrix, reference.density_matrix) <= 2e-2
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     dense_h0 = spinful_chain()
     dense_hint = {(0,): np.diag([1.2, 0.0]).astype(complex)}
@@ -249,6 +255,7 @@ def test_workspace_precision_controls_are_validated():
     assert "workspace_precision" not in AdaptiveSimplex.__dataclass_fields__
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_periodic_workspace_precision_64_matches_128():
     tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
@@ -284,6 +291,7 @@ def test_periodic_workspace_precision_64_matches_128():
     )
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_solver_result_does_not_expose_reduced_density():
     h0 = {(0,): sparse.csr_matrix(np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=complex))}
     h_int = {(0,): sparse.csr_matrix(np.diag([1.0, 1.0]).astype(complex))}
@@ -397,7 +405,7 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
         kT=0.15,
     )
     space = model.scf_space
-    node = rational_matrix_functions.PreparedMumpsRationalNode(
+    node = PreparedMumpsRationalNode(
         matrix,
         kT=0.15,
         q_diag=np.ones(2, dtype=float),
@@ -417,6 +425,7 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
     assert len(shared_cache) == cache_size
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_strained_graphene_single_shot_sparse_aaa_is_stable():
     pytest.importorskip("kwant")
     from docs.source.tutorial.scripts.zero_temp_validation import (

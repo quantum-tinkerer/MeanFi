@@ -12,7 +12,6 @@ from meanfi import (
     solver,
 )
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.interop import kwant as utils
 
 
 pytestmark = [pytest.mark.numerics, pytest.mark.perf_slow]
@@ -24,6 +23,7 @@ requires_ext = pytest.mark.skipif(
 
 def _build_graphene_bad_point():
     kwant = pytest.importorskip("kwant")
+    from meanfi.interop import kwant as utils
 
     s0 = np.identity(2)
     sx = np.array([[0, 1], [1, 0]])

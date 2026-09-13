@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
-from scipy.optimize import anderson
+from scipy.optimize import NoConvergence as ScipyNoConvergence, anderson
 
 from meanfi.scf.methods import AndersonMixing, LinearMixing, SCFMethod
 
@@ -45,19 +45,6 @@ def max_norm(values: np.ndarray) -> float:
     return float(np.max(np.abs(array)))
 
 
-def translate_no_convergence(exc: Exception, fallback: np.ndarray) -> None:
-    if exc.__class__.__name__ != "NoConvergence":
-        return
-
-    if hasattr(exc, "last_iterate"):
-        last_iterate = exc.last_iterate
-    elif exc.args:
-        last_iterate = exc.args[0]
-    else:
-        last_iterate = fallback
-    raise NoConvergence(np.asarray(last_iterate, dtype=float)) from exc
-
-
 def _solve_linear_mixing(
     residual_fn: Callable[[np.ndarray], np.ndarray],
     x0: np.ndarray,
@@ -68,10 +55,10 @@ def _solve_linear_mixing(
     on_iteration,
 ) -> np.ndarray:
     x = np.array(x0, copy=True)
-    for iteration in range(1, maxiter + 1):
+    for _ in range(maxiter):
         residual = np.asarray(residual_fn(x), dtype=float)
         residual_norm = max_norm(residual)
-        on_iteration(iteration, residual_norm, x, residual)
+        on_iteration(x, residual)
         if residual_norm <= scf_tol:
             return x
         x = x + alpha * residual
@@ -86,26 +73,22 @@ def _solve_anderson(
     scf_tol: float,
     on_iteration,
 ) -> np.ndarray:
-    state = {"iterations": 0, "accepted_initial": False}
+    accepted_initial = False
 
     def wrapped_residual_fn(x: np.ndarray) -> np.ndarray:
+        nonlocal accepted_initial
         residual = np.asarray(residual_fn(x), dtype=float)
-        if not state["accepted_initial"]:
-            state["accepted_initial"] = True
-            on_iteration(None, max_norm(residual), x, residual)
+        if not accepted_initial:
+            accepted_initial = True
+            on_iteration(x, residual)
         return residual
-
-    def optimizer_callback(x: np.ndarray, f: np.ndarray) -> None:
-        state["iterations"] += 1
-        residual = np.asarray(f, dtype=float)
-        on_iteration(state["iterations"], max_norm(residual), x, residual)
 
     try:
         with np.errstate(invalid="ignore"):
             result = anderson(
                 wrapped_residual_fn,
                 x0,
-                callback=optimizer_callback,
+                callback=on_iteration,
                 alpha=None if scf.alpha is None else float(scf.alpha),
                 w0=float(scf.w0),
                 M=int(scf.M),
@@ -117,9 +100,8 @@ def _solve_anderson(
                 x_rtol=None if scf.x_rtol is None else float(scf.x_rtol),
                 tol_norm=max_norm,
             )
-    except Exception as exc:  # pragma: no cover - exercised through scipy
-        translate_no_convergence(exc, x0)
-        raise
+    except ScipyNoConvergence as exc:
+        raise NoConvergence(exc.args[0]) from exc
 
     return np.asarray(result, dtype=float)
 

@@ -6,7 +6,6 @@ from functools import lru_cache
 import numpy as np
 from scipy import linalg as scipy_linalg
 
-from ..base import RationalFOE
 from ...occupations import fermi_dirac
 from .common import SparseRationalTerms
 
@@ -37,7 +36,7 @@ class _AAAIntervalCacheEntry:
     terms: SparseRationalTerms
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=16)
 def _ozaki_exact_poles_and_residues(pole_count: int) -> tuple[np.ndarray, np.ndarray]:
     if pole_count <= 0:
         raise ValueError("pole_count must be positive")
@@ -632,23 +631,11 @@ def _aaa_terms_for_interval(
     )
 
 
-def _scheme_terms(
-    options: RationalFOE,
-    pole_count: int,
-    *,
-    lower: float,
-    upper: float,
-    kT: float,
-) -> tuple[complex, np.ndarray, np.ndarray]:
-    if options.rational_scheme == "ozaki":
-        poles, residues = _ozaki_exact_poles_and_residues(int(pole_count))
-        return (
-            complex(0.5),
-            1j * np.asarray(poles, dtype=float) * float(kT),
-            np.asarray(residues, dtype=float) * float(kT),
-        )
-    if options.rational_scheme == "aaa":
-        raise ValueError(
-            "rational_scheme='aaa' is currently supported only on the sparse MUMPS RationalFOE path"
-        )
-    raise ValueError(f"Unsupported RationalFOE scheme: {options.rational_scheme}")
+def _ozaki_terms(pole_count: int, kT: float) -> SparseRationalTerms:
+    poles, residues = _ozaki_exact_poles_and_residues(pole_count)
+    return SparseRationalTerms(
+        constant=complex(0.5),
+        shifts=1j * poles * kT,
+        residues=residues * kT,
+        pole_count=pole_count,
+    )

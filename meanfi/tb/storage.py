@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import numpy as np
-
-from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like, to_dense
+from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like
+from meanfi.tb.validate import matrix_allclose
 
 
 def prefers_sparse_storage(*tb_dicts: _tb_type) -> bool:
@@ -26,11 +25,12 @@ def tb_entries_changed(
     *,
     atol: float = 1e-12,
 ) -> bool:
-    for key in frozenset(original) | frozenset(projected):
-        before = to_dense(original.get(key, np.zeros((0, 0), dtype=complex)))
-        after = to_dense(projected.get(key, np.zeros((0, 0), dtype=complex)))
-        if before.shape != after.shape:
-            continue
-        if np.any(np.abs(before - after) > atol):
+    for key in original.keys() | projected.keys():
+        before, after = original.get(key), projected.get(key)
+        if before is None:
+            before = after * 0
+        if after is None:
+            after = before * 0
+        if not matrix_allclose(before, after, atol=atol):
             return True
     return False

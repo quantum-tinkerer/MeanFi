@@ -1,12 +1,13 @@
 import itertools as it
 
-import kwant
 import numpy as np
 import pytest
 
-from meanfi.interop.kwant import builder_to_tb, tb_to_builder
-from meanfi.tb.ops import compare_dicts
-from meanfi.tb.utils import generate_tb_keys
+kwant = pytest.importorskip("kwant")
+
+from meanfi.interop.kwant import builder_to_tb, tb_to_builder  # noqa: E402
+from meanfi.tb.ops import compare_dicts  # noqa: E402
+from meanfi.tb.utils import generate_tb_keys  # noqa: E402
 
 
 def _hermitian_tb(keys, ndof, seed=0):

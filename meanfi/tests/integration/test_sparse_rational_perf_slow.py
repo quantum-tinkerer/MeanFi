@@ -20,6 +20,7 @@ requires_ext = pytest.mark.skipif(
 
 
 @pytest.mark.perf_slow
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_rational_fixed_filling_matches_dense_reference():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     keys = [(0,), (1,), (-1,)]
@@ -62,6 +63,7 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
 
 
 @pytest.mark.perf_slow
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_rational_fixed_mu_matches_dense_reference():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     keys = [(0,), (1,), (-1,)]
@@ -97,12 +99,11 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
 
 
 @pytest.mark.perf_slow
+@pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
     from meanfi.space.coordinates import full_density_coordinates
-    from meanfi.density.kpoint.matrix_functions import (
-        density_block,
-        shift_by_mu,
-    )
+    from meanfi.density.kpoint.matrix_functions import shift_by_mu
+    from scipy.special import expit
     from meanfi.density.kpoint.matrix_functions.rational import (
         PreparedMumpsRationalNode,
     )
@@ -129,20 +130,20 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
         trace_weights_diag=trace_weights,
     )
 
-    direct_density = density_block(
-        DirectDiagonalization(),
-        shift_by_mu(matrix, 0.05, q_diag),
-        np.eye(2, dtype=complex),
-        kT=0.2,
-        q_diag=q_diag,
-        derivative=False,
-        tolerance=0.0,
-    ).block
-    solve_charge = float(np.real(np.sum(trace_weights * np.diag(direct_density))))
-    mumps_charge, mumps_derivative = mumps_node.charge_and_derivative(0.05)
-    solve_density = coords.values_from_assembled_matrix(direct_density)
-    mumps_density = mumps_node.density_values_from_charge_order(0.05)
-
-    assert np.isnan(mumps_derivative)
-    assert abs(mumps_charge - solve_charge) <= 1e-8
-    assert np.max(np.abs(mumps_density - solve_density)) <= 1e-8
+    for mu in (0.05, -0.3):
+        eigenvalues, eigenvectors = np.linalg.eigh(
+            shift_by_mu(matrix, mu, q_diag).toarray()
+        )
+        direct_density = (
+            eigenvectors * expit(-eigenvalues / 0.2)
+        ) @ eigenvectors.conj().T
+        reference_charge = float(
+            np.real(np.sum(trace_weights * np.diag(direct_density)))
+        )
+        reference_values = coords.values_from_assembled_matrix(direct_density)
+        mumps_charge = mumps_node.charge(mu)
+        mumps_density = mumps_node.density_values_from_charge_order(mu)
+        assert abs(mumps_charge - reference_charge) <= 1e-8
+        assert np.max(np.abs(mumps_density - reference_values)) <= 1e-8
+    with pytest.raises(ValueError, match="Evaluate charge at the requested mu"):
+        mumps_node.density_values_from_charge_order(0.05)

@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import scipy.sparse as sparse
 
-import meanfi.density.kpoint.matrix_functions.direct as bdg_matrix_direct
+import meanfi.density.integrate.periodic as periodic
+
 from meanfi import (
     DirectDiagonalization,
     Model,
@@ -170,6 +171,7 @@ def test_bdg_dense_rational_is_rejected(matrix_function):
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
+@pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
     keys = [(0, 0), (1, 0)]
     meanfield = _pairing(0.25, sparse=sparse)
@@ -215,6 +217,7 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
     )
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
     local = (0, 0)
     h_0 = {local: sparse.csr_matrix(np.zeros((2, 2)))}
@@ -246,6 +249,7 @@ def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
     assert np.allclose(result.density.to_full_tb()[local], 0.5 * np.eye(4), atol=1e-6)
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypatch):
     local = (0, 0)
     h_0 = {local: sparse.csr_matrix(np.zeros((2, 2)))}
@@ -264,7 +268,8 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
             "Sparse Rational path should not call exact diagonalization"
         )
 
-    monkeypatch.setattr(bdg_matrix_direct, "_exact_density_block", fail_if_exact)
+    monkeypatch.setattr(np.linalg, "eigh", fail_if_exact)
+    monkeypatch.setattr(np.linalg, "eigvalsh", fail_if_exact)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -282,6 +287,7 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
     assert abs(result.filling - 1.0) <= 1e-6
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
     local = (0, 0)
     h_0 = {local: sparse.csr_matrix(np.zeros((2, 2)))}
@@ -298,7 +304,7 @@ def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
     def fail_if_dense(*args, **kwargs):
         raise AssertionError("Sparse Rational density path should not densify matrices")
 
-    monkeypatch.setattr(bdg_matrix_direct, "to_dense", fail_if_dense)
+    monkeypatch.setattr(periodic, "to_dense", fail_if_dense)
     result = solve_bdg_density_fixed_filling(
         model,
         meanfield,
@@ -342,6 +348,7 @@ def test_bdg_zero_dimensional_rational_density_rejects_dense_matrix():
         )
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_selected_density_matches_dense_reference():
     local = (0, 0)
     dense_h0 = {local: np.zeros((2, 2), dtype=complex)}
@@ -399,6 +406,7 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
     ],
     ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
 )
+@pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_periodic_grid_selected_density_matches_dense_reference(
     matrix_function,
 ):

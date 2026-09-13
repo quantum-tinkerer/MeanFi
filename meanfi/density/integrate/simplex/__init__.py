@@ -11,7 +11,9 @@ from threadpoolctl import threadpool_limits
 from meanfi.density.filling import FixedFillingSolve
 from meanfi.density.filling import mu_bracket as build_mu_bracket
 from meanfi.density.filling import solve_mu
-from meanfi.results import DensityIntegrationInfo, FixedFillingInfo
+from meanfi.results import AdaptiveSimplexInfo
+from meanfi.errors import ErrorValues
+from meanfi.density.internal import DensityEvaluation, DensitySlice
 from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
 from meanfi.tb.ops import _tb_type, to_dense
 
@@ -188,47 +190,68 @@ def _integrate_density(
         )
 
 
-def _density_result_to_tb(
-    result,
-    density_coordinates: DensityCoordinates,
-) -> tuple[_tb_type, _tb_type]:
-    values = np.asarray(result.values)
-    errors = np.full(
-        density_coordinates.value_count,
-        float(result.stopping_error),
-        dtype=float,
+def _density_slice(
+    result, coordinates: DensityCoordinates, *, prescribed: bool
+) -> DensitySlice:
+    errors = (
+        None if prescribed else np.full(coordinates.value_count, result.stopping_error)
     )
-    return density_coordinates.values_and_errors_to_tb(values, errors)
+    return DensitySlice(coordinates, result.values, errors)
 
 
 def _empty_density_result(
     mesh: SpectralMesh,
-    density_coordinates: DensityCoordinates,
+    coordinates: DensityCoordinates,
     *,
     num_threads: int | None,
     nk: int | None = None,
-) -> tuple[_tb_type, _tb_type | None, DensityIntegrationInfo]:
-    density_matrix, density_matrix_error = density_coordinates.values_and_errors_to_tb(
-        np.empty(0, dtype=complex),
-        np.empty(0, dtype=float),
-    )
+) -> tuple[DensitySlice, AdaptiveSimplexInfo]:
     return (
-        density_matrix,
-        density_matrix_error if nk is None else None,
-        DensityIntegrationInfo(
+        DensitySlice(
+            coordinates,
+            np.empty(0, dtype=complex),
+            None if nk is not None else np.empty(0),
+        ),
+        AdaptiveSimplexInfo(
             n_kernel_evals=0,
             unique_evals=0,
             n_evaluator_evals=0,
             n_cached_nodes=int(mesh.cached_vertices),
             n_leaves=int(mesh.active_simplices),
             n_leaf_nodes=int(mesh.active_vertices),
-            subdivisions=0,
+            refinements=0,
             error_estimate_available=nk is None,
             num_threads=num_threads,
             requested_nk=nk,
             n_kpoints=int(mesh.active_vertices),
             n_diagonalizations=0,
         ),
+    )
+
+
+def _density_evaluation(
+    density: DensitySlice,
+    mu: float,
+    info: AdaptiveSimplexInfo,
+    target_filling: float | None = None,
+) -> DensityEvaluation:
+    return DensityEvaluation(
+        density=density,
+        mu=float(mu),
+        filling=info.charge,
+        errors=ErrorValues(
+            density_matrix_integration=(
+                None
+                if density.errors is None
+                else float(np.max(density.errors, initial=0.0))
+            ),
+            charge_integration=info.charge_error,
+            filling_residual=(
+                None if target_filling is None else abs(info.charge - target_filling)
+            ),
+        ),
+        statistics=info,
+        band_energy=info.band_energy,
     )
 
 
@@ -242,17 +265,17 @@ def _density_info(
     *,
     num_threads: int | None,
     nk: int | None = None,
-) -> DensityIntegrationInfo:
+) -> AdaptiveSimplexInfo:
     stats = result.stats
     evaluations = int(stats.evaluations)
-    return DensityIntegrationInfo(
+    return AdaptiveSimplexInfo(
         n_kernel_evals=evaluations,
         unique_evals=evaluations,
         n_evaluator_evals=evaluations,
         n_cached_nodes=int(stats.cached_vertices),
         n_leaves=int(stats.active_simplices),
         n_leaf_nodes=int(stats.active_vertices),
-        subdivisions=int(stats.refinements),
+        refinements=int(stats.refinements),
         error_estimate_available=nk is None and bool(stats.target_reached),
         num_threads=num_threads,
         requested_nk=nk,
@@ -287,7 +310,7 @@ def density_matrix_at_mu_zero_temp(
     while True:
         remaining = None if max_subdivisions is None else max_subdivisions - refinements
         if coordinates.value_count == 0:
-            density_matrix, density_matrix_error, density_info = _empty_density_result(
+            density, density_info = _empty_density_result(
                 mesh, coordinates, num_threads=num_threads, nk=nk
             )
         else:
@@ -305,9 +328,7 @@ def density_matrix_at_mu_zero_temp(
                 result,
                 "Adaptive simplex loop did not converge while evaluating density",
             )
-            density_matrix, density_matrix_error = _density_result_to_tb(
-                result, coordinates
-            )
+            density = _density_slice(result, coordinates, prescribed=nk is not None)
             density_info = _density_info(result, num_threads=num_threads, nk=nk)
             work += int(result.stats.evaluations)
             diagonalizations += int(result.stats.evaluations)
@@ -358,13 +379,13 @@ def density_matrix_at_mu_zero_temp(
         unique_evals=work,
         n_evaluator_evals=work,
         n_diagonalizations=diagonalizations,
-        subdivisions=refinements,
+        refinements=refinements,
         n_cached_nodes=int(mesh.cached_vertices),
         n_leaves=int(mesh.active_simplices),
         n_leaf_nodes=int(mesh.active_vertices),
         n_kpoints=int(mesh.active_vertices),
     )
-    return density_matrix, density_matrix_error if nk is None else None, density_info
+    return _density_evaluation(density, mu, density_info)
 
 
 def _fixed_filling_info(
@@ -374,44 +395,24 @@ def _fixed_filling_info(
     density_integration_calls: int,
     charge_work: int,
     charge_refinements: int,
-    density_info: DensityIntegrationInfo,
-    charge_tol: float,
-    density_atol: float,
-    density_rtol: float,
-    num_threads: int | None,
+    density_info: AdaptiveSimplexInfo,
     band_energy: float | None = None,
     nk: int | None = None,
     charge_diagonalizations: int = 0,
-) -> FixedFillingInfo:
-    return FixedFillingInfo(
-        mu=float(root.mu),
+) -> AdaptiveSimplexInfo:
+    return replace(
+        density_info,
         charge=float(root.charge),
         charge_error=float(root.charge_error) if nk is None else None,
-        dcharge_dmu=0.0 if root.derivative is None else float(root.derivative),
         charge_evaluations=int(root.charge_evaluations),
-        charge_integration_calls=int(charge_integration_calls),
-        density_integration_calls=int(density_integration_calls),
-        charge_n_kernel_evals=int(charge_work),
-        density_n_kernel_evals=int(density_info.n_kernel_evals),
-        n_kernel_evals=int(charge_work + density_info.n_kernel_evals),
-        unique_evals=int(charge_work + density_info.unique_evals),
-        charge_n_evaluator_evals=int(charge_work),
-        density_n_evaluator_evals=int(density_info.n_evaluator_evals),
-        n_evaluator_evals=int(charge_work + density_info.n_evaluator_evals),
-        n_cached_nodes=int(density_info.n_cached_nodes),
-        n_leaves=int(density_info.n_leaves),
-        n_leaf_nodes=int(density_info.n_leaf_nodes),
-        subdivisions=int(charge_refinements + density_info.subdivisions),
-        charge_integral_atol=float(charge_tol),
-        density_atol=float(density_atol),
-        density_rtol=float(density_rtol),
-        error_estimate_available=bool(density_info.error_estimate_available),
-        num_threads=num_threads,
+        charge_integration_calls=charge_integration_calls,
+        density_integration_calls=density_integration_calls,
+        n_kernel_evals=charge_work + density_info.n_kernel_evals,
+        unique_evals=charge_work + density_info.unique_evals,
+        n_evaluator_evals=charge_work + density_info.n_evaluator_evals,
+        refinements=charge_refinements + density_info.refinements,
         band_energy=band_energy,
         band_energy_integration_calls=int(band_energy is not None),
-        band_energy_n_kernel_evals=0,
-        requested_nk=nk,
-        n_kpoints=density_info.n_leaf_nodes,
         n_diagonalizations=charge_diagonalizations + density_info.n_kernel_evals,
     )
 
@@ -535,7 +536,7 @@ def density_matrix_zero_temp(
                 continue
 
         if coordinates.value_count == 0:
-            density_matrix, density_matrix_error, density_info = _empty_density_result(
+            density, density_info = _empty_density_result(
                 mesh, coordinates, num_threads=num_threads, nk=nk
             )
         else:
@@ -556,8 +557,8 @@ def density_matrix_zero_temp(
             density_integration_calls += 1
             density_work += int(density_result.stats.evaluations)
             density_refinements += int(density_result.stats.refinements)
-            density_matrix, density_matrix_error = _density_result_to_tb(
-                density_result, coordinates
+            density = _density_slice(
+                density_result, coordinates, prescribed=nk is not None
             )
             density_info = _density_info(density_result, num_threads=num_threads, nk=nk)
 
@@ -589,31 +590,23 @@ def density_matrix_zero_temp(
         unique_evals=density_work,
         n_evaluator_evals=density_work,
         n_diagonalizations=density_work,
-        subdivisions=density_refinements,
+        refinements=density_refinements,
     )
     band_energy = (
         _occupied_band_energy(mesh, mu=float(root.mu)) if include_band_energy else None
     )
-    return (
-        density_matrix,
-        density_matrix_error if nk is None else None,
-        float(root.mu),
-        _fixed_filling_info(
-            root=root,
-            charge_integration_calls=charge_integration_calls,
-            density_integration_calls=density_integration_calls,
-            charge_work=charge_work,
-            charge_refinements=charge_refinements,
-            density_info=density_info,
-            charge_tol=charge_tol,
-            density_atol=density_atol,
-            density_rtol=density_rtol,
-            num_threads=num_threads,
-            band_energy=band_energy,
-            nk=nk,
-            charge_diagonalizations=charge_diagonalizations,
-        ),
+    info = _fixed_filling_info(
+        root=root,
+        charge_integration_calls=charge_integration_calls,
+        density_integration_calls=density_integration_calls,
+        charge_work=charge_work,
+        charge_refinements=charge_refinements,
+        density_info=density_info,
+        band_energy=band_energy,
+        nk=nk,
+        charge_diagonalizations=charge_diagonalizations,
     )
+    return _density_evaluation(density, root.mu, info, target_filling=filling)
 
 
 __all__ = [

@@ -47,22 +47,6 @@ def mu_bracket(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
     return -float(bound + padding), float(bound + padding)
 
 
-def charge_integral_tolerance(filling_tol: float) -> tuple[float, float]:
-    """Translate filling tolerance to charge-integral tolerances.
-
-    By default, the fixed-filling solver only accepts a charge sample when both
-    `abs(charge - filling) <= filling_tol` and `charge_error <= filling_tol / 2`.
-    We therefore budget at most one quarter of the total filling tolerance to the
-    charge integration error so the root solver still has headroom to resolve the
-    physical residual.
-    """
-
-    filling_tol_value = float(filling_tol)
-    if not np.isfinite(filling_tol_value) or filling_tol_value <= 0.0:
-        raise ValueError("filling_tol must be a positive finite number")
-    return filling_tol_value * _CHARGE_INTEGRAL_ATOL_FRACTION, 0.0
-
-
 @dataclass(frozen=True)
 class FixedFillingSolve:
     mu: float
@@ -403,55 +387,6 @@ def _validate_root_inputs(
     if charge_error_tol is not None:
         if not np.isfinite(charge_error_tol) or charge_error_tol <= 0.0:
             raise ValueError("charge_error_tol must be positive when provided")
-
-
-def solve_mu_in_bracket(
-    evaluate_charge: ChargeEvaluation,
-    *,
-    filling: float,
-    mu_guess: float,
-    lower: float,
-    upper: float,
-    filling_tol: float,
-    mu_xtol: float,
-    max_charge_evaluations: int | None,
-    charge_error_tol: float | None = None,
-    use_derivative: bool = True,
-) -> FixedFillingSolve:
-    """Solve for the chemical potential inside an existing valid bracket.
-
-    `evaluate_charge(mu)` must return `(charge, charge_error, derivative)`, where
-    `charge` approximates the requested filling function `N(mu)`, `charge_error`
-    is an absolute error estimate for that charge, and `derivative` is an optional
-    `dN/dmu` estimate. The solver assumes `N(mu)` is monotone nondecreasing over
-    `[lower, upper]`.
-    """
-    _validate_root_inputs(
-        filling=filling,
-        mu_guess=mu_guess,
-        lower=lower,
-        upper=upper,
-        filling_tol=filling_tol,
-        mu_xtol=mu_xtol,
-        max_charge_evaluations=max_charge_evaluations,
-        charge_error_tol=charge_error_tol,
-    )
-    solver = _ChargeRootSolver(
-        evaluate_charge,
-        filling=filling,
-        filling_tol=filling_tol,
-        mu_xtol=mu_xtol,
-        max_charge_evaluations=max_charge_evaluations,
-        charge_error_tol=charge_error_tol,
-        use_derivative=use_derivative,
-    )
-    try:
-        return solver.solve_in_bracket(lower=lower, upper=upper, mu_guess=mu_guess)
-    except _MaxRootIterations:
-        solver._fail(
-            "maximum charge-evaluation budget reached before satisfying the filling tolerance",
-            solver.best if solver.best is not None else solver.last,
-        )
 
 
 def solve_mu(

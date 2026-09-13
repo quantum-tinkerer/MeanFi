@@ -326,6 +326,7 @@ def test_shifted_grid_rejects_diagonal_multidimensional_alias():
 
 
 @pytest.mark.parametrize("bdg", [False, True])
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatch, bdg):
     import scipy.sparse as sparse
     import meanfi.density.integrate.periodic as periodic
@@ -383,6 +384,7 @@ def test_periodic_rejects_invalid_temperature(temperature):
         evaluate(kT=temperature, integration=PeriodicGrid(nk=4), mu=0.1)
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_explicit_filling_tolerance_controls_sparse_pointwise_accuracy():
     from scipy.sparse import csr_matrix
     from meanfi.errors import default_solver_tolerances
@@ -398,6 +400,66 @@ def test_explicit_filling_tolerance_controls_sparse_pointwise_accuracy():
         q_diag=np.array([1.0, 1.0, -1.0, -1.0]),
         trace_weights_diag=np.array([1.0, 1.0, 0.0, 0.0]),
     )
-    assert result.statistics.n_diagonalizations is None
+    assert result.statistics.n_diagonalizations == 0
     # Check the physical charge independently of the rational approximation.
     assert abs(2 * expit(result.mu / 0.2) - 1) <= 1e-6
+
+
+@pytest.mark.parametrize("energy,occupation", [(-10.0, 1.0), (10.0, 0.0)])
+def test_sparse_constant_tail_reuses_empty_aaa_fit_without_eigensolves(
+    monkeypatch, energy, occupation
+):
+    from scipy.sparse import csr_matrix
+    from meanfi.density.kpoint.matrix_functions.rational import (
+        PreparedMumpsRationalNode,
+    )
+    import meanfi.density.kpoint.matrix_functions.rational.prepared_sparse as prepared
+    from meanfi.space.coordinates import full_density_coordinates
+
+    fits = 0
+    original_fit = prepared._aaa_terms_for_interval
+
+    def fit(*args, **kwargs):
+        nonlocal fits
+        fits += 1
+        return original_fit(*args, **kwargs)
+
+    def no_eigensolve(*args, **kwargs):
+        raise AssertionError("Sparse spectral enclosures must not diagonalize")
+
+    monkeypatch.setattr(prepared, "_aaa_terms_for_interval", fit)
+    monkeypatch.setattr(np.linalg, "eigh", no_eigensolve)
+    monkeypatch.setattr(np.linalg, "eigvalsh", no_eigensolve)
+    cache = []
+    for _ in range(3):
+        node = PreparedMumpsRationalNode(
+            csr_matrix(np.eye(2) * energy),
+            kT=0.2,
+            q_diag=np.ones(2),
+            options=RationalFOE(rational_scheme="aaa"),
+            charge_tolerance=1e-8,
+            density_coordinates=full_density_coordinates([(0,)], size=2),
+            density_tolerance=1e-8,
+            shared_aaa_interval_cache=cache,
+        )
+        assert node.charge(0.0) == pytest.approx(2 * occupation)
+        assert_allclose(
+            node.density_values_from_charge_order(0.0),
+            (np.eye(2) * occupation).ravel(),
+            atol=1e-8,
+        )
+        assert len(cache) == 1
+        assert cache[0].support_x.size == 0
+    assert fits == 1
+
+
+def test_sparse_spectral_interval_encloses_independent_eigenvalues():
+    from scipy.sparse import csr_matrix
+    from meanfi.density.kpoint.matrix_functions.common import spectral_interval
+
+    matrix = np.array([[3.0, 1.0 + 2j, 0.0], [1.0 - 2j, -2.0, 0.4], [0.0, 0.4, 0.5]])
+    eigenvalues = np.linalg.eigvalsh(matrix)
+    for value in (matrix, csr_matrix(matrix)):
+        lower, upper = spectral_interval(value)
+        assert lower <= eigenvalues.min()
+        assert upper >= eigenvalues.max()

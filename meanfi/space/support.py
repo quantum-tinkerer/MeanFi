@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from meanfi.meanfield import bdg_density_keys
 from meanfi.space.coordinates import (
     DensityCoordinates,
     canonical_tb_keys,
@@ -59,7 +58,7 @@ def normal_active_support(model: Model) -> ActiveCoordinateSupport:
 
 def bdg_active_support(model: Model) -> ActiveCoordinateSupport:
     onsite = onsite_key(model._ndim)
-    density_keys = active_tb_keys(bdg_density_keys(model, {}))
+    density_keys = active_tb_keys([*model.h_int, onsite])
     electron_pairs = _normal_active_pairs_from_interaction(
         model.h_int,
         keys=density_keys,

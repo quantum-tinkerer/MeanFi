@@ -18,7 +18,6 @@ from meanfi.density.internal import DensityEvaluation, DensitySlice
 from meanfi.density.kpoint.matrix_functions import (
     DirectDiagonalization,
     RationalFOE,
-    resolve_matrix_function,
     selected_density_values_from_eigensystem,
 )
 from meanfi.density.kpoint.matrix_functions.rational import PreparedMumpsRationalNode
@@ -60,7 +59,7 @@ def resolve_periodic_matrix_function(
                 "or explicitly choose DirectDiagonalization() to permit dense batches."
             )
         return DirectDiagonalization()
-    resolved = resolve_matrix_function(selected)
+    resolved = selected
     if isinstance(resolved, RationalFOE):
         if not prescribed:
             raise ValueError(
@@ -262,10 +261,8 @@ class _Evaluator:
             if isinstance(self.method, RationalFOE):
                 for matrix in matrices:
                     node = self._rational_node(matrix)
-                    total += node.charge_and_derivative(mu)[0]
+                    total += node.charge(mu)
                     self.work.kernels += 1
-                    # Retain one scalar fit, never matrices or factorizations.
-                    del self._aaa_interval_cache[:-1]
                     del node
             else:
                 matrices[:, np.arange(self.size), np.arange(self.size)] -= (
@@ -298,15 +295,13 @@ class _Evaluator:
                 charges = np.empty(len(points))
                 for index, matrix in enumerate(matrices):
                     node = self._rational_node(matrix)
-                    charges[index] = node.charge_and_derivative(mu)[0]
+                    charges[index] = node.charge(mu)
                     packed[index] = node.density_values_from_charge_order(mu)
                     for group, (_key, _rows, _cols, value_slice) in enumerate(
                         self.coordinates.iter_key_coordinates()
                     ):
                         packed[index, value_slice] *= phases[index, group]
                     self.work.kernels += 1
-                    # Retain one scalar fit, never matrices or factorizations.
-                    del self._aaa_interval_cache[:-1]
                     del node
             else:
                 if not self.normal:
@@ -525,11 +520,7 @@ def solve_periodic(
         n_kpoints=grid.count,
         grid_shape=grid.shape,
         n_kernel_evals=work.kernels,
-        n_diagonalizations=(
-            work.diagonalizations
-            if isinstance(evaluator.method, DirectDiagonalization)
-            else None
-        ),
+        n_diagonalizations=work.diagonalizations,
         unique_evals=work.unique,
         n_evaluator_evals=work.evaluations,
         refinements=refinements,
@@ -552,6 +543,5 @@ def solve_periodic(
             charge_integration=charge_error,
             filling_residual=None if filling is None else abs(charge - filling),
         ),
-        integration=integration,
         statistics=info,
     )

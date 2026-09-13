@@ -11,63 +11,6 @@ from meanfi.tb.ops import _tb_type
 
 
 @dataclass(frozen=True)
-class DensityIntegrationInfo:
-    """Internal statistics for a single density integration at fixed chemical potential."""
-
-    n_kernel_evals: int
-    unique_evals: int
-    n_evaluator_evals: int
-    n_cached_nodes: int
-    n_leaves: int
-    n_leaf_nodes: int
-    subdivisions: int
-    error_estimate_available: bool
-    num_threads: int | None = None
-    charge: float | None = None
-    charge_error: float | None = None
-
-    requested_nk: int | None = None
-    n_kpoints: int | None = None
-    n_diagonalizations: int | None = None
-
-
-@dataclass(frozen=True)
-class FixedFillingInfo:
-    """Internal statistics for a fixed-filling density calculation."""
-
-    mu: float
-    charge: float
-    charge_error: float | None
-    dcharge_dmu: float
-    charge_evaluations: int
-    charge_integration_calls: int
-    density_integration_calls: int
-    charge_n_kernel_evals: int
-    density_n_kernel_evals: int
-    n_kernel_evals: int
-    unique_evals: int
-    charge_n_evaluator_evals: int
-    density_n_evaluator_evals: int
-    n_evaluator_evals: int
-    n_cached_nodes: int
-    n_leaves: int
-    n_leaf_nodes: int
-    subdivisions: int
-    charge_integral_atol: float
-    density_atol: float
-    density_rtol: float
-    error_estimate_available: bool
-    num_threads: int | None = None
-    band_energy: float | None = None
-    band_energy_integration_calls: int = 0
-    band_energy_n_kernel_evals: int = 0
-
-    requested_nk: int | None = None
-    n_kpoints: int | None = None
-    n_diagonalizations: int | None = None
-
-
-@dataclass(frozen=True)
 class AdaptiveSimplexInfo:
     """Mesh size and cumulative work for FermiSimplex integration."""
 
@@ -90,6 +33,8 @@ class AdaptiveSimplexInfo:
     requested_nk: int | None = None
     n_kpoints: int | None = None
     n_diagonalizations: int | None = None
+    charge: float | None = None
+    band_energy: float | None = None
 
 
 @dataclass(frozen=True)

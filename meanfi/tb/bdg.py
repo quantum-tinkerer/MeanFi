@@ -45,7 +45,6 @@ def validate_bdg_tb(
     tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG correction"
 ) -> None:
     expected_shape = (2 * ndof, 2 * ndof)
-    zero = np.zeros(expected_shape, dtype=complex)
 
     for key, matrix in tb.items():
         if len(key) != ndim:
@@ -63,11 +62,9 @@ def validate_bdg_tb(
                 f"{name} must be Hermitian in real-space tight-binding form"
             )
 
-    keys = frozenset(tb) | {tuple(-np.asarray(key, dtype=int)) for key in tb}
-    for key in keys:
+    for key, matrix in tb.items():
         opposite = tuple(-np.asarray(key, dtype=int))
-        matrix = tb.get(key, zero)
-        opposite_matrix = tb.get(opposite, zero)
+        opposite_matrix = tb[opposite]
         _normal, anomalous, lower, hole = split_bdg_matrix(matrix, ndof)
         opposite_normal, opposite_anomalous, _, _ = split_bdg_matrix(
             opposite_matrix, ndof

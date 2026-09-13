@@ -17,7 +17,7 @@ from meanfi.scf.fixed_point import (
     max_norm,
     solve_fixed_point,
 )
-from meanfi.scf.info import SCFRunState, initialize_run_state, record_scf_iteration
+from meanfi.scf.info import SCFRunState, record_scf_iteration
 from meanfi.scf.methods import EnergyDIIS, SCFMethod
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.ops import _tb_type
@@ -33,15 +33,6 @@ class SolverRuntime:
 
 
 @dataclass
-class SCFRunResult:
-    final_state: ActiveDensityState
-    final_evaluation: DensityEvaluation
-    run_state: SCFRunState
-    residual_norm: float
-    total_energy: float | None
-
-
-@dataclass
 class _ResidualEvaluation:
     input_state: ActiveDensityState
     output_state: ActiveDensityState
@@ -53,7 +44,6 @@ class _ResidualEvaluation:
 
 @dataclass(frozen=True)
 class EnergyEvaluation:
-    output_state: ActiveDensityState
     one_body_energy: float
     total_energy: float
 
@@ -68,7 +58,10 @@ class SCFProblem:
     evaluate_state: Callable[[ActiveDensityState, float], DensityEvaluation]
     mean_field_from_state: Callable[[ActiveDensityState], _tb_type]
     energy_from_evaluation: (
-        Callable[[ActiveDensityState, DensityEvaluation], EnergyEvaluation | None]
+        Callable[
+            [ActiveDensityState, ActiveDensityState, DensityEvaluation],
+            EnergyEvaluation | None,
+        ]
         | None
     ) = None
     interaction_energy: Callable[[np.ndarray], float] | None = None
@@ -114,10 +107,8 @@ def _evaluate_state(
     energy = (
         None
         if problem.energy_from_evaluation is None
-        else problem.energy_from_evaluation(input_state, density)
+        else problem.energy_from_evaluation(input_state, output_state, density)
     )
-    if energy is not None and energy.output_state.space is not output_state.space:
-        raise RuntimeError("energy evaluation returned an incompatible SCF state")
     return density, output_state, energy
 
 
@@ -129,28 +120,21 @@ def iterate_density_fixed_point(
     scf_tol: float,
     verbose: bool = False,
     run_state: SCFRunState,
-) -> SCFRunResult:
+) -> None:
     trial_evaluations: list[_ResidualEvaluation] = []
-
-    def _arrays_match(left: np.ndarray, right: np.ndarray) -> bool:
-        left_array = np.asarray(left, dtype=float)
-        right_array = np.asarray(right, dtype=float)
-        if left_array.shape == right_array.shape:
-            return bool(np.array_equal(left_array, right_array))
-        return bool(np.array_equal(np.ravel(left_array), np.ravel(right_array)))
 
     def _pop_trial(
         params: np.ndarray, residual: np.ndarray
     ) -> _ResidualEvaluation | None:
         for index in range(len(trial_evaluations) - 1, -1, -1):
             trial = trial_evaluations[index]
-            if _arrays_match(trial.input_state.values, params) and _arrays_match(
-                trial.residual, residual
-            ):
+            if np.array_equal(
+                trial.input_state.values, np.ravel(params)
+            ) and np.array_equal(trial.residual, np.ravel(residual)):
                 return trial_evaluations.pop(index)
         for index in range(len(trial_evaluations) - 1, -1, -1):
             trial = trial_evaluations[index]
-            if _arrays_match(trial.input_state.values, params):
+            if np.array_equal(trial.input_state.values, np.ravel(params)):
                 return trial_evaluations.pop(index)
         return None
 
@@ -173,7 +157,7 @@ def iterate_density_fixed_point(
         density, output_state, energy = _evaluate_state(
             problem,
             input_state,
-            0.0 if run_state.evaluation is None else run_state.evaluation.mu,
+            run_state.evaluation.mu,
         )
         residual = np.asarray(output_state.values - input_state.values, dtype=float)
         trial_evaluations.append(
@@ -189,12 +173,9 @@ def iterate_density_fixed_point(
         return residual
 
     def on_iteration(
-        iteration: int | None,
-        residual_norm: float,
         params: np.ndarray,
         residual: np.ndarray,
     ) -> None:
-        del iteration, residual_norm
         trial = _pop_trial(params, residual)
         if trial is None:
             residual = residual_fn(params)
@@ -213,23 +194,15 @@ def iterate_density_fixed_point(
     if (
         run_state.input_state is not None
         and np.array_equal(result_params, run_state.input_state.values)
-        and run_state.evaluation is not None
-        and run_state.output_state is not None
         and run_state.residual_norm is not None
     ):
-        return SCFRunResult(
-            final_state=run_state.output_state,
-            final_evaluation=run_state.evaluation,
-            run_state=run_state,
-            residual_norm=run_state.residual_norm,
-            total_energy=run_state.total_energy,
-        )
+        return
 
     input_state = ActiveDensityState(problem.state_space, result_params)
     density, output_state, energy = _evaluate_state(
         problem,
         input_state,
-        0.0 if run_state.evaluation is None else run_state.evaluation.mu,
+        run_state.evaluation.mu,
     )
     residual = np.asarray(output_state.values - input_state.values, dtype=float)
     final_trial = _ResidualEvaluation(
@@ -241,13 +214,6 @@ def iterate_density_fixed_point(
         total_energy=None if energy is None else energy.total_energy,
     )
     _commit_trial(final_trial)
-    return SCFRunResult(
-        final_state=output_state,
-        final_evaluation=density,
-        run_state=run_state,
-        residual_norm=final_trial.residual_norm,
-        total_energy=final_trial.total_energy,
-    )
 
 
 def iterate_energy_ediis(
@@ -257,7 +223,7 @@ def iterate_energy_ediis(
     scf: EnergyDIIS,
     verbose: bool,
     run_state: SCFRunState,
-) -> SCFRunResult:
+) -> None:
     if not isinstance(problem.runtime.integration, AdaptiveSimplex):
         raise ValueError("EnergyDIIS requires AdaptiveSimplex integration")
     if (
@@ -276,7 +242,7 @@ def iterate_energy_ediis(
         density, output_state, energy = _evaluate_state(
             problem,
             input_state,
-            0.0 if run_state.evaluation is None else run_state.evaluation.mu,
+            run_state.evaluation.mu,
         )
         if energy is None:
             raise RuntimeError("EnergyDIIS requires an occupied band-energy result")
@@ -293,13 +259,7 @@ def iterate_energy_ediis(
         if verbose:
             print(_format_scf_progress(iteration))
         if residual_norm <= scf_tol:
-            return SCFRunResult(
-                final_state=output_state,
-                final_evaluation=density,
-                run_state=run_state,
-                residual_norm=residual_norm,
-                total_energy=energy.total_energy,
-            )
+            return
 
         history.append(
             EDIISPoint(
@@ -330,8 +290,6 @@ def _build_result(
     *,
     converged: bool,
 ) -> SCFResult:
-    if state.evaluation is None or state.output_state is None:
-        raise RuntimeError("cannot build an SCF result before a successful evaluation")
     errors = state.evaluation.errors
     if state.residual_norm is not None:
         errors = replace(errors, scf_residual=state.residual_norm)
@@ -348,7 +306,7 @@ def _build_result(
         mean_field=problem.mean_field_from_state(state.output_state),
         total_energy=state.total_energy,
         errors=errors,
-        history=tuple(state.history or ()),
+        history=tuple(state.history),
         converged=converged,
     )
 
@@ -363,12 +321,11 @@ def run_scf_loop(
     projected_guess = problem.project_guess(guess)
     initial_density = problem.evaluate_projected_guess(projected_guess)
     initial_state = problem.state_from_density(initial_density.density)
-    run_state = SCFRunState()
-    initialize_run_state(run_state, initial_density, initial_state)
+    run_state = SCFRunState(evaluation=initial_density, output_state=initial_state)
 
     try:
         if isinstance(scf, EnergyDIIS):
-            run = iterate_energy_ediis(
+            iterate_energy_ediis(
                 initial_state,
                 problem=problem,
                 scf=scf,
@@ -376,7 +333,7 @@ def run_scf_loop(
                 run_state=run_state,
             )
         else:
-            run = iterate_density_fixed_point(
+            iterate_density_fixed_point(
                 initial_state,
                 problem=problem,
                 scf=scf,
@@ -393,7 +350,7 @@ def run_scf_loop(
         partial = _build_result(problem, run_state, converged=False)
         raise SolverFailure("SCF evaluation failed", result=partial) from exc
 
-    result = _build_result(problem, run.run_state, converged=True)
+    result = _build_result(problem, run_state, converged=True)
     if result.errors.scf_residual is None:
         raise RuntimeError("converged SCF result is missing its residual")
     return result

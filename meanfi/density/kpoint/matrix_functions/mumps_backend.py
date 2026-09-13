@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import mumps
 import numpy as np
 import scipy.sparse as sparse
 
@@ -24,12 +23,6 @@ class SelectedInversePattern:
     @property
     def nnz(self) -> int:
         return int(self.indices.size)
-
-    def value_map(self, values: np.ndarray) -> dict[tuple[int, int], complex]:
-        return {
-            (int(row), int(col)): complex(value)
-            for row, col, value in zip(self.rows, self.cols, values, strict=True)
-        }
 
 
 def build_selected_inverse_pattern(
@@ -83,16 +76,17 @@ def build_selected_inverse_pattern(
 
 class SelectedInverseFactorization:
     def __init__(self) -> None:
+        try:
+            import mumps
+        except ImportError as exc:
+            raise ImportError(
+                "RationalFOE requires MUMPS; install meanfi[sparse] to enable sparse evaluation."
+            ) from exc
         self._context = mumps.Context(verbose=False)
-        self._analysis_ready = False
 
     def factor(self, matrix: Any) -> None:
         shifted = as_sparse(matrix).tocsc().astype(np.complex128, copy=False)
-        if self._analysis_ready:
-            self._context.factor(shifted, reuse_analysis=True)
-        else:
-            self._context.factor(shifted)
-            self._analysis_ready = True
+        self._context.factor(shifted)
 
     def selected_inverse(self, pattern: SelectedInversePattern) -> np.ndarray:
         if pattern.nnz == 0:

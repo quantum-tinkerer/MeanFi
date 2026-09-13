@@ -31,6 +31,7 @@ def test_sparse_rational_dense_input_is_rejected():
         )
 
 
+@pytest.mark.usefixtures("require_mumps")
 def test_sparse_rational_sparse_input_uses_required_mumps_path():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     result = density_matrix_at_mu(

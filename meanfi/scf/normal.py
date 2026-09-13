@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 
-from meanfi.density.density import evaluate_density_matrix_fixed_filling
-from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
+from meanfi.density.density import evaluate_density
+from meanfi.density.problem import build_normal_problem
+from meanfi.density.integrate.methods import AdaptiveSimplex
 from meanfi.density.internal import DensityEvaluation, DensitySlice
-from meanfi.errors import ErrorTolerances
 from meanfi.meanfield import meanfield
 from meanfi.model import Model
 from meanfi.observables import expectation_value
@@ -20,41 +22,20 @@ from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import match_tb_storage, prefers_sparse_storage
 
 
-def _density_update_for_normal_hamiltonian(
-    model: Model,
-    hamiltonian: _tb_type,
-    *,
-    keys: list[tuple[int, ...]],
-    integration: IntegrationMethod,
-    tolerances: ErrorTolerances,
-    mu_tol: float,
-    max_charge_evaluations: int | None,
-    mu_guess: float,
-    density_coordinates,
-    include_band_energy: bool,
-) -> DensityEvaluation:
-    _plan, evaluation = evaluate_density_matrix_fixed_filling(
-        hamiltonian,
-        filling=model.filling,
-        kT=model.kT,
-        keys=keys,
-        integration=integration,
-        tolerances=tolerances,
-        mu_tol=mu_tol,
-        max_charge_evaluations=max_charge_evaluations,
-        mu_guess=mu_guess,
-        density_coordinates=density_coordinates,
-        include_band_energy=include_band_energy,
-    )
-    return evaluation
-
-
 def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     """Build the normal-state map consumed by the generic SCF engine."""
 
     space = model.scf_space
     keys = space.density_keys
-    include_band_energy = isinstance(runtime.integration, AdaptiveSimplex)
+    density_problem = build_normal_problem(
+        model.h_0,
+        kT=model.kT,
+        keys=keys,
+        integration=runtime.integration,
+        tolerances=runtime.tolerances,
+        density_coordinates=space.required_coordinates,
+        include_band_energy=isinstance(runtime.integration, AdaptiveSimplex),
+    )
 
     def project_guess(guess: _tb_type) -> _tb_type:
         projected = space.project_meanfield_input(guess)
@@ -74,17 +55,12 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         *,
         mu_guess: float,
     ) -> DensityEvaluation:
-        return _density_update_for_normal_hamiltonian(
-            model,
-            hamiltonian,
-            keys=keys,
-            integration=runtime.integration,
-            tolerances=runtime.tolerances,
+        return evaluate_density(
+            replace(density_problem, hamiltonian=hamiltonian),
+            filling=model.filling,
             mu_tol=runtime.mu_tol,
             max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
-            density_coordinates=space.required_coordinates,
-            include_band_energy=include_band_energy,
         )
 
     def evaluate_projected_guess(projected_guess: _tb_type) -> DensityEvaluation:
@@ -131,11 +107,11 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
 
     def energy_from_evaluation(
         input_state: ActiveDensityState,
+        output_state: ActiveDensityState,
         density: DensityEvaluation,
     ) -> EnergyEvaluation | None:
         if density.band_energy is None:
             return None
-        output_state = state_from_density(density.density)
         output_density = active_density(output_state)
         input_correction = meanfield(density_difference(input_state), model.h_int)
         one_body = float(
@@ -144,7 +120,6 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         )
         total_energy = one_body + interaction_energy_values(output_state.values)
         return EnergyEvaluation(
-            output_state=output_state,
             one_body_energy=one_body,
             total_energy=total_energy,
         )

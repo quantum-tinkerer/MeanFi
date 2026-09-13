@@ -47,48 +47,6 @@ class DensitySlice:
             raise ValueError("density errors must be finite and non-negative")
         object.__setattr__(self, "errors", errors)
 
-    @classmethod
-    def from_tb(
-        cls,
-        coordinates: DensityCoordinates,
-        density_matrix: _tb_type,
-        density_matrix_error: _tb_type | None,
-    ) -> DensitySlice:
-        errors = (
-            None
-            if density_matrix_error is None
-            else np.real(coordinates.values_from_tb(density_matrix_error))
-        )
-        return cls(
-            coordinates=coordinates,
-            values=coordinates.values_from_tb(density_matrix),
-            errors=errors,
-        )
-
-    def select_keys(self, keys: list[tuple[int, ...]]) -> DensitySlice:
-        requested = [tuple(key) for key in keys]
-        positions: list[int] = []
-        entries = self.coordinates.entries
-        for key in requested:
-            positions.extend(
-                index for index, entry in enumerate(entries) if entry[0] == key
-            )
-        selected_entries = tuple(entries[index] for index in positions)
-        coordinates = DensityCoordinates.from_entries(
-            size=self.coordinates.size,
-            keys=requested,
-            entries=selected_entries,
-            allow_empty=True,
-        )
-        if coordinates is None:  # pragma: no cover - allow_empty guarantees this
-            raise RuntimeError("selected density coordinates unexpectedly missing")
-        indices = np.asarray(positions, dtype=int)
-        return DensitySlice(
-            coordinates=coordinates,
-            values=self.values[indices],
-            errors=None if self.errors is None else self.errors[indices],
-        )
-
     def to_full_tb(self) -> _tb_type:
         """Assemble a public density matrix only from a complete layout."""
 
@@ -107,6 +65,18 @@ class DensityEvaluation:
     mu: float
     filling: float
     errors: ErrorValues
-    integration: object
     statistics: object
     band_energy: float | None = None
+
+    def to_result(self):
+        """Expose the evaluated layout without adding uncomputed entries."""
+        from meanfi.results import DensityResult
+
+        return DensityResult(
+            coordinates=self.density.coordinates,
+            values=self.density.values,
+            mu=self.mu,
+            filling=self.filling,
+            errors=self.errors,
+            statistics=self.statistics,
+        )

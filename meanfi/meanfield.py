@@ -46,10 +46,6 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     return add_tb(direct, exchange)
 
 
-def zero_electron_matrix(model) -> np.ndarray:
-    return np.zeros((model._ndof, model._ndof), dtype=complex)
-
-
 def extract_electron_density(density_matrix: _tb_type, model) -> _tb_type:
     return {
         key: matrix[: model._ndof, : model._ndof]
@@ -62,21 +58,6 @@ def extract_anomalous_density(density_matrix: _tb_type, model) -> _tb_type:
         key: matrix[: model._ndof, model._ndof :]
         for key, matrix in density_matrix.items()
     }
-
-
-def assemble_bdg_correction(
-    normal_block: _tb_type,
-    anomalous_block: _tb_type,
-    model,
-) -> _tb_type:
-    correction = assemble_bdg_tb(normal_block, anomalous_block, ndof=model._ndof)
-    validate_bdg_tb(
-        correction,
-        ndof=model._ndof,
-        ndim=model._ndim,
-        name="BdG correction",
-    )
-    return correction
 
 
 def _antisymmetrize_anomalous_block(anomalous_block: _tb_type, ndof: int) -> _tb_type:
@@ -142,12 +123,3 @@ def bdg_correction_from_density(density_matrix: _tb_type, model) -> _tb_type:
         ndof=model._ndof,
         ndim=model._ndim,
     )
-
-
-def bdg_density_keys(model, meanfield_correction: _tb_type) -> list[tuple[int, ...]]:
-    del meanfield_correction
-    keys = list(model.h_int)
-    onsite = (0,) * model._ndim
-    if onsite not in keys:
-        keys.append(onsite)
-    return keys

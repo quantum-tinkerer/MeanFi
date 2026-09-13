@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import scipy.sparse as sparse
-import scipy.sparse.linalg as sparse_linalg
 from scipy.linalg import block_diag as scipy_block_diag
 
 _tb_type = dict[tuple[int, ...], np.ndarray]
@@ -67,50 +66,6 @@ def matrix_bound(matrix: Any) -> float:
     if array.size == 0:
         return 0.0
     return float(np.max(np.sum(np.abs(array), axis=1)))
-
-
-def hermitian_spectral_bound(matrix: Any) -> float:
-    if is_sparse_like(matrix):
-        csr = as_sparse(matrix)
-        nrows, ncols = csr.shape
-        if nrows == 0 or ncols == 0:
-            return 0.0
-        if nrows != ncols:
-            raise ValueError("matrix must be square")
-        if nrows <= 64:
-            eigenvalues = np.linalg.eigvalsh(to_dense(csr))
-            return float(np.max(np.abs(eigenvalues))) if eigenvalues.size else 0.0
-        try:
-            largest = sparse_linalg.eigsh(
-                csr,
-                k=1,
-                which="LA",
-                return_eigenvectors=False,
-                tol=1e-3,
-                maxiter=max(10 * nrows, 1000),
-            )
-            smallest = sparse_linalg.eigsh(
-                csr,
-                k=1,
-                which="SA",
-                return_eigenvectors=False,
-                tol=1e-3,
-                maxiter=max(10 * nrows, 1000),
-            )
-            return float(
-                max(
-                    np.max(np.abs(np.asarray(largest, dtype=float))),
-                    np.max(np.abs(np.asarray(smallest, dtype=float))),
-                )
-            )
-        except Exception:
-            return matrix_bound(csr)
-
-    array = np.asarray(matrix, dtype=complex)
-    if array.size == 0:
-        return 0.0
-    eigenvalues = np.linalg.eigvalsh(array)
-    return float(np.max(np.abs(eigenvalues))) if eigenvalues.size else 0.0
 
 
 def add_tb(tb1: _tb_type, tb2: _tb_type) -> _tb_type:

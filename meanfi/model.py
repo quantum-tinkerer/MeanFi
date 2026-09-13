@@ -5,7 +5,7 @@ from types import MappingProxyType
 import numpy as np
 
 from meanfi.tb.validate import (
-    matrix_array,
+    matrix_shape,
     tb_dimension,
     tb_orbital_count,
     validate_hermiticity,
@@ -33,7 +33,7 @@ def _validate_reference_density_matrix(
             raise ValueError(
                 "reference_density_matrix keys must match the model dimension"
             )
-        if matrix_array(value).shape != (ndof, ndof):
+        if matrix_shape(value) != (ndof, ndof):
             raise ValueError(
                 "reference_density_matrix matrices must match the model shape"
             )

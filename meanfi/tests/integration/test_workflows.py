@@ -9,8 +9,6 @@ from meanfi import (
     density_matrix,
     solver,
 )
-from meanfi.interop import kwant as utils
-from meanfi.tests.fixtures import kwant_examples
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import spinful_chain
 
@@ -23,6 +21,10 @@ requires_ext = pytest.mark.skipif(
 
 
 def test_graphene_kwant_end_to_end_regression():
+    pytest.importorskip("kwant")
+    from meanfi.interop import kwant as utils
+    from meanfi.tests.fixtures import kwant_examples
+
     graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
     h_0 = utils.builder_to_tb(graphene_builder)
     h_int = utils.builder_to_tb(int_builder, {"U": 1.0, "V": 0.0})
@@ -122,11 +124,9 @@ def test_anderson_mixing_reports_only_accepted_iterations(monkeypatch):
         kwargs["callback"](np.array([1.0]), np.array([0.25]))
         return np.array([1.0])
 
-    def on_iteration(iteration, residual_norm, params, residual):
+    def on_iteration(params, residual):
         events.append(
             (
-                iteration,
-                residual_norm,
                 np.asarray(params, dtype=float).copy(),
                 np.asarray(residual, dtype=float).copy(),
             )
@@ -144,14 +144,10 @@ def test_anderson_mixing_reports_only_accepted_iterations(monkeypatch):
 
     assert np.allclose(result, [1.0])
     assert len(events) == 2
-    assert events[0][0] is None
-    assert events[0][1] == 0.5
-    assert np.allclose(events[0][2], [0.0])
-    assert np.allclose(events[0][3], [0.5])
-    assert events[1][0] == 1
-    assert events[1][1] == 0.25
-    assert np.allclose(events[1][2], [1.0])
-    assert np.allclose(events[1][3], [0.25])
+    assert np.allclose(events[0][0], [0.0])
+    assert np.allclose(events[0][1], [0.5])
+    assert np.allclose(events[1][0], [1.0])
+    assert np.allclose(events[1][1], [0.25])
 
 
 @pytest.mark.parametrize(

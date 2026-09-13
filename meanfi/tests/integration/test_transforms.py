@@ -3,7 +3,6 @@ import itertools as it
 import numpy as np
 import pytest
 
-from meanfi.meanfield import assemble_bdg_correction
 from meanfi.model import Model
 from meanfi.space import (
     DensityCoordinates,
@@ -242,9 +241,7 @@ def test_bdg_meanfield_density_space_roundtrip():
 def test_bdg_correction_assembly_validates_particle_hole_structure():
     normal = {(0,): np.diag([0.1, -0.2]).astype(complex)}
     anomalous = {(0,): np.array([[0.0, 0.3], [-0.3, 0.0]], dtype=complex)}
-    model = type("M", (), {"_ndof": 2, "_ndim": 1})()
-
-    correction = assemble_bdg_correction(normal, anomalous, model)
+    correction = assemble_bdg_tb(normal, anomalous, ndof=2)
 
     validate_bdg_tb(correction, ndof=2, ndim=1, name="BdG correction")
 

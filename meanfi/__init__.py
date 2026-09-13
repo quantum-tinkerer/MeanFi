@@ -20,10 +20,8 @@ except ImportError:
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
 from .results import DensityResult, SCFIteration, SCFResult
-from .density.density import (
-    solve_density_matrix_at_mu as _solve_density_matrix_at_mu,
-    solve_density_matrix_fixed_filling as _solve_density_matrix_fixed_filling,
-)
+from .density.density import evaluate_density as _evaluate_density
+from .density.problem import build_normal_problem as _build_normal_problem
 from .density.integrate.defaults import DEFAULT_KT
 from .density.integrate.methods import (
     AdaptiveSimplex,
@@ -31,7 +29,6 @@ from .density.integrate.methods import (
     PeriodicGrid,
 )
 from .density.kpoint.matrix_functions import (
-    BdGMatrixFunction,
     DirectDiagonalization,
     RationalFOE,
 )
@@ -43,7 +40,7 @@ from .scf.engine import NoConvergence, SolverError, SolverFailure
 from .scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 from .scf.scf import solver
 from .space import DensityCoordinates, SpatialSymmetry
-from .tb.tb import (
+from .tb import (
     add_tb,
     fermi_energy,
     generate_tb_keys,
@@ -70,14 +67,14 @@ def density_matrix_at_mu(
     if keys is None:
         raise ValueError("keys must be provided")
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
-    return _solve_density_matrix_at_mu(
+    problem = _build_normal_problem(
         h,
-        mu=mu,
         kT=kT,
         keys=keys,
         integration=integration,
         tolerances=tolerances,
     )
+    return _evaluate_density(problem, mu=mu).to_result()
 
 
 def density_matrix(
@@ -135,23 +132,25 @@ def density_matrix(
             tolerances,
             filling_residual=float(filling_tol),
         )
-    return _solve_density_matrix_fixed_filling(
+    problem = _build_normal_problem(
         h,
-        filling=filling,
         kT=kT,
         keys=selected_keys,
         integration=integration,
         tolerances=tolerances,
-        mu_tol=mu_tol,
-        max_charge_evaluations=max_charge_evaluations,
         density_coordinates=selected_coordinates,
     )
+    return _evaluate_density(
+        problem,
+        filling=filling,
+        mu_tol=mu_tol,
+        max_charge_evaluations=max_charge_evaluations,
+    ).to_result()
 
 
 __all__ = [
     "AdaptiveSimplex",
     "AndersonMixing",
-    "BdGMatrixFunction",
     "EnergyDIIS",
     "ErrorTolerances",
     "ErrorValues",

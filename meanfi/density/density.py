@@ -1,147 +1,60 @@
-"""Top-level density-evaluation pipeline."""
+"""Evaluate a normalized density problem with one of the two integration methods."""
 
 from __future__ import annotations
 
-from meanfi.errors import ErrorTolerances
-from meanfi.density.integrate.methods import IntegrationMethod
+import math
+from numbers import Integral
+
+from meanfi.density.integrate.methods import AdaptiveSimplex
+from meanfi.density.integrate.normal import evaluate_simplex
+from meanfi.density.integrate.periodic import solve_periodic
 from meanfi.density.internal import DensityEvaluation
-from meanfi.density.plan import build_plan, evaluate_at_mu, evaluate_fixed_filling
-from meanfi.density.problem import DensityPlan, build_normal_problem
-from meanfi.density.results import wrap_density_evaluation
-from meanfi.results import DensityResult
-from meanfi.space.coordinates import DensityCoordinates
-from meanfi.tb.ops import _tb_type
+from meanfi.density.problem import DensityProblem
 
 
-def evaluate_density_matrix_at_mu(
-    hamiltonian: _tb_type,
+def evaluate_density(
+    problem: DensityProblem,
     *,
-    mu: float,
-    kT: float,
-    keys: list[tuple[int, ...]],
-    integration: IntegrationMethod | None,
-    tolerances: ErrorTolerances,
-    density_coordinates: DensityCoordinates | None = None,
-) -> tuple[DensityPlan, DensityEvaluation]:
-    """Evaluate density internally without materializing uncomputed entries."""
-
-    problem = build_normal_problem(
-        hamiltonian,
-        kT=kT,
-        keys=keys,
-        integration=integration,
-        tolerances=tolerances,
-        density_coordinates=density_coordinates,
-    )
-    plan = build_plan(problem)
-    return plan, evaluate_at_mu(problem, plan, mu)
-
-
-def solve_density_matrix_at_mu(
-    hamiltonian: _tb_type,
-    *,
-    mu: float,
-    kT: float,
-    keys: list[tuple[int, ...]],
-    integration: IntegrationMethod | None,
-    tolerances: ErrorTolerances,
-) -> DensityResult:
-    """Return a complete public density matrix at fixed chemical potential."""
-
-    problem = build_normal_problem(
-        hamiltonian,
-        kT=kT,
-        keys=keys,
-        integration=integration,
-        tolerances=tolerances,
-    )
-    plan = build_plan(problem)
-    evaluation = evaluate_at_mu(problem, plan, mu)
-    return wrap_density_evaluation(problem, plan, evaluation)
-
-
-def evaluate_density_matrix_fixed_filling(
-    hamiltonian: _tb_type,
-    *,
-    filling: float,
-    kT: float,
-    keys: list[tuple[int, ...]],
-    integration: IntegrationMethod | None,
-    tolerances: ErrorTolerances,
-    mu_tol: float,
-    max_charge_evaluations: int | None,
+    mu: float | None = None,
+    filling: float | None = None,
+    mu_tol: float = 1e-10,
+    max_charge_evaluations: int | None = None,
     mu_guess: float = 0.0,
-    density_coordinates: DensityCoordinates | None = None,
-    include_band_energy: bool = False,
-) -> tuple[DensityPlan, DensityEvaluation]:
-    """Evaluate fixed-filling density internally on an explicit layout."""
-
-    problem = build_normal_problem(
-        hamiltonian,
-        kT=kT,
-        keys=keys,
-        integration=integration,
-        tolerances=tolerances,
-        density_coordinates=density_coordinates,
-        include_band_energy=include_band_energy,
-    )
-    plan = build_plan(problem)
-    evaluation = evaluate_fixed_filling(
-        problem,
-        plan,
+) -> DensityEvaluation:
+    if (mu is None) == (filling is None):
+        raise ValueError("Provide exactly one of mu and filling")
+    if mu is not None and not math.isfinite(mu):
+        raise ValueError("mu must be finite")
+    if not math.isfinite(mu_tol) or mu_tol <= 0:
+        raise ValueError("mu_tol must be positive and finite")
+    if max_charge_evaluations is not None and (
+        isinstance(max_charge_evaluations, bool)
+        or not isinstance(max_charge_evaluations, Integral)
+        or max_charge_evaluations <= 0
+    ):
+        raise ValueError(
+            "max_charge_evaluations must be a positive integer when provided"
+        )
+    if isinstance(problem.integration, AdaptiveSimplex):
+        return evaluate_simplex(
+            problem,
+            mu=mu,
+            filling=filling,
+            mu_tol=mu_tol,
+            max_charge_evaluations=max_charge_evaluations,
+            mu_guess=mu_guess,
+        )
+    return solve_periodic(
+        problem.hamiltonian,
+        kT=problem.kT,
+        keys=list(problem.density_coordinates.keys),
+        integration=problem.integration,
+        density_coordinates=problem.density_coordinates,
+        tolerances=problem.tolerances,
+        mu=mu,
         filling=filling,
         filling_tol=problem.tolerances.filling_residual,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
         mu_guess=mu_guess,
     )
-    return plan, evaluation
-
-
-def solve_density_matrix_fixed_filling(
-    hamiltonian: _tb_type,
-    *,
-    filling: float,
-    kT: float,
-    keys: list[tuple[int, ...]],
-    integration: IntegrationMethod | None,
-    tolerances: ErrorTolerances,
-    mu_tol: float,
-    max_charge_evaluations: int | None,
-    mu_guess: float = 0.0,
-    density_coordinates: DensityCoordinates | None = None,
-) -> DensityResult:
-    """Return a public density at fixed filling."""
-
-    problem = build_normal_problem(
-        hamiltonian,
-        kT=kT,
-        keys=keys,
-        integration=integration,
-        tolerances=tolerances,
-        density_coordinates=density_coordinates,
-    )
-    plan = build_plan(problem)
-    evaluation = evaluate_fixed_filling(
-        problem,
-        plan,
-        filling=filling,
-        filling_tol=problem.tolerances.filling_residual,
-        mu_tol=mu_tol,
-        max_charge_evaluations=max_charge_evaluations,
-        mu_guess=mu_guess,
-    )
-    return wrap_density_evaluation(
-        problem,
-        plan,
-        evaluation,
-        preserve_layout=density_coordinates is not None,
-    )
-
-
-__all__ = [
-    "evaluate_density_matrix_at_mu",
-    "evaluate_density_matrix_fixed_filling",
-    "solve_density_matrix_at_mu",
-    "solve_density_matrix_fixed_filling",
-]

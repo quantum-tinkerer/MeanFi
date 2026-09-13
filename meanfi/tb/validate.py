@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.tb.ops import _tb_type, to_dense, matrix_shape
-
-
-def matrix_array(value) -> np.ndarray:
-    return to_dense(value)
+from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like, matrix_shape
 
 
 def matrix_allclose(lhs, rhs, *, atol: float = 1e-8) -> bool:
-    return np.allclose(matrix_array(lhs), matrix_array(rhs), atol=atol, rtol=0.0)
+    """Compare matrix entries without materializing sparse inputs."""
+
+    if matrix_shape(lhs) != matrix_shape(rhs):
+        return False
+    if is_sparse_like(lhs) or is_sparse_like(rhs):
+        difference = as_sparse(lhs) - as_sparse(rhs)
+        return bool(np.all(np.abs(difference.data) <= atol))
+    return bool(np.allclose(lhs, rhs, atol=atol, rtol=0.0))
 
 
 def tb_dimension(tb: _tb_type) -> int:
@@ -28,7 +31,7 @@ def tb_orbital_count(tb: _tb_type) -> int:
 
 
 def zero_key(ndim: int) -> tuple[int, ...]:
-    return tuple(np.zeros((ndim,), dtype=int))
+    return (0,) * ndim
 
 
 def validate_tb_dict(tb: _tb_type) -> None:
@@ -42,20 +45,13 @@ def validate_tb_dict(tb: _tb_type) -> None:
             raise ValueError("All hopping matrices need to have the same shape")
 
 
-def validate_bdg_state(
-    tb: _tb_type, *, ndof: int, name: str = "BdG correction"
-) -> None:
-    from meanfi.tb.bdg import validate_bdg_tb
-
-    validate_bdg_tb(tb, ndof=ndof, ndim=tb_dimension(tb), name=name)
-
-
 def validate_hermiticity(tb: _tb_type) -> None:
-    matrix_shape = next(iter(tb.values())).shape
-    zero = np.zeros(matrix_shape, dtype=np.complex128)
     for key, value in tb.items():
         opposite = tuple(-np.asarray(key, dtype=int))
-        if not matrix_allclose(value, np.conj(tb.get(opposite, zero).T)):
+        partner = tb.get(opposite)
+        if partner is None:
+            partner = value * 0
+        if not matrix_allclose(value, partner.conj().T):
             raise ValueError("The provided tight-binding model is not hermitian.")
 
 

@@ -193,7 +193,7 @@ def test_internal_matrix_function_package_root_exposes_shared_symbols():
 
     assert matrix_functions.DirectDiagonalization is DirectDiagonalization
     assert not hasattr(matrix_functions, "ChebyshevFOE")
-    assert hasattr(matrix_functions, "density_block")
+    assert not hasattr(matrix_functions, "density_block")
     assert hasattr(matrix_functions, "shift_by_mu")
 
 

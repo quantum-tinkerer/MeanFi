@@ -20,3 +20,8 @@ def scalar_tolerance_ladder():
 @pytest.fixture(scope="session")
 def zero_temp_ext_available():
     return _ZERO_TEMP_EXT_AVAILABLE
+
+
+@pytest.fixture(scope="session")
+def require_mumps():
+    pytest.importorskip("mumps", reason="requires the meanfi[sparse] extra")

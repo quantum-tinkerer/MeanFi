@@ -15,6 +15,7 @@ from meanfi import (
 )
 from meanfi.density.internal import DensityEvaluation, DensitySlice
 from meanfi.errors import ErrorValues
+from meanfi.results import AdaptiveSimplexInfo
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.scf.engine import SolverRuntime
 from meanfi.scf.normal import build_normal_scf_problem
@@ -124,21 +125,28 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
 
     def fake_density_matrix_zero_temp(*args, **kwargs):
         called["kwargs"] = kwargs
-        return (
-            {(0,): np.array([[1.0]])},
-            {(0,): np.array([[0.0]])},
-            0.0,
-            SimpleNamespace(
-                mu=0.0,
-                charge=1.0,
+        return DensityEvaluation(
+            density=DensitySlice(
+                kwargs["density_coordinates"], np.array([1.0]), np.array([0.0])
+            ),
+            mu=0.0,
+            filling=1.0,
+            errors=ErrorValues(
+                density_matrix_integration=0.0,
+                charge_integration=0.0,
+                filling_residual=0.0,
+            ),
+            statistics=AdaptiveSimplexInfo(
                 n_kernel_evals=1,
                 unique_evals=1,
                 n_evaluator_evals=1,
                 n_cached_nodes=1,
                 n_leaves=1,
                 n_leaf_nodes=1,
-                subdivisions=0,
+                refinements=0,
                 error_estimate_available=True,
+                charge=1.0,
+                charge_error=0.0,
                 charge_integration_calls=1,
                 density_integration_calls=1,
                 num_threads=3,
@@ -214,9 +222,8 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
             del rho
             return {(0,): np.zeros((2, 2), dtype=complex)}
 
-    def fake_density_update(*args, **kwargs):
-        del args
-        captured["density_coordinates"] = kwargs["density_coordinates"]
+    def fake_density_update(problem, **kwargs):
+        captured["density_coordinates"] = problem.density_coordinates
         return DensityEvaluation(
             density=DensitySlice(
                 required,
@@ -230,14 +237,13 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
                 filling_residual=0.0,
                 charge_integration=0.0,
             ),
-            integration=AdaptiveSimplex(),
             statistics=SimpleNamespace(),
             band_energy=0.0,
         )
 
     monkeypatch.setattr(
         normal_scf,
-        "_density_update_for_normal_hamiltonian",
+        "evaluate_density",
         fake_density_update,
     )
     problem = build_normal_scf_problem(
@@ -253,34 +259,6 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
     problem.evaluate_state(ActiveDensityState(problem.state_space, np.zeros(1)), 0.0)
 
     assert captured["density_coordinates"] is required
-
-
-def test_adaptive_simplex_maps_selected_density_results_to_tb():
-    import meanfi.density.integrate.simplex as simplex_integration
-
-    required = DensityCoordinates.from_pairs(
-        size=2,
-        keys=[(0,), (1,)],
-        pairs_by_key={
-            (0,): (np.array([0]), np.array([1])),
-            (1,): (np.array([1]), np.array([0])),
-        },
-        allow_empty=False,
-    )
-    native_result = SimpleNamespace(
-        values=np.array([2.0, 7.0], dtype=complex),
-        stopping_error=2e-4,
-    )
-
-    density, error = simplex_integration._density_result_to_tb(
-        native_result,
-        required,
-    )
-
-    assert np.array_equal(density[(0,)], np.array([[0.0, 2.0], [0.0, 0.0]]))
-    assert np.array_equal(density[(1,)], np.array([[0.0, 0.0], [7.0, 0.0]]))
-    assert np.array_equal(error[(0,)], np.array([[0.0, 2e-4], [0.0, 0.0]]))
-    assert np.array_equal(error[(1,)], np.array([[0.0, 0.0], [2e-4, 0.0]]))
 
 
 def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkeypatch):
@@ -333,7 +311,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
         lambda *args, **kwargs: charge_result,
     )
 
-    density, error, mu, info = simplex_integration.density_matrix_zero_temp(
+    result = simplex_integration.density_matrix_zero_temp(
         spinful_chain(),
         filling=1.0,
         keys=[(0,)],
@@ -349,12 +327,10 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
         num_threads=None,
     )
 
-    assert mu == 0.0
-    assert np.count_nonzero(density[(0,)]) == 0
-    assert np.count_nonzero(error[(0,)]) == 0
-    assert info.charge_integration_calls == 1
-    assert info.density_integration_calls == 0
-    assert info.density_n_kernel_evals == 0
+    assert result.mu == 0.0
+    assert result.density.values.size == result.density.errors.size == 0
+    assert result.statistics.charge_integration_calls == 1
+    assert result.statistics.density_integration_calls == 0
 
 
 def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one():
