@@ -115,15 +115,26 @@ does not require a separate AdaptiveSimplex checkout or CMake install.
 Common development tasks can then be run through Pixi:
 
 ```bash
-pixi run tests-mid
+pixi run -e test-py312 tests
 pixi run -e docs docs-build
 ```
 
-If you also want the `kwant` helpers:
+Optional sparse rational evaluation requires MUMPS:
 
 ```bash
-pixi install -e mid
+pip install "meanfi[sparse]"
 ```
+
+The optional `kwant` conversion helpers use `pip install "meanfi[kwant]"`.
+MUMPS is not required for the default dense periodic or FermiSimplex paths.
+A system MUMPS installation may be needed when installing the sparse extra with
+pip; the `test-sparse` Pixi environment supplies the native dependency.
+
+The test environments pin distinct Python versions: `test-py311`, `test-py312`
+and `test-py313`. `test-sparse` adds MUMPS and Kwant on Python 3.12. Verify built
+and installed distributions with `pixi run -e test-py312 check-wheel` and
+`pixi run -e test-sparse check-wheel-sparse`. These checks run outside the checkout;
+the core check requires both MUMPS and stateful-quadrature to be absent.
 
 ## Citing `MeanFi`
 

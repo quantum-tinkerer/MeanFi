@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Removed the unused `BdGMatrixFunction` marker and
+  `RationalFOE.dn_dmu_rtol` setting. Use `DirectDiagonalization` or `RationalFOE`
+  directly; periodic filling roots need no derivative-accuracy setting.
+- MUMPS is optional: install `meanfi[sparse]` for sparse RationalFOE. Dense
+  periodic and FermiSimplex workflows no longer require `python-mumps`. The
+  unused `accel` extra is removed.
+- Development test environments now pin Python 3.11, 3.12 and 3.13 separately;
+  optional MUMPS/Kwant coverage runs in `test-sparse`. CI also builds and checks
+  installed wheels with and without the sparse extra. Unused Hatch-VCS and
+  placeholder environments were removed.
+- Density evaluation and SCF share one internal result path, with backend work
+  diagnostics available through `DensityResult.statistics`. Redundant planning,
+  result and compatibility wrappers were removed.
 - Two integration families: `AdaptiveSimplex` and `PeriodicGrid`. Removed
   `UniformGrid`, `PeriodicQuadrature`, `AdaptiveQuadrature`, their adapters and
   the `stateful-quadrature` runtime dependency.
@@ -29,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Accuracy and resource contracts
 
+- Selected simplex outputs are assembled directly from requested entries,
+  avoiding a full density-matrix round trip.
+- Sparse RationalFOE reuses bounded scalar-fit setup and uses Gershgorin spectral
+  bounds, with no Hamiltonian eigensolves.
 - Prescribed meshes report unavailable integration errors as `None`; a filling
   root residual is separate from integration accuracy and SCF convergence.
 - Periodic integration streams eigenvectors in bounded batches, retains bounded

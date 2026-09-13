@@ -51,6 +51,7 @@ for sparse matrices on prescribed positive-temperature grids. See
 [matrix functions](../matrix_functions.md) for this capability boundary.
 
 `statistics.n_diagonalizations` counts direct spectral decompositions, including
-root preparation and validation. It is `None` for RationalFOE, whose internal
-spectral-bound work is not instrumented; `n_kernel_evals` counts its point
-evaluations. A missing count must not be interpreted as zero work.
+root preparation and validation. RationalFOE uses Gershgorin spectral bounds and
+shifted linear solves, so it performs zero Hamiltonian diagonalizations. Its
+`n_kernel_evals` counts point evaluations; zero diagonalizations does not imply
+zero work. Scalar coefficient construction is outside this Hamiltonian count.
