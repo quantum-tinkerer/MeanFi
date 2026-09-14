@@ -58,7 +58,7 @@ def test_dense_rational_rejects_aaa_scheme():
             keys=[(0,), (1,), (-1,)],
             integration=PeriodicGrid(
                 nk=128,
-                matrix_function=RationalFOE(rational_scheme="aaa"),
+                matrix_function=RationalFOE(),
             ),
         )
 

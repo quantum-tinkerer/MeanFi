@@ -9,17 +9,12 @@ from meanfi.tests.fixtures.models import spinful_chain
 pytestmark = pytest.mark.integration
 
 
-def test_rational_foe_defaults_to_aaa():
-    assert RationalFOE().rational_scheme == "aaa"
-
-
 def test_prescribed_sparse_periodic_defaults_to_aaa():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     resolved = resolve_periodic_matrix_function(
         None, sparse_tb, kT=0.15, prescribed=True
     )
     assert isinstance(resolved, RationalFOE)
-    assert resolved.rational_scheme == "aaa"
 
 
 def test_dense_periodic_defaults_to_direct():

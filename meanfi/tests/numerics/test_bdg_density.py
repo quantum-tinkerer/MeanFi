@@ -127,10 +127,9 @@ def test_bdg_exact_density_matches_dense_2d_reference():
 @pytest.mark.parametrize(
     "matrix_function",
     [
-        RationalFOE(initial_poles=4, max_poles=256, rational_scheme="ozaki"),
         RationalFOE(initial_poles=4, max_poles=256),
     ],
-    ids=["ozaki", "default-aaa"],
+    ids=["default-aaa"],
 )
 def test_bdg_dense_rational_is_rejected(matrix_function):
     keys = [(0, 0), (1, 0)]
@@ -158,10 +157,9 @@ def test_bdg_dense_rational_is_rejected(matrix_function):
     "matrix_function",
     [
         None,
-        RationalFOE(initial_poles=4, max_poles=256, rational_scheme="aaa"),
-        RationalFOE(initial_poles=4, max_poles=256, rational_scheme="ozaki"),
+        RationalFOE(initial_poles=4, max_poles=256),
     ],
-    ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
+    ids=["default-sparse-aaa", "explicit-aaa"],
 )
 @pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
@@ -365,10 +363,9 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
     "matrix_function",
     [
         None,
-        RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"),
-        RationalFOE(initial_poles=4, max_poles=128, rational_scheme="ozaki"),
+        RationalFOE(initial_poles=4, max_poles=128),
     ],
-    ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
+    ids=["default-sparse-aaa", "explicit-aaa"],
 )
 @pytest.mark.usefixtures("require_mumps")
 def test_bdg_sparse_periodic_grid_selected_density_matches_dense_reference(

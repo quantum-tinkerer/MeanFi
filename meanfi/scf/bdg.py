@@ -3,25 +3,28 @@ from __future__ import annotations
 from dataclasses import replace
 
 import numpy as np
-from scipy import sparse
 
 from meanfi.density.density import evaluate_density
 from meanfi.density.problem import build_density_problem
 from meanfi.results import DensityResult, DensityEntries
-from meanfi.meanfield import bdg_correction_from_density_parts
+from meanfi.meanfield import bdg_correction_from_density
 from meanfi.model import Model
-from meanfi.scf.engine import SCFProblem, SolverRuntime, warn_on_projection
+from meanfi.scf.engine import (
+    EnergyEvaluation,
+    SCFProblem,
+    SolverRuntime,
+    warn_on_projection,
+)
+from meanfi.observables import _bdg_correction_expectation
 from meanfi.space.state import ActiveDensityState, require_same_space
-from meanfi.space.support import active_tb_keys
 from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
-from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like
+from meanfi.tb.ops import _tb_type
 
 
 def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     """Build the superconducting map consumed by the generic SCF engine."""
 
     space = model.scf_space
-    active_keys = active_tb_keys({space.onsite})
     density_problem = build_density_problem(
         model.hamiltonian_from_meanfield(),
         kT=model.kT,
@@ -33,21 +36,18 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
     )
 
     def project_guess(guess: _tb_type) -> _tb_type:
-        nonlocal active_keys
         validate_bdg_tb(
             guess,
             ndof=model._ndof,
             ndim=model._ndim,
             name="BdG correction",
         )
-        active_keys = active_tb_keys(set(guess) | {space.onsite})
-        projected = _assemble_bdg_active_tb(
-            space.project_meanfield_input(guess),
+        active = space.project_meanfield_input(guess)
+        projected = assemble_bdg_tb(
+            {key: block[: model._ndof, : model._ndof] for key, block in active.items()},
+            {key: block[: model._ndof, model._ndof :] for key, block in active.items()},
             ndof=model._ndof,
-            ndim=model._ndim,
-            keys=space.active_coordinates.keys,
         )
-        projected = _fill_bdg_keys(projected, active_keys=active_keys, ndof=model._ndof)
         warn_on_projection(guess, projected, label="BdG SCF guess")
         return projected
 
@@ -83,11 +83,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
         return space.meanfield_input_from_params(state.values)
 
     def mean_field_from_state(state: ActiveDensityState) -> _tb_type:
-        return _bdg_meanfield_from_active_density(
-            active_density(state),
-            model=model,
-            active_keys=active_keys,
-        )
+        return bdg_correction_from_density(active_density(state), model)
 
     def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityResult:
         return evaluate_meanfield(
@@ -95,69 +91,42 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
             mu_guess=mu_guess,
         )
 
+    def interaction_energy(params: np.ndarray) -> float:
+        state = ActiveDensityState(space, params)
+        return 0.5 * _bdg_correction_expectation(
+            active_density(state), mean_field_from_state(state), model._ndof
+        )
+
+    def interaction_gradient(params: np.ndarray, direction: np.ndarray) -> float:
+        return _bdg_correction_expectation(
+            active_density(ActiveDensityState(space, direction)),
+            mean_field_from_state(ActiveDensityState(space, params)),
+            model._ndof,
+        )
+
+    def energy_from_evaluation(input_state, output_state, density):
+        one_body = density.band_energy - _bdg_correction_expectation(
+            active_density(output_state),
+            mean_field_from_state(input_state),
+            model._ndof,
+        )
+        internal_energy = one_body + interaction_energy(output_state.values)
+        return EnergyEvaluation(
+            linear_free_energy=one_body - model.kT * density.entropy,
+            internal_energy=internal_energy,
+            free_energy=internal_energy - model.kT * density.entropy,
+        )
+
     return SCFProblem(
         runtime=runtime,
+        kT=model.kT,
         state_space=space,
         project_guess=project_guess,
         evaluate_projected_guess=evaluate_projected_guess,
         state_from_density=state_from_density,
         evaluate_state=evaluate_state,
         mean_field_from_state=mean_field_from_state,
+        energy_from_evaluation=energy_from_evaluation,
+        interaction_energy=interaction_energy,
+        interaction_gradient=interaction_gradient,
     )
-
-
-def _bdg_meanfield_from_active_density(
-    active_density: _tb_type,
-    *,
-    model: Model,
-    active_keys: list[tuple[int, ...]],
-) -> _tb_type:
-    updated = _fill_bdg_keys(
-        bdg_correction_from_density_parts(
-            active_density,
-            h_int=model.h_int,
-            ndof=model._ndof,
-            ndim=model._ndim,
-        ),
-        active_keys=active_keys,
-        ndof=model._ndof,
-    )
-    validate_bdg_tb(
-        updated,
-        ndof=model._ndof,
-        ndim=model._ndim,
-        name="BdG correction",
-    )
-    return updated
-
-
-def _assemble_bdg_active_tb(
-    active_tb: _tb_type,
-    *,
-    ndof: int,
-    ndim: int,
-    keys: tuple[tuple[int, ...], ...],
-) -> _tb_type:
-    normal_block = {}
-    anomalous_block = {}
-    for key in keys:
-        block = active_tb[key]
-        normal_block[key] = block[:ndof, :ndof]
-        anomalous_block[key] = block[:ndof, ndof:]
-    tb = assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
-    validate_bdg_tb(tb, ndof=ndof, ndim=ndim, name="BdG correction")
-    return tb
-
-
-def _fill_bdg_keys(
-    tb: _tb_type,
-    *,
-    active_keys: list[tuple[int, ...]],
-    ndof: int,
-) -> _tb_type:
-    use_sparse = any(is_sparse_like(value) for value in tb.values())
-    if use_sparse:
-        zero_sparse = sparse.csr_matrix((2 * ndof, 2 * ndof), dtype=complex)
-        return {key: as_sparse(tb.get(key, zero_sparse)) for key in active_keys}
-    zero = np.zeros((2 * ndof, 2 * ndof), dtype=complex)
-    return {key: np.asarray(tb.get(key, zero), dtype=complex) for key in active_keys}

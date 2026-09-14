@@ -92,6 +92,10 @@ print(f"Delta_y = {delta_y:.6f}")
 ```
 
 The converged solution has a real $\Delta_x$ and an imaginary $\Delta_y$, which is the structure we wanted.
+`EnergyDIIS` is the default here as in normal calculations. At this nonzero
+temperature it uses a free-energy history bound and switches to bounded Anderson
+mixing for final convergence or stagnation. Individual iterations need not
+lower the physical free energy.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -101,26 +105,10 @@ def gap_texture(result, *, nk=81):
     kx, ky = np.meshgrid(axis, axis, indexing="ij")
     phase_grid = np.stack([kx, ky], axis=-1)
 
-    electron_tb = {key: np.array(value, dtype=complex) for key, value in h_0.items()}
-    gap = np.zeros_like(kx, dtype=complex)
-    for key, matrix in result.mean_field.items():
-        array = np.asarray(matrix, dtype=complex)
-        electron_tb[key] = electron_tb.get(key, np.zeros((1, 1), dtype=complex)) + array[:1, :1]
-        phase = np.exp(
-            -1j
-            * np.tensordot(phase_grid, np.asarray(key, dtype=float), axes=([-1], [0]))
-        )
-        gap += array[0, 1] * phase
-
-    dispersion = np.zeros_like(kx, dtype=complex)
-    for key, matrix in electron_tb.items():
-        phase = np.exp(
-            -1j
-            * np.tensordot(phase_grid, np.asarray(key, dtype=float), axes=([-1], [0]))
-        )
-        dispersion += matrix[0, 0] * phase
-
-    xi = dispersion.real - result.mu
+    h_of_k = meanfi.tb_to_kfunc(model.hamiltonian_from_meanfield(result.mean_field))
+    hamiltonian = h_of_k(phase_grid)
+    xi = hamiltonian[..., 0, 0].real - result.mu
+    gap = hamiltonian[..., 0, 1]
     return axis, xi, gap
 
 
@@ -210,8 +198,9 @@ print(f"Delta_y (random) = {random_delta_y:.6f}")
 print(f"random residual norm: {random_result.errors.scf_residual:.3e}")
 ```
 
-With this seed, the random initial condition converges to a more nematic superconducting solution.
-It still develops anomalous order, but it does not retain the clean $C_4$-symmetric chiral structure obtained from the symmetry-informed guess.
+The random initial condition explores the pairing space without imposing a
+chiral pattern. Inspect the amplitudes, winding, and free energy to see whether
+it reaches the same state as the symmetry-informed guess.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -271,6 +260,15 @@ print(f"chiral residual: {result.errors.scf_residual:.3e}")
 print(f"random residual: {random_result.errors.scf_residual:.3e}")
 print(f"chiral winding: {phase_winding(result):+.1f}")
 print(f"random winding: {phase_winding(random_result):+.1f}")
+print(f"chiral internal energy: {result.internal_energy:.8f}")
+print(f"chiral entropy / k_B:   {result.entropy:.8f}")
+print(f"chiral free energy:     {result.free_energy:.8f}")
+print(f"random free energy:     {random_result.free_energy:.8f}")
 ```
 
-The two guesses converge to distinct pairing patterns. This backend does not yet provide a trustworthy BdG total-energy estimator, so `result.total_energy` is `None` and convergence alone must not be used to claim an energy ordering. Once such an estimator is available, competing converged solutions should be compared through the direct `SCFResult.total_energy` field.
+For competing converged solutions at the same filling and temperature, compare
+`result.free_energy`. It includes entropy through
+`free_energy = internal_energy - model.kT * entropy`; BdG entropy removes the
+Nambu doubling with a factor of one half. All three quantities are per unit cell,
+and entropy is in units of Boltzmann's constant. Resolve differences by tightening
+the integration and SCF tolerances before assigning an energy ordering.

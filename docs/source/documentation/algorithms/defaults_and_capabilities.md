@@ -19,17 +19,19 @@ Direct diagonalization is the main periodic path. Fixed periodic grids also
 support explicit `RationalFOE` for sparse matrices at positive temperature. No adaptive rational path
 is provided. Both explicit `RationalFOE()` and implicit prescribed sparse selection use AAA. Choosing dense evaluation for a sparse input must be explicit.
 
-`Model` defaults to `kT=0.0`. `solver` uses `EnergyDIIS()` for normal
-zero-temperature `AdaptiveSimplex` calculations. Other supported workflows use
-`AndersonMixing(alpha=0.5, history_size=5, regularization=0.01, line_search="armijo")`.
-An explicit `scf=` overrides this selection. All SCF settings are keyword-only.
+`Model` defaults to `kT=0.0`. `solver` uses `EnergyDIIS()` for all supported
+normal and BdG calculations. At finite temperature, EDIIS uses a free-energy
+history bound and bounded Anderson mixing finishes convergence or handles
+stagnation. An explicit `scf=` selects another method. All SCF settings are
+keyword-only.
 The top-level `tol`
 provides a convenient shared accuracy policy, while `scf_tol`, `filling_tol`,
 `mu_tol`, `density_matrix_tol` and `charge_tol` separate individual budgets.
 Integration targets are populated only after the prescribed/accuracy-controlled
 mode has been resolved. An explicit `nk` always retains prescribed-size semantics.
 
-FermiSimplex provides the normal zero-temperature band-energy calculation used
-by energy-based SCF. Finite-temperature density integration does not provide a
-thermodynamic energy or free-energy method; periodic results report unavailable
-energy as `None`. Use the supported residual-based SCF methods for those workflows.
+Every density backend returns entropy and the expectation of the input
+quadratic Hamiltonian as `band_energy`. SCF results report interaction-corrected
+`internal_energy` and `free_energy`, with entropy in units of Boltzmann's
+constant. Dense periodic evaluation reuses eigenvalues; sparse AAA evaluation
+shares poles and matrix factorizations between density and entropy.

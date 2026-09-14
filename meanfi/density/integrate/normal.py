@@ -33,7 +33,6 @@ def evaluate_simplex(
             mu_guess=mu_guess,
             filling_tol=problem.tolerances.filling_residual,
             nk=integration.nk,
-            include_band_energy=problem.include_band_energy,
         )
     settings = dict(
         keys=list(coordinates.keys),
@@ -55,6 +54,5 @@ def evaluate_simplex(
         mu_guess=mu_guess,
         mu_xtol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
-        include_band_energy=problem.include_band_energy,
         **settings,
     )

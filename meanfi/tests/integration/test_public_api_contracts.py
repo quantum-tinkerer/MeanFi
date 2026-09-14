@@ -15,7 +15,7 @@ from meanfi import (
     density_matrix,
     density_matrix_at_mu,
     solver,
-    total_energy,
+    internal_energy,
 )
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import spinful_chain, density_result_from_tb
@@ -87,9 +87,9 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_at_mu_params["integration"].default is None
     assert "filling_tol" not in density_at_mu_params
 
-    total_energy_params = inspect.signature(total_energy).parameters
-    assert list(total_energy_params) == ["model", "density_matrix"]
-    assert meanfi.total_energy is total_energy
+    internal_energy_params = inspect.signature(internal_energy).parameters
+    assert list(internal_energy_params) == ["model", "density_matrix"]
+    assert meanfi.internal_energy is internal_energy
 
     for method in (AdaptiveSimplex, PeriodicGrid, PeriodicGrid):
         params = inspect.signature(method).parameters

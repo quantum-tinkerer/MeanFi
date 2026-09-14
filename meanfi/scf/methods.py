@@ -55,7 +55,11 @@ class AndersonMixing(SCFMethod):
 
 @dataclass(frozen=True, kw_only=True)
 class EnergyDIIS(SCFMethod):
-    """Minimize energy over a convex density history (normal T=0 simplex)."""
+    """Mix a convex density history by free energy, then accelerate convergence.
+
+    At finite temperature, averaged history entropies give an upper bound on
+    mixed-state free energy. Anderson mixing finishes when this bound stalls
+    or the residual is small, within the same total iteration budget."""
 
     history_size: int = 6
 

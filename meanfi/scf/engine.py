@@ -5,7 +5,7 @@ from typing import Callable
 
 import numpy as np
 
-from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
+from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.results import DensityResult, DensityEntries
 from meanfi.errors import ConvergenceError, ErrorTolerances
 from meanfi.results import SCFIteration, SCFResult
@@ -18,7 +18,7 @@ from meanfi.scf.fixed_point import (
     solve_fixed_point,
 )
 from meanfi.scf.info import SCFRunState, record_scf_iteration
-from meanfi.scf.methods import EnergyDIIS, SCFMethod
+from meanfi.scf.methods import AndersonMixing, EnergyDIIS, SCFMethod
 from meanfi.space.space import ActiveSCFSpace
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.ops import _tb_type
@@ -40,13 +40,14 @@ class _ResidualEvaluation:
     residual: np.ndarray
     density: DensityResult
     residual_norm: float
-    total_energy: float | None
+    energy: EnergyEvaluation | None
 
 
 @dataclass(frozen=True)
 class EnergyEvaluation:
-    one_body_energy: float
-    total_energy: float
+    linear_free_energy: float
+    internal_energy: float
+    free_energy: float
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,7 @@ class SCFProblem:
     ) = None
     interaction_energy: Callable[[np.ndarray], float] | None = None
     interaction_gradient: Callable[[np.ndarray, np.ndarray], float] | None = None
+    kT: float = 0.0
 
 
 def warn_on_projection(original: _tb_type, projected: _tb_type, *, label: str) -> None:
@@ -93,8 +95,8 @@ def _format_scf_progress(iteration: SCFIteration) -> str:
         parts.append(f"filling_residual={iteration.errors.filling_residual:.6e}")
     if iteration.errors.charge_integration is not None:
         parts.append(f"charge_error={iteration.errors.charge_integration:.6e}")
-    if iteration.total_energy is not None:
-        parts.append(f"total_energy={iteration.total_energy:.12g}")
+    if iteration.free_energy is not None:
+        parts.append(f"free_energy={iteration.free_energy:.12g}")
     return " ".join(parts)
 
 
@@ -146,7 +148,10 @@ def iterate_density_fixed_point(
             trial.input_state,
             trial.output_state,
             residual_norm=trial.residual_norm,
-            total_energy=trial.total_energy,
+            internal_energy=None
+            if trial.energy is None
+            else trial.energy.internal_energy,
+            free_energy=None if trial.energy is None else trial.energy.free_energy,
         )
         trial_evaluations.clear()
         if verbose:
@@ -168,7 +173,7 @@ def iterate_density_fixed_point(
                 residual=np.array(residual, copy=True),
                 density=density,
                 residual_norm=max_norm(residual),
-                total_energy=None if energy is None else energy.total_energy,
+                energy=energy,
             )
         )
         return residual
@@ -212,7 +217,7 @@ def iterate_density_fixed_point(
         residual=residual,
         density=density,
         residual_norm=max_norm(residual),
-        total_energy=None if energy is None else energy.total_energy,
+        energy=energy,
     )
     _commit_trial(final_trial)
 
@@ -225,18 +230,17 @@ def iterate_energy_ediis(
     verbose: bool,
     run_state: SCFRunState,
 ) -> None:
-    if not isinstance(problem.runtime.integration, AdaptiveSimplex):
-        raise ValueError("EnergyDIIS requires AdaptiveSimplex integration")
     if (
         problem.energy_from_evaluation is None
         or problem.interaction_energy is None
         or problem.interaction_gradient is None
     ):
-        raise ValueError("EnergyDIIS requires a normal-state energy functional")
+        raise ValueError("EnergyDIIS requires an energy functional")
 
     scf_tol = problem.runtime.tolerances.scf_residual
     params = np.array(state0.values, copy=True)
     history: list[EDIISPoint] = []
+    residuals: list[float] = []
 
     for _iteration in range(1, int(scf.max_iterations) + 1):
         input_state = ActiveDensityState(problem.state_space, params)
@@ -255,7 +259,8 @@ def iterate_energy_ediis(
             input_state,
             output_state,
             residual_norm=residual_norm,
-            total_energy=energy.total_energy,
+            internal_energy=energy.internal_energy,
+            free_energy=energy.free_energy,
         )
         if verbose:
             print(_format_scf_progress(iteration))
@@ -265,8 +270,8 @@ def iterate_energy_ediis(
         history.append(
             EDIISPoint(
                 params=np.array(output_state.values, copy=True),
-                one_body_energy=energy.one_body_energy,
-                energy=energy.total_energy,
+                linear_free_energy=energy.linear_free_energy,
+                free_energy=energy.free_energy,
             )
         )
         if len(history) > scf.history_size:
@@ -281,6 +286,31 @@ def iterate_energy_ediis(
             np.stack([point.params for point in history]),
             axes=1,
         )
+
+        # Averaging history entropies bounds the mixed free energy from above.
+        # That bound can stall near a solution: finish with the existing local
+        # accelerator, sharing this solve's total accepted-iteration budget.
+        residuals.append(residual_norm)
+        remaining = scf.max_iterations - len(run_state.history)
+        stagnating = len(residuals) >= 4 and min(residuals[-3:]) >= 0.9 * residuals[-4]
+        if (
+            problem.kT > 0
+            and remaining > 0
+            and (
+                residual_norm < 0.05
+                or stagnating
+                or _iteration >= max(6, scf.max_iterations // 4)
+            )
+        ):
+            iterate_density_fixed_point(
+                ActiveDensityState(problem.state_space, params),
+                problem=problem,
+                scf=AndersonMixing(max_iterations=remaining),
+                scf_tol=scf_tol,
+                verbose=verbose,
+                run_state=run_state,
+            )
+            return
 
     raise NoConvergence(params)
 
@@ -298,7 +328,8 @@ def _build_result(
     return SCFResult(
         density=density,
         mean_field=problem.mean_field_from_state(state.output_state),
-        total_energy=state.total_energy,
+        internal_energy=state.internal_energy,
+        free_energy=state.free_energy,
         errors=errors,
         history=tuple(state.history),
         converged=converged,

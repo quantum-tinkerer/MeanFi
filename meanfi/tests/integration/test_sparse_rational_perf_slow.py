@@ -21,8 +21,7 @@ requires_ext = pytest.mark.skipif(
 
 @pytest.mark.perf_slow
 @pytest.mark.usefixtures("require_mumps")
-@pytest.mark.parametrize("scheme", ["aaa", "ozaki"])
-def test_sparse_rational_fixed_filling_matches_dense_reference(scheme):
+def test_sparse_rational_fixed_filling_matches_dense_reference():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     keys = [(0,), (1,), (-1,)]
     dense_result = density_matrix(
@@ -45,9 +44,7 @@ def test_sparse_rational_fixed_filling_matches_dense_reference(scheme):
         keys=keys,
         integration=PeriodicGrid(
             nk=128,
-            matrix_function=RationalFOE(
-                initial_poles=4, max_poles=64, rational_scheme=scheme
-            ),
+            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
         ),
         tol=1e-9,
         filling_tol=1e-9,
@@ -65,8 +62,7 @@ def test_sparse_rational_fixed_filling_matches_dense_reference(scheme):
 
 @pytest.mark.perf_slow
 @pytest.mark.usefixtures("require_mumps")
-@pytest.mark.parametrize("scheme", ["aaa", "ozaki"])
-def test_sparse_rational_fixed_mu_matches_dense_reference(scheme):
+def test_sparse_rational_fixed_mu_matches_dense_reference():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     keys = [(0,), (1,), (-1,)]
     dense_result = density_matrix_at_mu(
@@ -88,9 +84,7 @@ def test_sparse_rational_fixed_mu_matches_dense_reference(scheme):
         keys=keys,
         integration=PeriodicGrid(
             nk=128,
-            matrix_function=RationalFOE(
-                initial_poles=4, max_poles=64, rational_scheme=scheme
-            ),
+            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
         ),
     )
     for key in keys:
@@ -102,8 +96,7 @@ def test_sparse_rational_fixed_mu_matches_dense_reference(scheme):
 
 @pytest.mark.perf_slow
 @pytest.mark.usefixtures("require_mumps")
-@pytest.mark.parametrize("scheme", ["aaa", "ozaki"])
-def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend(scheme):
+def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
     from meanfi.space.coordinates import full_density_coordinates
     from meanfi.density.kpoint.matrix_functions.common import shift_by_mu
     from scipy.special import expit
@@ -117,7 +110,7 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend(scheme):
             dtype=complex,
         )
     )
-    options = RationalFOE(initial_poles=4, max_poles=64, rational_scheme=scheme)
+    options = RationalFOE(initial_poles=4, max_poles=64)
     q_diag = np.array([1.0, -1.0], dtype=float)
     trace_weights = np.array([1.0, 0.0], dtype=float)
     coords = full_density_coordinates([tuple()], size=2)

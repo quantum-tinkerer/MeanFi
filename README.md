@@ -34,8 +34,16 @@ guess = model.random_meanfield(rng=0, scale=0.1)
 
 # Solve
 result = meanfi.solver(model, guess)
-h_mf = meanfi.add_tb(h_0, result.mean_field)
+h_mf = model.hamiltonian_from_meanfield(result.mean_field)
+print(result.internal_energy, result.entropy, result.free_energy)
 ```
+
+`EnergyDIIS()` is the default SCF method for normal and BdG calculations.
+It uses free energy at finite temperature and switches to bounded Anderson
+mixing to finish convergence or recover from stagnation. All iterations share
+one budget. Results report internal energy, entropy in units of Boltzmann's
+constant, and Helmholtz free energy per unit cell:
+`result.free_energy = result.internal_energy - model.kT * result.entropy`.
 
 For examples, see the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).
 
@@ -59,7 +67,7 @@ For examples, see the [tutorials](https://meanfi.readthedocs.io/en/latest/tutori
 
 - density-density interactions,
 - zero- and finite-temperature mean-field calculations,
-- superconducting BdG mean-field calculations at finite temperature,
+- superconducting BdG mean-field calculations,
 - tight-binding dictionary workflows,
 - optional `kwant` conversion helpers.
 
@@ -88,9 +96,9 @@ rounding explained in the [integration guide](https://meanfi.readthedocs.io/en/l
 
 `UniformGrid`, `PeriodicQuadrature` and `AdaptiveQuadrature` have been removed.
 To preserve an old `UniformGrid(nk=n)` mesh in dimension `d`, use
-`PeriodicGrid(nk=n**d)`. Prescribed positive-temperature sparse `RationalFOE` remains
-available; automatic sparse integration requires explicit migration and never
-silently selects dense evaluation. See [migration notes](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html#migration).
+`PeriodicGrid(nk=n**d)`. Prescribed positive-temperature sparse `RationalFOE` uses AAA, sharing poles
+and sparse factorizations between density and entropy. Automatic sparse
+integration requires an explicit grid and never silently selects dense evaluation. See [migration notes](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html#migration).
 
 ## Installation
 
@@ -150,8 +158,6 @@ If you use `MeanFi` in scientific work, please cite:
 }
 ```
 
-The default SCF method is `EnergyDIIS()` for normal zero-temperature simplex
-calculations. Finite-temperature and BdG workflows use bounded Anderson mixing.
 See `examples/api_walkthrough.py` for model-based densities,
 reference subtraction, restarts, observables, BdG and sparse calculations.
 Fourier helpers use explicit grid shapes, for example `tb_to_kgrid(h, (32, 64))`;

@@ -15,7 +15,6 @@ from ..mumps_backend import (
     SelectedInverseFactorization,
     build_selected_inverse_pattern,
 )
-from ...occupations import fermi_dirac
 from .common import (
     SparseRationalTerms,
     _pattern_subset_mappings,
@@ -27,9 +26,8 @@ from .scheme import (
     _AAAIntervalCacheEntry,
     _aaa_sample_grid,
     _aaa_terms_for_interval,
-    _barycentric_evaluate,
-    _evaluate_canonical_rational,
-    _ozaki_terms,
+    thermal_errors,
+    thermal_targets,
 )
 
 
@@ -44,14 +42,11 @@ class PreparedMumpsRationalNode:
         charge_tolerance: float,
         density_coordinates: DensityCoordinates,
         density_tolerance: float,
+        thermodynamic_tolerance: float | None = None,
         workspace_dtype: np.dtype = np.dtype(complex),
         trace_weights_diag: np.ndarray | None = None,
         shared_aaa_interval_cache: list[_AAAIntervalCacheEntry] | None = None,
     ) -> None:
-        if options.rational_scheme not in {"ozaki", "aaa"}:
-            raise ValueError(
-                "Sparse RationalFOE currently requires rational_scheme='ozaki' or 'aaa'"
-            )
         if not is_sparse_like(matrix):
             raise ValueError("Sparse MUMPS-backed RationalFOE requires sparse matrices")
 
@@ -62,13 +57,16 @@ class PreparedMumpsRationalNode:
         self.options = options
         self.charge_tolerance = float(charge_tolerance)
         self.density_tolerance = float(density_tolerance)
+        self.thermodynamic_tolerance = thermodynamic_tolerance
         self.size = int(getattr(matrix, "shape")[0])
         self._trace_weights = (
             np.ones(self.size, dtype=float)
             if trace_weights_diag is None
             else np.asarray(trace_weights_diag, dtype=float)
         )
-        self._charge_pattern = build_sparse_charge_pattern(self._trace_weights)
+        self._charge_pattern = build_sparse_charge_pattern(
+            self._trace_weights, include_all=thermodynamic_tolerance is not None
+        )
         self._density_pattern = build_sparse_density_pattern(
             size=self.size,
             density_coordinates=density_coordinates,
@@ -125,117 +123,72 @@ class PreparedMumpsRationalNode:
             ),
         )
 
-    def _aaa_cached_terms_for_interval(
-        self,
-        *,
-        lower: float,
-        upper: float,
-        pole_cap: int,
-        scalar_tolerance: float,
-    ) -> SparseRationalTerms | None:
-        for entry in self._aaa_interval_cache:
-            if not np.isclose(entry.kT, self.kT):
-                continue
-            if lower < entry.lower or upper > entry.upper:
-                continue
-            if (
-                entry.terms.support_count is not None
-                and entry.terms.support_count > pole_cap
-            ):
-                continue
-            certification_grid = _aaa_sample_grid(
-                lower,
-                upper,
-                count=max(1024, 64 * int(pole_cap)),
-                kT=self.kT,
-            )
-            exact = np.asarray(
-                fermi_dirac(certification_grid, self.kT, 0.0), dtype=complex
-            )
-            barycentric = (
-                _barycentric_evaluate(
-                    certification_grid, entry.support_x, entry.support_y, entry.weights
-                )
-                if entry.support_x.size
-                else np.full(certification_grid.shape, entry.terms.constant)
-            )
-            pole_values = _evaluate_canonical_rational(
-                certification_grid,
-                constant=entry.terms.constant,
-                shifts=entry.terms.shifts,
-                residues=entry.terms.residues,
-                tail_lower_bound=entry.terms.tail_lower_bound,
-                tail_upper_bound=entry.terms.tail_upper_bound,
-            )
-            scalar_error = float(np.max(np.abs(exact - pole_values), initial=0.0))
-            barycentric_gap = float(
-                np.max(np.abs(pole_values - barycentric), initial=0.0)
-            )
-            if (
-                scalar_error <= scalar_tolerance
-                and barycentric_gap <= 0.1 * scalar_tolerance
-            ):
-                return entry.terms
-        return None
+    def _scalar_tolerances(self, lower: float, upper: float, mu: float) -> np.ndarray:
+        density_tolerance = self._charge_scalar_tolerance()
+        if self.thermodynamic_tolerance is None:
+            return np.array([density_tolerance])
+        trace_tolerance = self.thermodynamic_tolerance / self.size
+        return np.array(
+            [
+                min(
+                    density_tolerance,
+                    # The caller restores mu*N to the shifted energy trace.
+                    trace_tolerance
+                    / max(
+                        1.0,
+                        max(abs(lower), abs(upper))
+                        + abs(mu) * np.max(np.abs(self.q_diag)),
+                    ),
+                ),
+                trace_tolerance,
+            ]
+        )
 
-    def _sparse_terms(
-        self,
-        mu: float,
-        *,
-        pole_count: int,
-        scalar_tolerance: float | None = None,
-    ) -> SparseRationalTerms:
-        if self.options.rational_scheme == "ozaki":
-            return _ozaki_terms(pole_count, self.kT)
-        if scalar_tolerance is None:
-            scalar_tolerance = self.density_tolerance
+    def _sparse_terms(self, mu: float) -> SparseRationalTerms:
+        pole_count = self.options.max_poles
         shifted = shift_by_mu(self.matrix, mu, self.q_diag, dtype=self.workspace_dtype)
         lower, upper = spectral_interval(shifted)
         padding = 1e-12 * max(1.0, float(upper - lower))
         lower, upper = lower - padding, upper + padding
-        cached = self._aaa_cached_terms_for_interval(
-            lower=lower,
-            upper=upper,
-            pole_cap=pole_count,
-            scalar_tolerance=scalar_tolerance,
+        tolerances = self._scalar_tolerances(lower, upper, mu)
+        grid = _aaa_sample_grid(
+            lower, upper, kT=self.kT, count=max(2048, 32 * pole_count)
         )
-        if cached is not None:
-            return cached
+        targets = thermal_targets(grid, self.kT)[:, : tolerances.size]
+        for entry in self._aaa_interval_cache:
+            if (
+                entry.kT != self.kT
+                or lower < entry.lower
+                or upper > entry.upper
+                or entry.terms.pole_count > pole_count
+                or (tolerances.size == 2 and entry.terms.entropy_residues is None)
+            ):
+                continue
+            if np.all(thermal_errors(entry.terms, grid, targets) <= tolerances):
+                return entry.terms
         try:
-            terms, builder = _aaa_terms_for_interval(
+            terms = _aaa_terms_for_interval(
                 pole_cap=pole_count,
                 lower=lower,
                 upper=upper,
                 kT=self.kT,
                 initial_poles=self.options.initial_poles,
-                scalar_tolerance=scalar_tolerance,
+                scalar_tolerance=tolerances[0],
+                entropy_tolerance=tolerances[1] if tolerances.size == 2 else None,
             )
         except ValueError as exc:
-            if "AAA scalar certification failed" not in str(exc):
-                raise
-            raise ConvergenceError(
-                "Rational FOE did not converge within max_poles"
-            ) from exc
-        # One reusable scalar fit; no retained matrices or factorizations.
+            raise ConvergenceError(str(exc)) from exc
+        # Keep one scalar fit shared across k-points, never their factorizations.
         self._aaa_interval_cache[:] = [
-            _AAAIntervalCacheEntry(
-                lower=lower,
-                upper=upper,
-                kT=self.kT,
-                support_x=np.asarray(builder.support_x, dtype=float),
-                support_y=np.asarray(builder.support_y, dtype=complex),
-                weights=np.asarray(builder.weights, dtype=complex),
-                terms=terms,
-            )
+            _AAAIntervalCacheEntry(lower, upper, self.kT, terms)
         ]
         return terms
 
-    def _evaluate_charge_for_pole_count(self, mu: float, pole_count: int):
-        terms = self._sparse_terms(
-            mu,
-            pole_count=pole_count,
-            scalar_tolerance=self._charge_scalar_tolerance(),
-        )
+    def charge(self, mu: float) -> float:
+        """Evaluate charge, retaining this point's factors for density and energy."""
+        if self._last_mu == float(mu):
+            return self._last_charge
+        terms = self._sparse_terms(mu)
         shifted = shift_by_mu(self.matrix, mu, self.q_diag, dtype=self.workspace_dtype)
         factorizations = {}
         entries = {}
@@ -251,33 +204,10 @@ class PreparedMumpsRationalNode:
             shifts=terms.shifts,
             residues=terms.residues,
         )
-        return charge, terms, factorizations, entries
-
-    def charge(self, mu: float) -> float:
-        """Evaluate charge, retaining this point's factors for the density pass."""
-        if self._last_mu == float(mu):
-            return self._last_charge
-        if self.options.rational_scheme == "aaa":
-            result = self._evaluate_charge_for_pole_count(mu, self.options.max_poles)
-        else:
-            poles = self.options.initial_poles
-            previous = self._evaluate_charge_for_pole_count(mu, poles)[0]
-            while True:
-                poles = min(self.options.max_poles, 2 * poles)
-                result = self._evaluate_charge_for_pole_count(mu, poles)
-                if abs(result[0] - previous) <= self.charge_tolerance:
-                    break
-                if poles == self.options.max_poles:
-                    raise ConvergenceError(
-                        "Rational FOE did not converge within max_poles"
-                    )
-                previous = result[0]
-        (
-            self._last_charge,
-            self._last_terms,
-            self._last_factorizations,
-            self._last_charge_entries,
-        ) = result
+        self._last_charge = charge
+        self._last_terms = terms
+        self._last_factorizations = factorizations
+        self._last_charge_entries = entries
         self._last_mu = float(mu)
         return self._last_charge
 
@@ -340,3 +270,40 @@ class PreparedMumpsRationalNode:
             shifts=terms.shifts,
             residues=terms.residues,
         )
+
+    def thermodynamics(self, mu: float) -> tuple[float, float]:
+        """Return Tr[H f(H-mu Q)] and entropy from the retained inverse diagonals.
+
+        BdG particle/hole normalization belongs to the caller. The identity
+        H(A-zI)^-1 = I + (zI + mu Q)(A-zI)^-1 supplies the energy without
+        additional factorizations; entropy uses the same poles with fitted residues.
+        """
+        if self._last_mu != float(mu) or self._last_terms is None:
+            raise ValueError(
+                "Evaluate charge at the requested mu before thermodynamics"
+            )
+        terms = self._last_terms
+        if terms.entropy_residues is None:
+            raise ValueError("Prepare the node with thermodynamic_tolerance first")
+        energy = float(np.real(terms.constant * np.sum(self.matrix.diagonal())))
+        entropy = float(np.real(terms.entropy_constant * self.size))
+        for shift, residue, entropy_residue in zip(
+            terms.shifts, terms.residues, terms.entropy_residues, strict=True
+        ):
+            diagonal = self._last_charge_entries[complex(shift)][
+                self._charge_pattern.diagonal_positions
+            ]
+            trace_inverse = np.sum(diagonal)
+            energy += float(
+                2.0
+                * np.real(
+                    residue
+                    * (
+                        self.size
+                        + shift * trace_inverse
+                        + float(mu) * (self.q_diag @ diagonal)
+                    )
+                )
+            )
+            entropy += float(2.0 * np.real(entropy_residue * trace_inverse))
+        return energy, entropy

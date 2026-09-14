@@ -76,7 +76,7 @@ hamiltonians_0 = meanfi.tb_to_kgrid(h_0, (nk,) * 1)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
 plt.plot(ks, vals, c="k")
-plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
+plt.xticks([0, np.pi, 2 * np.pi], ["$0$", r"$\pi$", r"$2\pi$"])
 plt.xlim(0, 2 * np.pi)
 plt.ylabel("$E - E_F$")
 plt.xlabel("$k / a$")
@@ -132,7 +132,12 @@ result = meanfi.solver(
 mf_sol = result.mean_field
 ```
 
-The {autolink}`~meanfi.solver` function returns the mean-field correction in `result.mean_field` and keeps the chemical potential separate in `result.mu`.
+The {autolink}`~meanfi.solver` function uses `EnergyDIIS` by default. It returns
+the mean-field correction in `result.mean_field` and keeps the chemical potential
+separate in `result.mu`. Results also provide `internal_energy`, `entropy`, and
+`free_energy` per unit cell. At zero temperature the two energies coincide; at
+finite temperature compare solutions through `free_energy`, which includes the
+entropy contribution.
 To get the full Hamiltonian, we add the mean-field correction to the non-interacting Hamiltonian and plot the band structure just as before:
 
 ```{code-cell} ipython3
@@ -141,7 +146,7 @@ h_mf = meanfi.add_tb(h_0, mf_sol)
 hamiltonians = meanfi.tb_to_kgrid(h_mf, (nk,) * 1)
 vals, vecs = np.linalg.eigh(hamiltonians)
 plt.plot(ks, vals - result.mu, c="k")
-plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
+plt.xticks([0, np.pi, 2 * np.pi], ["$0$", r"$\pi$", r"$2\pi$"])
 plt.xlim(0, 2 * np.pi)
 plt.ylabel("$E - E_F$")
 plt.xlabel("$k / a$")
@@ -208,7 +213,7 @@ gaps = compute_phase_diagram(Us=Us)
 
 plt.plot(Us, gaps, c="k")
 plt.xlabel("$U / t$")
-plt.ylabel("$\Delta{E}/t$")
+plt.ylabel(r"$\Delta{E}/t$")
 plt.show()
 ```
 
@@ -222,7 +227,7 @@ with np.load("data/hubbard_1d_phase_diagram.npz") as reference:
 
 plt.plot(Us, gaps, c="k")
 plt.xlabel("$U / t$")
-plt.ylabel("$\Delta{E}/t$")
+plt.ylabel(r"$\Delta{E}/t$")
 plt.show()
 ```
 

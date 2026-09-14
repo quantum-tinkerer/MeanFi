@@ -1,15 +1,3 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 # `DirectDiagonalization`
 
 `DirectDiagonalization` is the exact matrix-function backend.
@@ -33,9 +21,17 @@ with $f$ the Fermi-Dirac occupation function.
 Here “exact” means exact for the finite sampled matrix at that k-point, up to numerical diagonalization error.
 It does not mean the full Brillouin-zone integral is exact, because that still depends on the chosen integration family.
 
-## Derivatives
+## Thermodynamic quantities
 
-In derivative-aware fixed-filling paths, the same eigendecomposition also gives access to exact matrix-function derivatives through the Fréchet derivative of the occupation function.
+The eigenvalues and occupations also give band energy and entropy without another
+eigendecomposition. Entropy is the sum of
+`-f * log(f) - (1-f) * log(1-f)`, evaluated stably at empty and occupied states.
+BdG sums include a factor of one half to remove Nambu doubling; band energy also
+includes the normal-ordering constant.
+
+For normal finite-temperature filling solves, the retained eigenvalues give the
+charge derivative `sum(f * (1-f)) / kT`. BdG charge depends on the electron weights
+of the eigenvectors, and its filling solve uses bracketing.
 
 ## Cost versus error scaling
 

@@ -8,7 +8,7 @@ from meanfi.results import DensityEntries, DensityResult
 from meanfi.density.kpoint.matrix_functions.direct import (
     selected_density_values_from_eigensystem,
 )
-from meanfi.density.kpoint.occupations import fermi_dirac
+from meanfi.density.kpoint.occupations import fermi_dirac, occupation_entropy
 from meanfi.errors import ErrorValues
 from meanfi.results import AdaptiveSimplexInfo
 from meanfi.space.coordinates import DensityCoordinates
@@ -23,7 +23,6 @@ def evaluate_zero_dim(
     mu_guess: float = 0.0,
     filling_tol: float = 1e-6,
     nk: int | None = None,
-    include_band_energy: bool = False,
 ) -> DensityResult:
     """Diagonalize once, select occupations, and return the requested entries."""
 
@@ -80,7 +79,8 @@ def evaluate_zero_dim(
             filling_residual=None if filling is None else abs(charge - filling),
         ),
         statistics=info,
-        band_energy=float(eigenvalues @ occupation) if include_band_energy else None,
+        band_energy=float(eigenvalues @ occupation),
+        entropy=float(occupation_entropy(occupation).sum()),
     )
 
 

@@ -51,12 +51,12 @@ Selected results expose their read-only `coordinates`, `values`, and optional
 per-entry `entry_errors`; converting
 one to complete matrix blocks raises instead of filling uncomputed entries with
 zeros. `result.select(coordinates)` selects both values and entry errors while
-preserving the chemical potential, filling, and integration statistics.
+preserving the chemical potential, filling, entropy, band energy, and integration statistics.
 
 Integrators and SCF share the immutable `DensityEntries` payload in
 `result.entries`. To construct a result from separately computed entries, use
 `DensityResult(entries=DensityEntries(coordinates, values, entry_errors),
-mu=mu, filling=filling, errors=ErrorValues(...))`. The optional entry errors
+mu=mu, filling=filling, entropy=entropy, errors=ErrorValues(...))`. The optional entry errors
 use the same coordinate order as the values; `None` means no estimate exists.
 
 ## Mean-field and density matrix
@@ -104,6 +104,22 @@ change model parameters.
 
 ## Solvers
 
+`EnergyDIIS()` is the default for normal and BdG models with every supported
+integration backend. At finite temperature it uses a free-energy upper bound
+formed from the history's energies and entropies. Entropy is not linear in a
+mixed density, so this is a surrogate for the mixed state's free energy.
+The solver switches to bounded Anderson mixing for final convergence or when
+EDIIS stalls; both phases share `max_iterations`. Physical free energy need not
+fall on every iteration.
+
+Sparse `RationalFOE()` uses AAA at positive temperature on a prescribed
+`PeriodicGrid(nk=...)`. Density and entropy share poles and sparse factorizations.
+
+SCF settings are keyword-only. To change the history or iteration budget, pass
+`scf=meanfi.EnergyDIIS(history_size=6, max_iterations=100)`. Explicit
+`AndersonMixing` and `LinearMixing` remain available.
+
+
 ```{eval-rst}
 .. autofunction:: meanfi.solver
 ```
@@ -142,17 +158,49 @@ change model parameters.
 
 ```{eval-rst}
 .. automodule:: meanfi.observables
-   :members: expectation_value, total_energy
+   :members: expectation_value, internal_energy, free_energy
    :show-inheritance:
 ```
 
-`expectation_value` and `total_energy` accept either complete tight-binding
-matrix dictionaries or layout-aware `DensityResult` objects. Selected results
-must cover every coordinate used by the observable; otherwise the operation
-raises with the missing coordinates. For an SCF solution, use
-`solution.total_energy` directly. If a separate density must be evaluated for
-an energy, request complete energy keys and pass the result itself, for example
-`meanfi.total_energy(model, meanfi.density_matrix(..., keys=energy_keys))`.
+SCF results and history entries report `internal_energy`, `free_energy`, and
+`entropy` per unit cell. Entropy is in units of Boltzmann's constant, so
+`free_energy = internal_energy - model.kT * entropy`. This is Helmholtz free
+energy at fixed electron filling. The chemical-potential term is not subtracted.
+Compare converged solutions at the same filling and temperature using their
+free energies; SCF convergence alone does not establish a global minimum.
+
+```python
+solution = meanfi.solver(model, model.random_meanfield(rng=0, scale=0.1))
+print(solution.internal_energy, solution.entropy, solution.free_energy)
+```
+
+`expectation_value` and `internal_energy` accept complete tight-binding
+matrix dictionaries or `DensityResult` objects. Selected results must cover
+every coordinate used by the observable, or the operation raises with the
+missing coordinates. For a separate energy evaluation, request full blocks
+covering the bare Hamiltonian and interaction:
+
+```python
+energy_keys = sorted(set(model.h_0) | set(model.scf_space.density_keys))
+density = meanfi.density_matrix(
+    model, mean_field=solution.mean_field, keys=energy_keys
+)
+print(meanfi.internal_energy(model, density))
+print(meanfi.free_energy(model, density))
+```
+
+`free_energy` requires a `DensityResult`, because a dictionary of a few
+real-space density blocks does not contain the full state's entropy.
+`density.entropy` is computed during density evaluation and remains available
+when selecting fewer entries. Normal reference subtraction affects the
+interaction energy, not entropy. BdG entropy includes the factor of one half
+that removes Nambu doubling.
+
+`density.band_energy` is the expectation of the **input quadratic Hamiltonian**.
+It includes the BdG normal-ordering constant and excludes chemical potential.
+It is not the interacting internal energy: `internal_energy` accounts for the
+interaction's double counting. The SCF result computes both energies directly,
+including when its density contains only the entries required by the interaction.
 
 ## Tight-binding dictionary utilities
 

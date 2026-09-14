@@ -12,12 +12,12 @@ from meanfi.errors import (
 )
 
 from meanfi.density.integrate.defaults import select_default_integration
-from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
+from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.model import Model
 from meanfi.results import SCFResult
 from meanfi.scf.bdg import build_bdg_scf_problem
 from meanfi.scf.engine import SolverRuntime, run_scf_loop
-from meanfi.scf.methods import AndersonMixing, EnergyDIIS, SCFMethod
+from meanfi.scf.methods import EnergyDIIS, SCFMethod
 from meanfi.scf.normal import build_normal_scf_problem
 from meanfi.tb.ops import _tb_type
 
@@ -62,23 +62,9 @@ def solver(
         resolved_integration,
         tolerances,
     )
-    supports_energy_diis = (
-        not model.superconducting
-        and float(model.kT) == 0.0
-        and isinstance(resolved_integration, AdaptiveSimplex)
-    )
-    resolved_scf = (
-        scf
-        if scf is not None
-        else (EnergyDIIS() if supports_energy_diis else AndersonMixing())
-    )
+    resolved_scf = scf if scf is not None else EnergyDIIS()
     if not isinstance(resolved_scf, SCFMethod):
         raise TypeError("scf must be an SCFMethod instance")
-    if isinstance(resolved_scf, EnergyDIIS) and not supports_energy_diis:
-        raise ValueError(
-            "EnergyDIIS currently supports normal-state zero-temperature "
-            "AdaptiveSimplex calculations only"
-        )
 
     runtime = SolverRuntime(
         integration=resolved_integration,

@@ -17,15 +17,17 @@ At positive temperature, omit `nk` to start from a small deterministic grid:
 
 1. Find the chemical potential for the requested filling on the current grid,
    or use the supplied fixed chemical potential.
-2. Integrate charge and requested density entries.
+2. Integrate charge, requested density entries, band energy, and entropy.
 3. Compare with the previous grid at the **same chemical potential**.
-4. When both changes meet their targets, validate with a deterministic shifted
+4. When all changes meet their targets, validate with a deterministic shifted
    grid at the same resolution and chemical potential.
 5. Accept only if validation passes; otherwise double every axis and repeat.
 
 Validation offsets are deterministic and distinct by axis: `sqrt(p) % 1`
 for successive primes `p = 2, 3, 5, ...`. Shifted validation is mandatory:
 nested meshes alone can agree through aliasing.
+Band energy and entropy use the density-integration target. Their error estimates
+are available as `statistics.band_energy_error` and `statistics.entropy_error`.
 The estimates remain empirical. Exhausting `max_points` or `max_refinements`
 raises an actionable convergence error rather than returning an unconverged
 result. Zero-temperature periodic sampling requires an explicit `nk`.

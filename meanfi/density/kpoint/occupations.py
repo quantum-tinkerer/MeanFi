@@ -1,7 +1,7 @@
 """Fermi occupations at finite or zero temperature."""
 
 import numpy as np
-from scipy.special import expit
+from scipy.special import entr, expit
 
 
 def fermi_dirac(energies: np.ndarray, kT: float, mu: float) -> np.ndarray:
@@ -12,3 +12,8 @@ def fermi_dirac(energies: np.ndarray, kT: float, mu: float) -> np.ndarray:
     if kT == 0:
         return np.where(energies == mu, 0.5, energies < mu).astype(float)
     return expit((mu - energies) / kT)
+
+
+def occupation_entropy(occupation: np.ndarray) -> np.ndarray:
+    """Dimensionless entropy of each mode, including exactly empty/full modes."""
+    return entr(occupation) + entr(1.0 - occupation)

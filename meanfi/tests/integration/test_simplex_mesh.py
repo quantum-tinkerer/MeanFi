@@ -100,7 +100,6 @@ def test_prescribed_filling_reuses_native_spectra_and_preserves_band_energy():
         nk=100,
         max_points=129,
         max_subdivisions=0,
-        include_band_energy=True,
     )
     info = result.statistics
     rho = result.to_tb()

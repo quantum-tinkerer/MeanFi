@@ -54,6 +54,8 @@ class PeriodicGridInfo:
     charge_error: float | None = None
     error_estimate_available: bool = False
     spectrum_bytes: int = 0
+    band_energy_error: float | None = None
+    entropy_error: float | None = None
 
 
 def _readonly_vector(values, *, dtype, name: str) -> np.ndarray:
@@ -102,7 +104,13 @@ class DensityEntries:
 
 @dataclass(frozen=True)
 class DensityResult:
-    """Density entries with physical values, errors, and integration statistics."""
+    """Density entries and metadata of the complete evaluated state.
+
+    ``entropy`` is per cell in units of Boltzmann's constant. ``band_energy``
+    belongs to the input quadratic Hamiltonian (with BdG normal ordering),
+    before correcting for interaction double counting. Selection preserves
+    these scalars; unknown real-space entries are never filled to obtain them.
+    """
 
     entries: DensityEntries
     mu: float
@@ -110,6 +118,7 @@ class DensityResult:
     errors: ErrorValues
     statistics: AdaptiveSimplexInfo | PeriodicGridInfo | None = None
     band_energy: float | None = None
+    entropy: float = 0.0
 
     @property
     def coordinates(self) -> DensityCoordinates:
@@ -181,8 +190,10 @@ class SCFIteration:
     step: int
     mu: float
     filling: float
-    total_energy: float | None
+    internal_energy: float | None
+    free_energy: float | None
     errors: ErrorValues
+    entropy: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -191,10 +202,16 @@ class SCFResult:
 
     density: DensityResult
     mean_field: _tb_type
-    total_energy: float | None
+    internal_energy: float | None
+    free_energy: float | None
     errors: ErrorValues
     history: tuple[SCFIteration, ...]
     converged: bool
+
+    @property
+    def entropy(self) -> float:
+        """Entropy per cell, in units of Boltzmann's constant."""
+        return self.density.entropy
 
     @property
     def mu(self) -> float:

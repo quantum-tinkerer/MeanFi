@@ -22,6 +22,15 @@ model = mf.Model(h0, interaction, filling=0.8, kT=0.2)
 guess = model.random_meanfield(rng=12, scale=0.03)
 solution = mf.solver(model, guess, tol=1e-5)
 print("SCF:", solution.mu, solution.filling, solution.errors, len(solution.history))
+print(
+    "Internal energy / entropy / free energy:",
+    solution.internal_energy,
+    solution.entropy,
+    solution.free_energy,
+)
+np.testing.assert_allclose(
+    solution.free_energy, solution.internal_energy - model.kT * solution.entropy
+)
 
 # A Model supplies filling, temperature, normal/BdG structure and needed entries.
 selected = mf.density_matrix(model, mean_field=solution.mean_field, tol=1e-6)
@@ -45,7 +54,13 @@ correction = mf.meanfield(selected, interaction)
 h_from_density = model.hamiltonian_from_density(selected)
 np.testing.assert_allclose(h_from_density[(0,)], mf.add_tb(h0, correction)[(0,)])
 print("Orbital polarization:", mf.expectation_value(full, {(0,): np.diag([1, -1])}))
-print("Total energy:", mf.total_energy(model, full))
+print("Internal energy:", mf.internal_energy(model, full))
+print("Free energy:", mf.free_energy(model, full))
+assert subset.entropy == full.entropy  # Selecting entries keeps full-state metadata.
+np.testing.assert_allclose(
+    mf.free_energy(model, full),
+    mf.internal_energy(model, full) - model.kT * full.entropy,
+)
 
 # Reference subtraction uses the complete Hartree/Fock correction of rho-rho_ref.
 reference = mf.density_matrix(model, tol=1e-6)
@@ -58,11 +73,12 @@ reference_solution = mf.solver(
 )
 assert reference_solution.converged
 
-# EDIIS is the default for normal zero-temperature simplex calculations.
+# EDIIS is the default for normal and BdG solves, including finite temperature.
+# It uses a free-energy history bound, then bounded Anderson for final convergence.
 cold = replace(model, kT=0.0)
 cold_solution = mf.solver(cold, cold.random_meanfield(rng=12, scale=0.03), tol=1e-4)
-assert cold_solution.total_energy is not None
-print("Zero-temperature energy:", cold_solution.total_energy)
+np.testing.assert_allclose(cold_solution.free_energy, cold_solution.internal_energy)
+print("Zero-temperature energy:", cold_solution.internal_energy)
 
 # Integration nk is a TOTAL point request. Explicit nk fixes the mesh;
 # omitting it refines to the requested accuracy at positive temperature.
@@ -74,8 +90,8 @@ assert fixed.entry_errors is None
 assert controlled.entry_errors is not None
 print("Fixed grid:", fixed.statistics.grid_shape)
 
-# SCF settings are keyword-only. Other choices: EnergyDIIS(history_size=6),
-# AndersonMixing(alpha=.5, history_size=5), LinearMixing(alpha=.5).
+# SCF settings are keyword-only: EnergyDIIS(history_size=6, max_iterations=100).
+# Alternatives include AndersonMixing(alpha=.5) and LinearMixing(alpha=.5).
 try:
     mf.solver(
         model,
@@ -128,7 +144,6 @@ bdg = mf.solver(
     pwave,
     pair_guess,
     integration=mf.PeriodicGrid(nk=256),
-    scf=mf.LinearMixing(alpha=0.6, max_iterations=200),
     tol=1e-5,
 )
 bdg_density = mf.density_matrix(
@@ -143,6 +158,11 @@ quasiparticles = np.linalg.eigvalsh(
     mf.tb_to_kfunc(bdg_h)(np.array([0.3])) - bdg.mu * np.diag([1.0, -1.0])
 )
 print("BdG:", bdg_density.filling, quasiparticles)
+print("BdG internal / free energy:", bdg.internal_energy, bdg.free_energy)
+np.testing.assert_allclose(
+    mf.free_energy(pwave, bdg_density),
+    mf.internal_energy(pwave, bdg_density) - pwave.kT * bdg_density.entropy,
+)
 
 # Fourier helpers use explicit points PER AXIS and FFT ordering.
 grid = mf.tb_to_kgrid(h0, (16,))
@@ -160,12 +180,22 @@ if args.sparse:
         filling=0.8,
         kT=0.2,
     )
-    sparse_density = mf.density_matrix(
+    sparse_grid = mf.PeriodicGrid(nk=64, matrix_function=mf.RationalFOE())
+    sparse_density = mf.density_matrix(sparse_model, integration=sparse_grid, tol=1e-5)
+    print(
+        "Sparse AAA:", sparse_density.mu, sparse_density.filling, sparse_density.entropy
+    )
+    sparse_solution = mf.solver(
         sparse_model,
-        integration=mf.PeriodicGrid(nk=64, matrix_function=mf.RationalFOE()),
+        sparse_model.random_meanfield(rng=12, scale=0.03),
+        integration=sparse_grid,
         tol=1e-5,
     )
-    print("Sparse AAA:", sparse_density.mu, sparse_density.filling)
+    print(
+        "Sparse internal / free energy:",
+        sparse_solution.internal_energy,
+        sparse_solution.free_energy,
+    )
 
 if args.kwant:
     import kwant

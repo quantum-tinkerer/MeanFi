@@ -99,7 +99,7 @@ y \in \mathbb{R}^p.
 :::
 
 The vector `y` is the solver variable.
-It is the object passed to linear mixing or Anderson mixing.
+It is the state passed to the SCF optimizer.
 
 This is a linear SCF-variable space, not the full physical density-matrix manifold.
 It does not enforce positivity, trace constraints beyond the fixed-filling density solve, or density-matrix representability.

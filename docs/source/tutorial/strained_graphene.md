@@ -123,7 +123,6 @@ result = meanfi.solver(
     mf_model,
     guess,
     integration=integration,
-    scf=meanfi.AndersonMixing(history_size=10, line_search="armijo", max_iterations=40),
     scf_tol=scf_tol,
     filling_tol=charge_tol,
 )
@@ -132,6 +131,11 @@ mf_sol = {
     for key, value in result.mean_field.items()
 }
 ```
+
+The sparse solver uses the same default `EnergyDIIS` workflow as the dense
+examples. Rational evaluation obtains entropy from the same poles and sparse
+factorizations as density. `result.internal_energy`, `result.entropy`, and
+`result.free_energy` are available without requesting a full density matrix.
 
 We now verify that the mean-field solution results in a gapped phase.
 

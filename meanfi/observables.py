@@ -2,14 +2,14 @@ import numpy as np
 
 from meanfi.meanfield import (
     bdg_correction_from_density,
-    extract_anomalous_density,
     extract_electron_density,
     meanfield,
 )
 from meanfi.model import Model
 from meanfi.results import DensityResult
 from meanfi.space.coordinates import opposite_key
-from meanfi.tb.ops import _tb_type, elementwise_product, is_sparse_like
+from meanfi.tb.ops import _tb_type, block_diag, elementwise_product, is_sparse_like
+from scipy import sparse
 
 
 def expectation_value(
@@ -91,71 +91,68 @@ def expectation_value(
     return complex(total)
 
 
-def _validate_total_energy_density(
-    model: Model,
-    density_matrix: _tb_type | DensityResult,
-) -> None:
-    if isinstance(density_matrix, DensityResult):
-        density_matrix.values_for(model.scf_space.required_coordinates)
-        return
-    required = set(model.h_0) | set(model.scf_space.interaction_keys)
-    missing = sorted(required - set(density_matrix))
-    if missing:
-        raise ValueError(
-            f"density_matrix is missing keys required for total energy: {missing}"
-        )
+def _bdg_correction_expectation(
+    density: _tb_type, correction: _tb_type, ndof: int
+) -> float:
+    """Contract the electron and pairing blocks without Nambu double counting."""
+    electron = {key: block[:ndof, :ndof] for key, block in density.items()}
+    normal = {key: block[:ndof, :ndof] for key, block in correction.items()}
+    energy = expectation_value(electron, normal)
+    # Pairing uses the same-key Frobenius product, including complex phases.
+    for key, block in correction.items():
+        energy += elementwise_product(
+            density[key][:ndof, ndof:].conj(), block[:ndof, ndof:]
+        ).sum()
+    return float(np.real(energy))
 
 
-def total_energy(model: Model, density_matrix: _tb_type | DensityResult) -> float:
-    """Compute the total mean-field internal energy density.
+def internal_energy(model: Model, density_matrix: _tb_type | DensityResult) -> float:
+    """Compute mean-field internal energy per unit cell.
 
-    This evaluates the mean-field energy per unit cell using the same Hartree,
-    Fock, and pairing conventions as the solver. The interaction correction is
-    counted with a factor of ``1/2`` to avoid double-counting the state that
-    generated the mean-field Hamiltonian.
-
-    The provided density matrix is expected to contain all keys required by
-    ``model.h_0`` and ``model.h_int``. For fixed-filling finite-temperature
-    calculations, this is an internal energy, not a free energy with entropy.
-
-    Parameters
-    ----------
-    model :
-        MeanFi model defining the non-interacting Hamiltonian and interaction.
-    density_matrix :
-        Layout-aware density result or complete density-matrix tight-binding
-        dictionary for the state whose energy is evaluated. It must cover all
-        coordinates used by the one-body and interaction terms.
-
-    Returns
-    -------
-    :
-        Real scalar total mean-field energy density.
+    The density must cover the one-body Hamiltonian and interaction. Selected
+    results may use the model's reduced interaction coordinates. Interaction
+    energy carries a factor of one half; normal reference subtraction affects
+    that term only. BdG pairing is contracted with the conjugate anomalous
+    density, preserving its global phase symmetry.
     """
-
+    if not isinstance(density_matrix, DensityResult):
+        required = set(model.h_0) | set(model.scf_space.interaction_keys)
+        missing = sorted(required - set(density_matrix))
+        if missing:
+            raise ValueError(
+                "density_matrix is missing keys required for internal energy: "
+                f"{missing}"
+            )
+    active = model._active_density_from_state(
+        model._reference_difference(model._density_state(density_matrix))
+    )
     if not model.superconducting:
-        _validate_total_energy_density(model, density_matrix)
-        density_difference = model._active_density_from_state(
-            model._reference_difference(model._density_state(density_matrix))
-        )
-        correction = meanfield(density_difference, model.h_int)
+        correction = meanfield(active, model.h_int)
         energy = expectation_value(density_matrix, model.h_0)
-        energy += 0.5 * expectation_value(density_difference, correction)
+        energy += 0.5 * expectation_value(active, correction)
         return float(np.real(energy))
 
     if isinstance(density_matrix, DensityResult):
-        density_matrix = density_matrix.to_tb()
-    electron_density = extract_electron_density(density_matrix, model)
-    anomalous_density = extract_anomalous_density(density_matrix, model)
-    correction = bdg_correction_from_density(density_matrix, model)
-    normal_correction = {
-        key: matrix[: model._ndof, : model._ndof] for key, matrix in correction.items()
-    }
-    pairing_correction = {
-        key: matrix[: model._ndof, model._ndof :] for key, matrix in correction.items()
-    }
-
-    energy = expectation_value(electron_density, model.h_0)
-    energy += 0.5 * expectation_value(electron_density, normal_correction)
-    energy += 0.5 * expectation_value(anomalous_density, pairing_correction)
+        # Embed the observable sparsely, leaving unrequested Nambu entries alone.
+        zero = sparse.csr_matrix((model._ndof, model._ndof), dtype=complex)
+        observable = {key: block_diag(block, zero) for key, block in model.h_0.items()}
+        energy = expectation_value(density_matrix, observable)
+    else:
+        energy = expectation_value(
+            extract_electron_density(density_matrix, model), model.h_0
+        )
+    correction = bdg_correction_from_density(active, model)
+    energy += 0.5 * _bdg_correction_expectation(active, correction, model._ndof)
     return float(np.real(energy))
+
+
+def free_energy(model: Model, density: DensityResult) -> float:
+    """Compute Helmholtz free energy per unit cell as ``U - kT * entropy``.
+
+    Entropy is measured in units of Boltzmann's constant and belongs to the
+    complete state evaluated by the density solver, including selected results.
+    A bare tight-binding dictionary does not retain that entropy.
+    """
+    if not isinstance(density, DensityResult):
+        raise TypeError("free_energy requires a DensityResult with computed entropy")
+    return internal_energy(model, density) - model.kT * density.entropy

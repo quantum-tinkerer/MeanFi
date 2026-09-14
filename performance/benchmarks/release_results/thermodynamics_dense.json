@@ -1,0 +1,707 @@
+{
+  "study": "Dense density integration before and after thermodynamic observables",
+  "recorded_at_utc": "2026-09-14T14:38:23.998763+00:00",
+  "driver": "performance/benchmarks/release_regression.py",
+  "driver_sha256": "203bf7fb6438309dfae6b8b273246b3dcc2092415d5dc9b38402c02429681c88",
+  "protocol": {
+    "cpu_affinity": [
+      3
+    ],
+    "blas_threads": 1,
+    "openmp_threads": 1,
+    "mkl_threads": 1,
+    "warmups_per_case": 1,
+    "timed_repeats_per_case": 7,
+    "statistic": "median",
+    "execution_order": [
+      "baseline",
+      "current"
+    ],
+    "separate_python_processes": true,
+    "references": true
+  },
+  "snapshots": {
+    "baseline_commit": "3443495c60c7a0d1bd07423895a41f8edd846dda",
+    "baseline_checkout": "/tmp/meanfi-thermodynamics-dense-baseline",
+    "current_checkout": "/tmp/meanfi-thermodynamics-dense-current",
+    "source_checkout": "/home/tinkerer/.codex/worktrees/fe65/meanfi",
+    "current_runtime_sha256": "423141139f2293b7d6f90c2ed8687c35b1231ec74a26fb81b2f526630c2f6420",
+    "files": {
+      "meanfi/__init__.py": "49936dd450d378c87aab14f45786bf350758a6cacbd7d06122b122ddf635ae44",
+      "meanfi/_version.py": "ecd6269b21d81c4218b0b00942fb5d3ee4f60905731153250654d9a4cbf5668b",
+      "meanfi/density/__init__.py": "0b04a5148b4c8245b2ae9d6a775804ae8a6813eb67265e7986f8778b8e525b20",
+      "meanfi/density/api.py": "fed239162fca6020cd9729a2dce195528df96a60b127c2d24303918034ea5319",
+      "meanfi/density/density.py": "96e31a6ff9a31c183143b028b770975c6bdc49b0cf36734ef409591b4ccf2037",
+      "meanfi/density/filling.py": "48cd3d4e0d6e807fc679610f0e301eb03bd43e1ca8a111d923ed758942d08661",
+      "meanfi/density/integrate/__init__.py": "fed710e7905448e7df7eadd9cfd003c08e74f6de6be984b7a011c9808d00e50b",
+      "meanfi/density/integrate/common.py": "22d977d094ecf951a7882e0a845860c621c0717e9798320a93498a3839100313",
+      "meanfi/density/integrate/defaults.py": "d4c11c3f8f72b7e3cc8fd64209af2fb8c404883ec682a449ddd5b9db6ba21e3c",
+      "meanfi/density/integrate/methods.py": "4772e785e93791d04084c99e7193511ea21198754f18d700e0cd1b56188be9c8",
+      "meanfi/density/integrate/normal.py": "21bd641f501da2c911b402a024f5478225b056b4d38dede98ea7114be9a23656",
+      "meanfi/density/integrate/periodic.py": "baacf270e5684f2065c38fd9d005cec53c9ba6b657e4ee4731183f0bbe8508ae",
+      "meanfi/density/integrate/simplex/__init__.py": "23e1c35fc1e6e52e345976f45f0ca04991f76251e9b77d123f933534481d3529",
+      "meanfi/density/kpoint/__init__.py": "04bee67310217a1653834043be673597c3a79d275ca4b39f4041b183cd1d5547",
+      "meanfi/density/kpoint/matrix_functions/__init__.py": "f1204aab4f6bd430f28e72bbc407789c4cc48a9c2b9408cbb195b40556e9405b",
+      "meanfi/density/kpoint/matrix_functions/base.py": "844b2928695a5519a6016380c216e63c6597c8c443455beb190759e78328d292",
+      "meanfi/density/kpoint/matrix_functions/common.py": "32859c54de7480bf02b1869040ab1436f73c59dbb332c0307fe9142afcd1f96a",
+      "meanfi/density/kpoint/matrix_functions/direct.py": "eb644ac8d8f5cb4016518a048f13f54389029da5e3b4936b007fc9cb2e6916b6",
+      "meanfi/density/kpoint/matrix_functions/mumps_backend.py": "8347aac23f448c5394aac44ebd6d1527003e7564c9018d5588966f5693f3d99e",
+      "meanfi/density/kpoint/matrix_functions/rational/__init__.py": "3bb8254460ff8d75cb24dde6fdfde2c6d462b67ab7b68c69e60650d0c76e3da5",
+      "meanfi/density/kpoint/matrix_functions/rational/common.py": "a874881e81118201fb611abbe9a6081678cb0a1a24936ce07bb0f1db8e6cf482",
+      "meanfi/density/kpoint/matrix_functions/rational/prepared_sparse.py": "9711511d19f409cfecab61ba0d81ec9291937c7a3dfcb814b1dae34fc071a4c8",
+      "meanfi/density/kpoint/matrix_functions/rational/scheme.py": "74aff51c5f0f625d3b3837b4ab215abbd27b05efa4094dcb6dce14e0e018b715",
+      "meanfi/density/kpoint/occupations.py": "f27b29368518345276a1092118b224374f33806a25166305c10baada6ad811d9",
+      "meanfi/density/kpoint/zero_dim.py": "59501ed95da96627ed069131baf40d4b720bedb8c6438b3f282ae1b1d8a9bab4",
+      "meanfi/density/problem.py": "b056411adb7a663a6762179799a64d5fdb6d5c1c07a958fd4294509873d20edd",
+      "meanfi/errors.py": "c012c0257a4b43fa8bd7fcacdb1125791928eca43d309f8a13e8f57baa76f762",
+      "meanfi/interop/__init__.py": "2e4a0721cc2f1b71d38f2fa61f24216514344ec302cab769ac39152c8244d239",
+      "meanfi/interop/kwant.py": "8fb33585d1a3be87f156545fcd80b775b51c102a21d33dce933404e569da46df",
+      "meanfi/meanfield.py": "9de27c0158b90d6f32d5f25f9967f4a7a21101fa8f5d6e8e63cfd23d08d58526",
+      "meanfi/model.py": "ce123ffaf18baaa5190897dd6270b7fb153942e9429d3e9b81e75486bd3b1980",
+      "meanfi/observables.py": "2838c6f64a6a9842f25cc690c149080def171341e98194971e6060120329b7d5",
+      "meanfi/results.py": "b6c8f4702d9c73f01848370b9e72b4c2116c21d177bc64b08760f74b7e3b2d4b",
+      "meanfi/scf/__init__.py": "debf7f63ff59de8faee4f91e3955dcad4189f4e4ea292c51038aafa12dc5186c",
+      "meanfi/scf/bdg.py": "240e1f9143e8c8435e6ab84886e3f52ed051234b2dce9ab7597ac414c790a15e",
+      "meanfi/scf/ediis.py": "b1b2523cc70aa48d0ebca243f4425bb925e38187f9345e87df67d71e346dc98d",
+      "meanfi/scf/engine.py": "46e2526114cbd1d86d7b7f60c27dcef88b4345181bd69ccc5b0cf0b285f01de5",
+      "meanfi/scf/fixed_point.py": "80dfa18fd75a6914c6c0cee505cf9ef19d0f3a69df2c784929e121d6649bafde",
+      "meanfi/scf/info.py": "522c7e7b758f745f763c73bd72513e16a58224e650a0eb2928793ca875c46ea7",
+      "meanfi/scf/methods.py": "b53a97d4bb34862968b00685952365ed498189bc547beb175c497581bcc10132",
+      "meanfi/scf/normal.py": "3f35297abf40425bed4eed7c0204dcac664231db6f76853675375084814b7d67",
+      "meanfi/scf/scf.py": "fc63cec253a78be7794596aeff9c172943c033dd268884fa0e923a84952f388d",
+      "meanfi/space/__init__.py": "c9d3d2d8ed70295b461c536f25efa117eaab36ee6743ef2ee152c750111c3150",
+      "meanfi/space/coordinates.py": "4f613d34733629689005b677c9d9821c9e39896cb58f0f8b6a89255f0024a794",
+      "meanfi/space/reducers.py": "c82224ef3a4565ea8827e8cf406b0258438b452633257fa0f642853d69327de9",
+      "meanfi/space/selection.py": "82b71d4dea542b6b52eb3ede5482af0d2b58e43543c122a9f299c4145ca14238",
+      "meanfi/space/space.py": "1321d2f01f07658ae3d589e2b6e0500314262864ecc0744ce7c96c94d93865ab",
+      "meanfi/space/state.py": "7d34daa527b67b30c1e6461712f51ba208dfc86138ee275564366642532ae6c9",
+      "meanfi/space/support.py": "ea937be08b7605875ac0d82ad308b38e91d98e378221c47ac8b93acd1c0a1cfa",
+      "meanfi/space/symmetry.py": "8ec58965ad53ba3e497550801f43badfbe3854dc7b1c97670a2441e3eef2ed44",
+      "meanfi/tb/__init__.py": "5f45aa94f7fa4cab3b185a7778b69eb873a4a0fcd1009d2b0821f3ccd0caa627",
+      "meanfi/tb/bdg.py": "15326b1c952947a2f4fac13613838010b0f62abfe4f39789ed25838e9ee830e2",
+      "meanfi/tb/ops.py": "0e3b04cdb67e7c2036430299dccfbc33cbe2d211f8292bc693835a031ba89c47",
+      "meanfi/tb/storage.py": "bced4b6d31a51ccc9f470e73ee3f6322cb9006c56c49d157cfa9e87f9d972f8f",
+      "meanfi/tb/transforms.py": "c8c9c519a71dfabed26c71e37bd23bd427d50c45437c6ad56ef50a2e7d79aa6d",
+      "meanfi/tb/utils.py": "a82ec1a820ad71ce3fd3751e58c1672896ca86c103abb465164e0129845291f9",
+      "meanfi/tb/validate.py": "05b1ebcc00eca0a6d21f1270071e3c1eb4277077fcdb5f6e9b7ab03fc24c9a11"
+    }
+  },
+  "verified_imports": {
+    "baseline": "/tmp/meanfi-thermodynamics-dense-baseline/meanfi/__init__.py",
+    "current": "/tmp/meanfi-thermodynamics-dense-current/meanfi/__init__.py"
+  },
+  "scope": "Adaptive dense density evaluations, including fixed filling; not SCF optimizer timings.",
+  "findings": [
+    "All five independent shifted-grid density and charge references passed in both versions.",
+    "All five final meshes and kernel/diagonalization/refinement/validation counts are unchanged.",
+    "Current/baseline median ratios span 0.93 to 1.06; no order-of-magnitude regression.",
+    "Current evaluations additionally return band energy and entropy and validate their grid errors.",
+    "Energy and entropy can require additional refinement on other models; these five cases did not.",
+    "Short millisecond-scale measurements include timing noise; the gapped-case decrease is not evidence of an algorithmic speedup."
+  ],
+  "comparisons": [
+    {
+      "case": "square_metal",
+      "baseline_seconds": 0.04970235889777541,
+      "current_seconds": 0.05040721129626036,
+      "current_over_baseline": 1.014181467723386,
+      "percent_change": 1.418146772338602,
+      "mesh_and_work_unchanged": true,
+      "density_error": 1.3895051775847381e-11,
+      "charge_error": 3.487710833915969e-06
+    },
+    {
+      "case": "gapped",
+      "baseline_seconds": 0.007363168988376856,
+      "current_seconds": 0.006850218866020441,
+      "current_over_baseline": 0.9303356851966683,
+      "percent_change": -6.966431480333169,
+      "mesh_and_work_unchanged": true,
+      "density_error": 9.137135492666586e-14,
+      "charge_error": 0.0
+    },
+    {
+      "case": "cold_bdg",
+      "baseline_seconds": 0.008341335691511631,
+      "current_seconds": 0.008464051876217127,
+      "current_over_baseline": 1.0147118146594165,
+      "percent_change": 1.4711814659416511,
+      "mesh_and_work_unchanged": true,
+      "density_error": 1.7258416917798058e-13,
+      "charge_error": 6.979030495735117e-07
+    },
+    {
+      "case": "wire",
+      "baseline_seconds": 0.03402664326131344,
+      "current_seconds": 0.034228304866701365,
+      "current_over_baseline": 1.005926579470071,
+      "percent_change": 0.5926579470070914,
+      "mesh_and_work_unchanged": true,
+      "density_error": 9.31456925479246e-11,
+      "charge_error": 1.9920073921042558e-05
+    },
+    {
+      "case": "bounded_3d",
+      "baseline_seconds": 0.8194233370013535,
+      "current_seconds": 0.8646844327449799,
+      "current_over_baseline": 1.0552353023154766,
+      "percent_change": 5.5235302315476575,
+      "mesh_and_work_unchanged": true,
+      "density_error": 6.498745985794585e-12,
+      "charge_error": 4.345938933170146e-07
+    }
+  ],
+  "baseline": {
+    "checkout": "/tmp/meanfi-thermodynamics-dense-baseline",
+    "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+    "numpy": "2.4.6",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libopenblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libopenblasp-r0.3.33.so",
+        "version": "0.3.33",
+        "threading_layer": "openmp",
+        "architecture": "SapphireRapids"
+      },
+      {
+        "user_api": "openmp",
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libomp",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libomp.so",
+        "version": null
+      },
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "SkylakeX"
+      }
+    ],
+    "results": [
+      {
+        "case": "square_metal",
+        "temperature": 0.2,
+        "matrix_size": 16,
+        "seconds": 0.04970235889777541,
+        "timings": [
+          0.05003609089180827,
+          0.04970235889777541,
+          0.04996493924409151,
+          0.049948292318731546,
+          0.03498893231153488,
+          0.028727814089506865,
+          0.027408533729612827
+        ],
+        "mu": -0.31588339374655733,
+        "filling": 6.879996512245215,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            16,
+            16
+          ],
+          "n_kernel_evals": 848,
+          "unique_evals": 512,
+          "n_evaluator_evals": 1696,
+          "n_diagonalizations": 848,
+          "refinements": 2,
+          "validation_evaluations": 256,
+          "charge_evaluations": 12,
+          "charge_integration_calls": 12,
+          "density_integration_calls": 4,
+          "charge_error": 3.5185161593176417e-06,
+          "error_estimate_available": true,
+          "spectrum_bytes": 40960
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 6.204844507640139e-07,
+          "filling_residual": 3.4877547845368895e-06,
+          "charge_integration": 3.5185161593176417e-06
+        },
+        "density_error": 1.3895051775847381e-11,
+        "charge_error": 3.487710833915969e-06,
+        "reference_density_change": 2.220447236023595e-16,
+        "reference_charge_change": 1.7763568394002505e-15
+      },
+      {
+        "case": "gapped",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.007363168988376856,
+        "timings": [
+          0.006642324849963188,
+          0.008876957930624485,
+          0.008898850064724684,
+          0.008525392040610313,
+          0.007363168988376856,
+          0.007326913997530937,
+          0.006733376998454332
+        ],
+        "mu": 0.0,
+        "filling": 8.0,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 64,
+          "grid_shape": [
+            8,
+            8
+          ],
+          "n_kernel_evals": 208,
+          "unique_evals": 128,
+          "n_evaluator_evals": 384,
+          "n_diagonalizations": 208,
+          "refinements": 1,
+          "validation_evaluations": 64,
+          "charge_evaluations": 6,
+          "charge_integration_calls": 6,
+          "density_integration_calls": 3,
+          "charge_error": 0.0,
+          "error_estimate_available": true,
+          "spectrum_bytes": 10240
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 3.448784155479778e-08,
+          "filling_residual": 0.0,
+          "charge_integration": 0.0
+        },
+        "density_error": 9.137135492666586e-14,
+        "charge_error": 0.0,
+        "reference_density_change": 2.220447651160692e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "cold_bdg",
+        "temperature": 0.01,
+        "matrix_size": 16,
+        "seconds": 0.008341335691511631,
+        "timings": [
+          0.008389438036829233,
+          0.008296171203255653,
+          0.008240507915616035,
+          0.008260751143097878,
+          0.008513815701007843,
+          0.009344533085823059,
+          0.008341335691511631
+        ],
+        "mu": -0.4503679791155525,
+        "filling": 3.4400006979044293,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 16,
+          "grid_shape": [
+            16
+          ],
+          "n_kernel_evals": 160,
+          "unique_evals": 32,
+          "n_evaluator_evals": 160,
+          "n_diagonalizations": 160,
+          "refinements": 2,
+          "validation_evaluations": 16,
+          "charge_evaluations": 15,
+          "charge_integration_calls": 15,
+          "density_integration_calls": 4,
+          "charge_error": 6.743272318310289e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 0
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 8.429090403438977e-08,
+          "filling_residual": 6.979044293586867e-07,
+          "charge_integration": 6.743272318310289e-07
+        },
+        "density_error": 1.7258416917798058e-13,
+        "charge_error": 6.979030495735117e-07,
+        "reference_density_change": 1.1131449777526375e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "wire",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.03402664326131344,
+        "timings": [
+          0.03402664326131344,
+          0.033935435116291046,
+          0.03386049810796976,
+          0.03379759890958667,
+          0.0358340791426599,
+          0.03631903789937496,
+          0.03578019607812166
+        ],
+        "mu": -0.4129061986768721,
+        "filling": 6.87998008012915,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            256
+          ],
+          "n_kernel_evals": 1020,
+          "unique_evals": 512,
+          "n_evaluator_evals": 2600,
+          "n_diagonalizations": 1020,
+          "refinements": 6,
+          "validation_evaluations": 256,
+          "charge_evaluations": 35,
+          "charge_integration_calls": 35,
+          "density_integration_calls": 8,
+          "charge_error": 1.991574202886426e-05,
+          "error_estimate_available": true,
+          "spectrum_bytes": 49152
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 2.20046806842511e-06,
+          "filling_residual": 1.9919870849705035e-05,
+          "charge_integration": 1.991574202886426e-05
+        },
+        "density_error": 9.31456925479246e-11,
+        "charge_error": 1.9920073921042558e-05,
+        "reference_density_change": 1.672776946659816e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "bounded_3d",
+        "temperature": 0.2,
+        "matrix_size": 8,
+        "seconds": 0.8194233370013535,
+        "timings": [
+          0.8201595968566835,
+          0.8077323837205768,
+          0.8257109220139682,
+          0.8194233370013535,
+          0.8059787610545754,
+          0.8174389596097171,
+          0.860175047069788
+        ],
+        "mu": -0.37512298442232156,
+        "filling": 3.43999956542036,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 32768,
+          "grid_shape": [
+            32,
+            32,
+            32
+          ],
+          "n_kernel_evals": 102976,
+          "unique_evals": 65536,
+          "n_evaluator_evals": 187264,
+          "n_diagonalizations": 102976,
+          "refinements": 3,
+          "validation_evaluations": 32768,
+          "charge_evaluations": 16,
+          "charge_integration_calls": 16,
+          "density_integration_calls": 5,
+          "charge_error": 4.346339572691704e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 2359296
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 1.975688131983233e-07,
+          "filling_residual": 4.3457963982973524e-07,
+          "charge_integration": 4.346339572691704e-07
+        },
+        "density_error": 6.498745985794585e-12,
+        "charge_error": 4.345938933170146e-07,
+        "reference_density_change": 1.3267165144820785e-14,
+        "reference_charge_change": 4.440892098500626e-16
+      }
+    ]
+  },
+  "current": {
+    "checkout": "/tmp/meanfi-thermodynamics-dense-current",
+    "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+    "numpy": "2.4.6",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libopenblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libopenblasp-r0.3.33.so",
+        "version": "0.3.33",
+        "threading_layer": "openmp",
+        "architecture": "SapphireRapids"
+      },
+      {
+        "user_api": "openmp",
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libomp",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libomp.so",
+        "version": null
+      },
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "SkylakeX"
+      }
+    ],
+    "results": [
+      {
+        "case": "square_metal",
+        "temperature": 0.2,
+        "matrix_size": 16,
+        "seconds": 0.05040721129626036,
+        "timings": [
+          0.05056901602074504,
+          0.05035264091566205,
+          0.05031732888892293,
+          0.05040721129626036,
+          0.05202652886509895,
+          0.05057296669110656,
+          0.05023883981630206
+        ],
+        "mu": -0.31588339374655733,
+        "filling": 6.879996512245215,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            16,
+            16
+          ],
+          "n_kernel_evals": 848,
+          "unique_evals": 512,
+          "n_evaluator_evals": 1696,
+          "n_diagonalizations": 848,
+          "refinements": 2,
+          "validation_evaluations": 256,
+          "charge_evaluations": 12,
+          "charge_integration_calls": 12,
+          "density_integration_calls": 4,
+          "charge_error": 3.5185161593176417e-06,
+          "error_estimate_available": true,
+          "spectrum_bytes": 40960,
+          "band_energy_error": 2.064174928761986e-07,
+          "entropy_error": 3.927015795213151e-06
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 6.204844507640139e-07,
+          "filling_residual": 3.4877547845368895e-06,
+          "charge_integration": 3.5185161593176417e-06
+        },
+        "density_error": 1.3895051775847381e-11,
+        "charge_error": 3.487710833915969e-06,
+        "reference_density_change": 2.220447236023595e-16,
+        "reference_charge_change": 1.7763568394002505e-15
+      },
+      {
+        "case": "gapped",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.006850218866020441,
+        "timings": [
+          0.00742544187232852,
+          0.006752933841198683,
+          0.0068521881476044655,
+          0.006955751217901707,
+          0.006775504909455776,
+          0.006701544858515263,
+          0.006850218866020441
+        ],
+        "mu": 0.0,
+        "filling": 8.0,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 64,
+          "grid_shape": [
+            8,
+            8
+          ],
+          "n_kernel_evals": 208,
+          "unique_evals": 128,
+          "n_evaluator_evals": 384,
+          "n_diagonalizations": 208,
+          "refinements": 1,
+          "validation_evaluations": 64,
+          "charge_evaluations": 6,
+          "charge_integration_calls": 6,
+          "density_integration_calls": 3,
+          "charge_error": 0.0,
+          "error_estimate_available": true,
+          "spectrum_bytes": 10240,
+          "band_energy_error": 3.1037458825267095e-08,
+          "entropy_error": 9.564487205362686e-14
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 3.448784155479778e-08,
+          "filling_residual": 0.0,
+          "charge_integration": 0.0
+        },
+        "density_error": 9.137135492666586e-14,
+        "charge_error": 0.0,
+        "reference_density_change": 2.220447651160692e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "cold_bdg",
+        "temperature": 0.01,
+        "matrix_size": 16,
+        "seconds": 0.008464051876217127,
+        "timings": [
+          0.008450842928141356,
+          0.008357537910342216,
+          0.008503668941557407,
+          0.008402714971452951,
+          0.009472122881561518,
+          0.010996694210916758,
+          0.008464051876217127
+        ],
+        "mu": -0.4503679791155525,
+        "filling": 3.4400006979044293,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 16,
+          "grid_shape": [
+            16
+          ],
+          "n_kernel_evals": 160,
+          "unique_evals": 32,
+          "n_evaluator_evals": 160,
+          "n_diagonalizations": 160,
+          "refinements": 2,
+          "validation_evaluations": 16,
+          "charge_evaluations": 15,
+          "charge_integration_calls": 15,
+          "density_integration_calls": 4,
+          "charge_error": 6.743272318310289e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 0,
+          "band_energy_error": 2.874317184264896e-07,
+          "entropy_error": 8.933937504480111e-18
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 8.429090403438977e-08,
+          "filling_residual": 6.979044293586867e-07,
+          "charge_integration": 6.743272318310289e-07
+        },
+        "density_error": 1.7258416917798058e-13,
+        "charge_error": 6.979030495735117e-07,
+        "reference_density_change": 1.1131449777526375e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "wire",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.034228304866701365,
+        "timings": [
+          0.03413304686546326,
+          0.03439212869852781,
+          0.03422733303159475,
+          0.035763203632086515,
+          0.034228304866701365,
+          0.03622135519981384,
+          0.034167506732046604
+        ],
+        "mu": -0.4129061986768721,
+        "filling": 6.87998008012915,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            256
+          ],
+          "n_kernel_evals": 1020,
+          "unique_evals": 512,
+          "n_evaluator_evals": 2600,
+          "n_diagonalizations": 1020,
+          "refinements": 6,
+          "validation_evaluations": 256,
+          "charge_evaluations": 35,
+          "charge_integration_calls": 35,
+          "density_integration_calls": 8,
+          "charge_error": 1.991574202886426e-05,
+          "error_estimate_available": true,
+          "spectrum_bytes": 49152,
+          "band_energy_error": 6.865231739539013e-06,
+          "entropy_error": 2.446669466982243e-05
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 2.20046806842511e-06,
+          "filling_residual": 1.9919870849705035e-05,
+          "charge_integration": 1.991574202886426e-05
+        },
+        "density_error": 9.31456925479246e-11,
+        "charge_error": 1.9920073921042558e-05,
+        "reference_density_change": 1.672776946659816e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "bounded_3d",
+        "temperature": 0.2,
+        "matrix_size": 8,
+        "seconds": 0.8646844327449799,
+        "timings": [
+          0.8646844327449799,
+          0.8673956850543618,
+          0.8415433499030769,
+          0.8702312367968261,
+          0.868005720898509,
+          0.8557795379310846,
+          0.8385159126482904
+        ],
+        "mu": -0.37512298442232156,
+        "filling": 3.43999956542036,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 32768,
+          "grid_shape": [
+            32,
+            32,
+            32
+          ],
+          "n_kernel_evals": 102976,
+          "unique_evals": 65536,
+          "n_evaluator_evals": 187264,
+          "n_diagonalizations": 102976,
+          "refinements": 3,
+          "validation_evaluations": 32768,
+          "charge_evaluations": 16,
+          "charge_integration_calls": 16,
+          "density_integration_calls": 5,
+          "charge_error": 4.346339572691704e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 2359296,
+          "band_energy_error": 7.67608090868066e-07,
+          "entropy_error": 4.17830840493405e-06
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 1.975688131983233e-07,
+          "filling_residual": 4.3457963982973524e-07,
+          "charge_integration": 4.346339572691704e-07
+        },
+        "density_error": 6.498745985794585e-12,
+        "charge_error": 4.345938933170146e-07,
+        "reference_density_change": 1.3267165144820785e-14,
+        "reference_charge_change": 4.440892098500626e-16
+      }
+    ]
+  },
+  "snapshot_drift_check": "Only meanfi/results.py changed during the run, expanding the DensityResult docstring; executable runtime remained unchanged."
+}

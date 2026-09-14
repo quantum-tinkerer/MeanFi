@@ -353,9 +353,7 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
 
     monkeypatch.setattr(prepared, "_aaa_terms_for_interval", fit)
     monkeypatch.setattr(periodic, "PreparedMumpsRationalNode", node)
-    sparse_method = PeriodicGrid(
-        nk=8, matrix_function=RationalFOE(rational_scheme="aaa")
-    )
+    sparse_method = PeriodicGrid(nk=8, matrix_function=RationalFOE())
     dense_method = PeriodicGrid(nk=8, matrix_function=DirectDiagonalization())
     for mu in (0.1, 0.5):
         result = evaluate(hamiltonian, integration=sparse_method, mu=mu, **kwargs)
@@ -437,7 +435,7 @@ def test_sparse_constant_spectrum_reuses_empty_aaa_fit_without_eigensolves(
             csr_matrix(np.eye(2) * energy),
             kT=0.2,
             q_diag=np.ones(2),
-            options=RationalFOE(rational_scheme="aaa"),
+            options=RationalFOE(),
             charge_tolerance=1e-8,
             density_coordinates=full_density_coordinates([(0,)], size=2),
             density_tolerance=1e-8,
@@ -450,7 +448,7 @@ def test_sparse_constant_spectrum_reuses_empty_aaa_fit_without_eigensolves(
             atol=1e-8,
         )
         assert len(cache) == 1
-        assert cache[0].support_x.size == 0
+        assert cache[0].terms.shifts.size == 0
     assert fits == 1
 
 

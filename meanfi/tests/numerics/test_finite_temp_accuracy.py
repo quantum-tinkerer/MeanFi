@@ -66,10 +66,9 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
     ("matrix_function", "atol"),
     [
         (None, 1e-2),
-        (RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"), 1e-2),
-        (RationalFOE(initial_poles=4, max_poles=128, rational_scheme="ozaki"), 2e-2),
+        (RationalFOE(initial_poles=4, max_poles=128), 1e-2),
     ],
-    ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
+    ids=["default-sparse-aaa", "explicit-aaa"],
 )
 @pytest.mark.usefixtures("require_mumps")
 def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, atol):
@@ -139,10 +138,9 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
     ("matrix_function", "atol"),
     [
         (None, 2e-2),
-        (RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"), 2e-2),
-        (RationalFOE(initial_poles=4, max_poles=128, rational_scheme="ozaki"), 3e-2),
+        (RationalFOE(initial_poles=4, max_poles=128), 2e-2),
     ],
-    ids=["default-sparse-aaa", "explicit-aaa", "explicit-ozaki"],
+    ids=["default-sparse-aaa", "explicit-aaa"],
 )
 @pytest.mark.usefixtures("require_mumps")
 def test_sparse_periodic_grid_matches_dense_reference_at_mu(matrix_function, atol):
@@ -334,7 +332,7 @@ def test_density_postprocessing_returns_complete_dense_blocks():
 
 
 def test_sparse_aaa_terms_certify_scalar_error_on_local_interval():
-    terms, _builder = rational_matrix_functions._aaa_terms_for_interval(
+    terms = rational_matrix_functions._aaa_terms_for_interval(
         512,
         lower=-2.0,
         upper=2.5,
@@ -348,46 +346,33 @@ def test_sparse_aaa_terms_certify_scalar_error_on_local_interval():
         constant=terms.constant,
         shifts=terms.shifts,
         residues=terms.residues,
-        tail_lower_bound=terms.tail_lower_bound,
-        tail_upper_bound=terms.tail_upper_bound,
     )
     target = 1.0 / (1.0 + np.exp(probe / 0.2))
     assert np.max(np.abs(target - approximation)) <= 1e-2
 
 
-def test_sparse_aaa_arrowhead_poles_match_barycentric_form():
-    builder = rational_matrix_functions._fit_barycentric_weights(
-        np.linspace(-2.0, 2.0, 33, dtype=float),
-        np.asarray(
-            1.0 / (1.0 + np.exp(np.linspace(-2.0, 2.0, 33, dtype=float) / 0.2)),
-            dtype=complex,
-        ),
-        [0, 8, 16, 24, 32],
+@pytest.mark.parametrize("kT", [0.002, 0.2, 2.0])
+def test_sparse_aaa_certifies_hot_and_cold_spectra(kT):
+    from scipy.special import expit
+
+    terms = rational_matrix_functions._aaa_terms_for_interval(
+        128,
+        lower=-3.0,
+        upper=3.0,
+        kT=kT,
+        scalar_tolerance=1e-9,
     )
-    probe = np.linspace(-2.0, 2.0, 513, dtype=float)
-    barycentric = rational_matrix_functions._barycentric_evaluate(
-        probe,
-        builder.support_x,
-        builder.support_y,
-        builder.weights,
+    probe = np.unique(
+        np.r_[np.linspace(-3.0, 3.0, 20001), np.linspace(-10 * kT, 10 * kT, 10001)]
     )
-    terms, _scalar_error, _gap = rational_matrix_functions._aaa_terms_from_builder(
-        builder,
-        lower=-2.0,
-        upper=2.0,
-        scalar_tolerance=1e-2,
-        tail_lower_bound=None,
-        tail_upper_bound=None,
-    )
-    pole_form = rational_matrix_functions._evaluate_canonical_rational(
+    probe = probe[(probe >= -3.0) & (probe <= 3.0)]
+    approximation = rational_matrix_functions._evaluate_canonical_rational(
         probe,
         constant=terms.constant,
         shifts=terms.shifts,
         residues=terms.residues,
-        tail_lower_bound=terms.tail_lower_bound,
-        tail_upper_bound=terms.tail_upper_bound,
     )
-    np.testing.assert_allclose(pole_form, barycentric, atol=1e-10, rtol=1e-10)
+    np.testing.assert_allclose(approximation, expit(-probe / kT), atol=1e-9, rtol=0)
 
 
 def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
@@ -404,7 +389,7 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
         matrix,
         kT=0.15,
         q_diag=np.ones(2, dtype=float),
-        options=RationalFOE(initial_poles=4, max_poles=128, rational_scheme="aaa"),
+        options=RationalFOE(initial_poles=4, max_poles=128),
         charge_tolerance=1e-2,
         density_coordinates=space.required_coordinates,
         density_tolerance=1e-2,
@@ -412,11 +397,11 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
         shared_aaa_interval_cache=shared_cache,
     )
 
-    first = node._sparse_terms(0.0, pole_count=128, scalar_tolerance=1e-3)
+    first = node._sparse_terms(0.0)
     cache_size = len(shared_cache)
-    second = node._sparse_terms(0.0, pole_count=128, scalar_tolerance=1e-3)
+    second = node._sparse_terms(0.0)
 
-    assert first.support_count == second.support_count
+    assert first is second
     assert len(shared_cache) == cache_size
 
 
@@ -437,9 +422,7 @@ def test_strained_graphene_single_shot_sparse_aaa_is_stable():
         keys=[(0, 0)],
         integration=PeriodicGrid(
             nk=4,  # Large sparse smoke test; accuracy is checked on small models.
-            matrix_function=RationalFOE(
-                initial_poles=4, max_poles=128, rational_scheme="aaa"
-            ),
+            matrix_function=RationalFOE(initial_poles=4, max_poles=128),
         ),
         filling_tol=1e-1,
         mu_tol=1e-8,

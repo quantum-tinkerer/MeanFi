@@ -1,15 +1,3 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 # Matrix-function backends
 
 Once a k-space node is chosen, `MeanFi` still has to compute the density matrix contribution at that node.
@@ -33,7 +21,7 @@ H(k) - \mu Q
 
 or the corresponding normal-state version, and then extracts the relevant density block.
 
-Conceptually, this is the work performed by the `density_block(...)` layer.
+The same evaluation supplies charge, band energy, and entropy alongside the requested density entries.
 
 ## Exact diagonalization
 
@@ -42,7 +30,7 @@ It is straightforward and robust, but dense diagonalization becomes expensive as
 
 ## Rational FOE
 
-The rational FOE path approximates the same matrix function without full diagonalization.
+The rational FOE path uses AAA with shared poles for occupation and entropy, without full diagonalization.
 It is especially useful in sparse finite-temperature calculations where exact diagonalization would be much heavier.
 
 ## Dense versus sparse behavior
@@ -52,7 +40,7 @@ They also affect which matrix-function strategies are practical:
 
 - dense problems default to direct diagonalization,
 - sparse finite-temperature problems require an explicit supported configuration,
-- some rational paths support more features on sparse matrices than on dense ones.
+- rational evaluation supports sparse inputs only.
 
 Explicit `RationalFOE` is supported for sparse matrices with `PeriodicGrid(nk=...)`
 at positive temperature. Adaptive rational integration is not supported. Selecting an

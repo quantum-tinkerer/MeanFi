@@ -30,8 +30,6 @@ import numpy as np
 import warnings
 
 import meanfi
-from meanfi.space.reducers import LinearConstraintReducer, OrbitReducer
-from meanfi.space.symmetry import HermiticityConstraint
 ```
 
 ```{code-cell} ipython3
@@ -133,16 +131,9 @@ Hermiticity removes conjugate redundancy; the glide then removes additional SCF 
 ```{code-cell} ipython3
 entries = model_glide.scf_space.active_coordinates.entries
 
-hermitian_basis = OrbitReducer(entries).basis((HermiticityConstraint(),))
-glide_basis = LinearConstraintReducer(
-    entries,
-    ndof=model_glide._ndof,
-    family="normal",
-).basis(hermitian_basis, (glide,))
-
 print(f"raw active real variables:      {2 * len(entries):2d}")
-print(f"after Hermiticity:              {hermitian_basis.shape[1]:2d}")
-print(f"after glide symmetry:           {glide_basis.shape[1]:2d}")
+print(f"after Hermiticity:              {model_free.scf_space.num_params:2d}")
+print(f"after glide symmetry:           {model_glide.scf_space.num_params:2d}")
 print(f"required real-space entries:    {len(model_glide.scf_space.required_coordinates.entries):2d}")
 ```
 
@@ -159,20 +150,17 @@ Now solve the same interacting problem twice: once with no symmetry constraint a
 
 ```{code-cell} ipython3
 integration = meanfi.PeriodicGrid(nk=9)
-scf = meanfi.AndersonMixing(history_size=3, max_iterations=80)
 
 free_result = meanfi.solver(
     model_free,
     model_free.random_meanfield(rng=10, scale=0.05),
     integration=integration,
-    scf=scf,
     scf_tol=1e-6,
 )
 glide_result = meanfi.solver(
     model_glide,
     model_glide.random_meanfield(rng=10, scale=0.05),
     integration=integration,
-    scf=scf,
     scf_tol=1e-6,
 )
 
@@ -180,6 +168,8 @@ print(f"unconstrained SCF variables: {model_free.scf_space.num_params}")
 print(f"glide-constrained variables: {model_glide.scf_space.num_params}")
 print(f"unconstrained residual:      {free_result.errors.scf_residual:.2e}")
 print(f"glide residual:              {glide_result.errors.scf_residual:.2e}")
+print(f"unconstrained free energy:   {free_result.free_energy:.8f}")
+print(f"glide free energy:           {glide_result.free_energy:.8f}")
 ```
 
 The plot below measures the glide mismatch of the converged mean-field Hamiltonian:

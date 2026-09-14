@@ -75,13 +75,21 @@ def _solve_anderson(
     on_iteration,
 ) -> np.ndarray:
     accepted_initial = False
+    accepted = 0
+
+    def accept(x, residual):
+        nonlocal accepted
+        accepted += 1
+        on_iteration(x, residual)
+        if accepted >= scf.max_iterations and max_norm(residual) > scf_tol:
+            raise NoConvergence(x)
 
     def wrapped_residual_fn(x: np.ndarray) -> np.ndarray:
         nonlocal accepted_initial
         residual = np.asarray(residual_fn(x), dtype=float)
         if not accepted_initial:
             accepted_initial = True
-            on_iteration(x, residual)
+            accept(x, residual)
         return residual
 
     try:
@@ -89,7 +97,7 @@ def _solve_anderson(
             result = anderson(
                 wrapped_residual_fn,
                 x0,
-                callback=on_iteration,
+                callback=accept,
                 alpha=scf.alpha,
                 w0=scf.regularization,
                 M=scf.history_size,

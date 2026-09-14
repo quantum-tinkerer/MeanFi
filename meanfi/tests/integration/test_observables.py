@@ -1,5 +1,9 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
+from scipy import sparse
+from scipy.special import entr, expit
 
 from meanfi.tests.fixtures.models import density_result_from_tb
 
@@ -11,21 +15,21 @@ from meanfi import (
     Model,
     add_tb,
     expectation_value,
-    total_energy,
+    free_energy,
+    internal_energy,
 )
 from meanfi.meanfield import (
     bdg_correction_from_density,
-    extract_anomalous_density,
-    extract_electron_density,
     meanfield,
 )
 from meanfi.tests.fixtures.models import bipartite_hubbard_2d
+from meanfi.tb.bdg import assemble_bdg_tb
 
 
 pytestmark = pytest.mark.integration
 
 
-def test_selected_density_supports_covered_observables_and_total_energy():
+def test_selected_density_supports_covered_observables_and_internal_energy():
     model = Model(
         {(): np.diag([1.0, 3.0]).astype(complex)},
         {(): np.array([[0.0, 2.0], [2.0, 0.0]], dtype=complex)},
@@ -44,7 +48,9 @@ def test_selected_density_supports_covered_observables_and_total_energy():
     assert expectation_value(density, model.h_0) == pytest.approx(
         expectation_value(matrix, model.h_0)
     )
-    assert total_energy(model, density) == pytest.approx(total_energy(model, matrix))
+    assert internal_energy(model, density) == pytest.approx(
+        internal_energy(model, matrix)
+    )
 
 
 def test_selected_density_rejects_uncovered_observable_coordinate():
@@ -64,7 +70,7 @@ def test_selected_density_rejects_uncovered_observable_coordinate():
         expectation_value(density, {(): np.eye(2, dtype=complex)})
 
 
-def test_total_energy_half_counts_normal_mean_field_interaction():
+def test_internal_energy_half_counts_normal_mean_field_interaction():
     model = Model(
         {(): np.diag([1.0, 3.0])},
         {(): np.array([[0.0, 2.0], [2.0, 0.0]], dtype=complex)},
@@ -78,13 +84,13 @@ def test_total_energy_half_counts_normal_mean_field_interaction():
     expected = expectation_value(density, model.h_0) + 0.5 * interaction_energy
     naive = expectation_value(density, add_tb(model.h_0, correction))
 
-    assert total_energy(model, density) == pytest.approx(np.real(expected))
-    assert naive - total_energy(model, density) == pytest.approx(
+    assert internal_energy(model, density) == pytest.approx(np.real(expected))
+    assert naive - internal_energy(model, density) == pytest.approx(
         0.5 * interaction_energy
     )
 
 
-def test_total_energy_uses_reference_subtracted_interaction_functional():
+def test_internal_energy_uses_reference_subtracted_interaction_functional():
     h_0 = {(): np.diag([0.2, -0.3]).astype(complex)}
     h_int = {(): np.array([[0.0, 1.7], [1.7, 0.0]], dtype=complex)}
     reference = {(): np.diag([0.6, 0.4]).astype(complex)}
@@ -100,10 +106,10 @@ def test_total_energy_uses_reference_subtracted_interaction_functional():
     expected = expectation_value(density, h_0)
     expected += 0.5 * expectation_value(difference, correction)
 
-    assert total_energy(model, density) == pytest.approx(float(np.real(expected)))
+    assert internal_energy(model, density) == pytest.approx(float(np.real(expected)))
 
 
-def test_total_energy_rejects_missing_one_body_density_keys():
+def test_internal_energy_rejects_missing_one_body_density_keys():
     model = Model(
         {
             (0,): np.zeros((1, 1), dtype=complex),
@@ -114,11 +120,11 @@ def test_total_energy_rejects_missing_one_body_density_keys():
         filling=0.5,
     )
 
-    with pytest.raises(ValueError, match="missing keys required for total energy"):
-        total_energy(model, {(0,): np.array([[0.5]], dtype=complex)})
+    with pytest.raises(ValueError, match="missing keys required for internal energy"):
+        internal_energy(model, {(0,): np.array([[0.5]], dtype=complex)})
 
 
-def test_total_energy_gradient_matches_hubbard_mean_field_hamiltonian():
+def test_internal_energy_gradient_matches_hubbard_mean_field_hamiltonian():
     model = Model(*bipartite_hubbard_2d(U=3.7), filling=2.0, kT=0.2)
     rng = np.random.default_rng(1123)
     occupied, _ = np.linalg.qr(
@@ -145,15 +151,16 @@ def test_total_energy_gradient_matches_hubbard_mean_field_hamiltonian():
         return float(np.real(np.vdot(vec, (one_body + two_body) @ vec)))
 
     derivative = (
-        total_energy(model, shifted(epsilon)) - total_energy(model, shifted(-epsilon))
+        internal_energy(model, shifted(epsilon))
+        - internal_energy(model, shifted(-epsilon))
     ) / (2.0 * epsilon)
     rhs = np.real(expectation_value(direction, model.hamiltonian_from_density(rho)))
 
-    assert total_energy(model, rho) == pytest.approx(slater_energy())
+    assert internal_energy(model, rho) == pytest.approx(slater_energy())
     assert derivative == pytest.approx(rhs, rel=1e-8, abs=1e-8)
 
 
-def test_total_energy_matches_bdg_block_formula():
+def test_internal_energy_matches_bdg_block_formula():
     model = Model(
         {(): np.diag([2.0, 3.0]).astype(complex)},
         {(): np.array([[0.0, 1.5], [1.5, 0.0]], dtype=complex)},
@@ -173,20 +180,9 @@ def test_total_energy_matches_bdg_block_formula():
         )
     }
 
-    correction = bdg_correction_from_density(density, model)
-    electron_density = extract_electron_density(density, model)
-    anomalous_density = extract_anomalous_density(density, model)
-    normal_correction = {
-        key: matrix[: model._ndof, : model._ndof] for key, matrix in correction.items()
-    }
-    pairing_correction = {
-        key: matrix[: model._ndof, model._ndof :] for key, matrix in correction.items()
-    }
-    expected = expectation_value(electron_density, model.h_0)
-    expected += 0.5 * expectation_value(electron_density, normal_correction)
-    expected += 0.5 * expectation_value(anomalous_density, pairing_correction)
-
-    assert total_energy(model, density) == pytest.approx(np.real(expected))
+    # Independent two-orbital Wick expression, including attractive pairing.
+    expected = 2.0 * 0.4 + 3.0 * 0.3 + 1.5 * (0.4 * 0.3 - 0.05**2 - 0.2**2)
+    assert internal_energy(model, density) == pytest.approx(expected)
 
 
 def test_bdg_correction_projects_pairing_antisymmetry_noise():
@@ -214,3 +210,96 @@ def test_bdg_correction_projects_pairing_antisymmetry_noise():
 
     assert correction[(1,)][0, 1] == pytest.approx(-0.20000002)
     assert correction[(-1,)][0, 1] == pytest.approx(0.20000002)
+
+
+@pytest.mark.parametrize("use_sparse", [False, True])
+def test_bdg_energy_is_phase_invariant_and_has_the_hamiltonian_gradient(
+    use_sparse, monkeypatch
+):
+    h_0 = {(): np.array([[0.3, 0.04j], [-0.04j, -0.2]])}
+    h_int = {(): np.array([[0.0, 1.5], [1.5, 0.0]])}
+    if use_sparse:
+        h_0 = {key: sparse.csr_matrix(block) for key, block in h_0.items()}
+        h_int = {key: sparse.csr_matrix(block) for key, block in h_int.items()}
+    model = Model(h_0, h_int, filling=1.0, kT=0.2, superconducting=True)
+    trial = assemble_bdg_tb(
+        {(): np.array([[0.48, 0.06j], [-0.06j, -0.27]])},
+        {(): np.array([[0.0, 0.2 + 0.13j], [-0.2 - 0.13j, 0.0]])},
+        ndof=2,
+    )[()]
+    energies, vectors = np.linalg.eigh(trial - 0.11 * np.diag([1, 1, -1, -1]))
+    density = (vectors * expit(-energies / model.kT)) @ vectors.conj().T
+    direction = assemble_bdg_tb(
+        {(): np.array([[0.02, 0.05j], [-0.05j, -0.03]])},
+        {(): np.array([[0.0, 0.017 + 0.03j], [-0.017 - 0.03j, 0.0]])},
+        ndof=2,
+    )[()]
+    rotated = density.copy()
+    rotated[:2, 2:] *= np.exp(0.74j)
+    rotated[2:, :2] *= np.exp(-0.74j)
+
+    def as_tb(block):
+        return {(): sparse.csr_matrix(block) if use_sparse else block}
+
+    if use_sparse:
+
+        def forbid_dense(*args, **kwargs):
+            raise AssertionError("sparse energy evaluation must not densify blocks")
+
+        monkeypatch.setattr(sparse.csr_matrix, "toarray", forbid_dense)
+    assert internal_energy(model, as_tb(rotated)) == pytest.approx(
+        internal_energy(model, as_tb(density)), abs=1e-14
+    )
+    epsilon = 1e-5
+    derivative = (
+        internal_energy(model, as_tb(density + epsilon * direction))
+        - internal_energy(model, as_tb(density - epsilon * direction))
+    ) / (2 * epsilon)
+    expected = (
+        0.5
+        * expectation_value(
+            as_tb(direction), model.hamiltonian_from_density(as_tb(density))
+        ).real
+    )
+    assert derivative == pytest.approx(expected, rel=1e-8, abs=1e-10)
+
+
+@pytest.mark.parametrize("superconducting", [False, True])
+@pytest.mark.parametrize("kT", [0.0, 0.2])
+def test_free_energy_uses_full_state_entropy_after_selecting_entries(
+    superconducting, kT
+):
+    model = Model(
+        {(): np.diag([0.2, -0.3])},
+        {(): np.array([[0.0, 1.7], [1.7, 0.0]])},
+        filling=1.0,
+        kT=kT,
+        superconducting=superconducting,
+    )
+    normal = np.diag([0.25, 0.75]).astype(complex)
+    if superconducting:
+        pairing = np.array([[0.0, 0.1j], [-0.1j, 0.0]])
+        matrix = np.block([[normal, pairing], [pairing.conj().T, np.eye(2) - normal.T]])
+    else:
+        matrix = normal
+    occupations = np.linalg.eigvalsh(matrix)
+    entropy = np.sum(entr(occupations) + entr(1 - occupations))
+    if superconducting:
+        entropy *= 0.5
+    full = replace(density_result_from_tb({(): matrix}), entropy=float(entropy))
+    selected = full.select(model.scf_space.required_coordinates)
+
+    assert not selected.is_complete
+    assert internal_energy(model, selected) == pytest.approx(
+        internal_energy(model, full)
+    )
+    assert free_energy(model, selected) == pytest.approx(
+        internal_energy(model, full) - kT * entropy
+    )
+    assert selected.entropy == full.entropy
+
+
+def test_free_energy_rejects_dictionary_without_entropy():
+    model = Model({(): np.eye(1)}, {(): np.zeros((1, 1))}, filling=0.5, kT=0.2)
+    with pytest.raises(TypeError, match="DensityResult with computed entropy"):
+        free_energy(model, {(): np.array([[0.5]])})

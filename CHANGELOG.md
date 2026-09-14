@@ -9,12 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
-- EDIIS is the default for normal zero-temperature simplex SCF. Other workflows
-  use Anderson with explicit initial scaling, a five-step history and Armijo
-  search; reference subtraction, warm restarts and spatial symmetries no longer
-  trigger the previous default-mixer divergence. SCF settings are keyword-only;
-  `history_size` and `regularization` replace `M` and `w0`; use `scf_tol` for the
-  residual target instead of the removed secondary stopping controls.
+- SCF results and history expose `internal_energy`, `free_energy`, and entropy
+  in units of Boltzmann's constant. `free_energy = internal_energy - kT * entropy`.
+  The old `total_energy` name is removed; use `internal_energy(model, density)`
+  or `free_energy(model, density)` for observables. BdG pairing energy now uses
+  the conjugate anomalous density, preserving phase invariance.
+- EDIIS is the default for every supported SCF calculation. It minimizes a
+  free-energy bound over the density history, with Anderson finishing finite-T
+  convergence when needed within the same iteration budget. SCF settings remain
+  keyword-only; `history_size` and `regularization` replace `M` and `w0`; use
+  `scf_tol` for the residual target instead of secondary stopping controls.
+- RationalFOE now uses one AAA implementation for density and entropy with shared
+  poles and factorizations. Ozaki and `rational_scheme` are removed: replace
+  `RationalFOE(rational_scheme=...)` with `RationalFOE()`. Existing pole budgets
+  remain available. The benchmark report records the density-only speed tradeoff
+  and why Ozaki's poles were unsuitable for the shared-entropy calculation.
+- BdG SCF interaction support now comes from the model instead of the keys in
+  the initial guess. Removed dynamic key tracking and zero-block adapters that
+  could discard nonlocal interactions.
 - Both density functions accept a `Model` and optional `mean_field`, including
   BdG models. Model inputs supply filling, temperature and required coordinates.
   One density evaluator now serves normal and BdG calculations.
@@ -97,8 +109,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   normal spectra across root evaluations and nested refinement, and recomputes
   BdG spectra when chemical potential changes. Grid/storage/refinement limits
   fail clearly.
-- FermiSimplex band energies remain available. Periodic density integration does
-  not add a finite-temperature thermodynamic energy or free-energy method.
+- Density results retain occupied band energy and full-state entropy, including
+  selected layouts. Dense evaluation reuses the eigensystem; sparse evaluation
+  reuses selected inverse entries. Energy and entropy join the periodic mesh
+  convergence checks. Zero-temperature flat half-filled bands retain residual
+  entropy. FermiSimplex band-energy calculation uses its retained spectra.
 - Historical benchmark reports and compact evidence remain under `performance/`,
   outside the runtime package and release archives.
 

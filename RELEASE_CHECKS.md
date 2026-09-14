@@ -1,33 +1,34 @@
 # Simplification and release checks
 
-MeanFi has two integration families: native FermiSimplex for normal zero-temperature
-calculations, and periodic grids for normal/BdG density calculations. Explicit
+MeanFi retains two integration families: native FermiSimplex for normal systems
+at zero temperature, and periodic grids for normal/BdG calculations. Explicit
 `nk` requests a total mesh size; omitting it enables supported accuracy control.
 
-## Current structure and API
+## Thermodynamics and simplification
 
-This pass reduces runtime Python from **7,732 to 7,680 lines** and **58 to 57
-modules**, relative to `185cf9e`, while completing the API review fixes.
+Relative to `3443495`, runtime Python shrinks from **7,680 to 7,303 lines**
+across the same **57 modules**, while adding complete thermodynamic reporting.
 
-- EDIIS is the default for normal zero-temperature simplex SCF. Other workflows
-  use Anderson with explicit scaling, history and Armijo search. The reference,
-  restart and symmetry examples that failed previously now converge by default.
-- Public density functions live in `density/api.py`; package initialization only
-  exports the API. A Model supplies filling, temperature and coordinate selection,
-  including BdG. The duplicate BdG density adapter is removed.
-- Model inputs are validated, owned and read-only. The two Hamiltonian helpers
-  work for normal and BdG models. Reference subtraction uses `DensityResult`.
-- Results convert with `to_tb(sparse=False)`; selected unknown entries stay
-  unknown. `meanfield` accepts selected results. Removed legacy aliases,
-  redundant package exports and secondary SCF stopping controls.
-- Fourier grids use explicit `shape` tuples and preserve all odd/even/rectangular
-  modes. Dense callables retain vectorized evaluation; sparse callables add only
-  stored entries. Kwant conversions avoid dense unit-cell intermediates.
-- `PeriodicGrid.dtype` names the actual complex precision. Explicit and implicit
-  sparse RationalFOE default to AAA; nearly constant spectra use an endpoint-bounded
-  constant occupation instead of an unstable rational fit.
-- Density numerical failures use `ConvergenceError`. SCF exceptions carry the
-  last valid result, or None when the initial density evaluation fails.
+- `SCFResult` and its history report `internal_energy`, `free_energy`, and
+  entropy in units of Boltzmann's constant. Helmholtz free energy is `U - kT*S`.
+  `total_energy` is removed; the two public observable functions use the new names.
+- Density results retain occupied band energy and full-state entropy even with
+  selected entries. Dense calculations reuse their eigensystem; sparse calculations
+  use one joint AAA fit and the same factorizations and selected inverse entries.
+- EDIIS is the default for all supported SCF calculations. At finite temperature,
+  it minimizes a history-based upper bound on free energy and uses the existing
+  Anderson method to finish convergence, sharing one accepted-iteration budget.
+- BdG pairing energy uses the conjugate anomalous density. Tests cover global
+  pairing phase invariance and the Hamiltonian's energy derivative. BdG support
+  now comes from the model, eliminating guess-dependent interaction truncation
+  and the associated key tracking and zero-block adapters.
+- Ozaki and `rational_scheme` are removed. One shorter AAA fitter handles density
+  and entropy, including constant, asymmetric, and cold spectra. It checks the
+  final rational expansion before sparse factorization and fails explicitly when
+  the requested accuracy cannot be established.
+- Periodic energy and entropy join nested and shifted mesh validation. BdG traces
+  include every Nambu diagonal and the physical normalization. Zero-temperature
+  flat half-filled modes retain their residual entropy.
 
 See [migration notes](CHANGELOG.md), the
 [executable API walkthrough](examples/api_walkthrough.py), and the
@@ -35,49 +36,56 @@ See [migration notes](CHANGELOG.md), the
 
 ## Verification
 
-| Environment | Full required suite | Optional dependency skips |
+| Environment | Required suite | Optional dependency skips |
 | --- | ---: | ---: |
-| Python 3.11.16, core | 420 passed | 7 |
-| Python 3.12.13, core | 420 passed | 7 |
-| Python 3.13.15, core | 420 passed | 7 |
-| Python 3.12.13, MUMPS + Kwant | 431 passed | 0 |
+| Python 3.11.16, core | 457 passed | 14 |
+| Python 3.12.13, core | 457 passed | 14 |
+| Python 3.13.15, core | 457 passed | 14 |
+| Python 3.12.13, MUMPS + Kwant | 475 passed | 0 |
 
-All **40 slow numerical checks passed**, including tight AAA and Ozaki comparisons.
-Required suites use warnings as errors, coverage and pytest-ruff. Final Fourier
-vectorization and mixed-storage coverage were checked again with the complete
-transform and public API contract test files after the full suite runs.
+All **34 slow numerical checks passed**. Required suites use warnings as errors,
+coverage, and pytest-ruff. The final BdG support cleanup was additionally checked
+against the superconducting physics reference after the full slow suite.
 
-The walkthrough passes with both optional extras. Strict Sphinx passes with all
-five tutorial notebooks executed. Ruff, formatting, pre-commit and whitespace
-checks pass. Installed core and sparse wheels pass; the build also creates a
-wheel from the source distribution. The wheel smoke check uses nondegenerate
-coupled bands so it exercises MUMPS selected inverses, with thread limits set by
-the check itself.
+The walkthrough passes with and without optional extras. Strict Sphinx passes
+with all five tutorials forced to execute. Installed core and sparse wheels pass
+outside the checkout, including band-energy/entropy references. Each packaging
+check builds a source distribution and then builds its wheel from that archive.
 
-## Regression timings
+## Benchmarks
 
-[Raw results](performance/benchmarks/release_results/api_cleanup.json) and the
-[benchmark report](performance/benchmarks/release_results/README.md) compare
-`185cf9e` with this API cleanup. Five cases use one CPU, one BLAS/OpenMP thread,
-one warmup and fifteen repetitions. Chemical potentials and work counts are
-identical; all independent reference assertions pass. The largest timing increase
-is 3.5%; the other cases are unchanged or faster in this run. These small cases
-do not establish universal performance guarantees.
+The [rational comparison](performance/benchmarks/release_results/rational_comparison.md)
+records the AAA/Ozaki decision, raw errors, cold/warm timings, and factorization
+counts. The old Ozaki charge stopping rule could hide density errors by trace
+cancellation. Ozaki retains some density-only timing advantages, but its poles
+cannot reliably meet the shared entropy targets. The replacement AAA fitter
+eliminates the measured fitting timeouts and passes all 40 density/public-workflow
+cases. Its thermal node sweep passes 34 of 35 cases; the absolute `1e-12` request
+fails explicitly. Successful entropy/energy traces require no additional LU
+factorizations or inverse queries after density evaluation.
 
-The separate dense Fourier check preserves callable speed (1.46 ms) and reduces
-32-by-32 grid conversion from 10.59 ms to 2.90 ms. The report records its matrix
-sizes, seed, point count and timings. Historical experiments remain unchanged and
-outside release archives.
+[Dense regression data](performance/benchmarks/release_results/thermodynamics_dense.json)
+compare `3443495` with this pass using seven repetitions, one CPU, and one
+BLAS/OpenMP thread. Independent shifted-grid references pass in all five cases.
 
-## Publication and supported scope
+| Case | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Square metal | 49.70 ms | 50.41 ms | +1.4% |
+| Gapped system | 7.36 ms | 6.85 ms | -7.0% |
+| Cold BdG | 8.34 ms | 8.46 ms | +1.5% |
+| Multichannel wire | 34.03 ms | 34.23 ms | +0.6% |
+| Bounded 3D | 819.42 ms | 864.68 ms | +5.5% |
 
-No package was published. Before publication, choose a release version and confirm
-that the target accepts the pinned FermiSimplex Git dependency. Wheel and source
-archives remain at `0.0.dev0`.
+Meshes, refinement counts, and diagonalization counts are unchanged in these
+cases. Small timing differences include measurement noise; these runs do not
+establish universal performance guarantees. Historical evidence remains under
+`performance/` and outside the runtime package and release archives.
 
-EDIIS remains restricted to normal zero-temperature simplex calculations; periodic
-finite-temperature energy/free-energy estimates and adaptive RationalFOE remain
-unsupported. Zero-temperature BdG requires a prescribed periodic mesh. Automatic
-finite-temperature sparse calls require an explicit integration choice. Density
-estimates apply at the returned chemical potential and do not certify its
-uncertainty or continuous Brillouin-zone accuracy.
+## Supported scope and publication
+
+No package was published. Archives remain at `0.0.dev0`; publication still needs
+a release version and a target that accepts the pinned FermiSimplex Git dependency.
+Adaptive RationalFOE remains unsupported. Zero-temperature BdG requires a prescribed
+periodic mesh. Automatic finite-temperature sparse calls require an explicit
+integration choice. Prescribed meshes do not claim continuous Brillouin-zone
+accuracy; adaptive estimates and scalar approximation checks are empirical.

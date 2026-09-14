@@ -55,7 +55,7 @@ def test_default_zero_temperature_adaptive_solver_reports_energy():
     assert result.converged is True
     assert result.history
     assert not hasattr(result, "accuracy")
-    assert result.total_energy == pytest.approx(-1.0)
+    assert result.internal_energy == pytest.approx(-1.0)
 
 
 def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
@@ -68,7 +68,7 @@ def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
     )
 
     assert len(result.history) == 1
-    assert result.total_energy == pytest.approx(-1.0)
+    assert result.internal_energy == pytest.approx(-1.0)
 
 
 def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
@@ -105,7 +105,7 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
     assert result.errors.filling_residual <= requested.filling_residual
 
 
-def test_other_capabilities_keep_anderson():
+def test_finite_temperature_default_reports_free_energy():
     result = solver(
         _zero_dimensional_model(kT=0.2),
         {(): np.zeros((2, 2), dtype=complex)},
@@ -114,17 +114,21 @@ def test_other_capabilities_keep_anderson():
     )
 
     assert result.history
-    assert result.total_energy is None
+    assert np.isfinite(result.internal_energy)
+    assert result.free_energy == pytest.approx(
+        result.internal_energy - 0.2 * result.entropy
+    )
 
 
-def test_energy_diis_rejects_unsupported_integration():
-    with pytest.raises(ValueError, match="normal-state zero-temperature"):
-        solver(
-            _zero_dimensional_model(kT=0.2),
-            {(): np.zeros((2, 2), dtype=complex)},
-            integration=PeriodicGrid(),
-            scf=EnergyDIIS(),
-        )
+def test_energy_diis_supports_periodic_integration():
+    result = solver(
+        _zero_dimensional_model(kT=0.2),
+        {(): np.zeros((2, 2), dtype=complex)},
+        integration=PeriodicGrid(),
+        scf=EnergyDIIS(),
+    )
+    assert result.converged
+    assert np.isfinite(result.free_energy)
 
 
 @pytest.mark.skipif(
@@ -155,8 +159,8 @@ def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():
         scf_tol=3e-3,
     )
 
-    assert np.isfinite(result.total_energy)
-    assert all(np.isfinite(item.total_energy) for item in result.history)
+    assert np.isfinite(result.internal_energy)
+    assert all(np.isfinite(item.internal_energy) for item in result.history)
     assert result.errors.scf_residual <= 3e-3
 
 

@@ -6,7 +6,6 @@ import numpy as np
 
 from meanfi.density.density import evaluate_density
 from meanfi.density.problem import build_density_problem
-from meanfi.density.integrate.methods import AdaptiveSimplex
 from meanfi.results import DensityResult, DensityEntries
 from meanfi.meanfield import meanfield
 from meanfi.model import Model
@@ -33,7 +32,6 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         integration=runtime.integration,
         tolerances=runtime.tolerances,
         density_coordinates=space.required_coordinates,
-        include_band_energy=isinstance(runtime.integration, AdaptiveSimplex),
     )
 
     def project_guess(guess: _tb_type) -> _tb_type:
@@ -109,10 +107,11 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
             density.band_energy
             - np.real(expectation_value(output_density, input_correction))
         )
-        total_energy = one_body + interaction_energy_values(output_state.values)
+        internal_energy = one_body + interaction_energy_values(output_state.values)
         return EnergyEvaluation(
-            one_body_energy=one_body,
-            total_energy=total_energy,
+            linear_free_energy=one_body - model.kT * density.entropy,
+            internal_energy=internal_energy,
+            free_energy=internal_energy - model.kT * density.entropy,
         )
 
     def mean_field_from_state(state: ActiveDensityState) -> _tb_type:
@@ -121,6 +120,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
 
     return SCFProblem(
         runtime=runtime,
+        kT=model.kT,
         state_space=space,
         project_guess=project_guess,
         evaluate_projected_guess=evaluate_projected_guess,

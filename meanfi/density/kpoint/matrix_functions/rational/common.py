@@ -77,9 +77,15 @@ class SparseDensityPattern:
         return values
 
 
-def build_sparse_charge_pattern(trace_weights_diag: np.ndarray) -> SparseChargePattern:
+def build_sparse_charge_pattern(
+    trace_weights_diag: np.ndarray, *, include_all: bool = False
+) -> SparseChargePattern:
     weights = np.asarray(trace_weights_diag, dtype=float)
-    diagonal = np.flatnonzero(np.abs(weights) > 0.0).astype(int, copy=False)
+    diagonal = (
+        np.arange(weights.size)
+        if include_all
+        else np.flatnonzero(np.abs(weights) > 0.0).astype(int, copy=False)
+    )
     pattern = build_selected_inverse_pattern(
         size=weights.size, rows=diagonal, cols=diagonal
     )
@@ -155,9 +161,8 @@ class SparseRationalTerms:
     shifts: np.ndarray
     residues: np.ndarray
     pole_count: int
-    support_count: int | None = None
-    tail_lower_bound: float | None = None
-    tail_upper_bound: float | None = None
+    entropy_constant: complex | None = None
+    entropy_residues: np.ndarray | None = None
 
 
 def _sparse_shifted_matrix(matrix: Any, shift: complex):

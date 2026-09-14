@@ -24,7 +24,7 @@ import sys
 
 import numpy as np
 from scipy.sparse import csr_array
-from scipy.special import expit
+from scipy.special import entr, expit
 import meanfi
 
 assert Path(meanfi.__file__).is_relative_to(Path(sys.prefix))
@@ -46,17 +46,21 @@ for integration, temperature in (
     result = meanfi.density_matrix(h, filling=.5, kT=temperature,
                                   keys=[(0,)], integration=integration)
     assert abs(result.filling - .5) < 1e-5
+    assert np.isfinite(result.band_energy)
+    assert result.entropy >= 0
 for superconducting in (False, True):
     model = meanfi.Model(h, {(0,): np.zeros((1, 1))}, filling=.5,
                         kT=.2, superconducting=superconducting)
     result = meanfi.solver(model, model.random_meanfield(rng=0, scale=0),
                           integration=meanfi.PeriodicGrid(nk=32))
     assert result.converged
+    assert np.isfinite(result.internal_energy)
+    assert abs(result.free_energy - (result.internal_energy - .2 * result.entropy)) < 1e-12
     density = meanfi.density_matrix(model, mean_field=result.mean_field, keys=[(0,)],
                                    integration=meanfi.PeriodicGrid(nk=32))
     assert density.to_tb()[(0,)].shape == ((2, 2) if superconducting else (1, 1))
 cold = meanfi.Model(h, {(0,): np.zeros((1, 1))}, filling=.5)
-assert meanfi.solver(cold, cold.random_meanfield(rng=0)).total_energy is not None
+assert meanfi.solver(cold, cold.random_meanfield(rng=0)).free_energy is not None
 grid = meanfi.tb_to_kgrid(h, (8,))
 np.testing.assert_allclose(meanfi.tb_to_kgrid(meanfi.kgrid_to_tb(grid), (8,)), grid, atol=1e-14)
 
@@ -74,6 +78,9 @@ else:
     assert sparse_enabled
     energies = -2 * np.cos(2 * np.pi * np.arange(32) / 32)[:, None] + np.array([-.2, .2])
     assert abs(np.mean(np.sum(expit((result.mu - energies) / .2), axis=1)) - .86) < 1e-7
+    occupations = expit((result.mu - energies) / .2)
+    assert abs(result.band_energy - np.mean(np.sum(energies * occupations, axis=1))) < 5e-5
+    assert abs(result.entropy - np.mean(np.sum(entr(occupations) + entr(1-occupations), axis=1))) < 5e-5
 print("Installed wheel passed:", "sparse extra" if sparse_enabled else "core without MUMPS")
 """
 

@@ -22,7 +22,7 @@ from meanfi.density.kpoint.matrix_functions.direct import (
     selected_density_values_from_eigensystem,
 )
 from meanfi.density.kpoint.matrix_functions.rational import PreparedMumpsRationalNode
-from meanfi.density.kpoint.occupations import fermi_dirac
+from meanfi.density.kpoint.occupations import fermi_dirac, occupation_entropy
 from meanfi.errors import ErrorTolerances, ErrorValues, default_solver_tolerances
 from meanfi.results import PeriodicGridInfo
 from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
@@ -53,7 +53,7 @@ def resolve_periodic_matrix_function(
     if selected is None:
         if sparse:
             if prescribed and kT > 0:
-                return RationalFOE(rational_scheme="aaa")
+                return RationalFOE()
             raise ValueError(
                 "Automatic sparse PeriodicGrid evaluation requires kT > 0 and "
                 "prescribed nk. Use PeriodicGrid(nk=..., matrix_function=RationalFOE()) "
@@ -77,6 +77,22 @@ def resolve_periodic_matrix_function(
             "PeriodicGrid.matrix_function must be DirectDiagonalization or RationalFOE"
         )
     return resolved
+
+
+@dataclass
+class _Integral:
+    values: np.ndarray
+    charge: float
+    band_energy: float
+    entropy: float
+
+    def errors(self, other: _Integral):
+        return (
+            np.abs(self.values - other.values),
+            abs(self.charge - other.charge),
+            abs(self.band_energy - other.band_energy),
+            abs(self.entropy - other.entropy),
+        )
 
 
 @dataclass
@@ -237,6 +253,7 @@ class _Evaluator:
             workspace_dtype=self.dtype,
             trace_weights_diag=self.trace_weights,
             shared_aaa_interval_cache=self._aaa_interval_cache,
+            thermodynamic_tolerance=self.tolerances.density_matrix_integration,
         )
 
     def charge(self, grid: _Grid, mu: float) -> tuple[float, float, float | None]:
@@ -284,20 +301,34 @@ class _Evaluator:
         values = np.zeros(self.coordinates.value_count, dtype=complex)
         previous_values = np.zeros_like(values)
         charge = previous_charge = 0.0
+        energy = previous_energy = entropy = previous_entropy = 0.0
         self.work.density_calls += 1
         self.work.evaluations += grid.count
         for _flat, indices, points in grid.batches(self.batch_size):
             matrices = self.matrices_at(points)
             phases = np.exp(1j * (points @ self.density_keys.T))
+            electron_trace = (
+                np.asarray(
+                    [
+                        matrix.diagonal()[: self.size // 2].sum().real
+                        for matrix in matrices
+                    ]
+                )
+                if not self.normal
+                else None
+            )
             if isinstance(self.method, RationalFOE):
                 packed = np.empty(
                     (len(points), self.coordinates.value_count), dtype=complex
                 )
                 charges = np.empty(len(points))
+                energies = np.empty(len(points))
+                entropies = np.empty(len(points))
                 for index, matrix in enumerate(matrices):
                     node = self._rational_node(matrix)
                     charges[index] = node.charge(mu)
                     packed[index] = node.density_values_from_charge_order(mu)
+                    energies[index], entropies[index] = node.thermodynamics(mu)
                     for group, (_key, _rows, _cols, value_slice) in enumerate(
                         self.coordinates.iter_key_coordinates()
                     ):
@@ -335,23 +366,39 @@ class _Evaluator:
                     "bia,ba,bia->bi", vectors, occupation, vectors.conj(), optimize=True
                 ).real
                 charges = diagonal @ self.trace_weights
+                energies = np.sum(eigenvalues * occupation, axis=1)
+                entropies = occupation_entropy(occupation).sum(axis=1)
+                if not self.normal:
+                    energies += mu * (diagonal @ self.q_diag)
                 self.work.diagonalizations += len(points)
                 self.work.kernels += len(points)
+            if not self.normal:
+                energies = 0.5 * (energies + electron_trace)
+                entropies *= 0.5
             values += packed.sum(axis=0)
             charge += float(charges.sum())
+            energy += float(energies.sum())
+            entropy += float(entropies.sum())
             if compare_previous:
                 old = np.all(indices % 2 == 0, axis=1)
                 previous_values += packed[old].sum(axis=0)
                 previous_charge += float(charges[old].sum())
-        if compare_previous:
-            previous_count = (grid.n // 2) ** grid.dimension
-            previous_values /= previous_count
-            previous_charge /= previous_count
+                previous_energy += float(energies[old].sum())
+                previous_entropy += float(entropies[old].sum())
+        previous_count = (grid.n // 2) ** grid.dimension if compare_previous else 1
         return (
-            values / grid.count,
-            charge / grid.count,
-            previous_values,
-            previous_charge,
+            _Integral(
+                values / grid.count,
+                charge / grid.count,
+                energy / grid.count,
+                entropy / grid.count,
+            ),
+            _Integral(
+                previous_values / previous_count,
+                previous_charge / previous_count,
+                previous_energy / previous_count,
+                previous_entropy / previous_count,
+            ),
         )
 
 
@@ -425,7 +472,16 @@ def solve_periodic(
     previous = None
     refinements = 0
     charge_evaluations = 0
-    density_error = charge_error = None
+    density_error = charge_error = energy_error = entropy_error = None
+
+    def within_targets():
+        return (
+            np.max(density_error, initial=0.0) <= density_target
+            and charge_error <= charge_target
+            and energy_error <= density_target
+            and entropy_error <= density_target
+        )
+
     while True:
         count = n**dimension
         if count > integration.max_points:
@@ -465,36 +521,32 @@ def solve_periodic(
             resolved_mu = mu_guess = root.mu
         else:
             resolved_mu = float(mu)
-        values, charge, old_values, old_charge = evaluator.density(
+        integral, parent = evaluator.density(
             grid, resolved_mu, compare_previous=previous is not None
         )
         if prescribed:
             break
         if dimension == 0:
-            density_error = np.zeros(values.size)
-            charge_error = 0.0
+            density_error = np.zeros(integral.values.size)
+            charge_error = energy_error = entropy_error = 0.0
             break
         if previous is not None:
-            density_error = np.abs(values - old_values)
-            charge_error = abs(charge - old_charge)
-            if (
-                np.max(density_error, initial=0.0) <= density_target
-                and charge_error <= charge_target
-            ):
+            density_error, charge_error, energy_error, entropy_error = integral.errors(
+                parent
+            )
+            if within_targets():
                 shifted = _Grid(n, dimension, shifted=True)
-                shifted_values, shifted_charge, _, _ = evaluator.density(
+                validation, _ = evaluator.density(
                     shifted, resolved_mu, compare_previous=False
                 )
                 evaluator.work.unique += count
                 evaluator.work.validation_points += count
-                density_error = np.maximum(
-                    density_error, np.abs(values - shifted_values)
-                )
-                charge_error = max(charge_error, abs(charge - shifted_charge))
-                if (
-                    np.max(density_error, initial=0.0) <= density_target
-                    and charge_error <= charge_target
-                ):
+                errors = integral.errors(validation)
+                density_error = np.maximum(density_error, errors[0])
+                charge_error = max(charge_error, errors[1])
+                energy_error = max(energy_error, errors[2])
+                entropy_error = max(entropy_error, errors[3])
+                if within_targets():
                     break
         if (
             integration.max_refinements is not None
@@ -504,11 +556,13 @@ def solve_periodic(
                 "PeriodicGrid did not converge before max_refinements="
                 f"{integration.max_refinements}; mesh={grid.shape}, "
                 f"density_error={None if density_error is None else np.max(density_error, initial=0.0)}, "
-                f"charge_error={charge_error}. Increase the limit or relax integration targets."
+                f"charge_error={charge_error}, band_energy_error={energy_error}, "
+                f"entropy_error={entropy_error}. Increase the limit or relax integration targets."
             )
         previous = grid
         n *= 2
         refinements += 1
+    values, charge = integral.values, integral.charge
     if filling is not None and abs(charge - filling) > filling_tol:
         raise RuntimeError(
             "PeriodicGrid density recomputation did not satisfy the filling tolerance: "
@@ -532,6 +586,8 @@ def solve_periodic(
         charge_error=charge_error,
         error_estimate_available=not prescribed,
         spectrum_bytes=work.spectrum_bytes,
+        band_energy_error=energy_error,
+        entropy_error=entropy_error,
     )
     return DensityResult(
         entries=DensityEntries(coordinates, values, density_error),
@@ -545,4 +601,6 @@ def solve_periodic(
             filling_residual=None if filling is None else abs(charge - filling),
         ),
         statistics=info,
+        band_energy=integral.band_energy,
+        entropy=integral.entropy,
     )

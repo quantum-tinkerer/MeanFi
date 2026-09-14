@@ -1,103 +1,80 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 # `RationalFOE`
 
-`RationalFOE` is the finite-temperature matrix-function backend that avoids full diagonalization.
+`RationalFOE()` evaluates sparse Hamiltonians at positive temperature on a
+prescribed `PeriodicGrid(nk=...)`. It uses AAA rational approximation and MUMPS
+selected inversion. The density and entropy calculation shares shifted sparse
+factorizations; it does not diagonalize the Hamiltonian or form its full inverse.
 
-Instead of diagonalizing the sampled Hamiltonian exactly, it approximates the occupation matrix function
+## One pole set for density and entropy
 
-:::{math}
-f(H) = \frac{1}{e^{H/kT}+1}
-:::
-
-by a rational approximation of the form
-
-:::{math}
-f(H) \approx c_0 I + \sum_{\ell=1}^{m} c_\ell (H - z_\ell I)^{-1}.
-:::
-
-So the calculation is reduced to solving shifted linear systems rather than computing the full eigendecomposition.
-
-## Rational schemes
-
-### `aaa`
-
-`aaa` uses the AAA algorithm, an adaptive barycentric rational approximation scheme that selects poles and residues to fit the scalar occupation function efficiently on the relevant spectral interval; see [The AAA Algorithm for Rational Approximation](https://epubs.siam.org/doi/10.1137/16M1106122).
-
-### `ozaki`
-
-`ozaki` uses a pole expansion derived from continued-fraction ideas for the Fermi-Dirac function, giving a structured rational approximation with poles chosen analytically rather than adaptively; see [Continued Fraction Representation of the Fermi-Dirac Function for Large-Scale Electronic Structure Calculations](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.75.035123).
-
-## Why it helps
-
-For sparse matrices, solving a sequence of shifted sparse systems can be much cheaper than repeated dense diagonalization, especially when the Hamiltonian is large and the k-space integrator needs many evaluations.
-
-## What it computes
-
-At a fixed sampled $k$, the backend uses the rational approximation to evaluate:
-
-- density blocks,
-- and in supported paths, charge and derivative information for the fixed-filling solve.
-
-## Cost versus error scaling
-
-If the rational approximation uses $m$ poles, then the leading cost is roughly
+At each momentum, write the shifted Hamiltonian as $A=H(k)-\mu Q$, where $Q=I$
+for a normal system. The scalar functions are
 
 :::{math}
-\text{cost} \sim m \times C_{\mathrm{solve}}.
-:::
-
-For a highly sparse local Hamiltonian with bounded degree, the optimistic best case is that one shifted sparse solve is close to linear in the one-node matrix size $n$,
-
-:::{math}
-C_{\mathrm{solve}} \sim \mathcal{O}(n),
+f(x)=\frac{1}{1+e^{x/kT}},
 \qquad
-C_{\mathrm{rat}} \sim \mathcal{O}(m n),
+s(x)=-f(x)\log f(x)-(1-f(x))\log(1-f(x)).
 :::
 
-where $m$ is the number of poles.
-This is the regime in which rational FOE can be much cheaper than dense diagonalization,
+AAA chooses a common denominator for these functions on a spectral interval
+bounded by Gershgorin estimates. Occupation and entropy have different residues
+but share the same poles:
 
 :::{math}
-C_{\mathrm{diag}} \sim \mathcal{O}(n^3).
+g(A)\approx c_g I+2\operatorname{Re}\sum_\ell
+w_{g,\ell}(A-z_\ell I)^{-1},
+\qquad g\in\{f,s\}.
 :::
 
-More generally, sparse direct rational FOE is better summarized as
+Here the matrix real part denotes the Hermitian combination with the conjugate
+pole. Off-diagonal entries use the transposed conjugate resolvent entry.
+
+The fit combines occupation and entropy residuals, refits residues on the
+resulting poles, and checks both approximations on a separate, denser scalar
+grid. Samples resolve the band edges, Fermi transition, and thermal tails.
+Constant approximations must pass the same checks. These are sampled scalar
+checks, not rigorous uniform-error certificates between sample points.
+
+A scalar fit may be reused for a contained spectral interval after checking its
+requested accuracy. Charge-only evaluations can fit just the occupation
+function; the final density evaluation includes entropy.
+
+## Reusing sparse work
+
+For each pole, MUMPS factors $A-z_\ell I$ once. Selected inversion supplies the
+requested density entries and diagonal entries. The full diagonal is needed for
+entropy, including both electron and hole blocks in BdG calculations.
+
+Band energy uses the same resolvent traces through
 
 :::{math}
-C_{\mathrm{rat}} \sim \mathcal{O}(m n^{\alpha}),
-\qquad
-1 \le \alpha < 3,
+A(A-zI)^{-1}=I+z(A-zI)^{-1}.
 :::
 
-where $\alpha$ depends on the sparsity graph, dimension, fill-in during factorization, solver details, and whether the implementation needs a full inverse or only selected entries.
-Typical optimistic sparse-direct heuristics are:
+Thus entropy and band energy require no extra matrix factorizations. The
+integrator restores the chemical-potential shift; for BdG it also includes the
+normal-ordering constant and removes Nambu doubling from energy and entropy.
+The SCF layer subtracts interaction double counting to obtain internal energy,
+then returns `free_energy = internal_energy - kT * entropy`.
 
-- 1D-like sparsity: `C_rat ~ O(m n)`
-- 2D-like sparsity: `C_rat ~ O(m n^{3/2})`
-- 3D-like sparsity: `C_rat ~ O(m n^2)`
+Scalar tolerances account for charge trace weights, matrix size, and the spectral
+energy scale. Occupation accuracy alone is insufficient for entropy near empty
+or occupied states. A fit that cannot meet its requested accuracy within
+`max_poles` raises `ConvergenceError`; a prescribed grid still has no
+Brillouin-zone integration error estimate.
 
-The rational approximation error is then controlled separately by the pole scheme and pole count.
-AAA often reaches a given scalar approximation error with a moderate adaptive pole count, while Ozaki uses a structured analytic pole set.
+## Cost and configuration
 
-That is why this approach is attractive primarily for sparse problems: sparse shifted solves can scale much better than dense diagonalization.
+The leading matrix cost is the number of poles times the sparse factorization
+and selected-inversion cost. Sparsity pattern and fill-in determine that cost;
+small dense problems can be faster with direct diagonalization. `initial_poles`
+and `max_poles` control the approximation budget. There is no scheme selector.
 
-## Current practical notes
+An explicit positive-temperature sparse `PeriodicGrid(nk=...)` selects
+`RationalFOE()` when its matrix function is omitted. Accuracy-controlled rational
+integration is unsupported. Use `DirectDiagonalization()` explicitly when dense
+evaluation of sparse inputs is wanted.
 
-- supported only for sparse matrices at positive temperature with prescribed
-  `PeriodicGrid(nk=...)`,
-- an omitted matrix function on that explicit sparse grid selects
-  `RationalFOE(rational_scheme="aaa")`; automatic integration-family selection
-  raises migration guidance,
-- dense and accuracy-controlled rational integration are unsupported,
-- this is a single-node matrix-function backend, not a Brillouin-zone integration method by itself.
+See [the AAA paper](https://epubs.siam.org/doi/10.1137/16M1106122) for scalar
+rational approximation and [PEXSI](https://pexsi.readthedocs.io/en/stable/introduction.html)
+for shared-pole density, energy, and free-energy evaluation.

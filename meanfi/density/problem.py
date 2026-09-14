@@ -25,7 +25,6 @@ class DensityProblem:
     integration: IntegrationMethod
     tolerances: ErrorTolerances
     density_coordinates: DensityCoordinates
-    include_band_energy: bool = False
     electron_ndof: int | None = None
 
 
@@ -37,7 +36,6 @@ def build_density_problem(
     integration: IntegrationMethod | None,
     tolerances: ErrorTolerances,
     density_coordinates: DensityCoordinates | None = None,
-    include_band_energy: bool = False,
     electron_ndof: int | None = None,
 ) -> DensityProblem:
     if tb_dimension(hamiltonian) == 0:
@@ -64,6 +62,5 @@ def build_density_problem(
         integration,
         tolerances,
         coordinates,
-        include_band_energy,
         electron_ndof,
     )

@@ -9,15 +9,15 @@ from scipy.optimize import minimize
 
 @dataclass(frozen=True)
 class EDIISPoint:
-    """One density and its exact quadratic-functional decomposition."""
+    """One evaluated density and its free-energy decomposition."""
 
     params: np.ndarray
-    one_body_energy: float
-    energy: float
+    linear_free_energy: float
+    free_energy: float
 
 
 def _recent_lowest_energy_index(history: Sequence[EDIISPoint]) -> int:
-    energies = np.asarray([point.energy for point in history], dtype=float)
+    energies = np.asarray([point.free_energy for point in history], dtype=float)
     minimum = int(np.argmin(energies))
     tied = np.flatnonzero(
         np.isclose(energies, energies[minimum], rtol=1e-12, atol=1e-14)
@@ -31,7 +31,11 @@ def ediis_coefficients(
     interaction_energy: Callable[[np.ndarray], float],
     interaction_gradient: Callable[[np.ndarray, np.ndarray], float],
 ) -> np.ndarray:
-    """Minimize the exact quadratic energy over the convex history hull."""
+    """Minimize a free-energy upper bound over the convex density history.
+
+    The interaction is evaluated at the mixed density. One-body energy and
+    entropy are averaged over history; entropy concavity makes this an upper
+    bound at finite temperature and an exact quadratic functional at zero T."""
 
     count = len(history)
     if count == 0:
@@ -40,7 +44,7 @@ def ediis_coefficients(
         return np.ones(1, dtype=float)
 
     params = np.stack([point.params for point in history])
-    one_body = np.asarray([point.one_body_energy for point in history], dtype=float)
+    one_body = np.asarray([point.linear_free_energy for point in history], dtype=float)
 
     def objective(coefficients: np.ndarray) -> float:
         mixed = np.tensordot(coefficients, params, axes=1)
@@ -94,7 +98,7 @@ def ediis_coefficients(
         return vertex
 
     recent = history[recent_best]
-    if best_value >= recent.energy:
+    if best_value >= recent.free_energy:
         return vertex
     return best
 

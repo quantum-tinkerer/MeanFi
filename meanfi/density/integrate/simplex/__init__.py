@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
 from dataclasses import replace
-from math import comb
+from math import comb, factorial
 
 import numpy as np
 from fermisimplex import SpectralMesh
@@ -157,6 +157,19 @@ def _occupied_band_energy(
     return float(np.sum(weights * np.asarray(mesh.eigenvalues)))
 
 
+def _zero_temperature_entropy(mesh: SpectralMesh, mu: float) -> float:
+    """Only flat bands at mu have nonzero entropy in simplex integration."""
+    at_mu = np.abs(np.asarray(mesh.eigenvalues) - mu) <= mesh.tolerance
+    if not np.any(at_mu):
+        return 0.0
+    simplices = np.asarray(mesh.simplices)
+    counts = np.all(at_mu[simplices], axis=1).sum(axis=1)
+    vertices = np.asarray(mesh.points)[simplices[counts > 0]]
+    edges = vertices[:, 1:] - vertices[:, :1]
+    volumes = np.abs(np.linalg.det(edges)) / factorial(mesh.ndim)
+    return float(np.log(2.0) * (volumes @ counts[counts > 0]))
+
+
 def _integrate_density(
     mesh: SpectralMesh,
     density_coordinates: DensityCoordinates,
@@ -234,6 +247,7 @@ def _density_evaluation(
     mu: float,
     info: AdaptiveSimplexInfo,
     target_filling: float | None = None,
+    entropy: float = 0.0,
 ) -> DensityResult:
     return DensityResult(
         entries=density,
@@ -252,6 +266,7 @@ def _density_evaluation(
         ),
         statistics=info,
         band_energy=info.band_energy,
+        entropy=entropy,
     )
 
 
@@ -374,6 +389,7 @@ def density_matrix_at_mu_zero_temp(
     density_info = replace(
         density_info,
         charge=float(charge.value),
+        band_energy=_occupied_band_energy(mesh, mu=mu),
         charge_error=charge_error,
         n_kernel_evals=work,
         unique_evals=work,
@@ -385,7 +401,9 @@ def density_matrix_at_mu_zero_temp(
         n_leaf_nodes=int(mesh.active_vertices),
         n_kpoints=int(mesh.active_vertices),
     )
-    return _density_evaluation(density, mu, density_info)
+    return _density_evaluation(
+        density, mu, density_info, entropy=_zero_temperature_entropy(mesh, mu)
+    )
 
 
 def _fixed_filling_info(
@@ -432,7 +450,6 @@ def density_matrix_zero_temp(
     max_charge_evaluations: int | None,
     max_subdivisions: int | None = None,
     num_threads: int | None = None,
-    include_band_energy: bool = False,
     nk: int | None = None,
     max_points: int | None = None,
 ):
@@ -592,9 +609,7 @@ def density_matrix_zero_temp(
         n_diagonalizations=density_work,
         refinements=density_refinements,
     )
-    band_energy = (
-        _occupied_band_energy(mesh, mu=float(root.mu)) if include_band_energy else None
-    )
+    band_energy = _occupied_band_energy(mesh, mu=float(root.mu))
     info = _fixed_filling_info(
         root=root,
         charge_integration_calls=charge_integration_calls,
@@ -606,7 +621,13 @@ def density_matrix_zero_temp(
         nk=nk,
         charge_diagonalizations=charge_diagonalizations,
     )
-    return _density_evaluation(density, root.mu, info, target_filling=filling)
+    return _density_evaluation(
+        density,
+        root.mu,
+        info,
+        target_filling=filling,
+        entropy=_zero_temperature_entropy(mesh, root.mu),
+    )
 
 
 __all__ = [
