@@ -207,14 +207,12 @@ def test_density_result_exposes_physical_values_errors_and_mesh_statistics():
     )
 
     assert isinstance(result, DensityResult)
-    assert tuple(result.__dataclass_fields__) == (
-        "coordinates",
-        "values",
-        "mu",
-        "filling",
-        "errors",
-        "statistics",
-    )
+    assert result.coordinates is result.entries.coordinates
+    assert result.values is result.entries.values
+    assert result.entry_errors is result.entries.errors
+    assert not result.values.flags.writeable
+    assert result.filling == pytest.approx(np.trace(result.to_matrix()[()]).real)
+    assert result.statistics is not None
     assert not hasattr(result, "density_matrix_error")
     assert not hasattr(result, "info")
     assert not hasattr(result, "integration")

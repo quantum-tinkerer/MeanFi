@@ -3,6 +3,7 @@ import pytest
 
 from meanfi import (
     DensityCoordinates,
+    DensityEntries,
     DensityResult,
     ErrorValues,
     Model,
@@ -31,8 +32,7 @@ def test_selected_density_supports_covered_observables_and_total_energy():
     matrix = {(): np.array([[0.25, 0.1], [0.1, 0.75]], dtype=complex)}
     coordinates = model.scf_space.required_coordinates
     density = DensityResult(
-        coordinates=coordinates,
-        values=coordinates.values_from_tb(matrix),
+        entries=DensityEntries(coordinates, coordinates.values_from_tb(matrix)),
         mu=0.0,
         filling=1.0,
         errors=ErrorValues(),
@@ -50,12 +50,9 @@ def test_selected_density_rejects_uncovered_observable_coordinate():
         size=2,
         keys=[()],
         entries=(((), 0, 0),),
-        allow_empty=False,
     )
-    assert coordinates is not None
     density = DensityResult(
-        coordinates=coordinates,
-        values=np.array([0.25]),
+        entries=DensityEntries(coordinates, np.array([0.25])),
         mu=0.0,
         filling=0.25,
         errors=ErrorValues(),

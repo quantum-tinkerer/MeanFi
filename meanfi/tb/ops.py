@@ -6,7 +6,7 @@ import numpy as np
 import scipy.sparse as sparse
 from scipy.linalg import block_diag as scipy_block_diag
 
-_tb_type = dict[tuple[int, ...], np.ndarray]
+_tb_type = dict[tuple[int, ...], np.ndarray | sparse.spmatrix | sparse.sparray]
 
 
 def is_sparse_like(matrix: Any) -> bool:
@@ -42,9 +42,9 @@ def conjugate_transpose(matrix: Any):
 
 def elementwise_product(lhs: Any, rhs: Any):
     if is_sparse_like(lhs):
-        return lhs.multiply(np.asarray(rhs, dtype=complex)).tocsr()
+        return lhs.multiply(rhs).tocsr()
     if is_sparse_like(rhs):
-        return rhs.multiply(np.asarray(lhs, dtype=complex)).tocsr()
+        return rhs.multiply(lhs).tocsr()
     return np.asarray(lhs, dtype=complex) * np.asarray(rhs, dtype=complex)
 
 
@@ -76,7 +76,7 @@ def add_tb(tb1: _tb_type, tb2: _tb_type) -> _tb_type:
 
 
 def scale_tb(tb: _tb_type, scale: float) -> _tb_type:
-    return {key: tb.get(key, 0) * scale for key in frozenset(tb)}
+    return {key: matrix * scale for key, matrix in tb.items()}
 
 
 def compare_dicts(dict1: dict, dict2: dict, atol: float = 1e-10) -> None:

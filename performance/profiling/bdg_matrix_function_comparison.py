@@ -112,7 +112,7 @@ def main() -> None:
                 benchmark_result=measurement,
                 density_result=result,
                 density_matrix_error=float(
-                    np.max(np.abs(result.density.values - reference.density.values))
+                    np.max(np.abs(result.values - reference.values))
                 ),
                 filling_error=abs(result.filling - model.filling),
                 extra={

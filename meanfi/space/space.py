@@ -15,12 +15,12 @@ from meanfi.space.reducers import (
 )
 from meanfi.space.selection import select_required_coordinates
 from meanfi.space.support import (
-    ActiveCoordinateSupport,
     bdg_active_support,
     normal_active_support,
 )
 from meanfi.space.symmetry import HermiticityConstraint, ParticleHoleConstraint
-from meanfi.tb.ops import _tb_type, is_sparse_like
+from meanfi.tb.ops import _tb_type
+from meanfi.tb.storage import prefers_sparse_storage
 
 if TYPE_CHECKING:
     from meanfi.model import Model
@@ -32,163 +32,119 @@ _DENSE_BASIS_LIMIT_BYTES = 2 * 1024**3
 @dataclass(frozen=True)
 class _OrbitParametrization:
     required_coordinates: DensityCoordinates
-    required_real_rows: np.ndarray
     required_value_rows: np.ndarray
     active_real_param: np.ndarray
     active_real_sign: np.ndarray
     active_imag_param: np.ndarray
     active_imag_sign: np.ndarray
-    parameter_count: int
+
+    @property
+    def num_params(self) -> int:
+        return self.required_value_rows.size
+
+    def params_from_real_values(self, values: np.ndarray) -> np.ndarray:
+        return values[self.required_value_rows]
+
+    def values_from_params(self, params: np.ndarray) -> np.ndarray:
+        values = np.zeros(self.active_real_param.size, dtype=complex)
+        real_mask = self.active_real_param >= 0
+        values[real_mask] = (
+            self.active_real_sign[real_mask] * params[self.active_real_param[real_mask]]
+        )
+        imag_mask = self.active_imag_param >= 0
+        values[imag_mask] += (
+            1j
+            * self.active_imag_sign[imag_mask]
+            * params[self.active_imag_param[imag_mask]]
+        )
+        return values
+
+
+@dataclass(frozen=True)
+class _DenseParametrization:
+    required_coordinates: DensityCoordinates
+    required_value_rows: np.ndarray
+    basis: np.ndarray
+    required_to_params: np.ndarray
+
+    @property
+    def num_params(self) -> int:
+        return self.basis.shape[1]
+
+    def params_from_real_values(self, values: np.ndarray) -> np.ndarray:
+        return self.required_to_params @ values[self.required_value_rows]
+
+    def values_from_params(self, params: np.ndarray) -> np.ndarray:
+        return real_to_complex(self.basis @ params)
 
 
 @dataclass(frozen=True)
 class ActiveSCFSpace:
-    """Minimal real variables used by one mean-field SCF problem."""
+    """Minimal real variables and their density reconstruction for one SCF problem."""
 
     active_coordinates: DensityCoordinates
-    required_coordinates: DensityCoordinates
-    required_real_rows: np.ndarray
-    required_value_rows: np.ndarray
+    parametrization: _OrbitParametrization | _DenseParametrization
     interaction_keys: list[tuple[int, ...]]
     density_keys: list[tuple[int, ...]]
     onsite: tuple[int, ...]
-    basis: np.ndarray | None = None
-    required_to_params: np.ndarray | None = None
-    active_real_param: np.ndarray | None = None
-    active_real_sign: np.ndarray | None = None
-    active_imag_param: np.ndarray | None = None
-    active_imag_sign: np.ndarray | None = None
-    parameter_count: int | None = None
+    sparse: bool
 
     @property
-    def active_entries(self) -> tuple[DensityEntry, ...]:
-        return self.active_coordinates.entries
+    def required_coordinates(self) -> DensityCoordinates:
+        return self.parametrization.required_coordinates
 
     @property
     def num_params(self) -> int:
-        if self.parameter_count is not None:
-            return int(self.parameter_count)
-        if self.basis is None:  # pragma: no cover - constructors provide one path
-            raise ValueError("ActiveSCFSpace has no parametrization")
-        return int(self.basis.shape[1])
-
-    @classmethod
-    def normal(cls, model: Model) -> ActiveSCFSpace:
-        support = normal_active_support(model)
-        entries = support.coordinates.entries
-        if not getattr(model, "spatial_symmetries", ()):
-            parametrization = _orbit_parametrization(
-                support.coordinates,
-                constraints=(HermiticityConstraint(),),
-            )
-            return cls._from_orbit_support(support, parametrization)
-        _raise_if_dense_basis_too_large(len(entries), family="normal")
-        basis = OrbitReducer(entries).basis((HermiticityConstraint(),))
-        basis = LinearConstraintReducer(
-            entries,
-            ndof=model._ndof,
-            family="normal",
-        ).basis(basis, getattr(model, "spatial_symmetries", ()))
-        return cls._from_support(support, basis)
-
-    @classmethod
-    def bdg(cls, model: Model) -> ActiveSCFSpace:
-        support = bdg_active_support(model)
-        entries = support.coordinates.entries
-        constraints = (
-            HermiticityConstraint(electron_ndof=model._ndof),
-            ParticleHoleConstraint(model._ndof),
-        )
-        if not getattr(model, "spatial_symmetries", ()):
-            parametrization = _orbit_parametrization(
-                support.coordinates,
-                constraints=constraints,
-            )
-            return cls._from_orbit_support(support, parametrization)
-        _raise_if_dense_basis_too_large(len(entries), family="bdg")
-        basis = OrbitReducer(entries).basis(constraints)
-        basis = LinearConstraintReducer(
-            entries,
-            ndof=model._ndof,
-            family="bdg",
-        ).basis(basis, getattr(model, "spatial_symmetries", ()))
-        return cls._from_support(support, basis)
+        return self.parametrization.num_params
 
     @classmethod
     def from_model(cls, model: Model) -> ActiveSCFSpace:
-        return cls.bdg(model) if model.superconducting else cls.normal(model)
+        if model.superconducting:
+            support = bdg_active_support(model)
+            family = "bdg"
+            constraints = (
+                HermiticityConstraint(electron_ndof=model._ndof),
+                ParticleHoleConstraint(model._ndof),
+            )
+        else:
+            support = normal_active_support(model)
+            family = "normal"
+            constraints = (HermiticityConstraint(),)
 
-    @classmethod
-    def _from_support(
-        cls,
-        support: ActiveCoordinateSupport,
-        basis: np.ndarray,
-    ) -> ActiveSCFSpace:
-        selected = select_required_coordinates(support.coordinates, basis)
-        sample_basis = np.asarray(basis, dtype=float)[selected.active_real_rows, :]
-        required_to_params = (
-            np.linalg.inv(sample_basis)
-            if sample_basis.size
-            else np.zeros((0, 0), dtype=float)
-        )
+        if model.spatial_symmetries:
+            entries = support.coordinates.entries
+            _raise_if_dense_basis_too_large(len(entries), family=family)
+            basis = OrbitReducer(entries).basis(constraints)
+            basis = LinearConstraintReducer(
+                entries, ndof=model._ndof, family=family
+            ).basis(basis, model.spatial_symmetries)
+            selected = select_required_coordinates(support.coordinates, basis)
+            sample_basis = basis[selected.active_real_rows, :]
+            parametrization = _DenseParametrization(
+                required_coordinates=selected.coordinates,
+                required_value_rows=selected.value_real_rows,
+                basis=basis,
+                required_to_params=np.linalg.inv(sample_basis),
+            )
+        else:
+            parametrization = _orbit_parametrization(
+                support.coordinates, constraints=constraints
+            )
+
         return cls(
             active_coordinates=support.coordinates,
-            required_coordinates=selected.coordinates,
-            required_real_rows=selected.active_real_rows,
-            required_value_rows=selected.value_real_rows,
+            parametrization=parametrization,
             interaction_keys=support.interaction_keys,
             density_keys=support.density_keys,
             onsite=support.onsite,
-            basis=np.asarray(basis, dtype=float),
-            required_to_params=required_to_params,
-            parameter_count=int(basis.shape[1]),
+            sparse=prefers_sparse_storage(model.h_0, model.h_int),
         )
-
-    @classmethod
-    def _from_orbit_support(
-        cls,
-        support: ActiveCoordinateSupport,
-        parametrization: _OrbitParametrization,
-    ) -> ActiveSCFSpace:
-        return cls(
-            active_coordinates=support.coordinates,
-            required_coordinates=parametrization.required_coordinates,
-            required_real_rows=parametrization.required_real_rows,
-            required_value_rows=parametrization.required_value_rows,
-            interaction_keys=support.interaction_keys,
-            density_keys=support.density_keys,
-            onsite=support.onsite,
-            active_real_param=parametrization.active_real_param,
-            active_real_sign=parametrization.active_real_sign,
-            active_imag_param=parametrization.active_imag_param,
-            active_imag_sign=parametrization.active_imag_sign,
-            parameter_count=parametrization.parameter_count,
-        )
-
-    def required_realspace_entries(self) -> tuple[DensityEntry, ...]:
-        return self.required_coordinates.entries
-
-    def required_density_coordinates_for(
-        self, tb: _tb_type
-    ) -> DensityCoordinates | None:
-        if self.required_coordinates.value_count == 0:
-            return None
-        if any(is_sparse_like(matrix) for matrix in tb.values()):
-            return self.required_coordinates
-        return None
 
     def params_from_required_entries(self, values: np.ndarray) -> np.ndarray:
         real_values = complex_to_real(values)
         if real_values.size != 2 * self.required_coordinates.value_count:
             raise ValueError("values do not match required real-space entries")
-        if self.num_params == 0:
-            return np.empty(0, dtype=float)
-        if self.required_to_params is None:
-            return np.asarray(real_values[self.required_value_rows], dtype=float)
-        return np.asarray(
-            self.required_to_params @ real_values[self.required_value_rows],
-            dtype=float,
-        )
+        return self.parametrization.params_from_real_values(real_values)
 
     def params_from_meanfield_input(self, rho: _tb_type) -> np.ndarray:
         return self.params_from_required_entries(
@@ -199,35 +155,12 @@ class ActiveSCFSpace:
         params = np.asarray(params, dtype=float).reshape(-1)
         if params.size != self.num_params:
             raise ValueError("params has the wrong length for this active SCF space")
-        if self.basis is None:
-            return self._meanfield_input_from_orbit_params(params)
-        real_values = self.basis @ params
-        return self.active_coordinates.values_to_tb(real_to_complex(real_values))
+        return self.active_coordinates.values_to_tb(
+            self.parametrization.values_from_params(params), sparse=self.sparse
+        )
 
     def project_meanfield_input(self, rho: _tb_type) -> _tb_type:
         return self.meanfield_input_from_params(self.params_from_meanfield_input(rho))
-
-    def _meanfield_input_from_orbit_params(self, params: np.ndarray) -> _tb_type:
-        if (
-            self.active_real_param is None
-            or self.active_real_sign is None
-            or self.active_imag_param is None
-            or self.active_imag_sign is None
-        ):  # pragma: no cover - constructors provide complete orbit metadata
-            raise ValueError("ActiveSCFSpace has incomplete orbit parametrization")
-
-        values = np.zeros(self.active_coordinates.value_count, dtype=complex)
-        real_mask = self.active_real_param >= 0
-        values[real_mask] += (
-            self.active_real_sign[real_mask] * params[self.active_real_param[real_mask]]
-        )
-        imag_mask = self.active_imag_param >= 0
-        values[imag_mask] += (
-            1j
-            * self.active_imag_sign[imag_mask]
-            * params[self.active_imag_param[imag_mask]]
-        )
-        return self.active_coordinates.values_to_tb(values)
 
 
 def _orbit_parametrization(
@@ -247,7 +180,6 @@ def _orbit_parametrization(
 
     required_entries: list[DensityEntry] = []
     required_param_rows: list[tuple[int, bool]] = []
-    required_active_rows: list[int] = []
     parameter_count = 0
 
     def add_required(position: int) -> int:
@@ -260,7 +192,6 @@ def _orbit_parametrization(
         active_real_param[position] = parameter_count
         active_real_sign[position] = sign
         required_param_rows.append((required_position, False))
-        required_active_rows.append(position)
         parameter_count += 1
 
     def add_imag_param(position: int, *, sign: float, required_position: int) -> None:
@@ -268,7 +199,6 @@ def _orbit_parametrization(
         active_imag_param[position] = parameter_count
         active_imag_sign[position] = sign
         required_param_rows.append((required_position, True))
-        required_active_rows.append(value_count + position)
         parameter_count += 1
 
     for position, entry in enumerate(entries):
@@ -328,10 +258,7 @@ def _orbit_parametrization(
         size=active_coordinates.size,
         keys=list(active_coordinates.keys),
         entries=tuple(required_entries),
-        allow_empty=True,
     )
-    if required_coordinates is None:  # pragma: no cover - allow_empty guarantees this
-        raise ValueError("Required density coordinates unexpectedly missing")
 
     required_count = len(required_entries)
     required_value_rows = np.asarray(
@@ -343,13 +270,11 @@ def _orbit_parametrization(
     )
     return _OrbitParametrization(
         required_coordinates=required_coordinates,
-        required_real_rows=np.asarray(required_active_rows, dtype=int),
         required_value_rows=required_value_rows,
         active_real_param=active_real_param,
         active_real_sign=active_real_sign,
         active_imag_param=active_imag_param,
         active_imag_sign=active_imag_sign,
-        parameter_count=parameter_count,
     )
 
 

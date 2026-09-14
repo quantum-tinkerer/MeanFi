@@ -8,7 +8,7 @@ from numbers import Integral
 from meanfi.density.integrate.methods import AdaptiveSimplex
 from meanfi.density.integrate.normal import evaluate_simplex
 from meanfi.density.integrate.periodic import solve_periodic
-from meanfi.density.internal import DensityEvaluation
+from meanfi.results import DensityResult
 from meanfi.density.problem import DensityProblem
 
 
@@ -20,7 +20,7 @@ def evaluate_density(
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
     mu_guess: float = 0.0,
-) -> DensityEvaluation:
+) -> DensityResult:
     if (mu is None) == (filling is None):
         raise ValueError("Provide exactly one of mu and filling")
     if mu is not None and not math.isfinite(mu):

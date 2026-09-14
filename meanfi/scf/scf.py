@@ -44,7 +44,7 @@ def solver(
         else select_default_integration(
             model.h_0,
             kT=model.kT,
-            superconducting=bool(getattr(model, "superconducting", False)),
+            superconducting=model.superconducting,
         )
     )
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
@@ -63,7 +63,7 @@ def solver(
         tolerances,
     )
     supports_energy_diis = (
-        not bool(getattr(model, "superconducting", False))
+        not model.superconducting
         and float(model.kT) == 0.0
         and isinstance(resolved_integration, AdaptiveSimplex)
     )
@@ -84,7 +84,7 @@ def solver(
     )
     problem = (
         build_bdg_scf_problem(model, runtime)
-        if getattr(model, "superconducting", False)
+        if model.superconducting
         else build_normal_scf_problem(model, runtime)
     )
     return run_scf_loop(

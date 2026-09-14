@@ -231,8 +231,11 @@ with threadpool_limits(1):
             }[name]
             coarse, charge_coarse = reference(model, mf, result, order, 0.371)
             fine, charge_fine = reference(model, mf, result, order + 12, 0.619)
+            values = (
+                result.values if hasattr(result, "values") else result.density.values
+            )
             record.update(
-                density_error=float(np.max(abs(result.density.values - fine))),
+                density_error=float(np.max(abs(values - fine))),
                 charge_error=abs(charge_fine - model.filling),
                 reference_density_change=float(np.max(abs(coarse - fine))),
                 reference_charge_change=abs(charge_coarse - charge_fine),

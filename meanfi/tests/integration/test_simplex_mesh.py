@@ -69,8 +69,8 @@ def test_prescribed_density_uses_simplex_rule_without_refinement_or_previews():
         max_subdivisions=0,
     )
     info = result.statistics
-    rho = result.density.to_full_tb()
-    error = result.density.errors
+    rho = result.to_matrix()
+    error = result.entry_errors
     mesh = _spectral_mesh(h, nk=100)
     charge = mesh.estimate_charge_on_current_mesh(mu=mu)
     weights = mesh.occupied_weights(mu)[:, 0]
@@ -103,8 +103,8 @@ def test_prescribed_filling_reuses_native_spectra_and_preserves_band_energy():
         include_band_energy=True,
     )
     info = result.statistics
-    rho = result.density.to_full_tb()
-    error = result.density.errors
+    rho = result.to_matrix()
+    error = result.entry_errors
     mu = result.mu
     assert abs(mu) < 1e-10
     np.testing.assert_allclose(rho[(0,)], 0.5, atol=1e-10)
@@ -123,7 +123,6 @@ def test_prescribed_simplex_public_tolerance_keeps_fixed_mode_and_selected_layou
         size=1,
         keys=[(1,)],
         entries=(((1,), 0, 0),),
-        allow_empty=False,
     )
     full = density_matrix(
         h, filling=0.4, keys=[(0,), (1,)], integration=integration, tol=1e-8
@@ -154,7 +153,7 @@ def test_adaptive_simplex_preview_storage_limit_is_checked():
 
 def test_selected_fixed_mu_simplex_reports_charge_without_diagonal_entries():
     coordinates = DensityCoordinates.from_entries(
-        size=1, keys=[(1,)], entries=(((1,), 0, 0),), allow_empty=False
+        size=1, keys=[(1,)], entries=(((1,), 0, 0),)
     )
     result = density_matrix_at_mu_zero_temp(
         _chain(),
@@ -167,16 +166,14 @@ def test_selected_fixed_mu_simplex_reports_charge_without_diagonal_entries():
         max_points=129,
     )
     info = result.statistics
-    error = result.density.errors
+    error = result.entry_errors
     assert abs(info.charge - (1 - np.arccos(0.1) / np.pi)) < 2e-5
     assert info.n_diagonalizations == 129
     assert error is None
 
 
 def test_empty_fixed_mu_simplex_still_evaluates_charge():
-    coordinates = DensityCoordinates.from_entries(
-        size=1, keys=[(1,)], entries=(), allow_empty=True
-    )
+    coordinates = DensityCoordinates.from_entries(size=1, keys=[(1,)], entries=())
     result = density_matrix_at_mu_zero_temp(
         _chain(),
         mu=0.2,
@@ -188,7 +185,7 @@ def test_empty_fixed_mu_simplex_still_evaluates_charge():
         max_points=129,
     )
     info = result.statistics
-    error = result.density.errors
+    error = result.entry_errors
     assert abs(info.charge - (1 - np.arccos(0.1) / np.pi)) < 2e-5
     assert info.n_diagonalizations == info.n_cached_nodes == 129
     assert error is None
@@ -222,8 +219,8 @@ def test_adaptive_density_refinement_keeps_root_consistent_with_final_native_mes
         max_points=10000,
     )
     info = result.statistics
-    rho = result.density.to_full_tb()
-    error = result.density.errors
+    rho = result.to_matrix()
+    error = result.entry_errors
     mu = result.mu
     final_charge = meshes[0].estimate_charge_on_current_mesh(mu=mu).value
     assert abs(final_charge - 0.4) <= 1e-10
@@ -249,7 +246,7 @@ def test_adaptive_fixed_mu_enforces_charge_target_for_selected_layouts(
 
     monkeypatch.setattr(simplex, "_spectral_mesh", record_mesh)
     coordinates = DensityCoordinates.from_entries(
-        size=1, keys=[(1,)], entries=() if empty else (((1,), 0, 0),), allow_empty=empty
+        size=1, keys=[(1,)], entries=() if empty else (((1,), 0, 0),)
     )
     result = density_matrix_at_mu_zero_temp(
         _chain(),
@@ -297,9 +294,7 @@ def test_fixed_mu_simplex_reports_both_integration_errors_publicly():
 
 
 def test_empty_fixed_mu_charge_target_respects_point_limit():
-    coordinates = DensityCoordinates.from_entries(
-        size=1, keys=[(1,)], entries=(), allow_empty=True
-    )
+    coordinates = DensityCoordinates.from_entries(size=1, keys=[(1,)], entries=())
     with pytest.raises(RuntimeError, match="did not converge.*max_points"):
         density_matrix_at_mu_zero_temp(
             _chain(),
@@ -324,15 +319,12 @@ def test_selected_simplex_density_does_not_assemble_unrequested_matrix_entries(
     integration = AdaptiveSimplex(nk=65)
     reference = density_matrix(h, filling=0.8, keys=[(1,)], integration=integration)
     coordinates = DensityCoordinates.from_entries(
-        size=2, keys=[(1,)], entries=(((1,), 0, 1),), allow_empty=False
+        size=2, keys=[(1,)], entries=(((1,), 0, 1),)
     )
 
     def unexpected_matrix_assembly(*args, **kwargs):
         pytest.fail("selected density must remain coordinate values")
 
-    monkeypatch.setattr(
-        DensityCoordinates, "values_and_errors_to_tb", unexpected_matrix_assembly
-    )
     monkeypatch.setattr(DensityCoordinates, "values_to_tb", unexpected_matrix_assembly)
     selected = density_matrix(
         h, filling=0.8, coordinates=coordinates, integration=integration

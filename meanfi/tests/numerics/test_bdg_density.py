@@ -125,7 +125,7 @@ def test_bdg_exact_density_matches_dense_2d_reference():
 
     assert abs(result.mu - reference_mu) <= 8e-4
     assert abs(result.filling - reference_filling) <= 8e-4
-    assert _max_density_error(result.density.to_full_tb(), reference_density) <= 8e-4
+    assert _max_density_error(result.to_matrix(), reference_density) <= 8e-4
 
 
 @pytest.mark.parametrize(
@@ -211,10 +211,7 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
 
     assert abs(rational.mu - exact.mu) <= 2e-3
     assert abs(rational.filling - exact.filling) <= 2e-3
-    assert (
-        _max_density_error(rational.density.to_full_tb(), exact.density.to_full_tb())
-        <= 2e-3
-    )
+    assert _max_density_error(rational.to_matrix(), exact.to_matrix()) <= 2e-3
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -246,7 +243,7 @@ def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
 
     assert abs(result.mu) <= 1e-8
     assert abs(result.filling - 1.0) <= 1e-6
-    assert np.allclose(result.density.to_full_tb()[local], 0.5 * np.eye(4), atol=1e-6)
+    assert np.allclose(result.to_matrix()[local], 0.5 * np.eye(4), atol=1e-6)
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -391,8 +388,8 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
         superconducting=True,
     ).scf_space
     np.testing.assert_allclose(
-        space.params_from_meanfield_input(dense_result.density.to_full_tb()),
-        space.params_from_meanfield_input(sparse_result.density.to_full_tb()),
+        space.params_from_meanfield_input(dense_result.to_matrix()),
+        space.params_from_meanfield_input(sparse_result.to_matrix()),
         atol=1e-3,
     )
 
@@ -453,7 +450,7 @@ def test_bdg_sparse_periodic_grid_selected_density_matches_dense_reference(
     )
 
     np.testing.assert_allclose(
-        space.required_coordinates.values_from_tb(dense_result.density.to_full_tb()),
-        sparse_result.density.values,
+        space.required_coordinates.values_from_tb(dense_result.to_matrix()),
+        sparse_result.values,
         atol=2e-3,
     )

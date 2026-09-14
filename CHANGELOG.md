@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Coordinate constructors always return a layout, including empty selections;
+  removed `allow_empty` and unused conversion helpers. Sparse model SCF
+  reconstruction stays sparse through mean-field and BdG assembly.
+- SCF spaces use one explicit parametrization. Read entry layouts through
+  `space.active_coordinates.entries` and `space.required_coordinates.entries`;
+  removed the redundant entry-access helpers and optional mapping fields.
+
+- Density integration and SCF now share one `DensityEntries` payload in
+  `DensityResult.entries`; the private slice/evaluation wrappers are removed.
+  Manual result construction uses `DensityResult(entries=DensityEntries(...),
+  ...)`. Read-only `coordinates` and `values` remain available, and `entry_errors`
+  preserves the corresponding integration estimates through selection.
+- `density_matrix_at_mu` accepts the same mutually exclusive `keys`,
+  `coordinates`, or `interaction` selection modes as `density_matrix`.
 - Removed the unused `BdGMatrixFunction` marker and
   `RationalFOE.dn_dmu_rtol` setting. Use `DirectDiagonalization` or `RationalFOE`
   directly; periodic filling roots need no derivative-accuracy setting.

@@ -239,7 +239,7 @@ has full column rank.
 The required complex entries are exposed by
 
 ```python
-model.scf_space.required_realspace_entries()
+model.scf_space.required_coordinates.entries
 ```
 
 Selected-density backends use exactly these entries.
@@ -285,7 +285,7 @@ The SCF loop uses this space at four points:
    If projection removes components, MeanFi warns.
 
 2. **Selected density evaluation.**
-   When the backend supports selected entries, the density solve requests only `required_realspace_entries()`.
+   When the backend supports selected entries, the density solve requests only `required_coordinates.entries`.
 
 3. **Compression.**
    The computed density entries are compressed to the real vector `y`.

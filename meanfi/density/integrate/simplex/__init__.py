@@ -13,7 +13,7 @@ from meanfi.density.filling import mu_bracket as build_mu_bracket
 from meanfi.density.filling import solve_mu
 from meanfi.results import AdaptiveSimplexInfo
 from meanfi.errors import ErrorValues
-from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.results import DensityEntries, DensityResult
 from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
 from meanfi.tb.ops import _tb_type, to_dense
 
@@ -192,11 +192,11 @@ def _integrate_density(
 
 def _density_slice(
     result, coordinates: DensityCoordinates, *, prescribed: bool
-) -> DensitySlice:
+) -> DensityEntries:
     errors = (
         None if prescribed else np.full(coordinates.value_count, result.stopping_error)
     )
-    return DensitySlice(coordinates, result.values, errors)
+    return DensityEntries(coordinates, result.values, errors)
 
 
 def _empty_density_result(
@@ -205,9 +205,9 @@ def _empty_density_result(
     *,
     num_threads: int | None,
     nk: int | None = None,
-) -> tuple[DensitySlice, AdaptiveSimplexInfo]:
+) -> tuple[DensityEntries, AdaptiveSimplexInfo]:
     return (
-        DensitySlice(
+        DensityEntries(
             coordinates,
             np.empty(0, dtype=complex),
             None if nk is not None else np.empty(0),
@@ -230,13 +230,13 @@ def _empty_density_result(
 
 
 def _density_evaluation(
-    density: DensitySlice,
+    density: DensityEntries,
     mu: float,
     info: AdaptiveSimplexInfo,
     target_filling: float | None = None,
-) -> DensityEvaluation:
-    return DensityEvaluation(
-        density=density,
+) -> DensityResult:
+    return DensityResult(
+        entries=density,
         mu=float(mu),
         filling=info.charge,
         errors=ErrorValues(

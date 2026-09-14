@@ -5,10 +5,10 @@ from typing import Callable
 
 import numpy as np
 
-from meanfi.density.integrate.methods import AdaptiveSimplex
-from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
+from meanfi.results import DensityResult, DensityEntries
 from meanfi.errors import ErrorTolerances
-from meanfi.results import DensityResult, SCFIteration, SCFResult
+from meanfi.results import SCFIteration, SCFResult
 from meanfi.scf.ediis import EDIISPoint, ediis_coefficients
 from meanfi.scf.fixed_point import (
     NoConvergence,
@@ -19,6 +19,7 @@ from meanfi.scf.fixed_point import (
 )
 from meanfi.scf.info import SCFRunState, record_scf_iteration
 from meanfi.scf.methods import EnergyDIIS, SCFMethod
+from meanfi.space.space import ActiveSCFSpace
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import tb_entries_changed
@@ -26,7 +27,7 @@ from meanfi.tb.storage import tb_entries_changed
 
 @dataclass(frozen=True)
 class SolverRuntime:
-    integration: object
+    integration: IntegrationMethod
     tolerances: ErrorTolerances
     mu_tol: float
     max_charge_evaluations: int | None
@@ -37,7 +38,7 @@ class _ResidualEvaluation:
     input_state: ActiveDensityState
     output_state: ActiveDensityState
     residual: np.ndarray
-    density: DensityEvaluation
+    density: DensityResult
     residual_norm: float
     total_energy: float | None
 
@@ -51,15 +52,15 @@ class EnergyEvaluation:
 @dataclass(frozen=True)
 class SCFProblem:
     runtime: SolverRuntime
-    state_space: object
+    state_space: ActiveSCFSpace
     project_guess: Callable[[_tb_type], _tb_type]
-    evaluate_projected_guess: Callable[[_tb_type], DensityEvaluation]
-    state_from_density: Callable[[DensitySlice], ActiveDensityState]
-    evaluate_state: Callable[[ActiveDensityState, float], DensityEvaluation]
+    evaluate_projected_guess: Callable[[_tb_type], DensityResult]
+    state_from_density: Callable[[DensityEntries], ActiveDensityState]
+    evaluate_state: Callable[[ActiveDensityState, float], DensityResult]
     mean_field_from_state: Callable[[ActiveDensityState], _tb_type]
     energy_from_evaluation: (
         Callable[
-            [ActiveDensityState, ActiveDensityState, DensityEvaluation],
+            [ActiveDensityState, ActiveDensityState, DensityResult],
             EnergyEvaluation | None,
         ]
         | None
@@ -101,9 +102,9 @@ def _evaluate_state(
     problem: SCFProblem,
     input_state: ActiveDensityState,
     mu_guess: float,
-) -> tuple[DensityEvaluation, ActiveDensityState, EnergyEvaluation | None]:
+) -> tuple[DensityResult, ActiveDensityState, EnergyEvaluation | None]:
     density = problem.evaluate_state(input_state, mu_guess)
-    output_state = problem.state_from_density(density.density)
+    output_state = problem.state_from_density(density.entries)
     energy = (
         None
         if problem.energy_from_evaluation is None
@@ -293,14 +294,7 @@ def _build_result(
     errors = state.evaluation.errors
     if state.residual_norm is not None:
         errors = replace(errors, scf_residual=state.residual_norm)
-    density = DensityResult(
-        coordinates=state.evaluation.density.coordinates,
-        values=state.evaluation.density.values,
-        mu=float(state.evaluation.mu),
-        filling=float(state.evaluation.filling),
-        errors=errors,
-        statistics=state.evaluation.statistics,
-    )
+    density = replace(state.evaluation, errors=errors)
     return SCFResult(
         density=density,
         mean_field=problem.mean_field_from_state(state.output_state),
@@ -320,7 +314,7 @@ def run_scf_loop(
 ) -> SCFResult:
     projected_guess = problem.project_guess(guess)
     initial_density = problem.evaluate_projected_guess(projected_guess)
-    initial_state = problem.state_from_density(initial_density.density)
+    initial_state = problem.state_from_density(initial_density.entries)
     run_state = SCFRunState(evaluation=initial_density, output_state=initial_state)
 
     try:

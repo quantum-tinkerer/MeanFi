@@ -38,15 +38,14 @@ def normal_active_support(model: Model) -> ActiveCoordinateSupport:
     onsite = model._local_key
     interaction_keys = list(model.h_int)
     density_keys = active_tb_keys([*interaction_keys, onsite])
-    coordinates = _coordinates_from_pairs(
+    coordinates = DensityCoordinates.from_pairs(
         size=model._ndof,
         keys=density_keys,
-        pairs=_normal_active_pairs_from_interaction(
+        pairs_by_key=_normal_active_pairs_from_interaction(
             model.h_int,
             keys=density_keys,
             onsite=onsite,
         ),
-        label="Normal",
     )
     return ActiveCoordinateSupport(
         coordinates=coordinates,
@@ -69,11 +68,10 @@ def bdg_active_support(model: Model) -> ActiveCoordinateSupport:
         keys=density_keys,
         ndof=model._ndof,
     )
-    coordinates = _coordinates_from_pairs(
+    coordinates = DensityCoordinates.from_pairs(
         size=2 * model._ndof,
         keys=density_keys,
-        pairs=_merge_pair_maps(electron_pairs, anomalous_pairs),
-        label="BdG",
+        pairs_by_key=_merge_pair_maps(electron_pairs, anomalous_pairs),
     )
     return ActiveCoordinateSupport(
         coordinates=coordinates,
@@ -134,24 +132,6 @@ def _merge_pair_maps(
         for key, (rows, cols) in pair_map.items():
             _append_pairs(merged, key, rows, cols)
     return _materialize_pairs(merged)
-
-
-def _coordinates_from_pairs(
-    *,
-    size: int,
-    keys: list[tuple[int, ...]],
-    pairs: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]],
-    label: str,
-) -> DensityCoordinates:
-    coordinates = DensityCoordinates.from_pairs(
-        size=size,
-        keys=keys,
-        pairs_by_key=pairs,
-        allow_empty=True,
-    )
-    if coordinates is None:  # pragma: no cover - allow_empty guarantees coordinates
-        raise ValueError(f"{label} active coordinates unexpectedly missing")
-    return coordinates
 
 
 def _append_pairs(

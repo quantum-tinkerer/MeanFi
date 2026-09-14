@@ -8,8 +8,8 @@ from meanfi.meanfield import (
 )
 from meanfi.model import Model
 from meanfi.results import DensityResult
-from meanfi.space.coordinates import matrix_support_pairs, opposite_key
-from meanfi.tb.ops import _tb_type, to_dense
+from meanfi.space.coordinates import opposite_key
+from meanfi.tb.ops import _tb_type, elementwise_product, is_sparse_like
 
 
 def expectation_value(
@@ -42,16 +42,27 @@ def expectation_value(
         total = 0.0j
         missing = []
         for key, block in observable.items():
-            block = to_dense(block)
-            rows, cols = matrix_support_pairs(block)
+            if is_sparse_like(block):
+                coordinate_matrix = block.tocoo(copy=True)
+                coordinate_matrix.sum_duplicates()
+                coordinate_matrix.eliminate_zeros()
+                rows, cols, weights = (
+                    coordinate_matrix.row,
+                    coordinate_matrix.col,
+                    coordinate_matrix.data,
+                )
+            else:
+                block = np.asarray(block)
+                rows, cols = np.nonzero(block)
+                weights = block[rows, cols]
             density_key = opposite_key(tuple(key))
-            for row, col in zip(rows, cols, strict=True):
+            for row, col, weight in zip(rows, cols, weights, strict=True):
                 entry = (density_key, int(col), int(row))
                 value = available.get(entry)
                 if value is None:
                     missing.append(entry)
                 else:
-                    total += block[row, col] * value
+                    total += weight * value
         if missing:
             unique_missing = tuple(dict.fromkeys(missing))
             preview = ", ".join(map(str, unique_missing[:3]))
@@ -68,10 +79,10 @@ def expectation_value(
     for key, block in observable.items():
         density_key = opposite_key(tuple(key))
         if density_key not in density_matrix:
-            if np.any(to_dense(block)):
+            if (block != 0).sum():
                 missing_keys.append(density_key)
             continue
-        total += np.sum(to_dense(block).T * to_dense(density_matrix[density_key]))
+        total += elementwise_product(block.T, density_matrix[density_key]).sum()
     if missing_keys:
         raise ValueError(
             "density_matrix is missing keys required by the observable: "

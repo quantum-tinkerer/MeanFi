@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from meanfi.density.internal import DensityEvaluation
+from meanfi.results import DensityResult
 from meanfi.results import SCFIteration
 from meanfi.space.state import ActiveDensityState
 
@@ -11,7 +11,7 @@ from meanfi.space.state import ActiveDensityState
 class SCFRunState:
     """Last successful SCF evaluation plus its compact public history."""
 
-    evaluation: DensityEvaluation
+    evaluation: DensityResult
     output_state: ActiveDensityState
     input_state: ActiveDensityState | None = None
     residual_norm: float | None = None
@@ -21,7 +21,7 @@ class SCFRunState:
 
 def record_scf_iteration(
     state: SCFRunState,
-    evaluation: DensityEvaluation,
+    evaluation: DensityResult,
     input_state: ActiveDensityState,
     output_state: ActiveDensityState,
     *,

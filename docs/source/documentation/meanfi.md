@@ -39,10 +39,19 @@ model = meanfi.Model(
 `density_matrix(..., keys=keys)` requests complete blocks and preserves the
 existing `.density_matrix` compatibility property.
 `density_matrix(..., coordinates=coordinates)` requests an exact advanced
-selection. `keys`, `coordinates`, and `interaction` are mutually exclusive.
-Selected results expose their read-only `coordinates` and `values`; converting
+selection. Both `density_matrix` and `density_matrix_at_mu` require exactly one
+of `keys`, `coordinates`, and `interaction`.
+Selected results expose their read-only `coordinates`, `values`, and optional
+per-entry `entry_errors`; converting
 one to complete matrix blocks raises instead of filling uncomputed entries with
-zeros.
+zeros. `result.select(coordinates)` selects both values and entry errors while
+preserving the chemical potential, filling, and integration statistics.
+
+Integrators and SCF share the immutable `DensityEntries` payload in
+`result.entries`. To construct a result from separately computed entries, use
+`DensityResult(entries=DensityEntries(coordinates, values, entry_errors),
+mu=mu, filling=filling, errors=ErrorValues(...))`. The optional entry errors
+use the same coordinate order as the values; `None` means no estimate exists.
 
 ## Mean-field and density matrix
 
@@ -60,6 +69,11 @@ zeros.
 
 ```{eval-rst}
 .. autofunction:: meanfi.fermi_dirac
+```
+
+```{eval-rst}
+.. autoclass:: meanfi.DensityEntries
+   :show-inheritance:
 ```
 
 ```{eval-rst}

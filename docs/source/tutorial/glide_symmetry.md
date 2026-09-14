@@ -145,11 +145,11 @@ glide_basis = LinearConstraintReducer(
 print(f"raw active real variables:      {2 * len(entries):2d}")
 print(f"after Hermiticity:              {hermitian_basis.shape[1]:2d}")
 print(f"after glide symmetry:           {glide_basis.shape[1]:2d}")
-print(f"required real-space entries:    {len(model_glide.scf_space.required_realspace_entries()):2d}")
+print(f"required real-space entries:    {len(model_glide.scf_space.required_coordinates.entries):2d}")
 ```
 
 ```{code-cell} ipython3
-model_glide.scf_space.required_realspace_entries()
+model_glide.scf_space.required_coordinates.entries
 ```
 
 The backend does not need all active density entries.

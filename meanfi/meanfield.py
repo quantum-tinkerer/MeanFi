@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import scipy.sparse as sparse
 
@@ -13,25 +15,21 @@ from meanfi.tb.ops import (
     transpose,
 )
 from meanfi.tb.validate import tb_dimension, zero_key
+from meanfi.tb.storage import prefers_sparse_storage
+
+if TYPE_CHECKING:
+    from meanfi.model import Model
 
 
 def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
     """Compute the normal mean-field correction from a density matrix."""
 
     onsite_key = zero_key(tb_dimension(density_matrix))
-    diagonal_density = np.real(
-        np.diag(np.asarray(density_matrix[onsite_key], dtype=complex))
-    )
+    diagonal_density = np.asarray(density_matrix[onsite_key].diagonal()).real.ravel()
     onsite_diagonal = np.zeros_like(diagonal_density, dtype=complex)
-    sparse_present = any(is_sparse_like(matrix) for matrix in h_int.values())
-    for vector in frozenset(h_int):
-        interaction = h_int[vector]
-        if is_sparse_like(interaction):
-            onsite_diagonal += np.asarray(
-                diagonal_density @ interaction, dtype=complex
-            ).ravel()
-        else:
-            onsite_diagonal += diagonal_density @ np.asarray(interaction, dtype=complex)
+    sparse_present = prefers_sparse_storage(density_matrix, h_int)
+    for interaction in h_int.values():
+        onsite_diagonal += np.asarray(diagonal_density @ interaction).ravel()
     direct = {
         onsite_key: (
             sparse.diags(onsite_diagonal, format="csr")
@@ -40,20 +38,20 @@ def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
         )
     }
     exchange = {
-        vector: -elementwise_product(h_int.get(vector, 0), density_matrix[vector])
-        for vector in frozenset(h_int)
+        key: -elementwise_product(interaction, density_matrix[key])
+        for key, interaction in h_int.items()
     }
     return add_tb(direct, exchange)
 
 
-def extract_electron_density(density_matrix: _tb_type, model) -> _tb_type:
+def extract_electron_density(density_matrix: _tb_type, model: Model) -> _tb_type:
     return {
         key: matrix[: model._ndof, : model._ndof]
         for key, matrix in density_matrix.items()
     }
 
 
-def extract_anomalous_density(density_matrix: _tb_type, model) -> _tb_type:
+def extract_anomalous_density(density_matrix: _tb_type, model: Model) -> _tb_type:
     return {
         key: matrix[: model._ndof, model._ndof :]
         for key, matrix in density_matrix.items()
@@ -63,7 +61,11 @@ def extract_anomalous_density(density_matrix: _tb_type, model) -> _tb_type:
 def _antisymmetrize_anomalous_block(anomalous_block: _tb_type, ndof: int) -> _tb_type:
     """Project pairing blocks onto Delta(R) = -Delta(-R).T."""
 
-    zero = np.zeros((ndof, ndof), dtype=complex)
+    zero = (
+        sparse.csr_matrix((ndof, ndof), dtype=complex)
+        if prefers_sparse_storage(anomalous_block)
+        else np.zeros((ndof, ndof), dtype=complex)
+    )
     keys = frozenset(anomalous_block) | {
         tuple(-np.asarray(key, dtype=int)) for key in anomalous_block
     }
@@ -102,13 +104,12 @@ def bdg_correction_from_density_parts(
         key: matrix[:ndof, ndof:] for key, matrix in density_matrix.items()
     }
     normal_block = meanfield(electron_density, h_int)
-    zero_e = np.zeros((ndof, ndof), dtype=complex)
     anomalous_block = {
         key: -elementwise_product(
-            h_int.get(key, zero_e),
-            anomalous_density.get(key, zero_e),
+            interaction,
+            anomalous_density[key],
         )
-        for key in frozenset(h_int) | frozenset(anomalous_density)
+        for key, interaction in h_int.items()
     }
     anomalous_block = _antisymmetrize_anomalous_block(anomalous_block, ndof)
     correction = assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
@@ -116,7 +117,7 @@ def bdg_correction_from_density_parts(
     return correction
 
 
-def bdg_correction_from_density(density_matrix: _tb_type, model) -> _tb_type:
+def bdg_correction_from_density(density_matrix: _tb_type, model: Model) -> _tb_type:
     return bdg_correction_from_density_parts(
         density_matrix,
         h_int=model.h_int,

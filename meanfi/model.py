@@ -64,7 +64,7 @@ class Model:
     _frozen = False
 
     def __setattr__(self, name, value) -> None:
-        if getattr(self, "_frozen", False):
+        if self._frozen:
             raise AttributeError("Model is immutable")
         object.__setattr__(self, name, value)
 

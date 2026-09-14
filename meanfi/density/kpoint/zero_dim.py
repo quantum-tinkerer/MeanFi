@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.results import DensityEntries, DensityResult
 from meanfi.density.kpoint.matrix_functions.direct import (
     selected_density_values_from_eigensystem,
 )
@@ -24,7 +24,7 @@ def evaluate_zero_dim(
     filling_tol: float = 1e-6,
     nk: int | None = None,
     include_band_energy: bool = False,
-) -> DensityEvaluation:
+) -> DensityResult:
     """Diagonalize once, select occupations, and return the requested entries."""
 
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
@@ -66,8 +66,8 @@ def evaluate_zero_dim(
         n_kpoints=1,
         n_diagonalizations=1,
     )
-    return DensityEvaluation(
-        density=DensitySlice(
+    return DensityResult(
+        entries=DensityEntries(
             coordinates,
             values,
             np.zeros(coordinates.value_count) if estimated else None,

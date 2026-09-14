@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Iterator
 
 import numpy as np
+from scipy.sparse import csr_matrix
 
-from meanfi.tb.ops import _tb_type, is_sparse_like, to_dense
+from meanfi.tb.ops import _tb_type, is_sparse_like
 
 DensityEntry = tuple[tuple[int, ...], int, int]
 
@@ -104,6 +105,8 @@ class DensityCoordinates:
         if self.size <= 0:
             raise ValueError("density coordinate size must be positive")
         count = len(self.keys)
+        if len(set(self.keys)) != count:
+            raise ValueError("density coordinate keys must be unique")
         if not (
             len(self.rows_by_key)
             == len(self.cols_by_key)
@@ -130,6 +133,9 @@ class DensityCoordinates:
                 raise ValueError("density row coordinate is out of bounds")
             if np.any(cols < 0) or np.any(cols >= self.size):
                 raise ValueError("density column coordinate is out of bounds")
+            indices = np.sort(rows * self.size + cols)
+            if np.any(indices[1:] == indices[:-1]):
+                raise ValueError("density coordinates must be unique within each key")
             if value_slice.start != offset or value_slice.stop != offset + rows.size:
                 raise ValueError("density coordinate slices must be contiguous")
             rows.setflags(write=False)
@@ -144,14 +150,8 @@ class DensityCoordinates:
     def is_full(self) -> bool:
         """Whether every matrix entry is present for every listed key."""
 
-        expected = self.size * self.size
-        target = {(row, col) for row in range(self.size) for col in range(self.size)}
-        for rows, cols in zip(self.rows_by_key, self.cols_by_key, strict=True):
-            if rows.size != expected:
-                return False
-            if set(zip(rows.tolist(), cols.tolist(), strict=True)) != target:
-                return False
-        return True
+        # Bounds and uniqueness are checked when the layout is constructed.
+        return all(rows.size == self.size * self.size for rows in self.rows_by_key)
 
     @property
     def value_count(self) -> int:
@@ -227,57 +227,40 @@ class DensityCoordinates:
             values[value_slice] = selected
         return values
 
-    def phase_values(self, values: np.ndarray, phases: np.ndarray) -> np.ndarray:
-        """Multiply a coordinate value vector by one phase per key."""
-
-        phased = np.array(values, copy=True)
-        for index, (_key, _rows, _cols, value_slice) in enumerate(
-            self.iter_key_coordinates()
-        ):
-            phased[value_slice] *= phases[index]
-        return phased
-
     def values_from_tb(self, tb: _tb_type) -> np.ndarray:
         """Pack TB dictionary entries into this coordinate order."""
 
         values = np.empty(self.value_count, dtype=complex)
         for key, rows, cols, value_slice in self.iter_key_coordinates():
             block = tb.get(key)
-            if block is None:
+            if block is None or not rows.size:
                 selected = np.zeros(rows.size, dtype=complex)
+            elif is_sparse_like(block):
+                selected = np.asarray(block.tocsr()[rows, cols]).reshape(-1)
             else:
-                selected = to_dense(block)[rows, cols]
+                selected = np.asarray(block)[rows, cols]
             values[value_slice] = selected
         return values
 
-    def values_to_tb(self, values: np.ndarray) -> _tb_type:
-        """Expand coordinate values into sparse-in-value dense TB blocks."""
+    def values_to_tb(self, values: np.ndarray, *, sparse: bool = False) -> _tb_type:
+        """Place coordinate values into dense blocks, or CSR blocks when requested."""
 
         values = np.asarray(values)
+        if values.ndim != 1 or values.size != self.value_count:
+            raise ValueError("values must match the density coordinate count")
         rho: _tb_type = {}
         for key, rows, cols, value_slice in self.iter_key_coordinates():
-            block = np.zeros((self.size, self.size), dtype=complex)
-            if rows.size:
+            if sparse:
+                block = csr_matrix(
+                    (values[value_slice], (rows, cols)),
+                    shape=(self.size, self.size),
+                    dtype=complex,
+                )
+            else:
+                block = np.zeros((self.size, self.size), dtype=complex)
                 block[rows, cols] = values[value_slice]
             rho[key] = block
         return rho
-
-    def values_and_errors_to_tb(
-        self,
-        values: np.ndarray,
-        errors: np.ndarray,
-    ) -> tuple[_tb_type, _tb_type]:
-        values = np.asarray(values)
-        errors = np.asarray(errors)
-        rho = self.values_to_tb(values)
-        rho_error: _tb_type = {}
-        error_dtype = errors.dtype if errors.size else float
-        for key, rows, cols, value_slice in self.iter_key_coordinates():
-            block = np.zeros((self.size, self.size), dtype=error_dtype)
-            if rows.size:
-                block[rows, cols] = errors[value_slice]
-            rho_error[key] = block
-        return rho, rho_error
 
     @classmethod
     def from_pairs(
@@ -286,13 +269,11 @@ class DensityCoordinates:
         size: int,
         keys: list[tuple[int, ...]],
         pairs_by_key: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]],
-        allow_empty: bool,
-    ) -> DensityCoordinates | None:
+    ) -> DensityCoordinates:
         rows_by_key: list[np.ndarray] = []
         cols_by_key: list[np.ndarray] = []
         value_slices: list[slice] = []
         offset = 0
-        has_values = False
         for key in keys:
             rows, cols = pairs_by_key.get(
                 key,
@@ -303,13 +284,10 @@ class DensityCoordinates:
             if rows.size != cols.size:
                 raise ValueError("coordinate rows and cols must have matching size")
             count = int(rows.size)
-            has_values = has_values or count > 0
             rows_by_key.append(rows)
             cols_by_key.append(cols)
             value_slices.append(slice(offset, offset + count))
             offset += count
-        if not has_values and not allow_empty:
-            return None
         return cls(
             size=int(size),
             keys=tuple(keys),
@@ -325,16 +303,16 @@ class DensityCoordinates:
         size: int,
         keys: list[tuple[int, ...]],
         entries: tuple[DensityEntry, ...],
-        allow_empty: bool,
-    ) -> DensityCoordinates | None:
+    ) -> DensityCoordinates:
         pairs: dict[tuple[int, ...], list[tuple[int, int]]] = {key: [] for key in keys}
         for key, row, col in entries:
-            pairs.setdefault(key, []).append((int(row), int(col)))
+            if key not in pairs:
+                raise ValueError("density entry key is absent from the coordinate keys")
+            pairs[key].append((int(row), int(col)))
         return cls.from_pairs(
             size=size,
             keys=keys,
             pairs_by_key=_materialize_entry_pairs(pairs),
-            allow_empty=allow_empty,
         )
 
 
@@ -358,15 +336,13 @@ def full_density_coordinates(
 ) -> DensityCoordinates:
     """Select every matrix entry for each requested tight-binding key."""
 
-    grid = np.arange(size, dtype=int)
-    rows, cols = np.meshgrid(grid, grid, indexing="ij")
-    pairs = {key: (rows.reshape(-1), cols.reshape(-1)) for key in keys}
-    coords = DensityCoordinates.from_pairs(
+    pairs = {}
+    if keys:
+        grid = np.arange(size, dtype=int)
+        rows, cols = np.meshgrid(grid, grid, indexing="ij")
+        pairs = {key: (rows.reshape(-1), cols.reshape(-1)) for key in keys}
+    return DensityCoordinates.from_pairs(
         size=size,
         keys=keys,
         pairs_by_key=pairs,
-        allow_empty=False,
     )
-    if coords is None:  # pragma: no cover - full coordinates cannot be empty
-        raise ValueError("Full density coordinates unexpectedly empty")
-    return coords

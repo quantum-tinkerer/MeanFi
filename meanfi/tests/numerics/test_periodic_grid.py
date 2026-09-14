@@ -50,7 +50,7 @@ def test_nk_is_total_and_fixed_has_no_validation(dimension, nk, shape):
     assert info.density_integration_calls == 1
     assert result.errors.charge_integration is None
     assert result.errors.density_matrix_integration is None
-    assert result.density.errors is None
+    assert result.entry_errors is None
 
 
 def test_fixed_grid_matches_independent_fourier_sum():
@@ -59,7 +59,7 @@ def test_fixed_grid_matches_independent_fourier_sum():
     k = 2 * np.pi * np.arange(n) / n
     occupations = expit((mu - 2 * np.cos(k)) / temperature)
     assert_allclose(
-        result.density.values,
+        result.values,
         [occupations.mean(), (occupations * np.exp(1j * k)).mean()],
         atol=1e-14,
     )
@@ -82,7 +82,7 @@ def test_adaptive_fixed_filling_matches_dense_reference():
         filling_tol=1e-10,
     )
     assert_allclose(result.mu, expected_mu, atol=2e-9)
-    assert_allclose(result.density.values, [filling, expected_density], atol=2e-9)
+    assert_allclose(result.values, [filling, expected_density], atol=2e-9)
     assert result.statistics.validation_evaluations > 0
     assert result.errors.filling_residual <= 1e-10
     assert result.errors.charge_integration <= 1e-8
@@ -145,14 +145,13 @@ def test_full_and_selected_entries_agree_with_direct_reference():
         size=2,
         keys=[(0,), (1,)],
         entries=(((0,), 1, 0), ((1,), 0, 1)),
-        allow_empty=False,
     )
     full = evaluate(hamiltonian, integration=integration, mu=0.23)
     selected = evaluate(
         hamiltonian, integration=integration, mu=0.23, density_coordinates=coords
     )
-    indices = [full.density.coordinates.index(*entry) for entry in coords.entries]
-    assert_allclose(selected.density.values, full.density.values[indices], atol=1e-14)
+    indices = [full.coordinates.index(*entry) for entry in coords.entries]
+    assert_allclose(selected.values, full.values[indices], atol=1e-14)
     reference = np.zeros(2, dtype=complex)
     for k in np.arange(31) * 2 * np.pi / 31:
         values, vectors = np.linalg.eigh(
@@ -160,7 +159,7 @@ def test_full_and_selected_entries_agree_with_direct_reference():
         )
         density = (vectors * expit((0.23 - values) / 0.2)) @ vectors.conj().T
         reference += [density[1, 0], density[0, 1] * np.exp(1j * k)]
-    assert_allclose(selected.density.values, reference / 31, atol=1e-14)
+    assert_allclose(selected.values, reference / 31, atol=1e-14)
 
 
 def test_bdg_recomputes_mu_dependent_spectrum_and_matches_reference(monkeypatch):
@@ -215,7 +214,7 @@ def test_adaptive_bdg_fixed_mu():
     )
     adaptive = evaluate(hamiltonian, **kwargs)
     reference = evaluate(hamiltonian, integration=PeriodicGrid(nk=16384), **kwargs)
-    assert_allclose(adaptive.density.values, reference.density.values, atol=2e-6)
+    assert_allclose(adaptive.values, reference.values, atol=2e-6)
     assert adaptive.statistics.validation_evaluations > 0
 
 
@@ -361,7 +360,7 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
     for mu in (0.1, 0.5):
         result = evaluate(hamiltonian, integration=sparse_method, mu=mu, **kwargs)
         reference = evaluate(hamiltonian, integration=dense_method, mu=mu, **kwargs)
-        assert_allclose(result.density.values, reference.density.values, atol=2e-6)
+        assert_allclose(result.values, reference.values, atol=2e-6)
         assert_allclose(result.filling, reference.filling, atol=2e-6)
     # Eight identical points need one scalar approximation for each new solve.
     assert fits == 2
@@ -374,7 +373,7 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
         hamiltonian, integration=dense_method, filling=0.3 if bdg else 0.7, **kwargs
     )
     assert_allclose(result.mu, reference.mu, atol=2e-5)
-    assert_allclose(result.density.values, reference.density.values, atol=2e-6)
+    assert_allclose(result.values, reference.values, atol=2e-6)
     assert max(cache_sizes) == 1
 
 

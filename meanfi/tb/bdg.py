@@ -15,12 +15,17 @@ from meanfi.tb.ops import (
     transpose,
 )
 from meanfi.tb.validate import matrix_allclose
+from meanfi.tb.storage import prefers_sparse_storage
 
 
 def electron_to_bdg_tb(h: _tb_type, ndof: int) -> _tb_type:
     """Embed an electron-space tight-binding Hamiltonian into electron-first BdG space."""
 
-    zero = np.zeros((ndof, ndof), dtype=complex)
+    zero = (
+        sparse.csr_matrix((ndof, ndof), dtype=complex)
+        if prefers_sparse_storage(h)
+        else np.zeros((ndof, ndof), dtype=complex)
+    )
     keys = set(h)
     keys.update(tuple(-np.asarray(key, dtype=int)) for key in h)
     bdg = {}
@@ -84,10 +89,6 @@ def validate_bdg_tb(
             )
 
 
-def zero_bdg_array(ndof: int) -> np.ndarray:
-    return np.zeros((2 * ndof, 2 * ndof), dtype=complex)
-
-
 def particle_hole_conjugate(tb: _tb_type) -> _tb_type:
     result = {}
     for key, matrix in tb.items():
@@ -104,7 +105,11 @@ def assemble_bdg_tb(
 ) -> _tb_type:
     """Assemble electron and pairing blocks into electron-first BdG matrices."""
 
-    zero = np.zeros((ndof, ndof), dtype=complex)
+    zero = (
+        sparse.csr_matrix((ndof, ndof), dtype=complex)
+        if prefers_sparse_storage(normal_block, anomalous_block)
+        else np.zeros((ndof, ndof), dtype=complex)
+    )
     hole_block = particle_hole_conjugate(normal_block)
     keys = frozenset(normal_block) | frozenset(anomalous_block) | frozenset(hole_block)
     assembled = {}
@@ -114,7 +119,7 @@ def assemble_bdg_tb(
         anomalous = anomalous_block.get(key, zero)
         lower = conjugate_transpose(anomalous_block.get(opposite, zero))
         hole = hole_block.get(key, zero)
-        if is_sparse_like(normal) or is_sparse_like(anomalous) or is_sparse_like(hole):
+        if any(is_sparse_like(block) for block in (normal, anomalous, lower, hole)):
             assembled[key] = sparse.bmat(
                 [
                     [as_sparse(normal), as_sparse(anomalous)],

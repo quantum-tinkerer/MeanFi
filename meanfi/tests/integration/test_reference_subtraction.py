@@ -4,6 +4,7 @@ import pytest
 from meanfi import (
     PeriodicGrid,
     DensityCoordinates,
+    DensityEntries,
     DensityResult,
     ErrorValues,
     LinearMixing,
@@ -52,12 +53,9 @@ def test_model_rejects_selected_reference_missing_an_interaction_coordinate():
         size=2,
         keys=[()],
         entries=(((), 0, 0),),
-        allow_empty=False,
     )
-    assert coordinates is not None
     reference = DensityResult(
-        coordinates=coordinates,
-        values=np.array([0.5]),
+        entries=DensityEntries(coordinates, np.array([0.5])),
         mu=0.0,
         filling=1.0,
         errors=ErrorValues(),

@@ -19,7 +19,7 @@ except ImportError:
     __version__ = "unknown"
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
-from .results import DensityResult, SCFIteration, SCFResult
+from .results import DensityEntries, DensityResult, SCFIteration, SCFResult
 from .density.density import evaluate_density as _evaluate_density
 from .density.problem import build_normal_problem as _build_normal_problem
 from .density.integrate.defaults import DEFAULT_KT
@@ -52,20 +52,47 @@ from .tb import (
 )
 
 
+def _density_selection(h, kT, keys, coordinates, interaction, spatial_symmetries):
+    if sum(item is not None for item in (keys, coordinates, interaction)) != 1:
+        raise ValueError(
+            "exactly one of keys, coordinates, or interaction must be provided"
+        )
+    if interaction is not None:
+        # Filling does not affect the interaction's required coordinate layout.
+        coordinates = Model(
+            h,
+            interaction,
+            filling=1.0,
+            kT=kT,
+            spatial_symmetries=spatial_symmetries,
+        ).scf_space.required_coordinates
+    if coordinates is not None:
+        return list(coordinates.keys), coordinates
+    return [tuple(key) for key in keys], None
+
+
 def density_matrix_at_mu(
     h,
     mu: float,
     kT: float = DEFAULT_KT,
     keys: list[tuple[int, ...]] | None = None,
     *,
+    coordinates: DensityCoordinates | None = None,
+    interaction=None,
+    spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
     tol: float = 1e-3,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
 ) -> DensityResult:
-    """Compute the real-space density matrix at a fixed chemical potential."""
+    """Compute density at fixed mu using one explicit selection mode.
 
-    if keys is None:
-        raise ValueError("keys must be provided")
+    Supply exactly one of ``keys``, ``coordinates``, or ``interaction``, as for
+    :func:`density_matrix`.
+    """
+
+    keys, coordinates = _density_selection(
+        h, kT, keys, coordinates, interaction, spatial_symmetries
+    )
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
     problem = _build_normal_problem(
         h,
@@ -73,8 +100,9 @@ def density_matrix_at_mu(
         keys=keys,
         integration=integration,
         tolerances=tolerances,
+        density_coordinates=coordinates,
     )
-    return _evaluate_density(problem, mu=mu).to_result()
+    return _evaluate_density(problem, mu=mu)
 
 
 def density_matrix(
@@ -101,31 +129,9 @@ def density_matrix(
     space.  The latter is the efficient way to construct a reference density.
     """
 
-    selection_count = sum(
-        selection is not None for selection in (keys, coordinates, interaction)
+    selected_keys, selected_coordinates = _density_selection(
+        h, kT, keys, coordinates, interaction, spatial_symmetries
     )
-    if selection_count != 1:
-        raise ValueError(
-            "exactly one of keys, coordinates, or interaction must be provided"
-        )
-
-    selected_coordinates = coordinates
-    selected_keys = None if keys is None else [tuple(key) for key in keys]
-    if interaction is not None:
-        layout_model = Model(
-            h,
-            interaction,
-            filling,
-            kT=kT,
-            spatial_symmetries=spatial_symmetries,
-        )
-        selected_coordinates = layout_model.scf_space.required_coordinates
-        selected_keys = layout_model.scf_space.density_keys
-    elif coordinates is not None:
-        selected_keys = list(coordinates.keys)
-
-    if selected_keys is None:  # pragma: no cover - selection validation guarantees it
-        raise RuntimeError("density selection did not provide integration keys")
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
     if filling_tol is not None:
         tolerances = replace(
@@ -145,7 +151,7 @@ def density_matrix(
         filling=filling,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
-    ).to_result()
+    )
 
 
 __all__ = [
@@ -155,6 +161,7 @@ __all__ = [
     "ErrorTolerances",
     "ErrorValues",
     "DensityCoordinates",
+    "DensityEntries",
     "DensityResult",
     "DirectDiagonalization",
     "IntegrationMethod",

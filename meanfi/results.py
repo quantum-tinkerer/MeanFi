@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
+from dataclasses import dataclass, replace
 import numpy as np
 
 from meanfi.errors import ErrorValues
@@ -58,47 +56,86 @@ class PeriodicGridInfo:
     spectrum_bytes: int = 0
 
 
-@dataclass(frozen=True)
-class DensityResult:
-    """Density values tied to an explicit, possibly incomplete coordinate layout.
+def _readonly_vector(values, *, dtype, name: str) -> np.ndarray:
+    array = np.array(values, dtype=dtype, copy=True)
+    if array.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional")
+    array.setflags(write=False)
+    return array
 
-    Entries outside ``coordinates`` were not evaluated. Consequently a density
-    can be converted to tight-binding matrix blocks only when every entry of each
-    listed block is present.
+
+@dataclass(frozen=True)
+class DensityEntries:
+    """Immutable computed entries and their optional integration errors.
+
+    Entries outside ``coordinates`` are unknown, so selected layouts cannot be
+    materialized as complete matrix blocks. Result metadata can share this
+    payload without copying its arrays.
     """
 
     coordinates: DensityCoordinates
     values: np.ndarray
+    errors: np.ndarray | None = None
+
+    def __post_init__(self) -> None:
+        values = _readonly_vector(self.values, dtype=complex, name="density values")
+        if values.size != self.coordinates.value_count:
+            raise ValueError("density values do not match their coordinate layout")
+        object.__setattr__(self, "values", values)
+        if self.errors is not None:
+            errors = _readonly_vector(self.errors, dtype=float, name="density errors")
+            if errors.size != values.size:
+                raise ValueError("density errors do not match their coordinate layout")
+            if np.any(~np.isfinite(errors)) or np.any(errors < 0.0):
+                raise ValueError("density errors must be finite and non-negative")
+            object.__setattr__(self, "errors", errors)
+
+    def to_matrix(self) -> _tb_type:
+        """Materialize complete blocks, rejecting uncomputed matrix entries."""
+        if not self.coordinates.is_full:
+            raise ValueError(
+                "cannot convert selected density coordinates to complete matrix "
+                "blocks; request complete keys or use coordinates and values"
+            )
+        return self.coordinates.values_to_tb(self.values)
+
+
+@dataclass(frozen=True)
+class DensityResult:
+    """Density entries with physical values, errors, and integration statistics."""
+
+    entries: DensityEntries
     mu: float
     filling: float
     errors: ErrorValues
     statistics: AdaptiveSimplexInfo | PeriodicGridInfo | None = None
+    band_energy: float | None = None
 
-    def __post_init__(self) -> None:
-        values = np.array(self.values, dtype=complex, copy=True)
-        if values.ndim != 1:
-            raise ValueError("density values must be one-dimensional")
-        if values.size != self.coordinates.value_count:
-            raise ValueError("density values do not match their coordinate layout")
-        values.setflags(write=False)
-        object.__setattr__(self, "values", values)
+    @property
+    def coordinates(self) -> DensityCoordinates:
+        return self.entries.coordinates
+
+    @property
+    def values(self) -> np.ndarray:
+        return self.entries.values
+
+    @property
+    def entry_errors(self) -> np.ndarray | None:
+        """Per-entry integration errors, or None when not estimated."""
+        return self.entries.errors
 
     @property
     def is_complete(self) -> bool:
         """Whether every matrix entry is present for every listed key."""
-
         return self.coordinates.is_full
 
     def covers(self, coordinates: DensityCoordinates) -> bool:
         """Whether all entries in ``coordinates`` are available in this result."""
+        return self.coordinates.size == coordinates.size and set(
+            coordinates.entries
+        ) <= set(self.coordinates.entries)
 
-        if self.coordinates.size != coordinates.size:
-            return False
-        return set(coordinates.entries) <= set(self.coordinates.entries)
-
-    def values_for(self, coordinates: DensityCoordinates) -> np.ndarray:
-        """Return values in another covered coordinate layout's order."""
-
+    def _indices_for(self, coordinates: DensityCoordinates) -> list[int]:
         if self.coordinates.size != coordinates.size:
             raise ValueError("density coordinate matrix sizes do not match")
         indices = {entry: index for index, entry in enumerate(self.coordinates.entries)}
@@ -110,41 +147,35 @@ class DensityResult:
                 f"density is missing {len(missing)} required coordinate(s): "
                 f"{preview}{suffix}"
             )
-        return np.asarray(
-            [self.values[indices[entry]] for entry in coordinates.entries],
-            dtype=complex,
-        )
+        return [indices[entry] for entry in coordinates.entries]
+
+    def values_for(self, coordinates: DensityCoordinates) -> np.ndarray:
+        """Return values in another covered coordinate layout's order."""
+        if coordinates is self.coordinates:
+            return self.values
+        return self.values[self._indices_for(coordinates)]
 
     def select(self, coordinates: DensityCoordinates) -> DensityResult:
-        """Return the same density restricted to a covered coordinate layout."""
-
-        return DensityResult(
-            coordinates=coordinates,
-            values=self.values_for(coordinates),
-            mu=self.mu,
-            filling=self.filling,
-            errors=self.errors,
-            statistics=self.statistics,
+        """Restrict entries and entry errors, preserving evaluation metadata."""
+        if coordinates is self.coordinates:
+            return self
+        indices = self._indices_for(coordinates)
+        return replace(
+            self,
+            entries=DensityEntries(
+                coordinates,
+                self.values[indices],
+                None if self.entry_errors is None else self.entry_errors[indices],
+            ),
         )
 
     def to_matrix(self) -> _tb_type:
-        """Materialize complete tight-binding matrix blocks.
-
-        Selected layouts deliberately cannot be materialized because filling
-        uncomputed entries with zeros would change their physical meaning.
-        """
-
-        if not self.is_complete:
-            raise ValueError(
-                "cannot convert selected density coordinates to complete matrix "
-                "blocks; request complete keys or use coordinates and values"
-            )
-        return self.coordinates.values_to_tb(self.values)
+        """Materialize complete blocks; selected layouts contain unknown entries."""
+        return self.entries.to_matrix()
 
     @property
     def density_matrix(self) -> _tb_type:
         """Complete matrix blocks (compatibility alias for :meth:`to_matrix`)."""
-
         return self.to_matrix()
 
 
@@ -164,7 +195,7 @@ class SCFResult:
     """A self-consistent mean-field state, or the last valid partial state."""
 
     density: DensityResult
-    mean_field: dict[tuple[int, ...], Any]
+    mean_field: _tb_type
     total_energy: float | None
     errors: ErrorValues
     history: tuple[SCFIteration, ...]

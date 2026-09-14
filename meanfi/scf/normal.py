@@ -7,7 +7,7 @@ import numpy as np
 from meanfi.density.density import evaluate_density
 from meanfi.density.problem import build_normal_problem
 from meanfi.density.integrate.methods import AdaptiveSimplex
-from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.results import DensityResult, DensityEntries
 from meanfi.meanfield import meanfield
 from meanfi.model import Model
 from meanfi.observables import expectation_value
@@ -19,7 +19,6 @@ from meanfi.scf.engine import (
 )
 from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.tb.ops import _tb_type
-from meanfi.tb.storage import match_tb_storage, prefers_sparse_storage
 
 
 def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
@@ -39,14 +38,6 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
 
     def project_guess(guess: _tb_type) -> _tb_type:
         projected = space.project_meanfield_input(guess)
-        projected = match_tb_storage(
-            projected,
-            like_sparse=prefers_sparse_storage(
-                getattr(model, "h_0", None),
-                model.h_int,
-                guess,
-            ),
-        )
         warn_on_projection(guess, projected, label="Normal SCF guess")
         return projected
 
@@ -54,7 +45,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         hamiltonian: _tb_type,
         *,
         mu_guess: float,
-    ) -> DensityEvaluation:
+    ) -> DensityResult:
         return evaluate_density(
             replace(density_problem, hamiltonian=hamiltonian),
             filling=model.filling,
@@ -63,13 +54,13 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
             mu_guess=mu_guess,
         )
 
-    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityEvaluation:
+    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityResult:
         return evaluate_hamiltonian(
             model.hamiltonian_from_meanfield(projected_guess),
             mu_guess=0.0,
         )
 
-    def state_from_density(density: DensitySlice) -> ActiveDensityState:
+    def state_from_density(density: DensityEntries) -> ActiveDensityState:
         if density.coordinates.entries != space.required_coordinates.entries:
             raise ValueError("density slice does not match the normal SCF space")
         return ActiveDensityState(
@@ -81,7 +72,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         require_same_space(state, space)
         return space.meanfield_input_from_params(state.values)
 
-    def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityEvaluation:
+    def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityResult:
         return evaluate_hamiltonian(
             model.hamiltonian_from_rho(active_density(state)),
             mu_guess=mu_guess,
@@ -108,7 +99,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
     def energy_from_evaluation(
         input_state: ActiveDensityState,
         output_state: ActiveDensityState,
-        density: DensityEvaluation,
+        density: DensityResult,
     ) -> EnergyEvaluation | None:
         if density.band_energy is None:
             return None

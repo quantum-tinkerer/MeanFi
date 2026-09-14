@@ -7,7 +7,7 @@ from meanfi.density.integrate.simplex import (
     density_matrix_zero_temp,
 )
 from meanfi.density.kpoint.zero_dim import evaluate_zero_dim
-from meanfi.density.internal import DensityEvaluation
+from meanfi.results import DensityResult
 from meanfi.density.problem import DensityProblem
 from meanfi.tb.ops import to_dense
 from meanfi.tb.validate import tb_dimension
@@ -21,7 +21,7 @@ def evaluate_simplex(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
-) -> DensityEvaluation:
+) -> DensityResult:
     integration = problem.integration
     coordinates = problem.density_coordinates
     if tb_dimension(problem.hamiltonian) == 0:

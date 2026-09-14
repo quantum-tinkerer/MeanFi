@@ -14,7 +14,7 @@ import numpy as np
 from meanfi.density.filling import mu_bracket, mu_bracket_for_bdg, solve_mu
 from meanfi.density.integrate.methods import PeriodicGrid
 from meanfi.density.integrate.workspace import workspace_complex_dtype
-from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.results import DensityEntries, DensityResult
 from meanfi.density.kpoint.matrix_functions import (
     DirectDiagonalization,
     RationalFOE,
@@ -370,7 +370,7 @@ def solve_periodic(
     q_diag: np.ndarray | None = None,
     trace_weights_diag: np.ndarray | None = None,
     tolerances: ErrorTolerances | None = None,
-) -> DensityEvaluation:
+) -> DensityResult:
     """Evaluate one prescribed grid, or refine until nested and shifted tests pass."""
     if not np.isfinite(kT) or kT < 0:
         raise ValueError("kT must be finite and non-negative")
@@ -532,8 +532,8 @@ def solve_periodic(
         error_estimate_available=not prescribed,
         spectrum_bytes=work.spectrum_bytes,
     )
-    return DensityEvaluation(
-        density=DensitySlice(coordinates, values, density_error),
+    return DensityResult(
+        entries=DensityEntries(coordinates, values, density_error),
         mu=resolved_mu,
         filling=charge,
         errors=ErrorValues(

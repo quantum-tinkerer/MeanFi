@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy import sparse
 
 from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
-from meanfi.density.internal import DensityEvaluation, DensitySlice
+from meanfi.results import DensityResult, DensityEntries
 from meanfi.meanfield import bdg_correction_from_density_parts
 from meanfi.model import Model
 from meanfi.scf.engine import SCFProblem, SolverRuntime, warn_on_projection
 from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.space.support import active_tb_keys
-from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb, zero_bdg_array
+from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like
 
 
@@ -42,7 +43,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
         meanfield_guess: _tb_type,
         *,
         mu_guess: float,
-    ) -> DensityEvaluation:
+    ) -> DensityResult:
         return solve_bdg_density_fixed_filling(
             model,
             meanfield_guess,
@@ -56,10 +57,10 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
             density_coordinates=space.required_coordinates,
         )
 
-    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityEvaluation:
+    def evaluate_projected_guess(projected_guess: _tb_type) -> DensityResult:
         return evaluate_meanfield(projected_guess, mu_guess=0.0)
 
-    def state_from_density(density: DensitySlice) -> ActiveDensityState:
+    def state_from_density(density: DensityEntries) -> ActiveDensityState:
         if density.coordinates.entries != space.required_coordinates.entries:
             raise ValueError("density slice does not match the BdG SCF space")
         return ActiveDensityState(
@@ -78,7 +79,7 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
             active_keys=active_keys,
         )
 
-    def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityEvaluation:
+    def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityResult:
         return evaluate_meanfield(
             mean_field_from_state(state),
             mu_guess=mu_guess,
@@ -129,9 +130,8 @@ def _assemble_bdg_active_tb(
 ) -> _tb_type:
     normal_block = {}
     anomalous_block = {}
-    zero = np.zeros((2 * ndof, 2 * ndof), dtype=complex)
     for key in keys:
-        block = np.asarray(active_tb.get(key, zero), dtype=complex)
+        block = active_tb[key]
         normal_block[key] = block[:ndof, :ndof]
         anomalous_block[key] = block[:ndof, ndof:]
     tb = assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
@@ -145,9 +145,9 @@ def _fill_bdg_keys(
     active_keys: list[tuple[int, ...]],
     ndof: int,
 ) -> _tb_type:
-    zero = zero_bdg_array(ndof)
     use_sparse = any(is_sparse_like(value) for value in tb.values())
     if use_sparse:
-        zero_sparse = as_sparse(zero)
+        zero_sparse = sparse.csr_matrix((2 * ndof, 2 * ndof), dtype=complex)
         return {key: as_sparse(tb.get(key, zero_sparse)) for key in active_keys}
+    zero = np.zeros((2 * ndof, 2 * ndof), dtype=complex)
     return {key: np.asarray(tb.get(key, zero), dtype=complex) for key in active_keys}
