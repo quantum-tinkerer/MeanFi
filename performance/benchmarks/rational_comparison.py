@@ -13,6 +13,11 @@ One CPU and one BLAS thread are used. Cold measurements clear scalar fit caches;
 warm measurements construct a new node sharing the previous scalar fit. Every
 measurement still factors its matrices. Public fixed-filling calls use their
 normal per-calculation caches. Timings exclude the independent dense references.
+--large-matrices measures N=100, 200, and 512 with chain, rectangular-grid, and
+random-graph sparsity, including chemical-potential searches. It uses the public
+per-orbital thermodynamic tolerance; the original node suite keeps total-trace
+error targets for direct comparison with its archived results. Use --per-cell
+when benchmarking public APIs from before thermodynamic normalization.
 """
 
 from __future__ import annotations
@@ -47,6 +52,10 @@ parser.add_argument(
     action="store_true",
     help="Also benchmark full-matrix energy/entropy traces (nodes only)",
 )
+parser.add_argument("--large-matrices", action="store_true")
+parser.add_argument(
+    "--per-cell", action="store_true", help="Archived public energy/entropy units"
+)
 parser.add_argument("--repeat", type=int, default=3)
 parser.add_argument("--cpu", type=int, default=2)
 parser.add_argument("--only", help="Comma-separated case-name substrings")
@@ -79,6 +88,7 @@ from meanfi.density.kpoint.matrix_functions.rational import (  # noqa: E402
     PreparedMumpsRationalNode,
 )
 from meanfi.density.kpoint.matrix_functions.rational import scheme as scalar_scheme  # noqa: E402
+from meanfi.density.kpoint.matrix_functions.rational import prepared_sparse  # noqa: E402
 
 from meanfi.density.kpoint.matrix_functions.common import (  # noqa: E402
     spectral_interval,
@@ -160,6 +170,25 @@ class Case:
 
 
 def cases():
+    if args.large_matrices:
+        for n in (100, 200, 512):
+            for family in ("metal", "rectangle", "random"):
+                for temperature in (0.2, 0.02):
+                    yield Case(
+                        f"large_{family}_n{n}_T{temperature:g}",
+                        n,
+                        temperature,
+                        family=family,
+                    )
+                yield Case(
+                    f"filling_{family}_n{n}_T0.02",
+                    n,
+                    0.02,
+                    family=family,
+                    workflow="filling",
+                    nk=4,
+                )
+        return
     # Repeat widths/temperatures at fixed size to distinguish setup from sparse
     # factorization work. Symmetric spectra deliberately challenge trace-only
     # stopping criteria. Matrix sizes refer to electron-space dimensions.
@@ -213,15 +242,27 @@ def electron_matrix(case):
     elif case.family in {"degenerate", "empty", "full"}:
         energy = {"degenerate": 0.0, "empty": 8.0, "full": -8.0}[case.family]
         return sparse.eye(n, dtype=complex, format="csr") * energy
-    if case.family in {"square", "cube"}:
-        dimension = 2 if case.family == "square" else 3
+    if case.family == "random":
+        rows = np.repeat(np.arange(n), 4)
+        cols = rng.integers(0, n, size=rows.size)
+        values = -rng.uniform(0.5, 1.0, rows.size) * np.exp(0.17j)
+        graph = sparse.coo_matrix((values, (rows, cols)), shape=(n, n)).tocsr()
+        matrix = graph + graph.conj().T + sparse.diags(diagonal)
+    elif case.family in {"square", "cube", "rectangle"}:
+        dimension = 3 if case.family == "cube" else 2
         side = round(n ** (1 / dimension))
-        shape = (side,) * dimension
+        if case.family == "rectangle":
+            side = int(np.sqrt(n))
+            while n % side:
+                side -= 1
+            shape = (side, n // side)
+        else:
+            shape = (side,) * dimension
         matrix = sparse.diags(diagonal, format="lil", dtype=complex)
         for position in np.ndindex(shape):
             row = np.ravel_multi_index(position, shape)
             for axis in range(dimension):
-                if position[axis] + 1 == side:
+                if position[axis] + 1 == shape[axis]:
                     continue
                 neighbor = list(position)
                 neighbor[axis] += 1
@@ -229,12 +270,20 @@ def electron_matrix(case):
                 value = -(1 - 0.15 * axis) * np.exp(0.17j)
                 matrix[row, col] = value
                 matrix[col, row] = value.conjugate()
-        return matrix.tocsr()
-    hopping = -(1.0 + 0.15 * rng.random(n - 1)).astype(complex)
-    # Complex hopping tests conjugate-pair reconstruction, not just real matrices.
-    if case.family != "symmetric":
-        hopping *= np.exp(0.17j)
-    return sparse.diags([hopping, diagonal, hopping.conj()], [-1, 0, 1], format="csr")
+    else:
+        hopping = -(1.0 + 0.15 * rng.random(n - 1)).astype(complex)
+        # Complex hopping tests conjugate-pair reconstruction.
+        if case.family != "symmetric":
+            hopping *= np.exp(0.17j)
+        matrix = sparse.diags(
+            [hopping, diagonal, hopping.conj()], [-1, 0, 1], format="csr"
+        )
+    matrix = matrix.tocsr()
+    if args.large_matrices:
+        # Match the Gershgorin radius so geometry changes matrix cost without
+        # also making the scalar approximation arbitrarily harder.
+        matrix *= 2.5 / np.max(np.asarray(abs(matrix).sum(axis=1)))
+    return matrix
 
 
 def matrix_and_charge(case):
@@ -278,6 +327,8 @@ def instrumentation():
         factorizations=0,
         selected_inverse_calls=0,
         scalar_fit_calls=0,
+        scalar_build_calls=0,
+        scalar_build_seconds=0.0,
         factor_seconds=0.0,
         selected_inverse_seconds=0.0,
         scalar_fit_seconds=0.0,
@@ -286,6 +337,15 @@ def instrumentation():
     original_factor = SelectedInverseFactorization.factor
     original_inverse = SelectedInverseFactorization.selected_inverse
     original_terms = PreparedMumpsRationalNode._sparse_terms
+    original_build = prepared_sparse._aaa_terms_for_interval
+
+    def build(*positional, **keywords):
+        stats["scalar_build_calls"] += 1
+        start = time.perf_counter()
+        try:
+            return original_build(*positional, **keywords)
+        finally:
+            stats["scalar_build_seconds"] += time.perf_counter() - start
 
     def factor(self, matrix):
         stats["factorizations"] += 1
@@ -317,12 +377,14 @@ def instrumentation():
     SelectedInverseFactorization.factor = factor
     SelectedInverseFactorization.selected_inverse = inverse
     PreparedMumpsRationalNode._sparse_terms = terms
+    prepared_sparse._aaa_terms_for_interval = build
     try:
         yield stats
     finally:
         SelectedInverseFactorization.factor = original_factor
         SelectedInverseFactorization.selected_inverse = original_inverse
         PreparedMumpsRationalNode._sparse_terms = original_terms
+        prepared_sparse._aaa_terms_for_interval = original_build
 
 
 def timeout(_signum, _frame):
@@ -387,6 +449,7 @@ def node_case(case, scheme):
     reference_entropy = float(
         np.sum(entr(occupation) + entr(expit(energies / case.kT)))
     )
+    normalization = matrix.shape[0] if args.large_matrices else 1
     options = rational_options(scheme)
     runs = {"cold": [], "warm": []}
     interval_cache = []
@@ -404,8 +467,8 @@ def node_case(case, scheme):
             trace_weights_diag=trace_weights,
             shared_aaa_interval_cache=interval_cache,
             **(
-                {"thermodynamic_tolerance": case.tolerance}
-                if args.thermodynamics
+                {"thermodynamic_tolerance": normalization * case.tolerance}
+                if args.thermodynamics or args.large_matrices
                 else {}
             ),
         )
@@ -414,7 +477,7 @@ def node_case(case, scheme):
         density = node.density_values_from_charge_order(case.mu)
         poles = len(node._last_terms.shifts)
         extra = dict(setup_seconds=setup_seconds, final_poles=poles)
-        if args.thermodynamics:
+        if args.thermodynamics or args.large_matrices:
             with instrumentation() as thermal_work:
                 start = time.perf_counter()
                 energy, entropy = node.thermodynamics(case.mu)
@@ -422,8 +485,8 @@ def node_case(case, scheme):
             extra.update(
                 energy=energy,
                 entropy=entropy,
-                energy_error=abs(energy - reference_energy),
-                entropy_error=abs(entropy - reference_entropy),
+                energy_error=abs(energy - reference_energy) / normalization,
+                entropy_error=abs(entropy - reference_entropy) / normalization,
                 thermo_factorizations=thermal_work["factorizations"],
                 thermo_inverse_queries=thermal_work["selected_inverse_calls"],
             )
@@ -460,6 +523,7 @@ def node_case(case, scheme):
         spectral_width_over_kT=float(np.ptp(energies) / case.kT),
         spectral_radius_over_kT=float(np.max(np.abs(energies)) / case.kT),
         reference_charge=charge,
+        thermodynamic_normalization=normalization,
         runs=runs,
     )
 
@@ -515,11 +579,12 @@ def filling_case(case, scheme):
                 np.sum(total_h[zero].diagonal()[: case.size]).real
             )
             total_entropy *= 0.5
+        normalization = 1 if args.per_cell else case.size
         return (
             total_charge / case.nk,
             values / case.nk,
-            total_energy / case.nk,
-            total_entropy / case.nk,
+            total_energy / (case.nk * normalization),
+            total_entropy / (case.nk * normalization),
         )
 
     mu_reference = brentq(
@@ -621,11 +686,15 @@ except subprocess.CalledProcessError:
     revision = None
 report = dict(
     purpose="Sparse rational accuracy and cost comparison",
-    thermodynamics=args.thermodynamics,
+    thermodynamics=args.thermodynamics or args.large_matrices,
+    large_matrices=args.large_matrices,
+    public_thermodynamics_per_orbital=not args.per_cell,
     certified_ozaki=args.certify_ozaki,
     timing_note=(
         "Study-only Ozaki certification is included in total seconds, "
-        "but scalar_fit_seconds instruments only production _sparse_terms."
+        "but scalar_fit_seconds instruments only production _sparse_terms. "
+        "scalar_build_seconds is its subset spent constructing new AAA fits; "
+        "the difference includes cache validation and spectral bounds."
     ),
     rational_source_sha256=hashlib.sha256(
         b"".join(
@@ -665,6 +734,16 @@ report = dict(
     started_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     records=[],
 )
+
+
+def write_report():
+    # Keep metadata readable and each measurement record on one reviewable line.
+    metadata = {key: value for key, value in report.items() if key != "records"}
+    header = json.dumps(metadata, indent=2).removesuffix("\n}")
+    records = ",\n".join("    " + json.dumps(record) for record in report["records"])
+    args.output.write_text(header + ',\n  "records": [\n' + records + "\n  ]\n}\n")
+
+
 args.output.parent.mkdir(parents=True, exist_ok=True)
 for case in cases():
     if args.only and not any(part in case.name for part in args.only.split(",")):
@@ -685,7 +764,7 @@ for case in cases():
         )
         record["summary"] = summarize(record)
         report["records"].append(record)
-        args.output.write_text(json.dumps(report, indent=2) + "\n")
+        write_report()
         print(case.name, scheme, json.dumps(record["summary"]), flush=True)
 report["finished_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-args.output.write_text(json.dumps(report, indent=2) + "\n")
+write_report()

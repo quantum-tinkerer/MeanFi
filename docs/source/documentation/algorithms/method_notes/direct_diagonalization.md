@@ -27,7 +27,8 @@ The eigenvalues and occupations also give band energy and entropy without anothe
 eigendecomposition. Entropy is the sum of
 `-f * log(f) - (1-f) * log(1-f)`, evaluated stably at empty and occupied states.
 BdG sums include a factor of one half to remove Nambu doubling; band energy also
-includes the normal-ordering constant.
+includes the normal-ordering constant. Both physical totals are divided by the
+number of physical orbitals per cell before being returned.
 
 For normal finite-temperature filling solves, the retained eigenvalues give the
 charge derivative `sum(f * (1-f)) / kT`. BdG charge depends on the electron weights

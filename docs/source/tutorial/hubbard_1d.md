@@ -135,7 +135,7 @@ mf_sol = result.mean_field
 The {autolink}`~meanfi.solver` function uses `EnergyDIIS` by default. It returns
 the mean-field correction in `result.mean_field` and keeps the chemical potential
 separate in `result.mu`. Results also provide `internal_energy`, `entropy`, and
-`free_energy` per unit cell. At zero temperature the two energies coincide; at
+`free_energy` per cell per physical orbital. At zero temperature the two energies coincide; at
 finite temperature compare solutions through `free_energy`, which includes the
 entropy contribution.
 To get the full Hamiltonian, we add the mean-field correction to the non-interacting Hamiltonian and plot the band structure just as before:

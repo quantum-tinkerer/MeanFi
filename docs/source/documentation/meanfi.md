@@ -163,9 +163,28 @@ SCF settings are keyword-only. To change the history or iteration budget, pass
 ```
 
 SCF results and history entries report `internal_energy`, `free_energy`, and
-`entropy` per unit cell. Entropy is in units of Boltzmann's constant, so
+`entropy` per cell per physical orbital. Entropy is in units of Boltzmann's constant, so
 `free_energy = internal_energy - model.kT * entropy`. This is Helmholtz free
 energy at fixed electron filling. The chemical-potential term is not subtracted.
+All thermodynamic totals are divided by N for N physical orbitals in the unit
+cell. A BdG Hamiltonian has size 2N; its physical totals still divide by N after
+removing Nambu doubling. Spin components count as separate orbitals.
+
+| Quantity | Convention |
+| --- | --- |
+| `internal_energy`, `free_energy`, `band_energy` | Energy per cell per physical orbital |
+| `entropy` | Entropy / k_B per cell per physical orbital |
+| `statistics.band_energy_error`, `statistics.entropy_error` | Same normalized units as the corresponding quantity |
+| `filling` | Electrons per cell, from 0 to N |
+| `mu`, `kT` | Single-particle energy units |
+| Density entries | Occupations and coherences, without normalization by N |
+| `expectation_value(density, observable)` | Unnormalized observable trace per cell |
+
+Multiplying an energy or entropy result by N recovers its physical total per
+cell. The generic `expectation_value` remains a trace: for example, the identity
+operator gives the electron count for a normal density. Divide that trace by N
+when an observable per orbital is wanted.
+
 Compare converged solutions at the same filling and temperature using their
 free energies; SCF convergence alone does not establish a global minimum.
 
@@ -197,7 +216,8 @@ interaction energy, not entropy. BdG entropy includes the factor of one half
 that removes Nambu doubling.
 
 `density.band_energy` is the expectation of the **input quadratic Hamiltonian**.
-It includes the BdG normal-ordering constant and excludes chemical potential.
+It includes the BdG normal-ordering constant, excludes chemical potential, and
+uses the same normalization per physical orbital as the other energies.
 It is not the interacting internal energy: `internal_energy` accounts for the
 interaction's double counting. The SCF result computes both energies directly,
 including when its density contains only the entries required by the interaction.

@@ -103,8 +103,8 @@ layout-aware final `result.density` and the physical interaction correction
 `result.mean_field`. It does not store a redundant effective Hamiltonian. The
 chemical potential and filling remain available as `result.mu` and
 `result.filling`, backed by the final density result. `result.internal_energy`
-and `result.free_energy` report energies per unit cell; `result.entropy` is in
-units of Boltzmann's constant. They satisfy
+and `result.free_energy` report energies per cell per physical orbital; `result.entropy` is in
+units of Boltzmann's constant per cell per physical orbital. They satisfy
 `free_energy = internal_energy - model.kT * entropy`. Errors, accepted-iteration
 history, and the convergence flag are also direct fields of `SCFResult`.
 

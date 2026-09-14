@@ -93,23 +93,26 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
 
     def interaction_energy(params: np.ndarray) -> float:
         state = ActiveDensityState(space, params)
-        return 0.5 * _bdg_correction_expectation(
+        energy = _bdg_correction_expectation(
             active_density(state), mean_field_from_state(state), model._ndof
         )
+        return 0.5 * energy / model._ndof
 
     def interaction_gradient(params: np.ndarray, direction: np.ndarray) -> float:
-        return _bdg_correction_expectation(
+        gradient = _bdg_correction_expectation(
             active_density(ActiveDensityState(space, direction)),
             mean_field_from_state(ActiveDensityState(space, params)),
             model._ndof,
         )
+        return gradient / model._ndof
 
     def energy_from_evaluation(input_state, output_state, density):
-        one_body = density.band_energy - _bdg_correction_expectation(
+        correction_energy = _bdg_correction_expectation(
             active_density(output_state),
             mean_field_from_state(input_state),
             model._ndof,
         )
+        one_body = density.band_energy - correction_energy / model._ndof
         internal_energy = one_body + interaction_energy(output_state.values)
         return EnergyEvaluation(
             linear_free_energy=one_body - model.kT * density.entropy,

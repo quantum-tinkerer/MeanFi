@@ -42,8 +42,10 @@ print(result.internal_energy, result.entropy, result.free_energy)
 It uses free energy at finite temperature and switches to bounded Anderson
 mixing to finish convergence or recover from stagnation. All iterations share
 one budget. Results report internal energy, entropy in units of Boltzmann's
-constant, and Helmholtz free energy per unit cell:
+constant, and Helmholtz free energy per cell per physical orbital:
 `result.free_energy = result.internal_energy - model.kT * result.entropy`.
+An N-orbital model divides these quantities by N, including BdG models whose
+Hamiltonians have size 2N. Filling remains electrons per cell.
 
 For examples, see the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).
 

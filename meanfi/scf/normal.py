@@ -83,7 +83,8 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         state = ActiveDensityState(space, params)
         difference = density_difference(state)
         correction = meanfield(difference, model.h_int)
-        return float(0.5 * np.real(expectation_value(difference, correction)))
+        energy = np.real(expectation_value(difference, correction))
+        return float(0.5 * energy / model._ndof)
 
     def interaction_gradient(
         params: np.ndarray,
@@ -92,7 +93,8 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         state = ActiveDensityState(space, params)
         correction = meanfield(density_difference(state), model.h_int)
         direction_density = active_density(ActiveDensityState(space, direction))
-        return float(np.real(expectation_value(direction_density, correction)))
+        gradient = np.real(expectation_value(direction_density, correction))
+        return float(gradient / model._ndof)
 
     def energy_from_evaluation(
         input_state: ActiveDensityState,
@@ -105,7 +107,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
         input_correction = meanfield(density_difference(input_state), model.h_int)
         one_body = float(
             density.band_energy
-            - np.real(expectation_value(output_density, input_correction))
+            - np.real(expectation_value(output_density, input_correction)) / model._ndof
         )
         internal_energy = one_body + interaction_energy_values(output_state.values)
         return EnergyEvaluation(

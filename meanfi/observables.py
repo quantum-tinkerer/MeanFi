@@ -29,7 +29,8 @@ def expectation_value(
     Returns
     -------
     :
-        Expectation value.
+        Unnormalized trace per cell. Unlike the thermodynamic energy helpers,
+        this general observable contraction is not divided by orbital count.
     """
     if isinstance(density_matrix, DensityResult):
         available = dict(
@@ -107,7 +108,7 @@ def _bdg_correction_expectation(
 
 
 def internal_energy(model: Model, density_matrix: _tb_type | DensityResult) -> float:
-    """Compute mean-field internal energy per unit cell.
+    """Compute mean-field internal energy per cell per physical orbital.
 
     The density must cover the one-body Hamiltonian and interaction. Selected
     results may use the model's reduced interaction coordinates. Interaction
@@ -130,7 +131,7 @@ def internal_energy(model: Model, density_matrix: _tb_type | DensityResult) -> f
         correction = meanfield(active, model.h_int)
         energy = expectation_value(density_matrix, model.h_0)
         energy += 0.5 * expectation_value(active, correction)
-        return float(np.real(energy))
+        return float(np.real(energy)) / model._ndof
 
     if isinstance(density_matrix, DensityResult):
         # Embed the observable sparsely, leaving unrequested Nambu entries alone.
@@ -143,14 +144,14 @@ def internal_energy(model: Model, density_matrix: _tb_type | DensityResult) -> f
         )
     correction = bdg_correction_from_density(active, model)
     energy += 0.5 * _bdg_correction_expectation(active, correction, model._ndof)
-    return float(np.real(energy))
+    return float(np.real(energy)) / model._ndof
 
 
 def free_energy(model: Model, density: DensityResult) -> float:
-    """Compute Helmholtz free energy per unit cell as ``U - kT * entropy``.
+    """Compute Helmholtz free energy per cell per physical orbital as ``U - kT * entropy``.
 
-    Entropy is measured in units of Boltzmann's constant and belongs to the
-    complete state evaluated by the density solver, including selected results.
+    Entropy is in units of Boltzmann's constant per physical orbital and belongs
+    to the complete state evaluated by the density solver, including selected results.
     A bare tight-binding dictionary does not retain that entropy.
     """
     if not isinstance(density, DensityResult):

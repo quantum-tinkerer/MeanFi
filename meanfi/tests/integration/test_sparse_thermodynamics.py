@@ -143,11 +143,24 @@ def test_sparse_thermodynamics_handles_filled_empty_and_narrow_spectra(mu):
         node.thermodynamics(mu + 1)
 
 
-def test_joint_aaa_removes_spurious_real_poles_on_asymmetric_interval():
-    lower, upper, kT = -2.2218477871579956, 8.218921136460922, 0.02
-    tolerances = np.array([1.52e-11, 1.25e-10])
+@pytest.mark.parametrize(
+    "lower,upper,tolerances,pole_cap",
+    [
+        (-2.2218477871579956, 8.218921136460922, [1.52e-11, 1.25e-10], 128),
+        (
+            -2.7305826304965994,
+            2.503516271744375,
+            [1.0924347951653114e-14, 3.125e-14],
+            256,
+        ),
+    ],
+)
+def test_joint_aaa_certifies_asymmetric_intervals_without_real_poles(
+    lower, upper, tolerances, pole_cap
+):
+    kT = 0.02
     terms = _aaa_terms_for_interval(
-        128,
+        pole_cap,
         lower=lower,
         upper=upper,
         kT=kT,
@@ -157,8 +170,12 @@ def test_joint_aaa_removes_spurious_real_poles_on_asymmetric_interval():
     grid = np.linspace(lower, upper, 50003)
     f = expit(-grid / kT)
     entropy = -xlogy(f, f) - xlogy(1 - f, 1 - f)
+    # Independent grid evaluations can differ by a few ulps across BLAS builds.
+    # Keep this roundoff allowance separate from the requested fit tolerance.
+    roundoff = 4 * np.finfo(float).eps
     assert np.all(
-        thermal_errors(terms, grid, np.column_stack([f, entropy])) <= tolerances
+        thermal_errors(terms, grid, np.column_stack([f, entropy]))
+        <= np.asarray(tolerances) + roundoff
     )
     assert not np.any(
         (terms.shifts.imag == 0)
@@ -219,3 +236,42 @@ def test_rational_minimum_can_use_the_entire_pole_budget():
         entropy_tolerance=1e-8,
     )
     np.testing.assert_allclose(terms.constant, expit(-0.5), atol=1e-8)
+
+
+@pytest.mark.usefixtures("require_mumps")
+def test_joint_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
+    # This case previously stalled before residue refitting near machine precision.
+    size, mu, kT, tolerance = 32, 0.13, 0.02, 1e-12
+    rng = np.random.default_rng(174729 + size)
+    diagonal = rng.uniform(-0.4, 0.4, size)
+    hopping = -(1 + 0.15 * rng.random(size - 1)) * np.exp(0.17j)
+    matrix = sp.diags([hopping, diagonal, hopping.conj()], [-1, 0, 1], format="csr")
+    rows, cols = matrix.nonzero()
+    coordinates = DensityCoordinates.from_pairs(
+        size=size,
+        keys=[()],
+        pairs_by_key={(): (rows, cols)},
+    )
+    node = PreparedMumpsRationalNode(
+        matrix,
+        kT=kT,
+        q_diag=np.ones(size),
+        options=RationalFOE(),
+        charge_tolerance=tolerance,
+        density_tolerance=tolerance,
+        thermodynamic_tolerance=tolerance,
+        density_coordinates=coordinates,
+    )
+    density, energy, entropy = _reference(matrix.toarray(), np.ones(size), kT, mu)
+    assert node.charge(mu) == pytest.approx(
+        np.trace(density).real, abs=tolerance, rel=0
+    )
+    np.testing.assert_allclose(
+        node.density_values_from_charge_order(mu),
+        coordinates.values_from_assembled_matrix(density),
+        atol=tolerance,
+        rtol=0,
+    )
+    np.testing.assert_allclose(
+        node.thermodynamics(mu), [energy, entropy], atol=tolerance, rtol=0
+    )

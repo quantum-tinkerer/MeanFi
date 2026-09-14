@@ -33,5 +33,5 @@ mode has been resolved. An explicit `nk` always retains prescribed-size semantic
 Every density backend returns entropy and the expectation of the input
 quadratic Hamiltonian as `band_energy`. SCF results report interaction-corrected
 `internal_energy` and `free_energy`, with entropy in units of Boltzmann's
-constant. Dense periodic evaluation reuses eigenvalues; sparse AAA evaluation
+constant. All these quantities are per cell per physical orbital. Dense periodic evaluation reuses eigenvalues; sparse AAA evaluation
 shares poles and matrix factorizations between density and entropy.

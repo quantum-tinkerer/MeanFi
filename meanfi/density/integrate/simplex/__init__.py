@@ -154,7 +154,8 @@ def _occupied_band_energy(
     if not hasattr(mesh, "occupied_weights"):
         return None
     weights = np.asarray(mesh.occupied_weights(float(mu)))
-    return float(np.sum(weights * np.asarray(mesh.eigenvalues)))
+    energies = np.asarray(mesh.eigenvalues)
+    return float(np.sum(weights * energies)) / energies.shape[-1]
 
 
 def _zero_temperature_entropy(mesh: SpectralMesh, mu: float) -> float:
@@ -167,7 +168,7 @@ def _zero_temperature_entropy(mesh: SpectralMesh, mu: float) -> float:
     vertices = np.asarray(mesh.points)[simplices[counts > 0]]
     edges = vertices[:, 1:] - vertices[:, :1]
     volumes = np.abs(np.linalg.det(edges)) / factorial(mesh.ndim)
-    return float(np.log(2.0) * (volumes @ counts[counts > 0]))
+    return float(np.log(2.0) * (volumes @ counts[counts > 0])) / at_mu.shape[-1]
 
 
 def _integrate_density(

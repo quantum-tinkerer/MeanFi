@@ -132,7 +132,7 @@ class PreparedMumpsRationalNode:
             [
                 min(
                     density_tolerance,
-                    # The caller restores mu*N to the shifted energy trace.
+                    # Bound the unshifted Hamiltonian used for band energy.
                     trace_tolerance
                     / max(
                         1.0,

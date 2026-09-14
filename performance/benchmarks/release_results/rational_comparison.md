@@ -1,5 +1,10 @@
 # Sparse rational density, energy and entropy
 
+**Follow-up (2026-09-14):** The previously failing AAA case now passes at its
+original tolerance, bringing the thermodynamic suite to 35/35. See the
+[fix and larger-matrix cost study](normalization_and_fit_cost.md). The results
+below describe the earlier implementation and are retained as historical evidence.
+
 **Use AAA as the single thermodynamic backend.** In a matched 256-pole study,
 AAA met density, charge, energy and entropy tolerances in 34 of 35 sparse-node
 cases. An Ozaki implementation with corrected density stopping and entropy

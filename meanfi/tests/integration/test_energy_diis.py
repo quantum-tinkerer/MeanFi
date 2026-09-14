@@ -55,7 +55,7 @@ def test_default_zero_temperature_adaptive_solver_reports_energy():
     assert result.converged is True
     assert result.history
     assert not hasattr(result, "accuracy")
-    assert result.internal_energy == pytest.approx(-1.0)
+    assert result.internal_energy == pytest.approx(-0.5)
 
 
 def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
@@ -68,7 +68,7 @@ def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
     )
 
     assert len(result.history) == 1
-    assert result.internal_energy == pytest.approx(-1.0)
+    assert result.internal_energy == pytest.approx(-0.5)
 
 
 def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():

@@ -253,7 +253,8 @@ class _Evaluator:
             workspace_dtype=self.dtype,
             trace_weights_diag=self.trace_weights,
             shared_aaa_interval_cache=self._aaa_interval_cache,
-            thermodynamic_tolerance=self.tolerances.density_matrix_integration,
+            thermodynamic_tolerance=self.size
+            * self.tolerances.density_matrix_integration,
         )
 
     def charge(self, grid: _Grid, mu: float) -> tuple[float, float, float | None]:
@@ -373,8 +374,11 @@ class _Evaluator:
                 self.work.diagonalizations += len(points)
                 self.work.kernels += len(points)
             if not self.normal:
-                energies = 0.5 * (energies + electron_trace)
-                entropies *= 0.5
+                energies += electron_trace
+            # Dividing by the Nambu size includes both its half factor and
+            # normalization by the number of physical orbitals.
+            energies /= self.size
+            entropies /= self.size
             values += packed.sum(axis=0)
             charge += float(charges.sum())
             energy += float(energies.sum())

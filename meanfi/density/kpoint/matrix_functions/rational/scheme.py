@@ -169,8 +169,10 @@ def _aaa_terms_for_interval(
             weighted_cauchy, axis=1
         )[:, None]
         approximation[support] = support_y
+        # The residue refit can improve a nearly converged barycentric fit.
+        # Only final partial-fraction errors decide acceptance below.
         if len(support) < initial_poles or np.any(
-            np.max(np.abs(approximation - targets), axis=0) > tolerances
+            np.max(np.abs(approximation - targets), axis=0) > 10 * tolerances
         ):
             continue
         shifts = center + radius * _aaa_poles(support_x, weights)

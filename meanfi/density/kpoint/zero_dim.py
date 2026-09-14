@@ -79,8 +79,8 @@ def evaluate_zero_dim(
             filling_residual=None if filling is None else abs(charge - filling),
         ),
         statistics=info,
-        band_energy=float(eigenvalues @ occupation),
-        entropy=float(occupation_entropy(occupation).sum()),
+        band_energy=float(eigenvalues @ occupation) / eigenvalues.size,
+        entropy=float(occupation_entropy(occupation).mean()),
     )
 
 

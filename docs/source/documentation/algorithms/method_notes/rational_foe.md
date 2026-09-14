@@ -32,7 +32,9 @@ pole. Off-diagonal entries use the transposed conjugate resolvent entry.
 The fit combines occupation and entropy residuals, refits residues on the
 resulting poles, and checks both approximations on a separate, denser scalar
 grid. Samples resolve the band edges, Fermi transition, and thermal tails.
-Constant approximations must pass the same checks. These are sampled scalar
+A nearly converged intermediate fit may proceed to residue refitting; only the
+final partial-fraction errors determine acceptance. Constant approximations
+must pass the same checks. These are sampled scalar
 checks, not rigorous uniform-error certificates between sample points.
 
 A scalar fit may be reused for a contained spectral interval after checking its
@@ -51,9 +53,10 @@ Band energy uses the same resolvent traces through
 A(A-zI)^{-1}=I+z(A-zI)^{-1}.
 :::
 
-Thus entropy and band energy require no extra matrix factorizations. The
-integrator restores the chemical-potential shift; for BdG it also includes the
-normal-ordering constant and removes Nambu doubling from energy and entropy.
+Thus entropy and band energy require no extra matrix factorizations. The sparse
+node restores the chemical-potential shift. The integrator includes the BdG
+normal-ordering constant, removes Nambu doubling where applicable, and divides
+physical energy and entropy by the number of physical orbitals per cell.
 The SCF layer subtracts interaction double counting to obtain internal energy,
 then returns `free_energy = internal_energy - kT * entropy`.
 

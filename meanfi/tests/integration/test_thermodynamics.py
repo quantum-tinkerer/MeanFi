@@ -47,8 +47,8 @@ def test_periodic_thermodynamics_reuses_density_spectrum(superconducting, monkey
     density = mf.density_matrix_at_mu(model, mu=mu, mean_field=correction)
     assert len(calls) == 1
     assert not density.is_complete
-    assert density.band_energy == pytest.approx(expected_band, abs=1e-13)
-    assert density.entropy == pytest.approx(expected_entropy, abs=1e-13)
+    assert density.band_energy == pytest.approx(expected_band / 2, abs=1e-13)
+    assert density.entropy == pytest.approx(expected_entropy / 2, abs=1e-13)
 
 
 @pytest.mark.parametrize("dimension", [0, 1, 2, 3])
@@ -58,7 +58,7 @@ def test_zero_temperature_flat_band_retains_half_occupation_entropy(dimension):
         {key: np.diag([0.0, 1.0])}, mu=0.0, kT=0.0, keys=[key]
     )
     assert result.filling == pytest.approx(0.5)
-    assert result.entropy == pytest.approx(np.log(2.0))
+    assert result.entropy == pytest.approx(np.log(2.0) / 2)
     assert result.band_energy == pytest.approx(0.0)
 
 
@@ -125,7 +125,7 @@ def test_reference_subtraction_does_not_subtract_entropy():
     result = mf.solver(model, {(): np.zeros((2, 2))}, tol=1e-9)
     assert result.entropy == pytest.approx(reference.entropy)
     assert result.internal_energy == pytest.approx(
-        mf.expectation_value(reference, h0).real
+        mf.expectation_value(reference, h0).real / 2
     )
     assert result.free_energy == pytest.approx(
         result.internal_energy - model.kT * reference.entropy
@@ -204,3 +204,93 @@ def test_bdg_interaction_support_does_not_depend_on_guess_keys():
             minimal.mean_field[key], complete.mean_field[key], atol=1e-12
         )
     assert minimal.free_energy == pytest.approx(complete.free_energy)
+
+
+@pytest.mark.parametrize(
+    "superconducting,kT", [(False, 0.0), (False, 0.17), (True, 0.17)]
+)
+@pytest.mark.parametrize("dimension", [0, 1])
+@pytest.mark.parametrize("use_sparse", [False, True])
+def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
+    superconducting, kT, dimension, use_sparse, request
+):
+    from scipy import sparse
+
+    if use_sparse:
+        if kT == 0:
+            pytest.skip("Sparse density evaluation requires positive temperature")
+        request.getfixturevalue("require_mumps")
+    key = (0,) * dimension
+    h0 = {key: np.array([[0.3, 0.04j], [-0.04j, -0.2]])}
+    hint = {key: np.array([[0.0, 0.5], [0.5, 0.0]])}
+    normal = {key: np.array([[0.1, 0.02j], [-0.02j, 0.2]])}
+    pairing = {key: np.array([[0.0, 0.13j], [-0.13j, 0.0]])}
+    if dimension:
+        h0[(1,)] = np.diag([-0.3, -0.2])
+        h0[(-1,)] = h0[(1,)].conj().T
+
+    def evaluate(copies):
+        def repeat(tb):
+            blocks = {k: np.kron(np.eye(copies), block) for k, block in tb.items()}
+            if use_sparse:
+                blocks = {k: sparse.csr_matrix(block) for k, block in blocks.items()}
+            return blocks
+
+        model = mf.Model(
+            repeat(h0),
+            repeat(hint),
+            filling=0.8 * copies,
+            kT=kT,
+            superconducting=superconducting,
+        )
+        correction = repeat(normal)
+        if superconducting:
+            correction = assemble_bdg_tb(correction, repeat(pairing), ndof=2 * copies)
+        integration = mf.PeriodicGrid(nk=64) if kT > 0 else mf.AdaptiveSimplex()
+        density = mf.density_matrix_at_mu(
+            model,
+            mu=0.12,
+            mean_field=correction,
+            keys=list(h0),
+            integration=integration,
+            tol=1e-7,
+        )
+        selected = density.select(model.scf_space.required_coordinates)
+        assert selected.entropy == density.entropy
+        return (
+            density,
+            mf.internal_energy(model, density),
+            mf.free_energy(model, density),
+        )
+
+    base, base_energy, base_free_energy = evaluate(1)
+    repeated, energy, free_energy = evaluate(3)
+    assert repeated.filling == pytest.approx(3 * base.filling, abs=1e-7)
+    assert repeated.band_energy == pytest.approx(base.band_energy, abs=1e-7)
+    assert repeated.entropy == pytest.approx(base.entropy, abs=1e-7)
+    assert energy == pytest.approx(base_energy, abs=1e-7)
+    assert free_energy == pytest.approx(base_free_energy, abs=1e-7)
+
+
+@pytest.mark.parametrize("superconducting", [False, True])
+def test_ediis_per_orbital_energy_is_invariant_under_independent_copies(
+    superconducting,
+):
+    def solve(copies):
+        model = mf.Model(
+            {(): np.kron(np.eye(copies), np.diag([0.2, -0.2]))},
+            {(): np.kron(np.eye(copies), [[0.0, 0.5], [0.5, 0.0]])},
+            filling=float(copies),
+            kT=0.2,
+            superconducting=superconducting,
+        )
+        size = 4 * copies if superconducting else 2 * copies
+        result = mf.solver(model, {(): np.zeros((size, size))}, tol=1e-9)
+        assert result.converged
+        return result
+
+    base, repeated = solve(1), solve(3)
+    assert repeated.density.filling == pytest.approx(3 * base.density.filling)
+    assert repeated.internal_energy == pytest.approx(base.internal_energy, abs=1e-9)
+    assert repeated.free_energy == pytest.approx(base.free_energy, abs=1e-9)
+    assert repeated.entropy == pytest.approx(base.entropy, abs=1e-9)

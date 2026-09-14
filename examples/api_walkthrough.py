@@ -23,7 +23,7 @@ guess = model.random_meanfield(rng=12, scale=0.03)
 solution = mf.solver(model, guess, tol=1e-5)
 print("SCF:", solution.mu, solution.filling, solution.errors, len(solution.history))
 print(
-    "Internal energy / entropy / free energy:",
+    "Internal energy / entropy / free energy (per cell per orbital):",
     solution.internal_energy,
     solution.entropy,
     solution.free_energy,

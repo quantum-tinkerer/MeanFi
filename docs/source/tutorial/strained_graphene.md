@@ -135,7 +135,8 @@ mf_sol = {
 The sparse solver uses the same default `EnergyDIIS` workflow as the dense
 examples. Rational evaluation obtains entropy from the same poles and sparse
 factorizations as density. `result.internal_energy`, `result.entropy`, and
-`result.free_energy` are available without requesting a full density matrix.
+`result.free_energy` are per cell per physical orbital and are available without
+requesting a full density matrix.
 
 We now verify that the mean-field solution results in a gapped phase.
 

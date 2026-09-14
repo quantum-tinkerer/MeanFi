@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Internal, free, and band energies and entropy are now per cell per physical
+  orbital. Divide physical totals by N for an N-orbital model, including BdG
+  models with 2N-dimensional Hamiltonians. Energy and entropy integration errors
+  use the same normalization. Filling remains electrons per cell; the generic
+  `expectation_value` remains an unnormalized trace.
+
 - SCF results and history expose `internal_energy`, `free_energy`, and entropy
   in units of Boltzmann's constant. `free_energy = internal_energy - kT * entropy`.
   The old `total_energy` name is removed; use `internal_energy(model, density)`
@@ -95,6 +101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Automatic sparse selection raises migration guidance instead of densifying.
 
 ### Accuracy and resource contracts
+
+- AAA can now refit residues from a nearly converged intermediate approximation.
+  Final certification keeps the requested tolerance, fixing the 32-orbital
+  thermodynamic regression at its original `1e-12` total-trace target.
 
 - AAA uses a certified constant occupation for nearly degenerate spectra,
   avoiding unstable rational fits and meeting tight sparse accuracy targets.

@@ -269,6 +269,6 @@ print(f"random free energy:     {random_result.free_energy:.8f}")
 For competing converged solutions at the same filling and temperature, compare
 `result.free_energy`. It includes entropy through
 `free_energy = internal_energy - model.kT * entropy`; BdG entropy removes the
-Nambu doubling with a factor of one half. All three quantities are per unit cell,
+Nambu doubling with a factor of one half. All three quantities are per cell per physical orbital,
 and entropy is in units of Boltzmann's constant. Resolve differences by tightening
 the integration and SCF tolerances before assigning an energy ordering.

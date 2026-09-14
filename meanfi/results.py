@@ -106,8 +106,9 @@ class DensityEntries:
 class DensityResult:
     """Density entries and metadata of the complete evaluated state.
 
-    ``entropy`` is per cell in units of Boltzmann's constant. ``band_energy``
-    belongs to the input quadratic Hamiltonian (with BdG normal ordering),
+    ``entropy`` and ``band_energy`` are per cell per physical orbital; entropy
+    is in units of Boltzmann's constant. The band energy belongs to the input
+    quadratic Hamiltonian (with BdG normal ordering),
     before correcting for interaction double counting. Selection preserves
     these scalars; unknown real-space entries are never filled to obtain them.
     """
@@ -210,7 +211,7 @@ class SCFResult:
 
     @property
     def entropy(self) -> float:
-        """Entropy per cell, in units of Boltzmann's constant."""
+        """Entropy per cell per physical orbital, in units of Boltzmann's constant."""
         return self.density.entropy
 
     @property

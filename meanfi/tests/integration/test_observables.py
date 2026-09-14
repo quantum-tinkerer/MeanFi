@@ -84,9 +84,9 @@ def test_internal_energy_half_counts_normal_mean_field_interaction():
     expected = expectation_value(density, model.h_0) + 0.5 * interaction_energy
     naive = expectation_value(density, add_tb(model.h_0, correction))
 
-    assert internal_energy(model, density) == pytest.approx(np.real(expected))
-    assert naive - internal_energy(model, density) == pytest.approx(
-        0.5 * interaction_energy
+    assert internal_energy(model, density) == pytest.approx(np.real(expected) / 2)
+    assert naive / 2 - internal_energy(model, density) == pytest.approx(
+        0.5 * interaction_energy / 2
     )
 
 
@@ -106,7 +106,9 @@ def test_internal_energy_uses_reference_subtracted_interaction_functional():
     expected = expectation_value(density, h_0)
     expected += 0.5 * expectation_value(difference, correction)
 
-    assert internal_energy(model, density) == pytest.approx(float(np.real(expected)))
+    assert internal_energy(model, density) == pytest.approx(
+        float(np.real(expected)) / 2
+    )
 
 
 def test_internal_energy_rejects_missing_one_body_density_keys():
@@ -156,8 +158,8 @@ def test_internal_energy_gradient_matches_hubbard_mean_field_hamiltonian():
     ) / (2.0 * epsilon)
     rhs = np.real(expectation_value(direction, model.hamiltonian_from_density(rho)))
 
-    assert internal_energy(model, rho) == pytest.approx(slater_energy())
-    assert derivative == pytest.approx(rhs, rel=1e-8, abs=1e-8)
+    assert internal_energy(model, rho) == pytest.approx(slater_energy() / 4)
+    assert derivative == pytest.approx(rhs / 4, rel=1e-8, abs=1e-8)
 
 
 def test_internal_energy_matches_bdg_block_formula():
@@ -182,7 +184,7 @@ def test_internal_energy_matches_bdg_block_formula():
 
     # Independent two-orbital Wick expression, including attractive pairing.
     expected = 2.0 * 0.4 + 3.0 * 0.3 + 1.5 * (0.4 * 0.3 - 0.05**2 - 0.2**2)
-    assert internal_energy(model, density) == pytest.approx(expected)
+    assert internal_energy(model, density) == pytest.approx(expected / 2)
 
 
 def test_bdg_correction_projects_pairing_antisymmetry_noise():
@@ -261,7 +263,7 @@ def test_bdg_energy_is_phase_invariant_and_has_the_hamiltonian_gradient(
             as_tb(direction), model.hamiltonian_from_density(as_tb(density))
         ).real
     )
-    assert derivative == pytest.approx(expected, rel=1e-8, abs=1e-10)
+    assert derivative == pytest.approx(expected / 2, rel=1e-8, abs=1e-10)
 
 
 @pytest.mark.parametrize("superconducting", [False, True])
@@ -286,6 +288,7 @@ def test_free_energy_uses_full_state_entropy_after_selecting_entries(
     entropy = np.sum(entr(occupations) + entr(1 - occupations))
     if superconducting:
         entropy *= 0.5
+    entropy /= 2
     full = replace(density_result_from_tb({(): matrix}), entropy=float(entropy))
     selected = full.select(model.scf_space.required_coordinates)
 
