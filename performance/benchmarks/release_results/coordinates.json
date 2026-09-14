@@ -1,0 +1,704 @@
+{
+  "baseline_commit": "5a25a5398a23fa7c80a373bfb283297d14073bb0",
+  "protocol": "Single CPU 0, one BLAS/OpenMP thread. First run: before then after, three repetitions plus two independent references. Timing follow-up: after then before, fifteen repetitions with one warmup per case. Sparse reconstruction: before then after in fresh processes, one warmup and three repetitions.",
+  "before": {
+    "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+    "numpy": "2.4.6",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libopenblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libopenblasp-r0.3.33.so",
+        "version": "0.3.33",
+        "threading_layer": "openmp",
+        "architecture": "SapphireRapids"
+      },
+      {
+        "user_api": "openmp",
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libomp",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libomp.so",
+        "version": null
+      },
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "SkylakeX"
+      }
+    ],
+    "results": [
+      {
+        "case": "square_metal",
+        "temperature": 0.2,
+        "matrix_size": 16,
+        "seconds": 0.027677911799401045,
+        "mu": -0.31588339374655733,
+        "filling": 6.879996512245215,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            16,
+            16
+          ],
+          "n_kernel_evals": 848,
+          "unique_evals": 512,
+          "n_evaluator_evals": 1696,
+          "n_diagonalizations": 848,
+          "refinements": 2,
+          "validation_evaluations": 256,
+          "charge_evaluations": 12,
+          "charge_integration_calls": 12,
+          "density_integration_calls": 4,
+          "charge_error": 3.5185161593176417e-06,
+          "error_estimate_available": true,
+          "spectrum_bytes": 40960
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 6.204844507640139e-07,
+          "filling_residual": 3.4877547845368895e-06,
+          "charge_integration": 3.5185161593176417e-06
+        },
+        "density_error": 1.3895051775847378e-11,
+        "charge_error": 3.487710833915969e-06,
+        "reference_density_change": 2.220447236023595e-16,
+        "reference_charge_change": 1.7763568394002505e-15,
+        "initial_timings": [
+          0.027404516004025936,
+          0.027223710902035236,
+          0.027469848282635212
+        ],
+        "timings": [
+          0.03272552601993084,
+          0.029060452710837126,
+          0.027677911799401045,
+          0.029211251065135002,
+          0.028084466699510813,
+          0.02734329830855131,
+          0.027292767073959112,
+          0.0305381640791893,
+          0.027341872919350863,
+          0.027949901297688484,
+          0.028274118900299072,
+          0.027316736988723278,
+          0.02742859022691846,
+          0.027353011071681976,
+          0.027385099325329065
+        ]
+      },
+      {
+        "case": "gapped",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.006624301895499229,
+        "mu": 0.0,
+        "filling": 8.0,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 64,
+          "grid_shape": [
+            8,
+            8
+          ],
+          "n_kernel_evals": 208,
+          "unique_evals": 128,
+          "n_evaluator_evals": 384,
+          "n_diagonalizations": 208,
+          "refinements": 1,
+          "validation_evaluations": 64,
+          "charge_evaluations": 6,
+          "charge_integration_calls": 6,
+          "density_integration_calls": 3,
+          "charge_error": 0.0,
+          "error_estimate_available": true,
+          "spectrum_bytes": 10240
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 3.448784155479778e-08,
+          "filling_residual": 0.0,
+          "charge_integration": 0.0
+        },
+        "density_error": 9.137135492666586e-14,
+        "charge_error": 0.0,
+        "reference_density_change": 2.220447651160692e-16,
+        "reference_charge_change": 0.0,
+        "initial_timings": [
+          0.010144578758627176,
+          0.010069760028272867,
+          0.010260929353535175
+        ],
+        "timings": [
+          0.0066661350429058075,
+          0.0066876099444925785,
+          0.006585101131349802,
+          0.00665883207693696,
+          0.006540956906974316,
+          0.0066888113506138325,
+          0.006482318975031376,
+          0.006624301895499229,
+          0.00657959608361125,
+          0.006643007975071669,
+          0.00664955610409379,
+          0.006576221901923418,
+          0.006593436934053898,
+          0.0065328930504620075,
+          0.006661523599177599
+        ]
+      },
+      {
+        "case": "cold_bdg",
+        "temperature": 0.01,
+        "matrix_size": 16,
+        "seconds": 0.008320271037518978,
+        "mu": -0.4503679791155525,
+        "filling": 3.4400006979044293,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 16,
+          "grid_shape": [
+            16
+          ],
+          "n_kernel_evals": 160,
+          "unique_evals": 32,
+          "n_evaluator_evals": 160,
+          "n_diagonalizations": 160,
+          "refinements": 2,
+          "validation_evaluations": 16,
+          "charge_evaluations": 15,
+          "charge_integration_calls": 15,
+          "density_integration_calls": 4,
+          "charge_error": 6.743272318310289e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 0
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 8.429090403438977e-08,
+          "filling_residual": 6.979044293586867e-07,
+          "charge_integration": 6.743272318310289e-07
+        },
+        "density_error": 1.7258416917798058e-13,
+        "charge_error": 6.979030495735117e-07,
+        "reference_density_change": 1.1131449777526375e-16,
+        "reference_charge_change": 0.0,
+        "initial_timings": [
+          0.008513810113072395,
+          0.008392561692744493,
+          0.008287128992378712
+        ],
+        "timings": [
+          0.008276083040982485,
+          0.008369854185730219,
+          0.008328533731400967,
+          0.008280941285192966,
+          0.00844265567138791,
+          0.009257946163415909,
+          0.008301144000142813,
+          0.00833938317373395,
+          0.008264271076768637,
+          0.008241582196205854,
+          0.008242491167038679,
+          0.008791700936853886,
+          0.008937970269471407,
+          0.008238041773438454,
+          0.008320271037518978
+        ]
+      },
+      {
+        "case": "wire",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.0339617570862174,
+        "mu": -0.4129061986768721,
+        "filling": 6.87998008012915,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            256
+          ],
+          "n_kernel_evals": 1020,
+          "unique_evals": 512,
+          "n_evaluator_evals": 2600,
+          "n_diagonalizations": 1020,
+          "refinements": 6,
+          "validation_evaluations": 256,
+          "charge_evaluations": 35,
+          "charge_integration_calls": 35,
+          "density_integration_calls": 8,
+          "charge_error": 1.991574202886426e-05,
+          "error_estimate_available": true,
+          "spectrum_bytes": 49152
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 2.20046806842511e-06,
+          "filling_residual": 1.9919870849705035e-05,
+          "charge_integration": 1.991574202886426e-05
+        },
+        "density_error": 9.31456925479246e-11,
+        "charge_error": 1.9920073921042558e-05,
+        "reference_density_change": 1.672776946659816e-16,
+        "reference_charge_change": 0.0,
+        "initial_timings": [
+          0.03413549903780222,
+          0.03394262585788965,
+          0.03390257200226188
+        ],
+        "timings": [
+          0.03401152091100812,
+          0.03388569317758083,
+          0.03392292000353336,
+          0.03410467691719532,
+          0.0339617570862174,
+          0.033939520828425884,
+          0.033950960263609886,
+          0.0340520404279232,
+          0.033860231284052134,
+          0.03385362587869167,
+          0.03390418505296111,
+          0.03504395205527544,
+          0.03435803763568401,
+          0.033988808281719685,
+          0.03421897208318114
+        ]
+      },
+      {
+        "case": "bounded_3d",
+        "temperature": 0.2,
+        "matrix_size": 8,
+        "seconds": 0.8375360430218279,
+        "mu": -0.37512298442232156,
+        "filling": 3.43999956542036,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 32768,
+          "grid_shape": [
+            32,
+            32,
+            32
+          ],
+          "n_kernel_evals": 102976,
+          "unique_evals": 65536,
+          "n_evaluator_evals": 187264,
+          "n_diagonalizations": 102976,
+          "refinements": 3,
+          "validation_evaluations": 32768,
+          "charge_evaluations": 16,
+          "charge_integration_calls": 16,
+          "density_integration_calls": 5,
+          "charge_error": 4.346339572691704e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 2359296
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 1.97568813087301e-07,
+          "filling_residual": 4.3457963982973524e-07,
+          "charge_integration": 4.346339572691704e-07
+        },
+        "density_error": 6.498801496945816e-12,
+        "charge_error": 4.345938933170146e-07,
+        "reference_density_change": 1.3267165144820785e-14,
+        "reference_charge_change": 4.440892098500626e-16,
+        "initial_timings": [
+          1.017497125081718,
+          1.0085256099700928,
+          1.047434750944376
+        ],
+        "timings": [
+          0.8263614657334983,
+          0.8307430921122432,
+          0.827521150931716,
+          0.8477597204037011,
+          0.8136099888943136,
+          0.84825524315238,
+          0.8311589206568897,
+          0.8822425105609,
+          0.8740828479640186,
+          0.8640626613050699,
+          0.8175949789583683,
+          0.8794370102696121,
+          0.8375360430218279,
+          0.8466933616437018,
+          0.8161534238606691
+        ]
+      }
+    ]
+  },
+  "after": {
+    "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+    "numpy": "2.4.6",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libopenblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libopenblasp-r0.3.33.so",
+        "version": "0.3.33",
+        "threading_layer": "openmp",
+        "architecture": "SapphireRapids"
+      },
+      {
+        "user_api": "openmp",
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libomp",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libomp.so",
+        "version": null
+      },
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "SkylakeX"
+      }
+    ],
+    "results": [
+      {
+        "case": "square_metal",
+        "temperature": 0.2,
+        "matrix_size": 16,
+        "seconds": 0.02735565509647131,
+        "mu": -0.31588339374655733,
+        "filling": 6.879996512245215,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            16,
+            16
+          ],
+          "n_kernel_evals": 848,
+          "unique_evals": 512,
+          "n_evaluator_evals": 1696,
+          "n_diagonalizations": 848,
+          "refinements": 2,
+          "validation_evaluations": 256,
+          "charge_evaluations": 12,
+          "charge_integration_calls": 12,
+          "density_integration_calls": 4,
+          "charge_error": 3.5185161593176417e-06,
+          "error_estimate_available": true,
+          "spectrum_bytes": 40960
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 6.204844507640139e-07,
+          "filling_residual": 3.4877547845368895e-06,
+          "charge_integration": 3.5185161593176417e-06
+        },
+        "density_error": 1.3895051775847378e-11,
+        "charge_error": 3.487710833915969e-06,
+        "reference_density_change": 2.220447236023595e-16,
+        "reference_charge_change": 1.7763568394002505e-15,
+        "initial_timings": [
+          0.02914459304884076,
+          0.027565794996917248,
+          0.031463696621358395
+        ],
+        "timings": [
+          0.036621679086238146,
+          0.043732170946896076,
+          0.041972186882048845,
+          0.041456663981080055,
+          0.03540072264149785,
+          0.02721921820193529,
+          0.027420440223068,
+          0.027244879864156246,
+          0.027257984038442373,
+          0.02726549608632922,
+          0.02735565509647131,
+          0.027196336071938276,
+          0.027425380889326334,
+          0.02726076589897275,
+          0.027078933082520962
+        ]
+      },
+      {
+        "case": "gapped",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.006568016018718481,
+        "mu": 0.0,
+        "filling": 8.0,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 64,
+          "grid_shape": [
+            8,
+            8
+          ],
+          "n_kernel_evals": 208,
+          "unique_evals": 128,
+          "n_evaluator_evals": 384,
+          "n_diagonalizations": 208,
+          "refinements": 1,
+          "validation_evaluations": 64,
+          "charge_evaluations": 6,
+          "charge_integration_calls": 6,
+          "density_integration_calls": 3,
+          "charge_error": 0.0,
+          "error_estimate_available": true,
+          "spectrum_bytes": 10240
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 3.448784155479778e-08,
+          "filling_residual": 0.0,
+          "charge_integration": 0.0
+        },
+        "density_error": 9.137135492666586e-14,
+        "charge_error": 0.0,
+        "reference_density_change": 2.220447651160692e-16,
+        "reference_charge_change": 0.0,
+        "initial_timings": [
+          0.006770152132958174,
+          0.006631794851273298,
+          0.006590517703443766
+        ],
+        "timings": [
+          0.006613467819988728,
+          0.006566525902599096,
+          0.006410412956029177,
+          0.006655000150203705,
+          0.006568016018718481,
+          0.006586924660950899,
+          0.006506646052002907,
+          0.006532583851367235,
+          0.0065990472212433815,
+          0.006537237204611301,
+          0.0065439981408417225,
+          0.006481236778199673,
+          0.006711822934448719,
+          0.008543921634554863,
+          0.008878996130079031
+        ]
+      },
+      {
+        "case": "cold_bdg",
+        "temperature": 0.01,
+        "matrix_size": 16,
+        "seconds": 0.008277835790067911,
+        "mu": -0.4503679791155525,
+        "filling": 3.4400006979044293,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 16,
+          "grid_shape": [
+            16
+          ],
+          "n_kernel_evals": 160,
+          "unique_evals": 32,
+          "n_evaluator_evals": 160,
+          "n_diagonalizations": 160,
+          "refinements": 2,
+          "validation_evaluations": 16,
+          "charge_evaluations": 15,
+          "charge_integration_calls": 15,
+          "density_integration_calls": 4,
+          "charge_error": 6.743272318310289e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 0
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 8.429090403438977e-08,
+          "filling_residual": 6.979044293586867e-07,
+          "charge_integration": 6.743272318310289e-07
+        },
+        "density_error": 1.7258416917798058e-13,
+        "charge_error": 6.979030495735117e-07,
+        "reference_density_change": 1.1131449777526375e-16,
+        "reference_charge_change": 0.0,
+        "initial_timings": [
+          0.012136092409491539,
+          0.01210014009848237,
+          0.010534376837313175
+        ],
+        "timings": [
+          0.01045768428593874,
+          0.009185361210256815,
+          0.008526070043444633,
+          0.010378238745033741,
+          0.009807426948100328,
+          0.009668530896306038,
+          0.008547412697225809,
+          0.00816567474976182,
+          0.008203684817999601,
+          0.008181651122868061,
+          0.008191220927983522,
+          0.008182879071682692,
+          0.008248295169323683,
+          0.008277835790067911,
+          0.008227734826505184
+        ]
+      },
+      {
+        "case": "wire",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.03426982881501317,
+        "mu": -0.4129061986768721,
+        "filling": 6.87998008012915,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            256
+          ],
+          "n_kernel_evals": 1020,
+          "unique_evals": 512,
+          "n_evaluator_evals": 2600,
+          "n_diagonalizations": 1020,
+          "refinements": 6,
+          "validation_evaluations": 256,
+          "charge_evaluations": 35,
+          "charge_integration_calls": 35,
+          "density_integration_calls": 8,
+          "charge_error": 1.991574202886426e-05,
+          "error_estimate_available": true,
+          "spectrum_bytes": 49152
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 2.20046806842511e-06,
+          "filling_residual": 1.9919870849705035e-05,
+          "charge_integration": 1.991574202886426e-05
+        },
+        "density_error": 9.31456925479246e-11,
+        "charge_error": 1.9920073921042558e-05,
+        "reference_density_change": 1.672776946659816e-16,
+        "reference_charge_change": 0.0,
+        "initial_timings": [
+          0.03493075305595994,
+          0.034071970265358686,
+          0.035468893591314554
+        ],
+        "timings": [
+          0.04088622285053134,
+          0.03800950478762388,
+          0.034249624237418175,
+          0.03426982881501317,
+          0.03414323087781668,
+          0.03431002702564001,
+          0.03412290196865797,
+          0.0341488691046834,
+          0.035644547548145056,
+          0.03417680598795414,
+          0.034206080716103315,
+          0.03586729709059,
+          0.03470031591132283,
+          0.034011383075267076,
+          0.03437478793784976
+        ]
+      },
+      {
+        "case": "bounded_3d",
+        "temperature": 0.2,
+        "matrix_size": 8,
+        "seconds": 0.828755880240351,
+        "mu": -0.37512298442232156,
+        "filling": 3.43999956542036,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 32768,
+          "grid_shape": [
+            32,
+            32,
+            32
+          ],
+          "n_kernel_evals": 102976,
+          "unique_evals": 65536,
+          "n_evaluator_evals": 187264,
+          "n_diagonalizations": 102976,
+          "refinements": 3,
+          "validation_evaluations": 32768,
+          "charge_evaluations": 16,
+          "charge_integration_calls": 16,
+          "density_integration_calls": 5,
+          "charge_error": 4.346339572691704e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 2359296
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 1.97568813087301e-07,
+          "filling_residual": 4.3457963982973524e-07,
+          "charge_integration": 4.346339572691704e-07
+        },
+        "density_error": 6.498801496945816e-12,
+        "charge_error": 4.345938933170146e-07,
+        "reference_density_change": 1.3267165144820785e-14,
+        "reference_charge_change": 4.440892098500626e-16,
+        "initial_timings": [
+          0.99712555995211,
+          1.041422484908253,
+          1.09379175119102
+        ],
+        "timings": [
+          0.8563120788894594,
+          0.8262707148678601,
+          0.8244059919379652,
+          0.8233964242972434,
+          0.8323543961159885,
+          0.8370517892763019,
+          0.8325729272328317,
+          0.8186213481239974,
+          0.8211296238005161,
+          0.8369435626082122,
+          0.8270509080030024,
+          0.828755880240351,
+          0.8179968488402665,
+          0.8487458047457039,
+          0.8307341537438333
+        ]
+      }
+    ]
+  },
+  "sparse_reconstruction": {
+    "before": {
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "numpy": "2.4.6",
+      "size": 2000,
+      "parameters": 5998,
+      "timings": [
+        0.009480695705860853,
+        0.009188857860863209,
+        0.00870060920715332
+      ],
+      "seconds": 0.009188857860863209,
+      "peak_rss_kib": 143504,
+      "correction_sha256": "15ffab30582fcf4e696d7802aa2e558d4b2e6d432d68c9ee17ace69dc30549e5"
+    },
+    "after": {
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "numpy": "2.4.6",
+      "size": 2000,
+      "parameters": 5998,
+      "timings": [
+        0.0005894862115383148,
+        0.0005989843048155308,
+        0.0005495077930390835
+      ],
+      "seconds": 0.0005894862115383148,
+      "peak_rss_kib": 80924,
+      "correction_sha256": "15ffab30582fcf4e696d7802aa2e558d4b2e6d432d68c9ee17ace69dc30549e5"
+    }
+  }
+}

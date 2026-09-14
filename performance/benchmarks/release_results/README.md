@@ -77,3 +77,30 @@ the requested filling tolerance. Independent sparse reference tests passed at
 tighter tolerances. This benchmark measures removing spectral setup work and
 simplifying retained state; it does not establish integration convergence on a
 prescribed mesh.
+
+## Coordinate and result simplification
+
+The third pass compares `5a25a53` with the shared-entry and sparse-coordinate
+implementation. [coordinates.json](coordinates.json) records the original
+three-run measurements with independent references and the reversed-order
+fifteen-run follow-up. Both used CPU 0 and one BLAS/OpenMP thread. All five dense
+median timings differ by less than 1.2%; physical values, work counts and
+independent reference errors are identical. Initial short-call variation did not
+persist in the follow-up.
+
+Sparse reconstruction uses 2,000 orbitals with a nearest-neighbor onsite
+interaction, 5,998 real SCF parameters and seeded random input. Each timed pass
+reconstructs density, packs its parameters and assembles meanfield. The median
+of three passes after one warmup fell from 9.19 ms to 0.59 ms; Linux peak process
+RSS fell from 140.1 MiB to 79.0 MiB, including imports and setup. The resulting
+correction vectors have identical SHA-256 hashes. This is a reconstruction
+benchmark, not a full SCF or integration scaling claim.
+
+```sh
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+taskset -c 0 python performance/benchmarks/scf_reconstruction.py \
+  --output build/scf-reconstruction.json
+```
+
+Use `--checkout` to compare a previous checkout with the same harness. Benchmark
+sources and evidence remain excluded from wheel and source distribution.
