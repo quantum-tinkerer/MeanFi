@@ -8,9 +8,9 @@ from meanfi.model import Model
 from meanfi.space import (
     DensityCoordinates,
     SpatialSymmetry,
-    canonical_tb_keys,
-    real_to_complex,
 )
+from meanfi.space.coordinates import canonical_tb_keys
+from meanfi.space.reducers import real_to_complex
 from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import compare_dicts
 from meanfi.tb.transforms import ifftn_to_tb, tb_to_kfunc, tb_to_kgrid
@@ -481,7 +481,7 @@ def test_antiunitary_spatial_symmetry_constrains_active_values_to_real():
 )
 def test_fourier_roundtrip_on_representative_models(tb, nk):
     ndim = len(next(iter(tb)))
-    kham = tb_to_kgrid(tb, nk=nk)
+    kham = tb_to_kgrid(tb, (nk,) * ndim)
     recovered = ifftn_to_tb(np.fft.ifftn(kham, axes=np.arange(ndim)))
 
     for key, matrix in tb.items():
@@ -500,10 +500,44 @@ def test_fourier_roundtrip_on_representative_models(tb, nk):
 def test_kfunc_matches_sampled_kgrid_on_representative_models(builder, nk):
     tb = builder()
     ndim = len(next(iter(tb)))
-    kham = tb_to_kgrid(tb, nk=nk)
+    kham = tb_to_kgrid(tb, (nk,) * ndim)
     ks = np.linspace(-np.pi, np.pi, nk, endpoint=False)
     shifted = np.concatenate((ks[nk // 2 :], ks[: nk // 2]))
     points = np.array(list(it.product(*([shifted] * ndim))))
     sampled = tb_to_kfunc(tb)(points).reshape(kham.shape)
 
     assert np.allclose(kham, sampled)
+
+
+@pytest.mark.parametrize("shape", [(), (1,), (5,), (8,), (4, 6), (3, 4, 5)])
+def test_fourier_preserves_all_modes_and_hermiticity(shape):
+    from meanfi import kgrid_to_tb
+    from meanfi.tb.validate import validate_hermiticity
+
+    rng = np.random.default_rng(21)
+    raw = rng.normal(size=(*shape, 2, 2)) + 1j * rng.normal(size=(*shape, 2, 2))
+    grid = raw + raw.conj().swapaxes(-1, -2)
+    tb = kgrid_to_tb(grid)
+    validate_hermiticity(tb)
+    np.testing.assert_allclose(tb_to_kgrid(tb, shape), grid, atol=1e-14)
+    points = np.array(list(it.product(*(2 * np.pi * np.fft.fftfreq(n) for n in shape))))
+    sampled = tb_to_kfunc(tb)(points).reshape(grid.shape)
+    np.testing.assert_allclose(sampled, grid, atol=1e-14)
+
+
+@pytest.mark.parametrize("mixed", [False, True])
+def test_sparse_fourier_matches_dense_without_densifying_kfunc_inputs(
+    monkeypatch, mixed
+):
+    tb = spinful_chain()
+    sparse_tb = {key: sparse.csr_matrix(matrix) for key, matrix in tb.items()}
+    if mixed:
+        sparse_tb[(0,)] = tb[(0,)]
+    np.testing.assert_allclose(tb_to_kgrid(sparse_tb, (7,)), tb_to_kgrid(tb, (7,)))
+
+    def reject_dense(*args, **kwargs):
+        raise AssertionError("kfunc must accumulate sparse entries directly")
+
+    monkeypatch.setattr(sparse.csr_matrix, "toarray", reject_dense)
+    k = np.array([[-0.7], [0.0], [0.3]])
+    np.testing.assert_allclose(tb_to_kfunc(sparse_tb)(k), tb_to_kfunc(tb)(k))

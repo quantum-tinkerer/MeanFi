@@ -5,7 +5,7 @@ from dataclasses import replace
 import numpy as np
 
 from meanfi.density.density import evaluate_density
-from meanfi.density.problem import build_normal_problem
+from meanfi.density.problem import build_density_problem
 from meanfi.density.integrate.methods import AdaptiveSimplex
 from meanfi.results import DensityResult, DensityEntries
 from meanfi.meanfield import meanfield
@@ -26,7 +26,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
 
     space = model.scf_space
     keys = space.density_keys
-    density_problem = build_normal_problem(
+    density_problem = build_density_problem(
         model.h_0,
         kT=model.kT,
         keys=keys,
@@ -74,7 +74,7 @@ def build_normal_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem
 
     def evaluate_state(state: ActiveDensityState, mu_guess: float) -> DensityResult:
         return evaluate_hamiltonian(
-            model.hamiltonian_from_rho(active_density(state)),
+            model.hamiltonian_from_density(active_density(state)),
             mu_guess=mu_guess,
         )
 

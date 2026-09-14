@@ -17,9 +17,13 @@ When `integration=None`, MeanFi uses:
 
 Direct diagonalization is the main periodic path. Fixed periodic grids also
 support explicit `RationalFOE` for sparse matrices at positive temperature. No adaptive rational path
-is provided. Choosing dense evaluation for a sparse input must be explicit.
+is provided. Both explicit `RationalFOE()` and implicit prescribed sparse selection use AAA. Choosing dense evaluation for a sparse input must be explicit.
 
-`Model` defaults to `kT=0.0`; `solver` uses `AndersonMixing()`. The top-level `tol`
+`Model` defaults to `kT=0.0`. `solver` uses `EnergyDIIS()` for normal
+zero-temperature `AdaptiveSimplex` calculations. Other supported workflows use
+`AndersonMixing(alpha=0.5, history_size=5, regularization=0.01, line_search="armijo")`.
+An explicit `scf=` overrides this selection. All SCF settings are keyword-only.
+The top-level `tol`
 provides a convenient shared accuracy policy, while `scf_tol`, `filling_tol`,
 `mu_tol`, `density_matrix_tol` and `charge_tol` separate individual budgets.
 Integration targets are populated only after the prescribed/accuracy-controlled

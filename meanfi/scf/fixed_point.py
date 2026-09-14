@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING, Callable
 import numpy as np
 from scipy.optimize import NoConvergence as ScipyNoConvergence, anderson
 
+from meanfi.errors import ConvergenceError
 from meanfi.scf.methods import AndersonMixing, LinearMixing, SCFMethod
 
 if TYPE_CHECKING:
     from meanfi.results import SCFResult
 
 
-class SolverError(RuntimeError):
+class SolverError(ConvergenceError):
     """Base class for solver failures with an optional last valid result."""
 
     def __init__(self, message: str, *, result: SCFResult | None = None):
@@ -35,7 +36,7 @@ class NoConvergence(SolverError):
 
 
 class SolverFailure(SolverError):
-    """Raised when a numerical evaluation fails after a valid SCF state exists."""
+    """Raised when a numerical evaluation fails; result is None before the first valid state."""
 
 
 def max_norm(values: np.ndarray) -> float:
@@ -89,15 +90,12 @@ def _solve_anderson(
                 wrapped_residual_fn,
                 x0,
                 callback=on_iteration,
-                alpha=None if scf.alpha is None else float(scf.alpha),
-                w0=float(scf.w0),
-                M=int(scf.M),
+                alpha=scf.alpha,
+                w0=scf.regularization,
+                M=scf.history_size,
                 line_search=scf.line_search,
                 maxiter=int(scf.max_iterations),
                 f_tol=scf_tol,
-                f_rtol=None if scf.f_rtol is None else float(scf.f_rtol),
-                x_tol=None if scf.x_tol is None else float(scf.x_tol),
-                x_rtol=None if scf.x_rtol is None else float(scf.x_rtol),
                 tol_norm=max_norm,
             )
     except ScipyNoConvergence as exc:

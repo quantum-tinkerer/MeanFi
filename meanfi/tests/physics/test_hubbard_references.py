@@ -33,7 +33,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
         model,
         antiferromagnetic_guess(0.5 * delta_ref, 1),
         integration=integration,
-        scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+        scf=AndersonMixing(history_size=0, line_search="wolfe", max_iterations=80),
         scf_tol=scf_tol,
         filling_tol=1e-6,
     )
@@ -48,9 +48,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
 
     assert result.errors.scf_residual <= scf_tol
     assert abs(density_result.filling - model.filling) <= 1e-6
-    assert (
-        abs(staggered_magnetization(density_result.density_matrix[(0,)]) - m_ref) < 5e-4
-    )
+    assert abs(staggered_magnetization(density_result.to_tb()[(0,)]) - m_ref) < 5e-4
 
 
 def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
@@ -67,7 +65,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
         model,
         antiferromagnetic_guess(0.5 * delta_ref, 2),
         integration=integration,
-        scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=40),
+        scf=AndersonMixing(history_size=0, line_search="wolfe", max_iterations=40),
         scf_tol=scf_tol,
         filling_tol=1e-5,
     )
@@ -82,7 +80,4 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
 
     assert result.errors.scf_residual <= scf_tol
     assert abs(density_result.filling - model.filling) <= 1e-5
-    assert (
-        abs(staggered_magnetization(density_result.density_matrix[(0, 0)]) - m_ref)
-        < 2e-3
-    )
+    assert abs(staggered_magnetization(density_result.to_tb()[(0, 0)]) - m_ref) < 2e-3

@@ -123,3 +123,43 @@ def test_kwant_supercell_callable_roundtrip():
         except KeyError:
             continue
         assert np.allclose(expected, rebuilt[site1, site2])
+
+
+@pytest.mark.parametrize("periodic", [False, True])
+def test_sparse_kwant_roundtrip_and_scalar_orbitals(periodic, monkeypatch):
+    from scipy import sparse
+
+    lattice = kwant.lattice.chain(norbs=2)
+    builder = (
+        kwant.Builder(kwant.TranslationalSymmetry((3,)))
+        if periodic
+        else kwant.Builder()
+    )
+    for i in range(3):
+        builder[lattice(i)] = i + 1
+    builder[lattice(0), lattice(1)] = 0.5
+    builder[lattice(1), lattice(2)] = np.array([[0.1, 0.2j], [-0.2j, 0.3]])
+    if periodic:
+        builder[lattice(2), lattice(3)] = -0.4
+    expected = builder_to_tb(builder)
+    original_zeros = np.zeros
+
+    def reject_full_cell(shape, *args, **kwargs):
+        if shape == (6, 6):
+            raise AssertionError(
+                "sparse assembly must not allocate dense unit-cell blocks"
+            )
+        return original_zeros(shape, *args, **kwargs)
+
+    monkeypatch.setattr(np, "zeros", reject_full_cell)
+    tb, data = builder_to_tb(builder, sparse=True, return_data=True)
+    assert all(sparse.isspmatrix_csr(block) for block in tb.values())
+    rebuilt = tb_to_builder(tb, data["sites"], data["periods"])
+    actual = builder_to_tb(rebuilt, sparse=True)
+    monkeypatch.undo()
+    for key in expected:
+        np.testing.assert_allclose(tb[key].toarray(), expected[key])
+        np.testing.assert_allclose(actual[key].toarray(), expected[key])
+    np.testing.assert_allclose(
+        tb[(0,) if periodic else ()][:2, :2].toarray(), np.eye(2)
+    )

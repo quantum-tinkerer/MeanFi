@@ -1,0 +1,645 @@
+{
+  "baseline_commit": "185cf9e0617c81bc27dc47574cb8fc2dc2deee2c",
+  "cpu": 0,
+  "repeat": 15,
+  "before": {
+    "checkout": "/tmp/meanfi-before-api",
+    "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+    "numpy": "2.4.6",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libopenblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libopenblasp-r0.3.33.so",
+        "version": "0.3.33",
+        "threading_layer": "openmp",
+        "architecture": "SapphireRapids"
+      },
+      {
+        "user_api": "openmp",
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libomp",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libomp.so",
+        "version": null
+      },
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "SkylakeX"
+      }
+    ],
+    "results": [
+      {
+        "case": "square_metal",
+        "temperature": 0.2,
+        "matrix_size": 16,
+        "seconds": 0.04225564980879426,
+        "timings": [
+          0.030656998045742512,
+          0.03651332715526223,
+          0.03506268886849284,
+          0.02807021699845791,
+          0.03580894600600004,
+          0.04225564980879426,
+          0.0430297926068306,
+          0.042675442062318325,
+          0.046136431861668825,
+          0.03804511297494173,
+          0.04369666613638401,
+          0.044785798992961645,
+          0.04237780813127756,
+          0.044323309790343046,
+          0.038780611008405685
+        ],
+        "mu": -0.31588339374655733,
+        "filling": 6.879996512245215,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            16,
+            16
+          ],
+          "n_kernel_evals": 848,
+          "unique_evals": 512,
+          "n_evaluator_evals": 1696,
+          "n_diagonalizations": 848,
+          "refinements": 2,
+          "validation_evaluations": 256,
+          "charge_evaluations": 12,
+          "charge_integration_calls": 12,
+          "density_integration_calls": 4,
+          "charge_error": 3.5185161593176417e-06,
+          "error_estimate_available": true,
+          "spectrum_bytes": 40960
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 6.204844507640139e-07,
+          "filling_residual": 3.4877547845368895e-06,
+          "charge_integration": 3.5185161593176417e-06
+        },
+        "density_error": 1.3895051775847378e-11,
+        "charge_error": 3.487710833915969e-06,
+        "reference_density_change": 2.220447236023595e-16,
+        "reference_charge_change": 1.7763568394002505e-15
+      },
+      {
+        "case": "gapped",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.007372487802058458,
+        "timings": [
+          0.0065982760861516,
+          0.0066177756525576115,
+          0.00657593784853816,
+          0.006588242948055267,
+          0.007326909806579351,
+          0.008779061026871204,
+          0.007408324629068375,
+          0.007706154137849808,
+          0.007572737988084555,
+          0.007291218265891075,
+          0.007372487802058458,
+          0.006857193075120449,
+          0.009326065890491009,
+          0.008978229947388172,
+          0.007435178849846125
+        ],
+        "mu": 0.0,
+        "filling": 8.0,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 64,
+          "grid_shape": [
+            8,
+            8
+          ],
+          "n_kernel_evals": 208,
+          "unique_evals": 128,
+          "n_evaluator_evals": 384,
+          "n_diagonalizations": 208,
+          "refinements": 1,
+          "validation_evaluations": 64,
+          "charge_evaluations": 6,
+          "charge_integration_calls": 6,
+          "density_integration_calls": 3,
+          "charge_error": 0.0,
+          "error_estimate_available": true,
+          "spectrum_bytes": 10240
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 3.448784155479778e-08,
+          "filling_residual": 0.0,
+          "charge_integration": 0.0
+        },
+        "density_error": 9.137135492666586e-14,
+        "charge_error": 0.0,
+        "reference_density_change": 2.220447651160692e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "cold_bdg",
+        "temperature": 0.01,
+        "matrix_size": 16,
+        "seconds": 0.008425449021160603,
+        "timings": [
+          0.009650523774325848,
+          0.008748188614845276,
+          0.008297039195895195,
+          0.008425449021160603,
+          0.008277039974927902,
+          0.00824732519686222,
+          0.010834916029125452,
+          0.009841216262429953,
+          0.008531862869858742,
+          0.009627582971006632,
+          0.00844882195815444,
+          0.008411364164203405,
+          0.008250610902905464,
+          0.008238113019615412,
+          0.008227376732975245
+        ],
+        "mu": -0.4503679791155525,
+        "filling": 3.4400006979044293,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 16,
+          "grid_shape": [
+            16
+          ],
+          "n_kernel_evals": 160,
+          "unique_evals": 32,
+          "n_evaluator_evals": 160,
+          "n_diagonalizations": 160,
+          "refinements": 2,
+          "validation_evaluations": 16,
+          "charge_evaluations": 15,
+          "charge_integration_calls": 15,
+          "density_integration_calls": 4,
+          "charge_error": 6.743272318310289e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 0
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 8.429090403438977e-08,
+          "filling_residual": 6.979044293586867e-07,
+          "charge_integration": 6.743272318310289e-07
+        },
+        "density_error": 1.7258416917798058e-13,
+        "charge_error": 6.979030495735117e-07,
+        "reference_density_change": 1.1131449777526375e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "wire",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.03466651402413845,
+        "timings": [
+          0.04118705727159977,
+          0.0383785730227828,
+          0.03513504704460502,
+          0.034689858090132475,
+          0.03503559296950698,
+          0.034558354411274195,
+          0.034636268857866526,
+          0.03495898703113198,
+          0.03466651402413845,
+          0.034651346039026976,
+          0.034641155041754246,
+          0.03462860221043229,
+          0.03468207409605384,
+          0.03455537976697087,
+          0.03460651682689786
+        ],
+        "mu": -0.4129061986768721,
+        "filling": 6.87998008012915,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            256
+          ],
+          "n_kernel_evals": 1020,
+          "unique_evals": 512,
+          "n_evaluator_evals": 2600,
+          "n_diagonalizations": 1020,
+          "refinements": 6,
+          "validation_evaluations": 256,
+          "charge_evaluations": 35,
+          "charge_integration_calls": 35,
+          "density_integration_calls": 8,
+          "charge_error": 1.991574202886426e-05,
+          "error_estimate_available": true,
+          "spectrum_bytes": 49152
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 2.20046806842511e-06,
+          "filling_residual": 1.9919870849705035e-05,
+          "charge_integration": 1.991574202886426e-05
+        },
+        "density_error": 9.31456925479246e-11,
+        "charge_error": 1.9920073921042558e-05,
+        "reference_density_change": 1.672776946659816e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "bounded_3d",
+        "temperature": 0.2,
+        "matrix_size": 8,
+        "seconds": 0.8283171532675624,
+        "timings": [
+          0.8632069821469486,
+          0.8406627718359232,
+          0.8283171532675624,
+          0.8214527512900531,
+          0.8571435627527535,
+          0.835265667643398,
+          0.8343099029734731,
+          0.8227507011033595,
+          0.817495372146368,
+          0.8348677200265229,
+          0.8157332628034055,
+          0.8229188863188028,
+          0.828276467975229,
+          0.8383884886279702,
+          0.8112224978394806
+        ],
+        "mu": -0.37512298442232156,
+        "filling": 3.43999956542036,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 32768,
+          "grid_shape": [
+            32,
+            32,
+            32
+          ],
+          "n_kernel_evals": 102976,
+          "unique_evals": 65536,
+          "n_evaluator_evals": 187264,
+          "n_diagonalizations": 102976,
+          "refinements": 3,
+          "validation_evaluations": 32768,
+          "charge_evaluations": 16,
+          "charge_integration_calls": 16,
+          "density_integration_calls": 5,
+          "charge_error": 4.346339572691704e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 2359296
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 1.97568813087301e-07,
+          "filling_residual": 4.3457963982973524e-07,
+          "charge_integration": 4.346339572691704e-07
+        },
+        "density_error": 6.498801496945816e-12,
+        "charge_error": 4.345938933170146e-07,
+        "reference_density_change": 1.3267165144820785e-14,
+        "reference_charge_change": 4.440892098500626e-16
+      }
+    ]
+  },
+  "after": {
+    "checkout": "/home/tinkerer/.codex/worktrees/fe65/meanfi",
+    "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+    "numpy": "2.4.6",
+    "threadpools": [
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libopenblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libopenblasp-r0.3.33.so",
+        "version": "0.3.33",
+        "threading_layer": "openmp",
+        "architecture": "SapphireRapids"
+      },
+      {
+        "user_api": "openmp",
+        "internal_api": "openmp",
+        "num_threads": 1,
+        "prefix": "libomp",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/libomp.so",
+        "version": null
+      },
+      {
+        "user_api": "blas",
+        "internal_api": "openblas",
+        "num_threads": 1,
+        "prefix": "libscipy_openblas",
+        "filepath": "/home/tinkerer/.codex/worktrees/fe65/meanfi/.pixi/envs/test-py312/lib/python3.12/site-packages/fermisimplex/libscipy_openblas.so",
+        "version": "0.3.34.0.0",
+        "threading_layer": "pthreads",
+        "architecture": "SkylakeX"
+      }
+    ],
+    "results": [
+      {
+        "case": "square_metal",
+        "temperature": 0.2,
+        "matrix_size": 16,
+        "seconds": 0.027924513444304466,
+        "timings": [
+          0.028034904971718788,
+          0.028795365244150162,
+          0.02808638894930482,
+          0.02893467666581273,
+          0.027396664023399353,
+          0.027519024908542633,
+          0.028874068055301905,
+          0.027924513444304466,
+          0.02772066881880164,
+          0.027640996035188437,
+          0.027388335205614567,
+          0.028097996022552252,
+          0.027370897121727467,
+          0.02775451075285673,
+          0.0295377429574728
+        ],
+        "mu": -0.31588339374655733,
+        "filling": 6.879996512245215,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            16,
+            16
+          ],
+          "n_kernel_evals": 848,
+          "unique_evals": 512,
+          "n_evaluator_evals": 1696,
+          "n_diagonalizations": 848,
+          "refinements": 2,
+          "validation_evaluations": 256,
+          "charge_evaluations": 12,
+          "charge_integration_calls": 12,
+          "density_integration_calls": 4,
+          "charge_error": 3.5185161593176417e-06,
+          "error_estimate_available": true,
+          "spectrum_bytes": 40960
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 6.204844507640139e-07,
+          "filling_residual": 3.4877547845368895e-06,
+          "charge_integration": 3.5185161593176417e-06
+        },
+        "density_error": 1.3895051775847381e-11,
+        "charge_error": 3.487710833915969e-06,
+        "reference_density_change": 2.220447236023595e-16,
+        "reference_charge_change": 1.7763568394002505e-15
+      },
+      {
+        "case": "gapped",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.00678626075387001,
+        "timings": [
+          0.0067849839106202126,
+          0.00678626075387001,
+          0.006821232382208109,
+          0.0067934258840978146,
+          0.006714574061334133,
+          0.006793265230953693,
+          0.006808143109083176,
+          0.006792781874537468,
+          0.006836919113993645,
+          0.006793773267418146,
+          0.006727125961333513,
+          0.0065782759338617325,
+          0.006650282070040703,
+          0.006751448847353458,
+          0.006708135828375816
+        ],
+        "mu": 0.0,
+        "filling": 8.0,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 64,
+          "grid_shape": [
+            8,
+            8
+          ],
+          "n_kernel_evals": 208,
+          "unique_evals": 128,
+          "n_evaluator_evals": 384,
+          "n_diagonalizations": 208,
+          "refinements": 1,
+          "validation_evaluations": 64,
+          "charge_evaluations": 6,
+          "charge_integration_calls": 6,
+          "density_integration_calls": 3,
+          "charge_error": 0.0,
+          "error_estimate_available": true,
+          "spectrum_bytes": 10240
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 3.448784155479778e-08,
+          "filling_residual": 0.0,
+          "charge_integration": 0.0
+        },
+        "density_error": 9.137135492666586e-14,
+        "charge_error": 0.0,
+        "reference_density_change": 2.220447651160692e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "cold_bdg",
+        "temperature": 0.01,
+        "matrix_size": 16,
+        "seconds": 0.008319361135363579,
+        "timings": [
+          0.008501309901475906,
+          0.008434164337813854,
+          0.008311646059155464,
+          0.008394773118197918,
+          0.008301377296447754,
+          0.00828569196164608,
+          0.008427586406469345,
+          0.008313742000609636,
+          0.008293085265904665,
+          0.008264614269137383,
+          0.00836920877918601,
+          0.008242969866842031,
+          0.008319361135363579,
+          0.008339358028024435,
+          0.008328871801495552
+        ],
+        "mu": -0.4503679791155525,
+        "filling": 3.4400006979044293,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 16,
+          "grid_shape": [
+            16
+          ],
+          "n_kernel_evals": 160,
+          "unique_evals": 32,
+          "n_evaluator_evals": 160,
+          "n_diagonalizations": 160,
+          "refinements": 2,
+          "validation_evaluations": 16,
+          "charge_evaluations": 15,
+          "charge_integration_calls": 15,
+          "density_integration_calls": 4,
+          "charge_error": 6.743272318310289e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 0
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 8.429090403438977e-08,
+          "filling_residual": 6.979044293586867e-07,
+          "charge_integration": 6.743272318310289e-07
+        },
+        "density_error": 1.7258416917798058e-13,
+        "charge_error": 6.979030495735117e-07,
+        "reference_density_change": 1.1131449777526375e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "wire",
+        "temperature": 0.05,
+        "matrix_size": 16,
+        "seconds": 0.035882816184312105,
+        "timings": [
+          0.036130154971033335,
+          0.04098693607375026,
+          0.03998283389955759,
+          0.04065463598817587,
+          0.03846242791041732,
+          0.039362633135169744,
+          0.03679183591157198,
+          0.03481532400473952,
+          0.03557539917528629,
+          0.03425752418115735,
+          0.034163666889071465,
+          0.035882816184312105,
+          0.03419253509491682,
+          0.03489075228571892,
+          0.0343172587454319
+        ],
+        "mu": -0.4129061986768721,
+        "filling": 6.87998008012915,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 256,
+          "grid_shape": [
+            256
+          ],
+          "n_kernel_evals": 1020,
+          "unique_evals": 512,
+          "n_evaluator_evals": 2600,
+          "n_diagonalizations": 1020,
+          "refinements": 6,
+          "validation_evaluations": 256,
+          "charge_evaluations": 35,
+          "charge_integration_calls": 35,
+          "density_integration_calls": 8,
+          "charge_error": 1.991574202886426e-05,
+          "error_estimate_available": true,
+          "spectrum_bytes": 49152
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 2.20046806842511e-06,
+          "filling_residual": 1.9919870849705035e-05,
+          "charge_integration": 1.991574202886426e-05
+        },
+        "density_error": 9.31456925479246e-11,
+        "charge_error": 1.9920073921042558e-05,
+        "reference_density_change": 1.672776946659816e-16,
+        "reference_charge_change": 0.0
+      },
+      {
+        "case": "bounded_3d",
+        "temperature": 0.2,
+        "matrix_size": 8,
+        "seconds": 0.8295714179985225,
+        "timings": [
+          0.8181404401548207,
+          0.8078870880417526,
+          0.8305524531751871,
+          0.8400095831602812,
+          0.8279372993856668,
+          0.8105512829497457,
+          0.8314916612580419,
+          0.8294559558853507,
+          0.8303097141906619,
+          0.8295714179985225,
+          0.8328574891202152,
+          0.8312237998470664,
+          0.8425467116758227,
+          0.8189986101351678,
+          0.8142602751031518
+        ],
+        "mu": -0.37512298442232156,
+        "filling": 3.43999956542036,
+        "statistics": {
+          "requested_nk": null,
+          "n_kpoints": 32768,
+          "grid_shape": [
+            32,
+            32,
+            32
+          ],
+          "n_kernel_evals": 102976,
+          "unique_evals": 65536,
+          "n_evaluator_evals": 187264,
+          "n_diagonalizations": 102976,
+          "refinements": 3,
+          "validation_evaluations": 32768,
+          "charge_evaluations": 16,
+          "charge_integration_calls": 16,
+          "density_integration_calls": 5,
+          "charge_error": 4.346339572691704e-07,
+          "error_estimate_available": true,
+          "spectrum_bytes": 2359296
+        },
+        "errors": {
+          "scf_residual": null,
+          "density_matrix_integration": 1.975688131983233e-07,
+          "filling_residual": 4.3457963982973524e-07,
+          "charge_integration": 4.346339572691704e-07
+        },
+        "density_error": 6.498745985794585e-12,
+        "charge_error": 4.345938933170146e-07,
+        "reference_density_change": 1.3267165144820785e-14,
+        "reference_charge_change": 4.440892098500626e-16
+      }
+    ]
+  },
+  "fourier_helpers": {
+    "before": {
+      "kfunc": 0.0014573386870324612,
+      "kgrid": 0.010589796118438244
+    },
+    "after": {
+      "kfunc": 0.0014609741047024727,
+      "kgrid": 0.0028984220698475838
+    },
+    "seed": 81,
+    "orbitals": 16,
+    "keys": 9,
+    "callable_points": 2048,
+    "grid_shape": [
+      32,
+      32
+    ]
+  }
+}

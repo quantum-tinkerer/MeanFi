@@ -404,8 +404,10 @@ def test_explicit_filling_tolerance_controls_sparse_pointwise_accuracy():
     assert abs(2 * expit(result.mu / 0.2) - 1) <= 1e-6
 
 
-@pytest.mark.parametrize("energy,occupation", [(-10.0, 1.0), (10.0, 0.0)])
-def test_sparse_constant_tail_reuses_empty_aaa_fit_without_eigensolves(
+@pytest.mark.parametrize(
+    "energy,occupation", [(-10.0, 1.0), (10.0, 0.0), (0.2, 1 / (1 + np.exp(1)))]
+)
+def test_sparse_constant_spectrum_reuses_empty_aaa_fit_without_eigensolves(
     monkeypatch, energy, occupation
 ):
     from scipy.sparse import csr_matrix

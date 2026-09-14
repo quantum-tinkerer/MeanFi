@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from meanfi.tests.fixtures.models import density_result_from_tb
+
 from meanfi import (
     PeriodicGrid,
     DensityCoordinates,
@@ -38,9 +40,9 @@ def test_selected_density_is_an_efficient_reference_without_zero_filling():
     assert reference.coordinates.value_count < 2**2
     assert model.reference is reference
     with pytest.raises(ValueError, match="selected density coordinates"):
-        reference.to_matrix()
+        reference.to_tb()
     np.testing.assert_allclose(
-        model.hamiltonian_from_rho(reference)[()],
+        model.hamiltonian_from_density(reference)[()],
         h_0[()],
         atol=1e-12,
     )
@@ -79,11 +81,11 @@ def test_reference_density_subtracts_full_mean_field_correction():
         h_int,
         filling=1.0,
         kT=0.2,
-        reference_density_matrix=rho_ref,
+        reference=density_result_from_tb(rho_ref),
     )
 
     unsubtracted_correction = meanfield(rho_ref, h_int)[()]
-    hamiltonian = model.hamiltonian_from_rho(rho_ref)
+    hamiltonian = model.hamiltonian_from_density(rho_ref)
 
     assert abs(unsubtracted_correction[0, 1]) > 1e-12
     np.testing.assert_allclose(hamiltonian[()], h_0[()], atol=1e-12)
@@ -100,13 +102,13 @@ def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
         keys=[()],
         integration=integration,
         filling_tol=1e-10,
-    ).density_matrix
+    ).to_tb()
     model = Model(
         h_0,
         h_int,
         filling=1.0,
         kT=0.2,
-        reference_density_matrix=rho_ref,
+        reference=density_result_from_tb(rho_ref),
     )
 
     result = solver(
@@ -127,7 +129,7 @@ def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
     )
 
     np.testing.assert_allclose(
-        final_density.density_matrix[()],
+        final_density.to_tb()[()],
         rho_ref[()],
         atol=1e-8,
     )
@@ -147,7 +149,7 @@ def test_reference_is_a_private_read_only_active_density_state():
         h_0,
         h_int,
         filling=1.0,
-        reference_density_matrix=rho_ref,
+        reference=density_result_from_tb(rho_ref),
     )
 
     assert not hasattr(model, "reference_density_matrix")

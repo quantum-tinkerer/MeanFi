@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from numbers import Integral
 import math
+import numpy as np
 
 
 def _positive_integer(name, value, *, allow_none=False, minimum=1):
@@ -83,11 +84,13 @@ class PeriodicGrid(IntegrationMethod):
     batch_size: int = 128
     max_spectrum_bytes: int = 256 * 1024 * 1024
     matrix_function: object | None = None
-    workspace_precision: int = 128
+    dtype: str | np.dtype = "complex128"
 
     def __post_init__(self):
         _validate_mesh_settings(self)
         _positive_integer("batch_size", self.batch_size)
         _positive_integer("max_spectrum_bytes", self.max_spectrum_bytes)
-        if self.workspace_precision not in (64, 128):
-            raise ValueError("workspace_precision must be 64 or 128")
+        dtype = np.dtype(self.dtype)
+        if dtype not in (np.dtype("complex64"), np.dtype("complex128")):
+            raise ValueError("dtype must be complex64 or complex128")
+        object.__setattr__(self, "dtype", dtype)

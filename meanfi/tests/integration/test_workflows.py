@@ -27,13 +27,13 @@ def test_graphene_kwant_end_to_end_regression():
 
     graphene_builder, int_builder = kwant_examples.graphene_extended_hubbard()
     h_0 = utils.builder_to_tb(graphene_builder)
-    h_int = utils.builder_to_tb(int_builder, {"U": 1.0, "V": 0.0})
+    h_int = utils.builder_to_tb(int_builder, params={"U": 1.0, "V": 0.0})
     model = Model(h_0, h_int, filling=2.0, kT=0.05)
     guess = model.random_meanfield(rng=0)
     result = solver(
         model,
         guess,
-        scf=AndersonMixing(M=0, max_iterations=40),
+        scf=AndersonMixing(history_size=0, max_iterations=40),
         scf_tol=5e-4,
     )
     density_result = density_matrix(
@@ -48,7 +48,7 @@ def test_graphene_kwant_end_to_end_regression():
     for key, matrix in result.mean_field.items():
         opposite = tuple(-np.array(key))
         assert np.allclose(matrix, result.mean_field[opposite].conj().T)
-        assert np.all(np.isfinite(density_result.density_matrix[key]))
+        assert np.all(np.isfinite(density_result.to_tb()[key]))
 
 
 def test_solver_supports_anderson_mixing():
@@ -60,7 +60,7 @@ def test_solver_supports_anderson_mixing():
     result = solver(
         model,
         guess,
-        scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=8),
+        scf=AndersonMixing(history_size=0, line_search="wolfe", max_iterations=8),
         scf_tol=1e-8,
     )
 
@@ -90,11 +90,8 @@ def test_anderson_mixing_forwards_scipy_options(monkeypatch):
         scf=AndersonMixing(
             max_iterations=7,
             alpha=0.3,
-            w0=0.2,
-            M=4,
-            f_rtol=1e-6,
-            x_tol=1e-7,
-            x_rtol=1e-8,
+            regularization=0.2,
+            history_size=4,
             line_search=None,
         ),
         scf_tol=1e-9,
@@ -105,9 +102,6 @@ def test_anderson_mixing_forwards_scipy_options(monkeypatch):
     assert calls["alpha"] == 0.3
     assert calls["w0"] == 0.2
     assert calls["M"] == 4
-    assert calls["f_rtol"] == 1e-6
-    assert calls["x_tol"] == 1e-7
-    assert calls["x_rtol"] == 1e-8
     assert calls["line_search"] is None
     assert calls["maxiter"] == 7
     assert calls["f_tol"] == 1e-9
@@ -154,10 +148,10 @@ def test_anderson_mixing_reports_only_accepted_iterations(monkeypatch):
     ("kwargs", "message"),
     [
         ({"alpha": 0.0}, "alpha must be positive"),
-        ({"w0": -1.0}, "w0 must be non-negative"),
-        ({"f_rtol": 0.0}, "f_rtol must be positive"),
-        ({"x_tol": 0.0}, "x_tol must be positive"),
-        ({"x_rtol": 0.0}, "x_rtol must be positive"),
+        ({"alpha": np.inf}, "alpha must be positive"),
+        ({"history_size": 0.5}, "history_size must be an integer"),
+        ({"max_iterations": True}, "max_iterations must be an integer"),
+        ({"regularization": -1.0}, "regularization must be finite and non-negative"),
         ({"line_search": "bad"}, "line_search must be"),
     ],
 )
@@ -186,3 +180,46 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
         np.zeros((2, 2)),
         atol=1e-3,
     )
+
+
+def test_default_mixer_handles_reference_restart_and_spatial_symmetry():
+    from meanfi import NoConvergence, PeriodicGrid, SpatialSymmetry
+
+    h = {
+        (0,): np.array([[0.15, 0.08j], [-0.08j, -0.1]]),
+        (1,): np.diag([-0.7, -0.5]),
+        (-1,): np.diag([-0.7, -0.5]),
+    }
+    interaction = {(0,): np.array([[0.0, 0.25], [0.25, 0.0]])}
+    model = Model(h, interaction, filling=0.8, kT=0.2)
+    reference = density_matrix(model, tol=1e-6)
+    referenced = Model(h, interaction, filling=0.8, kT=0.2, reference=reference)
+    swap = SpatialSymmetry(np.eye(1, dtype=int), {(0,): np.array([[0, 1], [1, 0]])})
+    symmetric = Model(
+        {(0,): np.zeros((2, 2)), (1,): -np.eye(2), (-1,): -np.eye(2)},
+        interaction,
+        filling=0.8,
+        kT=0.2,
+        spatial_symmetries=(swap,),
+    )
+    with pytest.raises(NoConvergence) as caught:
+        solver(
+            model,
+            model.random_meanfield(rng=12, scale=0.03),
+            integration=PeriodicGrid(nk=64),
+            scf=LinearMixing(alpha=0.1, max_iterations=1),
+            scf_tol=1e-14,
+        )
+    for problem, guess in (
+        (referenced, referenced.random_meanfield(rng=1, scale=0.01)),
+        (model, caught.value.result.mean_field),
+        (symmetric, symmetric.random_meanfield(rng=2, scale=0.01)),
+    ):
+        default = solver(problem, guess, tol=1e-5)
+        linear = solver(problem, guess, scf=LinearMixing(), tol=1e-5)
+        assert default.converged and default.errors.scf_residual <= 1e-5
+        assert default.mu == pytest.approx(linear.mu, abs=1e-5)
+        for key in default.mean_field:
+            np.testing.assert_allclose(
+                default.mean_field[key], linear.mean_field[key], atol=1e-5
+            )

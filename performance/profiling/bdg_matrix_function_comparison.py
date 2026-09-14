@@ -6,7 +6,7 @@ import numpy as np
 from scipy.sparse import csr_array
 
 from meanfi import PeriodicGrid, DirectDiagonalization, Model, RationalFOE
-from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
+from meanfi import density_matrix
 from meanfi.tb.bdg import assemble_bdg_tb
 from performance._shared.fixtures import benchmark
 from performance._shared.common import density_record, print_summary, write_records
@@ -54,9 +54,9 @@ def main() -> None:
     args = parser.parse_args()
 
     model, meanfield, keys = _problem()
-    reference = solve_bdg_density_fixed_filling(
+    reference = density_matrix(
         model,
-        meanfield,
+        mean_field=meanfield,
         keys=keys,
         integration=PeriodicGrid(
             nk=args.nk,
@@ -65,7 +65,6 @@ def main() -> None:
         filling_tol=5e-5,
         mu_tol=5e-5,
         max_charge_evaluations=80,
-        mu_guess=0.0,
     )
 
     configurations = (
@@ -87,15 +86,14 @@ def main() -> None:
             matrix_function=matrix_function,
         )
         measurement = benchmark(
-            lambda: solve_bdg_density_fixed_filling(
+            lambda: density_matrix(
                 model,
-                meanfield,
+                mean_field=meanfield,
                 keys=keys,
                 integration=integration,
                 filling_tol=1e-4,
                 mu_tol=1e-4,
                 max_charge_evaluations=80,
-                mu_guess=0.0,
             ),
             repeat=args.repeat,
             warmup=args.warmup,

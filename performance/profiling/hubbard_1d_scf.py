@@ -17,7 +17,7 @@ def main() -> None:
 
     model, guess = hubbard_chain_scf_problem(U=2.0, kT=0.1)
     integration = PeriodicGrid(density_matrix_tol=1e-4)
-    scf = AndersonMixing(M=0, max_iterations=40)
+    scf = AndersonMixing(history_size=0, max_iterations=40)
     measurement = benchmark(
         lambda: solver(
             model,

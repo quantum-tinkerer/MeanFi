@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -14,8 +13,7 @@ from meanfi.space.coordinates import (
 )
 from meanfi.tb.ops import _tb_type
 
-if TYPE_CHECKING:
-    from meanfi.model import Model
+from meanfi.tb.validate import tb_dimension, tb_orbital_count
 
 
 @dataclass(frozen=True)
@@ -34,15 +32,15 @@ def active_tb_keys(keys) -> list[tuple[int, ...]]:
     return canonical_tb_keys(key_set)
 
 
-def normal_active_support(model: Model) -> ActiveCoordinateSupport:
-    onsite = model._local_key
-    interaction_keys = list(model.h_int)
+def normal_active_support(h_int: _tb_type) -> ActiveCoordinateSupport:
+    onsite = onsite_key(tb_dimension(h_int))
+    interaction_keys = list(h_int)
     density_keys = active_tb_keys([*interaction_keys, onsite])
     coordinates = DensityCoordinates.from_pairs(
-        size=model._ndof,
+        size=tb_orbital_count(h_int),
         keys=density_keys,
         pairs_by_key=_normal_active_pairs_from_interaction(
-            model.h_int,
+            h_int,
             keys=density_keys,
             onsite=onsite,
         ),
@@ -55,27 +53,27 @@ def normal_active_support(model: Model) -> ActiveCoordinateSupport:
     )
 
 
-def bdg_active_support(model: Model) -> ActiveCoordinateSupport:
-    onsite = onsite_key(model._ndim)
-    density_keys = active_tb_keys([*model.h_int, onsite])
+def bdg_active_support(h_int: _tb_type) -> ActiveCoordinateSupport:
+    onsite = onsite_key(tb_dimension(h_int))
+    density_keys = active_tb_keys([*h_int, onsite])
     electron_pairs = _normal_active_pairs_from_interaction(
-        model.h_int,
+        h_int,
         keys=density_keys,
         onsite=onsite,
     )
     anomalous_pairs = _bdg_anomalous_pairs_from_interaction(
-        model.h_int,
+        h_int,
         keys=density_keys,
-        ndof=model._ndof,
+        ndof=tb_orbital_count(h_int),
     )
     coordinates = DensityCoordinates.from_pairs(
-        size=2 * model._ndof,
+        size=2 * tb_orbital_count(h_int),
         keys=density_keys,
         pairs_by_key=_merge_pair_maps(electron_pairs, anomalous_pairs),
     )
     return ActiveCoordinateSupport(
         coordinates=coordinates,
-        interaction_keys=list(model.h_int),
+        interaction_keys=list(h_int),
         density_keys=density_keys,
         onsite=onsite,
     )

@@ -3,7 +3,7 @@ from dataclasses import FrozenInstanceError, replace
 import numpy as np
 import pytest
 
-from meanfi.density.problem import build_normal_problem
+from meanfi.density.problem import build_density_problem
 
 from meanfi import (
     ErrorTolerances,
@@ -58,7 +58,7 @@ def test_custom_tolerance_function_controls_density_calculation_and_result():
 
 
 def test_explicit_integration_tolerances_are_effective_internal_requests():
-    problem = build_normal_problem(
+    problem = build_density_problem(
         _two_level_hamiltonian(),
         kT=0.2,
         keys=[()],

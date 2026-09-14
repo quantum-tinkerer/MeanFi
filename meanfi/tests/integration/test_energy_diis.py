@@ -158,3 +158,14 @@ def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():
     assert np.isfinite(result.total_energy)
     assert all(np.isfinite(item.total_energy) for item in result.history)
     assert result.errors.scf_residual <= 3e-3
+
+
+def test_default_zero_temperature_solver_uses_ediis(monkeypatch):
+    import meanfi.scf.engine as engine
+
+    def unexpected_fixed_point(*args, **kwargs):
+        raise AssertionError("normal zero-temperature default must use EDIIS")
+
+    monkeypatch.setattr(engine, "iterate_density_fixed_point", unexpected_fixed_point)
+    result = solver(_zero_dimensional_model(), {(): np.zeros((2, 2))})
+    assert result.converged

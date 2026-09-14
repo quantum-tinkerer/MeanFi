@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from meanfi.tests.fixtures.models import density_result_from_tb
+
 from meanfi import (
     DensityCoordinates,
     DensityEntries,
@@ -91,7 +93,7 @@ def test_total_energy_uses_reference_subtracted_interaction_functional():
         h_0,
         h_int,
         filling=1.0,
-        reference_density_matrix=reference,
+        reference=density_result_from_tb(reference),
     )
     difference = {(): density[()] - reference[()]}
     correction = meanfield(difference, h_int)
@@ -145,7 +147,7 @@ def test_total_energy_gradient_matches_hubbard_mean_field_hamiltonian():
     derivative = (
         total_energy(model, shifted(epsilon)) - total_energy(model, shifted(-epsilon))
     ) / (2.0 * epsilon)
-    rhs = np.real(expectation_value(direction, model.hamiltonian_from_rho(rho)))
+    rhs = np.real(expectation_value(direction, model.hamiltonian_from_density(rho)))
 
     assert total_energy(model, rho) == pytest.approx(slater_energy())
     assert derivative == pytest.approx(rhs, rel=1e-8, abs=1e-8)

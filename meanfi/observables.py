@@ -144,7 +144,7 @@ def total_energy(model: Model, density_matrix: _tb_type | DensityResult) -> floa
         return float(np.real(energy))
 
     if isinstance(density_matrix, DensityResult):
-        density_matrix = density_matrix.to_matrix()
+        density_matrix = density_matrix.to_tb()
     electron_density = extract_electron_density(density_matrix, model)
     anomalous_density = extract_anomalous_density(density_matrix, model)
     correction = bdg_correction_from_density(density_matrix, model)

@@ -77,11 +77,19 @@ where the basic fixed-point map $G$ supplies the raw update and the chosen SCF s
 The public `solver(...)` entry point accepts an explicit SCF method through `scf=...`.
 Current built-in methods include:
 
+- `EnergyDIIS(...)`
 - `AndersonMixing(...)`
 - `LinearMixing(...)`
 
-The default solver path uses Anderson mixing with conservative settings.
-`AndersonMixing` exposes SciPy's Anderson controls `alpha`, `w0`, `M`, `f_rtol`, `x_tol`, `x_rtol`, and `line_search`; `max_iterations` maps to SciPy's `maxiter`, while `solver(..., scf_tol=...)` controls the absolute residual tolerance.
+The default is `EnergyDIIS()` for normal zero-temperature `AdaptiveSimplex`
+calculations. EDIIS minimizes the energy over convex combinations of the recent
+density history. It requires the occupied band-energy result, so finite-temperature
+and BdG calculations use Anderson mixing with explicit, bounded initial scaling.
+
+SCF settings are keyword-only. Anderson exposes `alpha`, `history_size`,
+`regularization`, `line_search` and `max_iterations`. Use `solver(..., scf_tol=...)`
+for the absolute residual target. EDIIS exposes `history_size` and
+`max_iterations`; linear mixing exposes `alpha` and `max_iterations`.
 
 ## Output
 
@@ -102,3 +110,8 @@ interaction layout.
 `result.history` contains one `SCFIteration` per accepted residual evaluation. Each record contains only its step, chemical potential, filling, total energy, and unified `ErrorValues`. The SCF residual is the maximum absolute residual component. Passing `verbose=True` prints these same physical values while the solve runs.
 
 `NoConvergence` and `SolverFailure` are exceptions rather than alternate result shapes. When at least one physical density evaluation succeeded, the exception carries the last valid state as `exception.result` with `converged=False`.
+
+Density integration and filling failures raise `ConvergenceError`. SCF failures
+are subclasses: `NoConvergence` means the iteration budget was exhausted;
+`SolverFailure` means a numerical evaluation failed. A failure before the first
+valid density has `result=None`. Invalid inputs retain `ValueError` or `TypeError`.

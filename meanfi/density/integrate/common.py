@@ -7,11 +7,9 @@ from meanfi.density.integrate.methods import (
     IntegrationMethod,
     PeriodicGrid,
 )
-from meanfi.density.integrate.workspace import require_supported_workspace_precision
 
 
 def validate_integration_method(integration: IntegrationMethod, *, kT: float) -> None:
-    require_supported_workspace_precision(integration)
     if not np.isfinite(kT) or kT < 0:
         raise ValueError(
             "meanfi supports only finite non-negative temperatures (kT >= 0)"

@@ -20,7 +20,7 @@ def _reference_density_keys(model: Model, guess) -> list[tuple[int, ...]]:
 
 
 def _dense_bdg_density(model: Model, meanfield, *, keys, nk: int) -> tuple[float, dict]:
-    hkfunc = tb_to_kfunc(model.bdg_hamiltonian_from_meanfield(meanfield))
+    hkfunc = tb_to_kfunc(model.hamiltonian_from_meanfield(meanfield))
     axis = np.linspace(-np.pi, np.pi, nk, endpoint=False)
     if model._ndim == 1:
         points = axis[:, None]

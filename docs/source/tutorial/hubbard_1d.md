@@ -72,7 +72,7 @@ To verify the validity of `h_0`, we evaluate it in the reciprocal space using th
 ```{code-cell} ipython3
 nk = 50  # number of k-points
 ks = np.linspace(0, 2 * np.pi, nk, endpoint=False)
-hamiltonians_0 = meanfi.tb_to_kgrid(h_0, nk)
+hamiltonians_0 = meanfi.tb_to_kgrid(h_0, (nk,) * 1)
 
 vals, vecs = np.linalg.eigh(hamiltonians_0)
 plt.plot(ks, vals, c="k")
@@ -138,7 +138,7 @@ To get the full Hamiltonian, we add the mean-field correction to the non-interac
 ```{code-cell} ipython3
 h_mf = meanfi.add_tb(h_0, mf_sol)
 
-hamiltonians = meanfi.tb_to_kgrid(h_mf, nk)
+hamiltonians = meanfi.tb_to_kgrid(h_mf, (nk,) * 1)
 vals, vecs = np.linalg.eigh(hamiltonians)
 plt.plot(ks, vals - result.mu, c="k")
 plt.xticks([0, np.pi, 2 * np.pi], ["$0$", "$\pi$", "$2\pi$"])
@@ -157,7 +157,7 @@ We can go further and compute the gap for a wider range of $U$ values:
 :tags: [hide-input]
 
 def resolved_hubbard_gap(h, *, U, local_density, fermi_energy, nk=400):
-    eigenvalues = np.linalg.eigvalsh(meanfi.tb_to_kgrid(h, nk))
+    eigenvalues = np.linalg.eigvalsh(meanfi.tb_to_kgrid(h, (nk,) * 1))
     direct_gap = float(
         np.min(eigenvalues[eigenvalues > fermi_energy]) - np.max(eigenvalues[eigenvalues <= fermi_energy])
     )
@@ -186,7 +186,7 @@ def compute_sol(U, h_0, filling=2):
         filling=filling,
         keys=[(0,)],
     )
-    return full_sol, rho_result.density_matrix[(0,)], result.mu
+    return full_sol, rho_result.to_tb()[(0,)], result.mu
 
 
 def compute_phase_diagram(

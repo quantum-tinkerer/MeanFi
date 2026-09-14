@@ -367,3 +367,19 @@ def peak_rss_bytes(python_body: str) -> int | None:
     if not output:
         return None
     return json.loads(output[-1])["rss_bytes"]
+
+
+def density_result_from_tb(tb):
+    """Wrap synthetic density blocks for reference-state and observable tests."""
+    from meanfi import DensityEntries, DensityResult, ErrorValues
+    from meanfi.space.coordinates import full_density_coordinates
+
+    coordinates = full_density_coordinates(
+        list(tb), size=next(iter(tb.values())).shape[0]
+    )
+    return DensityResult(
+        DensityEntries(coordinates, coordinates.values_from_tb(tb)),
+        mu=0.0,
+        filling=0.0,
+        errors=ErrorValues(),
+    )

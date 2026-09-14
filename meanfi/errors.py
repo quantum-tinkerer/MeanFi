@@ -8,6 +8,10 @@ from typing import Callable
 import numpy as np
 
 
+class ConvergenceError(RuntimeError):
+    """A density integration or filling solve could not meet its numerical target."""
+
+
 @dataclass(frozen=True)
 class ErrorTolerances:
     """Requested scalar tolerances for one density or SCF calculation."""

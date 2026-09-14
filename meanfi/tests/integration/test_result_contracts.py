@@ -127,7 +127,7 @@ def test_selected_density_entries_cannot_be_exposed_as_a_full_matrix():
 
     assert coordinates.is_full is False
     with pytest.raises(ValueError, match="selected density coordinates"):
-        density.to_matrix()
+        density.to_tb()
 
     result = DensityResult(
         entries=density,
@@ -137,7 +137,7 @@ def test_selected_density_entries_cannot_be_exposed_as_a_full_matrix():
     )
     assert result.is_complete is False
     with pytest.raises(ValueError, match="selected density coordinates"):
-        result.to_matrix()
+        result.to_tb()
 
 
 def test_density_layout_and_values_are_read_only():
@@ -155,7 +155,7 @@ def test_density_layout_and_values_are_read_only():
     with pytest.raises(ValueError):
         coordinates.rows_by_key[0][0] = 1
 
-    matrix = density.to_matrix()[(0,)]
+    matrix = density.to_tb()[(0,)]
     np.testing.assert_array_equal(matrix, np.arange(4).reshape(2, 2))
 
     result = DensityResult(
@@ -167,7 +167,7 @@ def test_density_layout_and_values_are_read_only():
     with pytest.raises(ValueError):
         result.values[0] = 3.0
     np.testing.assert_array_equal(
-        result.density_matrix[(0,)],
+        result.to_tb()[(0,)],
         np.arange(4).reshape(2, 2),
     )
 

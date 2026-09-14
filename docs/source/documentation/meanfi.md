@@ -1,10 +1,12 @@
 # Package reference
 
+{download}`Download the executable API walkthrough <../../../examples/api_walkthrough.py>`
+
 ## Interactive problem definition
 
 ```{eval-rst}
 .. autoclass:: meanfi.model.Model
-   :members: hamiltonian_from_rho, hamiltonian_from_meanfield, bdg_hamiltonian_from_meanfield
+   :members: hamiltonian_from_density, hamiltonian_from_meanfield, random_meanfield
 ```
 
 `Model(..., reference=reference)` enables full reference-state subtraction for
@@ -36,11 +38,15 @@ model = meanfi.Model(
 )
 ```
 
-`density_matrix(..., keys=keys)` requests complete blocks and preserves the
-existing `.density_matrix` compatibility property.
-`density_matrix(..., coordinates=coordinates)` requests an exact advanced
-selection. Both `density_matrix` and `density_matrix_at_mu` require exactly one
-of `keys`, `coordinates`, and `interaction`.
+`density_matrix(model)` uses the model's filling, temperature and required
+coordinates. Both normal and superconducting models use this API; optional
+`mean_field=correction` evaluates an interacting Hamiltonian. The same model
+support is available in `density_matrix_at_mu(model, mu)`.
+
+For a Hamiltonian dictionary, supply exactly one of `keys`, `coordinates` or
+`interaction`. `keys` requests complete blocks, while the other two options
+request selected entries. `result.to_tb()` returns a dictionary of complete
+blocks; `result.to_tb(sparse=True)` returns CSR blocks.
 Selected results expose their read-only `coordinates`, `values`, and optional
 per-entry `entry_errors`; converting
 one to complete matrix blocks raises instead of filling uncomputed entries with
@@ -91,6 +97,11 @@ use the same coordinate order as the values; `None` means no estimate exists.
    :show-inheritance:
 ```
 
+`Model` validates finite filling and temperature, matching matrix sizes and
+lattice dimensions, and Hermiticity. It owns read-only copies of dense or sparse
+input matrices and symmetry data. Use a new model (or `dataclasses.replace`) to
+change model parameters.
+
 ## Solvers
 
 ```{eval-rst}
@@ -104,6 +115,11 @@ use the same coordinate order as the values; `None` means no estimate exists.
 
 ```{eval-rst}
 .. autoclass:: meanfi.SCFIteration
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoexception:: meanfi.ConvergenceError
    :show-inheritance:
 ```
 
@@ -152,7 +168,7 @@ an energy, request complete energy keys and pass the result itself, for example
    :show-inheritance:
 ```
 
-## Developer internals
+## Coordinates and symmetries
 
 ```{eval-rst}
 .. automodule:: meanfi.space

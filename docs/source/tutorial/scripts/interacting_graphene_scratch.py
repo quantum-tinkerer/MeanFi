@@ -66,7 +66,7 @@ builder_int = utils.build_interacting_syst(
 )
 
 params = dict(U=U0, V=V0)
-h_int = utils.builder_to_tb(builder_int, params)
+h_int = utils.builder_to_tb(builder_int, params=params)
 
 int_keys = frozenset(h_int)
 ndof = len(next(iter(h_0.values())))
@@ -81,7 +81,9 @@ result = meanfi.solver(
     model,
     guess,
     integration=integration,
-    scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=max_iterations),
+    scf=meanfi.AndersonMixing(
+        history_size=0, line_search="wolfe", max_iterations=max_iterations
+    ),
     scf_tol=scf_tol,
     filling_tol=charge_tol,
 )
@@ -110,8 +112,8 @@ rho_0_result = meanfi.density_matrix(
     filling_tol=charge_tol,
 )
 
-rho = rho_result.density_matrix
-rho_0 = rho_0_result.density_matrix
+rho = rho_result.to_tb()
+rho_0 = rho_0_result.to_tb()
 
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
@@ -122,7 +124,7 @@ print("CDW non-interacting =", np.round(np.abs(cdw_order_parameter_0), 6))
 
 # %% Gap helper
 def compute_gap(h, fermi_energy=0, nk=100):
-    kham = meanfi.tb_to_kgrid(h, nk)
+    kham = meanfi.tb_to_kgrid(h, (nk,) * 2)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])
@@ -142,7 +144,7 @@ mf_sols = []
 for U in Us:
     for V in Vs:
         params = dict(U=U, V=V)
-        h_int = utils.builder_to_tb(builder_int, params)
+        h_int = utils.builder_to_tb(builder_int, params=params)
 
         model = meanfi.Model(h_0, h_int, filling=filling)
         guess = model.random_meanfield(rng=0, scale=0.05)
@@ -151,7 +153,7 @@ for U in Us:
             guess,
             integration=integration,
             scf=meanfi.AndersonMixing(
-                M=0,
+                history_size=0,
                 line_search="wolfe",
                 max_iterations=max_iterations,
             ),
@@ -187,7 +189,7 @@ for mf_sol in mf_sols.flatten():
         keys=[(0, 0)],
         integration=integration,
         filling_tol=charge_tol,
-    ).density_matrix
+    ).to_tb()
 
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)
 

@@ -149,3 +149,10 @@ If you use `MeanFi` in scientific work, please cite:
   year = {2024}
 }
 ```
+
+The default SCF method is `EnergyDIIS()` for normal zero-temperature simplex
+calculations. Finite-temperature and BdG workflows use bounded Anderson mixing.
+See `examples/api_walkthrough.py` for model-based densities,
+reference subtraction, restarts, observables, BdG and sparse calculations.
+Fourier helpers use explicit grid shapes, for example `tb_to_kgrid(h, (32, 64))`;
+SCF integration's `nk` continues to mean a total point request.

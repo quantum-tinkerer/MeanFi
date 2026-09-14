@@ -35,8 +35,6 @@ from threadpoolctl import threadpool_limits, threadpool_info  # noqa: E402
 
 import meanfi  # noqa: E402
 from meanfi.density import density as density_module  # noqa: E402
-from meanfi.density.problem import build_normal_problem  # noqa: E402
-from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling  # noqa: E402
 from meanfi.tb.bdg import assemble_bdg_tb  # noqa: E402
 
 
@@ -125,6 +123,18 @@ def evaluate(model, mf):
         integration = meanfi.PeriodicGrid(**settings)
     else:
         integration = meanfi.PeriodicQuadrature(**settings)
+    if hasattr(model, "hamiltonian_from_density"):
+        return meanfi.density_matrix(
+            model,
+            mean_field=mf,
+            integration=integration,
+            filling_tol=2.5e-5,
+            mu_tol=1e-12,
+            max_charge_evaluations=200,
+        )
+    from meanfi.density.problem import build_normal_problem
+    from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
+
     coordinates = model.scf_space.required_coordinates
     common = dict(
         keys=list(coordinates.keys),
@@ -163,7 +173,15 @@ def evaluate(model, mf):
 
 def reference(model, mf, result, order, shift):
     """Independent Fourier assembly and full covariance, at the returned mu."""
-    h = model.h_0 if mf is None else model.bdg_hamiltonian_from_meanfield(mf)
+    h = (
+        model.h_0
+        if mf is None
+        else (
+            model.hamiltonian_from_meanfield(mf)
+            if hasattr(model, "hamiltonian_from_density")
+            else model.bdg_hamiltonian_from_meanfield(mf)
+        )
+    )
     dimension = len(next(iter(h)))
     size = next(iter(h.values())).shape[0]
     keys = np.asarray(list(h))

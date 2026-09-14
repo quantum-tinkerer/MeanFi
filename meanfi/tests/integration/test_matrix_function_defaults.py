@@ -9,8 +9,8 @@ from meanfi.tests.fixtures.models import spinful_chain
 pytestmark = pytest.mark.integration
 
 
-def test_rational_foe_defaults_to_ozaki():
-    assert RationalFOE().rational_scheme == "ozaki"
+def test_rational_foe_defaults_to_aaa():
+    assert RationalFOE().rational_scheme == "aaa"
 
 
 def test_prescribed_sparse_periodic_defaults_to_aaa():

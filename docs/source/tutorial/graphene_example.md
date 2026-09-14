@@ -86,7 +86,7 @@ builder_int = utils.build_interacting_syst(
     max_neighbor=1
 )
 params = dict(U=0.2, V=1.2)
-h_int = utils.builder_to_tb(builder_int, params)
+h_int = utils.builder_to_tb(builder_int, params=params)
 ```
 
 Because `nn_int` function returns the same interaction matrix for all site pairs, we set `max_neighbor=1` to ensure that the interaction only extends to nearest-neighbours and is zero for longer distances.
@@ -130,8 +130,8 @@ rho_0_result = meanfi.density_matrix(
     filling=2,
     keys=[(0, 0)],
 )
-rho = rho_result.density_matrix
-rho_0 = rho_0_result.density_matrix
+rho = rho_result.to_tb()
+rho_0 = rho_0_result.to_tb()
 
 cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
 cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
@@ -171,7 +171,7 @@ To that end, we first create a function that calculates the gap of the system gi
 
 ```{code-cell} ipython3
 def compute_gap(h, fermi_energy=0, nk=100):
-    kham = meanfi.tb_to_kgrid(h, nk)
+    kham = meanfi.tb_to_kgrid(h, (nk,) * 2)
     vals = np.linalg.eigvalsh(kham)
 
     emax = np.max(vals[vals <= fermi_energy])
@@ -193,7 +193,7 @@ mf_sols = []
 for U in Us:
     for V in Vs:
         params = dict(U=U, V=V)
-        h_int = utils.builder_to_tb(builder_int, params)
+        h_int = utils.builder_to_tb(builder_int, params=params)
 
         model = meanfi.Model(h_0, h_int, filling=filling)
         result = meanfi.solver(
@@ -246,7 +246,7 @@ for mf_sol in mf_sols.flatten():
         meanfi.add_tb(h_0, mf_sol),
         filling=2,
         keys=[(0, 0)],
-    ).density_matrix
+    ).to_tb()
 
     # Compute CDW order parameter
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)

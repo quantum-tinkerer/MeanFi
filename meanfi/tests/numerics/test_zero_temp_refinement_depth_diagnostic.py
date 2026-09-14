@@ -59,7 +59,7 @@ def _build_graphene_bad_point():
     )
     h_int = utils.builder_to_tb(
         builder_int,
-        {"U": 3.111111111111111, "V": 0.3333333333333333},
+        params={"U": 3.111111111111111, "V": 0.3333333333333333},
     )
     return h0, h_int, sz
 
@@ -74,7 +74,7 @@ def _sdw_measure(h0, mf, sz):
         integration=PeriodicGrid(nk=40**2),
         keys=[(0, 0)],
         filling_tol=1e-6,
-    ).density_matrix
+    ).to_tb()
     sdw_sq = 0.0
     for spin_matrix in s_list:
         operator = {(0, 0): np.kron(sz, spin_matrix)}
@@ -116,7 +116,9 @@ def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
                     integration=AdaptiveSimplex(
                         density_matrix_tol=1e-4,
                     ),
-                    scf=AndersonMixing(M=0, line_search="wolfe", max_iterations=200),
+                    scf=AndersonMixing(
+                        history_size=0, line_search="wolfe", max_iterations=200
+                    ),
                     # SCF convergence must exceed integration noise amplified
                     # by interactions; this diagnostic tests the ordered phase.
                     tol=1e-3,

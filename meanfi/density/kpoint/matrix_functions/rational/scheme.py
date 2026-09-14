@@ -73,7 +73,7 @@ def _fermi_tail_bounds(kT: float, tolerance: float) -> tuple[float, float]:
     return -bound, bound
 
 
-def _whole_interval_tail_constant(
+def _interval_constant(
     lower: float,
     upper: float,
     *,
@@ -85,6 +85,12 @@ def _whole_interval_tail_constant(
         return complex(1.0)
     if lower >= upper_tail:
         return complex(0.0)
+    # Fermi occupation is monotone: endpoint values bound the error of a
+    # constant on the entire spectrum, including nearly degenerate bands.
+    occupations = fermi_dirac(np.array([lower, upper]), kT, 0.0)
+    constant = float(np.mean(occupations))
+    if np.max(np.abs(occupations - constant)) <= tolerance:
+        return complex(constant)
     return None
 
 
@@ -540,15 +546,15 @@ def _aaa_terms_for_interval(
     initial_poles: int = 1,
     scalar_tolerance: float,
 ) -> tuple[SparseRationalTerms, _AAABuilderState]:
-    constant_tail = _whole_interval_tail_constant(
+    constant = _interval_constant(
         lower,
         upper,
         kT=kT,
         tolerance=scalar_tolerance,
     )
-    if constant_tail is not None:
+    if constant is not None:
         terms = SparseRationalTerms(
-            constant=constant_tail,
+            constant=constant,
             shifts=np.empty(0, dtype=np.complex128),
             residues=np.empty(0, dtype=np.complex128),
             pole_count=0,
@@ -566,8 +572,8 @@ def _aaa_terms_for_interval(
             support_x=np.empty(0, dtype=float),
             support_y=np.empty(0, dtype=complex),
             weights=np.empty(0, dtype=complex),
-            approx_training=np.full(dummy_grid.shape, constant_tail, dtype=complex),
-            approx_validation=np.full(dummy_grid.shape, constant_tail, dtype=complex),
+            approx_training=np.full(dummy_grid.shape, constant, dtype=complex),
+            approx_validation=np.full(dummy_grid.shape, constant, dtype=complex),
         )
 
     tail_lower_bound, tail_upper_bound = _fermi_tail_bounds(kT, scalar_tolerance)

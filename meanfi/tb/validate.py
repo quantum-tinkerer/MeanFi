@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from numbers import Integral
+from types import MappingProxyType
+
 import numpy as np
+from scipy.sparse import csr_matrix
 
 from meanfi.tb.ops import _tb_type, as_sparse, is_sparse_like, matrix_shape
 
@@ -25,7 +29,7 @@ def tb_dimension(tb: _tb_type) -> int:
 
 def tb_orbital_count(tb: _tb_type) -> int:
     rows, cols = matrix_shape(next(iter(tb.values())))
-    if rows != cols:
+    if rows != cols or rows == 0:
         raise ValueError("Tight-binding values must be square matrices")
     return rows
 
@@ -39,10 +43,20 @@ def validate_tb_dict(tb: _tb_type) -> None:
     n_orbitals = tb_orbital_count(tb)
 
     for key, value in tb.items():
-        if len(key) != ndim:
-            raise ValueError("All hopping keys need to have the same length")
+        if (
+            not isinstance(key, tuple)
+            or len(key) != ndim
+            or any(
+                isinstance(value, bool) or not isinstance(value, Integral)
+                for value in key
+            )
+        ):
+            raise ValueError("Hopping keys must be integer tuples of the same length")
         if matrix_shape(value) != (n_orbitals, n_orbitals):
             raise ValueError("All hopping matrices need to have the same shape")
+        values = value.tocoo().data if is_sparse_like(value) else np.asarray(value)
+        if not np.all(np.isfinite(values)):
+            raise ValueError("Tight-binding matrices must contain finite values")
 
 
 def validate_hermiticity(tb: _tb_type) -> None:
@@ -59,7 +73,13 @@ def normalize_keys(
     hamiltonian: _tb_type,
     keys: list[tuple[int, ...]],
 ) -> list[tuple[int, ...]]:
-    normalized = [tuple(int(component) for component in key) for key in keys]
+    normalized = [tuple(key) for key in keys]
+    if any(
+        isinstance(r, bool) or not isinstance(r, Integral)
+        for key in normalized
+        for r in key
+    ):
+        raise ValueError("Requested density-matrix keys must contain integers")
     ndim = tb_dimension(hamiltonian)
     for key in normalized:
         if len(key) != ndim:
@@ -78,3 +98,22 @@ def require_zero_dim_local_key_only(hamiltonian: _tb_type) -> None:
         raise ValueError(
             "Zero-dimensional Hamiltonians must contain only the local key"
         )
+
+
+def freeze_tb(tb: _tb_type):
+    """Own validated matrix copies, retaining sparse storage and explicit zeros."""
+    validate_tb_dict(tb)
+    validate_hermiticity(tb)
+    owned = {}
+    for key, matrix in tb.items():
+        if is_sparse_like(matrix):
+            matrix = csr_matrix(matrix, dtype=complex, copy=True)
+            matrix.sum_duplicates()
+            matrix.sort_indices()
+            for array in (matrix.data, matrix.indices, matrix.indptr):
+                array.setflags(write=False)
+        else:
+            matrix = np.array(matrix, dtype=complex, copy=True)
+            matrix.setflags(write=False)
+        owned[key] = matrix
+    return MappingProxyType(owned)

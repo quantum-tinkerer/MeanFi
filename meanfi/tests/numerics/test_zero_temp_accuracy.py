@@ -76,7 +76,7 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
                 max_refinements=None,
             ),
         )
-        actual_density_error = max_density_error(result.density_matrix, reference.rho)
+        actual_density_error = max_density_error(result.to_tb(), reference.rho)
 
         assert actual_density_error <= 2.0 * density_atol
         assert result.errors.density_matrix_integration is not None
@@ -126,7 +126,7 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
             filling_tol=scalar_tol,
             mu_tol=scalar_tol,
         )
-        actual_density_error = max_density_error(result.density_matrix, reference.rho)
+        actual_density_error = max_density_error(result.to_tb(), reference.rho)
         actual_charge_error = abs(result.filling - filling)
         actual_mu_error = abs(result.mu - reference.mu)
 
@@ -164,7 +164,7 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
             max_refinements=None,
         ),
     )
-    actual_density_error = max_density_error(result.density_matrix, reference.rho)
+    actual_density_error = max_density_error(result.to_tb(), reference.rho)
 
     assert actual_density_error <= 2e-3
     assert result.errors.density_matrix_integration is not None
@@ -200,7 +200,7 @@ def test_periodic_grid_density_at_mu_converges_against_dense_reference(case):
         records.append(
             (
                 nk,
-                max_density_error(result.density_matrix, reference.rho),
+                max_density_error(result.to_tb(), reference.rho),
             )
         )
 

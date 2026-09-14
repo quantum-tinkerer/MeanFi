@@ -7,7 +7,7 @@ import numpy as np
 
 from meanfi.density.integrate.methods import AdaptiveSimplex, IntegrationMethod
 from meanfi.results import DensityResult, DensityEntries
-from meanfi.errors import ErrorTolerances
+from meanfi.errors import ConvergenceError, ErrorTolerances
 from meanfi.results import SCFIteration, SCFResult
 from meanfi.scf.ediis import EDIISPoint, ediis_coefficients
 from meanfi.scf.fixed_point import (
@@ -313,7 +313,10 @@ def run_scf_loop(
     verbose: bool = False,
 ) -> SCFResult:
     projected_guess = problem.project_guess(guess)
-    initial_density = problem.evaluate_projected_guess(projected_guess)
+    try:
+        initial_density = problem.evaluate_projected_guess(projected_guess)
+    except (ConvergenceError, np.linalg.LinAlgError, FloatingPointError) as exc:
+        raise SolverFailure("Initial SCF density evaluation failed") from exc
     initial_state = problem.state_from_density(initial_density.entries)
     run_state = SCFRunState(evaluation=initial_density, output_state=initial_state)
 

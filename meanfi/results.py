@@ -90,14 +90,14 @@ class DensityEntries:
                 raise ValueError("density errors must be finite and non-negative")
             object.__setattr__(self, "errors", errors)
 
-    def to_matrix(self) -> _tb_type:
+    def to_tb(self, *, sparse: bool = False) -> _tb_type:
         """Materialize complete blocks, rejecting uncomputed matrix entries."""
         if not self.coordinates.is_full:
             raise ValueError(
                 "cannot convert selected density coordinates to complete matrix "
                 "blocks; request complete keys or use coordinates and values"
             )
-        return self.coordinates.values_to_tb(self.values)
+        return self.coordinates.values_to_tb(self.values, sparse=sparse)
 
 
 @dataclass(frozen=True)
@@ -169,14 +169,9 @@ class DensityResult:
             ),
         )
 
-    def to_matrix(self) -> _tb_type:
+    def to_tb(self, *, sparse: bool = False) -> _tb_type:
         """Materialize complete blocks; selected layouts contain unknown entries."""
-        return self.entries.to_matrix()
-
-    @property
-    def density_matrix(self) -> _tb_type:
-        """Complete matrix blocks (compatibility alias for :meth:`to_matrix`)."""
-        return self.to_matrix()
+        return self.entries.to_tb(sparse=sparse)
 
 
 @dataclass(frozen=True)

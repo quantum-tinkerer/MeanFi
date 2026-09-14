@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
+from numbers import Integral
 
 import numpy as np
 
@@ -16,16 +18,30 @@ class SpatialSymmetry:
     antiunitary: bool = False
 
     def __post_init__(self) -> None:
-        lattice_matrix = np.asarray(self.lattice_matrix, dtype=int)
+        lattice_matrix = np.array(self.lattice_matrix, copy=True)
+        if not np.all(np.isfinite(lattice_matrix)) or not np.all(
+            lattice_matrix == np.round(lattice_matrix)
+        ):
+            raise ValueError(
+                "SpatialSymmetry.lattice_matrix must contain finite integers"
+            )
+        lattice_matrix = lattice_matrix.astype(int)
         if (
             lattice_matrix.ndim != 2
             or lattice_matrix.shape[0] != lattice_matrix.shape[1]
         ):
             raise ValueError("SpatialSymmetry.lattice_matrix must be square")
+        lattice_matrix.setflags(write=False)
         object.__setattr__(self, "lattice_matrix", lattice_matrix)
+        if any(
+            isinstance(component, bool) or not isinstance(component, Integral)
+            for shift in self.unitaries_by_shift
+            for component in shift
+        ):
+            raise ValueError("SpatialSymmetry shifts must contain integers")
         normalized = {
-            tuple(int(component) for component in shift): np.asarray(
-                unitary, dtype=complex
+            tuple(int(component) for component in shift): np.array(
+                unitary, dtype=complex, copy=True
             )
             for shift, unitary in self.unitaries_by_shift.items()
         }
@@ -39,7 +55,10 @@ class SpatialSymmetry:
                 raise ValueError("SpatialSymmetry shifts must match lattice dimension")
             if unitary.ndim != 2 or unitary.shape[0] != unitary.shape[1]:
                 raise ValueError("SpatialSymmetry unitary blocks must be square")
-        object.__setattr__(self, "unitaries_by_shift", normalized)
+            if not np.all(np.isfinite(unitary)):
+                raise ValueError("SpatialSymmetry blocks must contain finite values")
+            unitary.setflags(write=False)
+        object.__setattr__(self, "unitaries_by_shift", MappingProxyType(normalized))
 
 
 @dataclass(frozen=True)

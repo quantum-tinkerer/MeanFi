@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from numbers import Integral
 
 import numpy as np
+
+from meanfi.errors import ConvergenceError
 from scipy.optimize import brentq
 
 from meanfi.tb.ops import _tb_type, matrix_bound
@@ -77,13 +79,17 @@ def _evaluate_charge_sample(
     charge_error_value = float(charge_error)
     derivative_value = None if derivative is None else float(derivative)
     if not np.isfinite(charge_value):
-        raise ValueError(f"Charge evaluation returned non-finite charge at mu={mu}")
+        raise ConvergenceError(
+            f"Charge evaluation returned non-finite charge at mu={mu}"
+        )
     if not np.isfinite(charge_error_value) or charge_error_value < 0.0:
-        raise ValueError(
+        raise ConvergenceError(
             f"Charge evaluation returned invalid charge error at mu={mu}: {charge_error}"
         )
     if derivative_value is not None and not np.isfinite(derivative_value):
-        raise ValueError(f"Charge evaluation returned non-finite derivative at mu={mu}")
+        raise ConvergenceError(
+            f"Charge evaluation returned non-finite derivative at mu={mu}"
+        )
     return _ChargeSample(
         mu=float(mu),
         charge=charge_value,
@@ -266,7 +272,7 @@ class _ChargeRootSolver:
                 return _ChargeBracket(lower_sample, upper_sample)
             step *= 2.0
 
-        raise ValueError(
+        raise ConvergenceError(
             "Could not bracket the requested filling after "
             f"{max_expansions} expansions: "
             f"lower(mu={lower_value}, charge={lower_sample.charge}), "

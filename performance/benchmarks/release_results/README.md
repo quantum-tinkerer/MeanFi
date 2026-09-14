@@ -104,3 +104,36 @@ taskset -c 0 python performance/benchmarks/scf_reconstruction.py \
 
 Use `--checkout` to compare a previous checkout with the same harness. Benchmark
 sources and evidence remain excluded from wheel and source distribution.
+
+## API cleanup
+
+The API pass compares `185cf9e` with the model-aware density implementation.
+[api_cleanup.json](api_cleanup.json) records fifteen sequential repetitions after
+warmup, pinned to CPU 0 with one BLAS/OpenMP thread. The five cases have identical
+chemical potentials and work counts before and after; all independent reference
+assertions pass. These bounded timings do not establish universal speedups.
+
+| Case | Before (s) | After (s) |
+| --- | ---: | ---: |
+| square_metal | 0.04226 | 0.02792 |
+| gapped | 0.00737 | 0.00679 |
+| cold_bdg | 0.00843 | 0.00832 |
+| wire | 0.03467 | 0.03588 |
+| bounded_3d | 0.82832 | 0.82957 |
+
+The largest increase was 3.5% in the wire case; the other cases were unchanged
+or faster in this run. A separate dense Fourier-helper check used nine complex
+16-by-16 blocks (keys `generate_tb_keys(1, 2)`, independent standard normal real
+and imaginary parts, NumPy seed 81), 2,048 uniformly sampled points in
+`[-pi, pi]^2`, and a 32-by-32 grid. Median callable time stayed at 1.46 ms;
+FFT grid conversion decreased from 10.59 ms to 2.90 ms. Both used fifteen
+repetitions after warmup. Dense callables retain their vectorized contraction;
+sparse callables accumulate nonzero entries directly.
+
+The sparse accuracy suite now checks both AAA and Ozaki at requested tight
+accuracy, rather than depending on one scheme accidentally exceeding a loose
+request. AAA also handles nearly degenerate spectra with a constant occupation
+whose error is bounded by endpoint occupations over the full spectral interval.
+This avoids an unnecessary ill-conditioned fit; the core regression verifies
+cache reuse without eigensolves, and sparse references verify the density and
+charge to `1e-8` with requests of `1e-9`.

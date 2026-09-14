@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 from scipy import sparse
 
-from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
+from meanfi.density.density import evaluate_density
+from meanfi.density.problem import build_density_problem
 from meanfi.results import DensityResult, DensityEntries
 from meanfi.meanfield import bdg_correction_from_density_parts
 from meanfi.model import Model
@@ -19,6 +22,15 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
 
     space = model.scf_space
     active_keys = active_tb_keys({space.onsite})
+    density_problem = build_density_problem(
+        model.hamiltonian_from_meanfield(),
+        kT=model.kT,
+        keys=space.density_keys,
+        integration=runtime.integration,
+        tolerances=runtime.tolerances,
+        density_coordinates=space.required_coordinates,
+        electron_ndof=model._ndof,
+    )
 
     def project_guess(guess: _tb_type) -> _tb_type:
         nonlocal active_keys
@@ -44,17 +56,15 @@ def build_bdg_scf_problem(model: Model, runtime: SolverRuntime) -> SCFProblem:
         *,
         mu_guess: float,
     ) -> DensityResult:
-        return solve_bdg_density_fixed_filling(
-            model,
-            meanfield_guess,
-            keys=space.density_keys,
-            integration=runtime.integration,
-            tolerances=runtime.tolerances,
-            filling_tol=runtime.tolerances.filling_residual,
+        return evaluate_density(
+            replace(
+                density_problem,
+                hamiltonian=model.hamiltonian_from_meanfield(meanfield_guess),
+            ),
+            filling=model.filling,
             mu_tol=runtime.mu_tol,
             max_charge_evaluations=runtime.max_charge_evaluations,
             mu_guess=mu_guess,
-            density_coordinates=space.required_coordinates,
         )
 
     def evaluate_projected_guess(projected_guess: _tb_type) -> DensityResult:

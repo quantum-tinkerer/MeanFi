@@ -4,6 +4,8 @@ from typing import Any
 
 import numpy as np
 
+from meanfi.errors import ConvergenceError
+
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import as_sparse, is_sparse_like
 
@@ -211,7 +213,9 @@ class PreparedMumpsRationalNode:
         except ValueError as exc:
             if "AAA scalar certification failed" not in str(exc):
                 raise
-            raise ValueError("Rational FOE did not converge within max_poles") from exc
+            raise ConvergenceError(
+                "Rational FOE did not converge within max_poles"
+            ) from exc
         # One reusable scalar fit; no retained matrices or factorizations.
         self._aaa_interval_cache[:] = [
             _AAAIntervalCacheEntry(
@@ -264,7 +268,9 @@ class PreparedMumpsRationalNode:
                 if abs(result[0] - previous) <= self.charge_tolerance:
                     break
                 if poles == self.options.max_poles:
-                    raise ValueError("Rational FOE did not converge within max_poles")
+                    raise ConvergenceError(
+                        "Rational FOE did not converge within max_poles"
+                    )
                 previous = result[0]
         (
             self._last_charge,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -20,10 +19,7 @@ from meanfi.space.support import (
 )
 from meanfi.space.symmetry import HermiticityConstraint, ParticleHoleConstraint
 from meanfi.tb.ops import _tb_type
-from meanfi.tb.storage import prefers_sparse_storage
-
-if TYPE_CHECKING:
-    from meanfi.model import Model
+from meanfi.tb.validate import tb_orbital_count
 
 
 _DENSE_BASIS_LIMIT_BYTES = 2 * 1024**3
@@ -98,26 +94,34 @@ class ActiveSCFSpace:
         return self.parametrization.num_params
 
     @classmethod
-    def from_model(cls, model: Model) -> ActiveSCFSpace:
-        if model.superconducting:
-            support = bdg_active_support(model)
+    def from_interaction(
+        cls,
+        h_int: _tb_type,
+        *,
+        superconducting=False,
+        spatial_symmetries=(),
+        sparse=False,
+    ) -> ActiveSCFSpace:
+        ndof = tb_orbital_count(h_int)
+        if superconducting:
+            support = bdg_active_support(h_int)
             family = "bdg"
             constraints = (
-                HermiticityConstraint(electron_ndof=model._ndof),
-                ParticleHoleConstraint(model._ndof),
+                HermiticityConstraint(electron_ndof=ndof),
+                ParticleHoleConstraint(ndof),
             )
         else:
-            support = normal_active_support(model)
+            support = normal_active_support(h_int)
             family = "normal"
             constraints = (HermiticityConstraint(),)
 
-        if model.spatial_symmetries:
+        if spatial_symmetries:
             entries = support.coordinates.entries
             _raise_if_dense_basis_too_large(len(entries), family=family)
             basis = OrbitReducer(entries).basis(constraints)
-            basis = LinearConstraintReducer(
-                entries, ndof=model._ndof, family=family
-            ).basis(basis, model.spatial_symmetries)
+            basis = LinearConstraintReducer(entries, ndof=ndof, family=family).basis(
+                basis, spatial_symmetries
+            )
             selected = select_required_coordinates(support.coordinates, basis)
             sample_basis = basis[selected.active_real_rows, :]
             parametrization = _DenseParametrization(
@@ -137,7 +141,7 @@ class ActiveSCFSpace:
             interaction_keys=support.interaction_keys,
             density_keys=support.density_keys,
             onsite=support.onsite,
-            sparse=prefers_sparse_storage(model.h_0, model.h_int),
+            sparse=sparse,
         )
 
     def params_from_required_entries(self, values: np.ndarray) -> np.ndarray:

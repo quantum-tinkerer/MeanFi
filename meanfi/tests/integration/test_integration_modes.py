@@ -102,7 +102,7 @@ def test_prescribed_normal_zero_temperature_periodic_public_workflow():
         keys=[(0,)],
         integration=PeriodicGrid(nk=11),
     )
-    np.testing.assert_allclose(result.density_matrix[(0,)], np.diag([1.0, 0.0]))
+    np.testing.assert_allclose(result.to_tb()[(0,)], np.diag([1.0, 0.0]))
     assert result.errors.density_matrix_integration is None
 
 

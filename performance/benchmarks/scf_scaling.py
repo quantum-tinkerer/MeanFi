@@ -36,7 +36,7 @@ def main() -> None:
     parser.add_argument("--warmup", type=int, default=1)
     args = parser.parse_args()
 
-    anderson = AndersonMixing(M=0, max_iterations=40)
+    anderson = AndersonMixing(history_size=0, max_iterations=40)
     records: list[dict] = []
 
     ft_model, ft_guess = hubbard_chain_scf_problem(U=2.0, kT=0.1)

@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- EDIIS is the default for normal zero-temperature simplex SCF. Other workflows
+  use Anderson with explicit initial scaling, a five-step history and Armijo
+  search; reference subtraction, warm restarts and spatial symmetries no longer
+  trigger the previous default-mixer divergence. SCF settings are keyword-only;
+  `history_size` and `regularization` replace `M` and `w0`; use `scf_tol` for the
+  residual target instead of the removed secondary stopping controls.
+- Both density functions accept a `Model` and optional `mean_field`, including
+  BdG models. Model inputs supply filling, temperature and required coordinates.
+  One density evaluator now serves normal and BdG calculations.
+- `DensityResult.to_tb(sparse=False)` replaces `to_matrix()` and the
+  `density_matrix` compatibility property. `meanfield` accepts selected results.
+  Model construction uses only `reference=DensityResult`; the dictionary alias
+  is removed. `hamiltonian_from_density` replaces `hamiltonian_from_rho`, and
+  `hamiltonian_from_meanfield` handles both normal and BdG models.
+- Fourier grids use explicit `shape` tuples. Odd, even, rectangular and finite
+  grids round-trip completely; even-axis Nyquist coefficients are shared between
+  opposite displacements to retain Hermiticity. Sparse Fourier inputs work.
+  `fermi_energy` uses `shape`; `fermi_dirac` uses `mu`.
+- Model construction validates physical inputs and owns read-only dense/CSR
+  copies. `PeriodicGrid.dtype` replaces `workspace_precision`. Explicit and
+  implicit prescribed sparse RationalFOE now both default to AAA.
+- Numerical density failures raise `ConvergenceError`. SCF exceptions extend it;
+  `SolverFailure.result` is None when the initial density evaluation fails.
+- Kwant sparse conversion assembles sparse blocks directly and inverse conversion
+  visits nonzero site pairs. Finite builders and scalar multi-orbital terms work;
+  `builder_to_tb` controls are keyword-only.
+- Package roots export supported user types without internal helper re-exports.
+
 - Coordinate constructors always return a layout, including empty selections;
   removed `allow_empty` and unused conversion helpers. Sparse model SCF
   reconstruction stays sparse through mean-field and BdG assembly.
@@ -55,6 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Automatic sparse selection raises migration guidance instead of densifying.
 
 ### Accuracy and resource contracts
+
+- AAA uses a certified constant occupation for nearly degenerate spectra,
+  avoiding unstable rational fits and meeting tight sparse accuracy targets.
 
 - Selected simplex outputs are assembled directly from requested entries,
   avoiding a full density-matrix round trip.

@@ -23,29 +23,21 @@ def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...
     return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
 
 
-def fermi_energy(tb: _tb_type, filling: float, nk: int = 100):
-    """
-    Calculate the Fermi energy of a given tight-binding dictionary.
+def fermi_energy(tb: _tb_type, filling: float, *, shape: tuple[int, ...] | None = None):
+    """Estimate the zero-temperature Fermi level on a sampled Fourier grid.
 
-    Parameters
-    ----------
-    tb :
-        Tight-binding dictionary.
-    filling :
-        Number of particles in a unit cell.
-        Used to determine the Fermi level.
-    nk :
-        Number of k-points in a grid to sample the Brillouin zone along each dimension.
-        If the system is 0-dimensional (finite), this parameter is ignored.
-
-    Returns
-    -------
-    :
-        Fermi energy.
+    ``shape`` gives points per axis (default: 100 each). This is an order
+    statistic of sampled energies, without an integration error estimate.
+    Use ``density_matrix`` for a filling solve with controlled tolerances.
     """
-    kham = tb_to_kgrid(tb, nk)
-    vals = np.linalg.eigvalsh(kham)
+    if not np.isfinite(filling) or not 0 <= filling <= next(iter(tb.values())).shape[0]:
+        raise ValueError(
+            "filling must be finite and between zero and the orbital count"
+        )
+    if shape is None:
+        shape = (100,) * len(next(iter(tb)))
+    vals = np.linalg.eigvalsh(tb_to_kgrid(tb, shape))
     flat = np.sort(vals.reshape(-1))
-    n_kpoints = vals.shape[0] if vals.ndim == 2 else int(np.prod(vals.shape[:-1]))
+    n_kpoints = int(np.prod(vals.shape[:-1]))
     idx = int(np.clip(np.ceil(filling * n_kpoints) - 1, 0, flat.size - 1))
     return float(flat[idx])

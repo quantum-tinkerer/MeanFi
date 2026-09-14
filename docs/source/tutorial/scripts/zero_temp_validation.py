@@ -34,7 +34,7 @@ def band_gap(
 ) -> float:
     """Return the direct gap extracted from a uniform post-processing k-grid."""
 
-    h_kgrid = meanfi.tb_to_kgrid(h, nk)
+    h_kgrid = meanfi.tb_to_kgrid(h, (nk,) * len(next(iter(h))))
     eigenvalues = np.linalg.eigvalsh(h_kgrid)
     emax = np.max(eigenvalues[eigenvalues <= fermi_energy])
     emin = np.min(eigenvalues[eigenvalues > fermi_energy])
@@ -175,7 +175,7 @@ def _build_graphene_inputs():
         func_hop=nn_int,
         max_neighbor=1,
     )
-    h_int = utils.builder_to_tb(builder_int, GRAPHENE_REFERENCE_POINTS["metal"])
+    h_int = utils.builder_to_tb(builder_int, params=GRAPHENE_REFERENCE_POINTS["metal"])
     return h_0, builder_int, frozenset(h_int), len(list(h_0.values())[0])
 
 
@@ -196,13 +196,15 @@ def graphene_reference_suite() -> dict[str, dict[str, float]]:
 
     results = {}
     for label, params in GRAPHENE_REFERENCE_POINTS.items():
-        h_int = utils.builder_to_tb(builder_int, params)
+        h_int = utils.builder_to_tb(builder_int, params=params)
         model = meanfi.Model(h_0, h_int, filling=2)
         guess = model.random_meanfield(rng=0, scale=0.05)
         solver_result = meanfi.solver(
             model,
             guess,
-            scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+            scf=meanfi.AndersonMixing(
+                history_size=0, line_search="wolfe", max_iterations=80
+            ),
             scf_tol=2e-2,
             filling_tol=1e-2,
         )
@@ -213,7 +215,7 @@ def graphene_reference_suite() -> dict[str, dict[str, float]]:
             keys=[(0, 0)],
             filling_tol=1e-2,
         )
-        rho = density_result.density_matrix
+        rho = density_result.to_tb()
 
         cdw = abs(meanfi.expectation_value(rho, cdw_operator))
         sdw_sq = 0.0
@@ -257,7 +259,7 @@ def _build_strained_graphene_inputs():
         h0_builder, lat, interaction_onsite, interaction_hop, max_neighbor=0
     )
     h0_dense, data = utils.builder_to_tb(h0_builder, params={"xi": 7}, return_data=True)
-    h_int_dense = utils.builder_to_tb(int_builder, STRAINED_GRAPHENE_REFERENCE)
+    h_int_dense = utils.builder_to_tb(int_builder, params=STRAINED_GRAPHENE_REFERENCE)
     h0 = {key: sparse.csr_matrix(value) for key, value in h0_dense.items()}
     h_int = {key: sparse.csr_matrix(value) for key, value in h_int_dense.items()}
     filling = int(next(iter(h0.values())).shape[0]) // 2
@@ -289,7 +291,7 @@ def solve_strained_graphene_reference(
         guess,
         integration=integration,
         scf=meanfi.AndersonMixing(
-            M=10,
+            history_size=10,
             line_search="armijo",
             max_iterations=max_scf_steps,
         ),
@@ -323,7 +325,9 @@ def solve_hubbard_reference(
     solver_result = meanfi.solver(
         model,
         guess,
-        scf=meanfi.AndersonMixing(M=0, line_search="wolfe", max_iterations=80),
+        scf=meanfi.AndersonMixing(
+            history_size=0, line_search="wolfe", max_iterations=80
+        ),
         scf_tol=2e-3,
         filling_tol=1e-3,
     )
@@ -337,14 +341,14 @@ def solve_hubbard_reference(
     resolved_gap, gap_info = resolved_hubbard_gap(
         h_full,
         U=U,
-        local_density=density_result.density_matrix[(0,)],
+        local_density=density_result.to_tb()[(0,)],
         fermi_energy=solver_result.mu,
     )
     return {
         "residual_norm": float(solver_result.errors.scf_residual),
         "charge_error": float(abs(density_result.filling - 2.0)),
         "staggered_magnetization": staggered_magnetization(
-            density_result.density_matrix[(0,)]
+            density_result.to_tb()[(0,)]
         ),
         "resolved_gap": float(resolved_gap),
         "reference_gap": float(hubbard_reference_gap(U)),

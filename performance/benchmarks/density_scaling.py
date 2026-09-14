@@ -265,7 +265,7 @@ def _zero_temperature_records(
                     benchmark_result=measurement,
                     density_result=result,
                     density_matrix_error=max_density_error(
-                        result.density_matrix, reference.rho
+                        result.to_tb(), reference.rho
                     ),
                     filling_error=abs(result.filling - reference.charge),
                     **reference_meta,
@@ -292,7 +292,7 @@ def _zero_temperature_records(
                     benchmark_result=measurement,
                     density_result=result,
                     density_matrix_error=max_density_error(
-                        result.density_matrix, reference.rho
+                        result.to_tb(), reference.rho
                     ),
                     filling_error=abs(result.filling - reference.charge),
                     **reference_meta,

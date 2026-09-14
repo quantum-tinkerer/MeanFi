@@ -55,3 +55,7 @@ root preparation and validation. RationalFOE uses Gershgorin spectral bounds and
 shifted linear solves, so it performs zero Hamiltonian diagonalizations. Its
 `n_kernel_evals` counts point evaluations; zero diagonalizations does not imply
 zero work. Scalar coefficient construction is outside this Hamiltonian count.
+
+`dtype="complex128"` is the default matrix workspace type. Use
+`dtype="complex64"` to reduce storage when its lower precision is sufficient.
+This controls complex array precision, not a different integration algorithm.

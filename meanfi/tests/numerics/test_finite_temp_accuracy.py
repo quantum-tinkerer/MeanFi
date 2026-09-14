@@ -96,9 +96,7 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
         ),
     )
 
-    actual_density_error = max_density_error(
-        result.density_matrix, reference.density_matrix
-    )
+    actual_density_error = max_density_error(result.to_tb(), reference.to_tb())
     assert abs(result.mu) <= 1e-12
     assert actual_density_error <= atol
     assert result.errors.density_matrix_integration is None
@@ -134,7 +132,7 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
 
     assert abs(result.mu - reference.mu) <= 2e-2
     assert abs(result.filling - reference.filling) <= 1e-2
-    assert max_density_error(result.density_matrix, reference.density_matrix) <= 2e-2
+    assert max_density_error(result.to_tb(), reference.to_tb()) <= 2e-2
 
 
 @pytest.mark.parametrize(
@@ -172,7 +170,7 @@ def test_sparse_periodic_grid_matches_dense_reference_at_mu(matrix_function, ato
     )
 
     assert abs(result.mu) <= 1e-12
-    assert max_density_error(result.density_matrix, reference.density_matrix) <= atol
+    assert max_density_error(result.to_tb(), reference.to_tb()) <= atol
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -206,7 +204,7 @@ def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
 
     assert abs(result.mu - reference.mu) <= 2e-2
     assert abs(result.filling - reference.filling) <= 1e-2
-    assert max_density_error(result.density_matrix, reference.density_matrix) <= 2e-2
+    assert max_density_error(result.to_tb(), reference.to_tb()) <= 2e-2
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -248,15 +246,15 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     )
 
 
-def test_workspace_precision_controls_are_validated():
-    with pytest.raises(ValueError, match="workspace_precision must be 64 or 128"):
-        PeriodicGrid(nk=128, workspace_precision=32)
+def test_dtype_controls_are_validated():
+    with pytest.raises(ValueError, match="dtype must be complex64 or complex128"):
+        PeriodicGrid(nk=128, dtype="float32")
 
-    assert "workspace_precision" not in AdaptiveSimplex.__dataclass_fields__
+    assert "dtype" not in AdaptiveSimplex.__dataclass_fields__
 
 
 @pytest.mark.usefixtures("require_mumps")
-def test_periodic_workspace_precision_64_matches_128():
+def test_periodic_complex64_matches_complex128():
     tb = _sparse_tb(spinful_chain())
     keys = [(0,), (1,), (-1,)]
     high_precision = density_matrix(
@@ -266,7 +264,7 @@ def test_periodic_workspace_precision_64_matches_128():
         keys=keys,
         integration=PeriodicGrid(
             nk=128,
-            workspace_precision=128,
+            dtype="complex128",
         ),
         filling_tol=1e-2,
         mu_tol=1e-8,
@@ -278,17 +276,14 @@ def test_periodic_workspace_precision_64_matches_128():
         keys=keys,
         integration=PeriodicGrid(
             nk=128,
-            workspace_precision=64,
+            dtype="complex64",
         ),
         filling_tol=1e-2,
         mu_tol=1e-8,
     )
 
     assert abs(low_precision.mu - high_precision.mu) <= 5e-3
-    assert (
-        max_density_error(low_precision.density_matrix, high_precision.density_matrix)
-        <= 2e-2
-    )
+    assert max_density_error(low_precision.to_tb(), high_precision.to_tb()) <= 2e-2
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -334,7 +329,7 @@ def test_density_postprocessing_returns_complete_dense_blocks():
             nk=128,
         ),
     )
-    onsite_block = density.density_matrix[(0,)]
+    onsite_block = density.to_tb()[(0,)]
     assert not np.allclose(np.diag(np.diag(onsite_block)), onsite_block, atol=1e-12)
 
 

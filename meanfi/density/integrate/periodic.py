@@ -13,11 +13,12 @@ import numpy as np
 
 from meanfi.density.filling import mu_bracket, mu_bracket_for_bdg, solve_mu
 from meanfi.density.integrate.methods import PeriodicGrid
-from meanfi.density.integrate.workspace import workspace_complex_dtype
 from meanfi.results import DensityEntries, DensityResult
 from meanfi.density.kpoint.matrix_functions import (
     DirectDiagonalization,
     RationalFOE,
+)
+from meanfi.density.kpoint.matrix_functions.direct import (
     selected_density_values_from_eigensystem,
 )
 from meanfi.density.kpoint.matrix_functions.rational import PreparedMumpsRationalNode
@@ -145,7 +146,7 @@ class _Evaluator:
         self.size = tb_orbital_count(hamiltonian)
         self.q_diag = np.ones(self.size) if q_diag is None else np.asarray(q_diag)
         self.trace_weights = trace_weights
-        self.dtype = workspace_complex_dtype(integration)
+        self.dtype = integration.dtype
         self.batch_size = integration.batch_size or 128
         self.tolerances = tolerances
         self.method = resolve_periodic_matrix_function(
@@ -512,7 +513,7 @@ def solve_periodic(
         raise RuntimeError(
             "PeriodicGrid density recomputation did not satisfy the filling tolerance: "
             f"residual={abs(charge - filling)}, filling_tol={filling_tol}. "
-            "Use workspace_precision=128 or tighten the matrix-function accuracy."
+            'Use dtype="complex128" or tighten the matrix-function accuracy.'
         )
     work = evaluator.work
     info = PeriodicGridInfo(

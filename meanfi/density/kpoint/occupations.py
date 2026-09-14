@@ -1,26 +1,14 @@
-from __future__ import annotations
+"""Fermi occupations at finite or zero temperature."""
 
 import numpy as np
+from scipy.special import expit
 
 
-def fermi_dirac(energies: np.ndarray, kT: float, fermi: float) -> np.ndarray:
-    """Evaluate the Fermi-Dirac distribution."""
-
-    if kT < 0:
-        raise ValueError("meanfi supports only non-negative temperatures (kT >= 0)")
+def fermi_dirac(energies: np.ndarray, kT: float, mu: float) -> np.ndarray:
+    """Occupations with half filling exactly at mu when kT is zero."""
+    if not np.isfinite(kT) or kT < 0 or not np.isfinite(mu):
+        raise ValueError("kT must be finite and non-negative, and mu must be finite")
+    energies = np.asarray(energies, dtype=float)
     if kT == 0:
-        energies = np.asarray(energies, dtype=float)
-        occupation = np.where(energies < fermi, 1.0, 0.0)
-        occupation = np.where(energies == fermi, 0.5, occupation)
-        return occupation.astype(float, copy=False)
-
-    occupation = np.empty_like(energies, dtype=float)
-    exponent = (energies - fermi) / kT
-    sign_mask = energies >= fermi
-
-    pos_exp = np.exp(-exponent[sign_mask])
-    neg_exp = np.exp(exponent[~sign_mask])
-
-    occupation[sign_mask] = pos_exp / (pos_exp + 1.0)
-    occupation[~sign_mask] = 1.0 / (neg_exp + 1.0)
-    return occupation
+        return np.where(energies == mu, 0.5, energies < mu).astype(float)
+    return expit((mu - energies) / kT)

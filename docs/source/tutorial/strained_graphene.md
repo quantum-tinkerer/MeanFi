@@ -89,7 +89,7 @@ h0 = utils.builder_to_tb(h0_builder, params={"xi": xi}, sparse=True)
 
 ndof = [*h0_dense.values()][0].shape[0]
 filling = ndof // 2
-h_int = utils.builder_to_tb(int_builder, {"U": U}, sparse=True)
+h_int = utils.builder_to_tb(int_builder, params={"U": U}, sparse=True)
 mf_model = meanfi.Model(h0, h_int, filling=filling, kT=kT)
 ```
 
@@ -123,7 +123,7 @@ result = meanfi.solver(
     mf_model,
     guess,
     integration=integration,
-    scf=meanfi.AndersonMixing(M=10, line_search="armijo", max_iterations=40),
+    scf=meanfi.AndersonMixing(history_size=10, line_search="armijo", max_iterations=40),
     scf_tol=scf_tol,
     filling_tol=charge_tol,
 )

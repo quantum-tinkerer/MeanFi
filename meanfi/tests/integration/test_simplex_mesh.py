@@ -69,7 +69,7 @@ def test_prescribed_density_uses_simplex_rule_without_refinement_or_previews():
         max_subdivisions=0,
     )
     info = result.statistics
-    rho = result.to_matrix()
+    rho = result.to_tb()
     error = result.entry_errors
     mesh = _spectral_mesh(h, nk=100)
     charge = mesh.estimate_charge_on_current_mesh(mu=mu)
@@ -103,7 +103,7 @@ def test_prescribed_filling_reuses_native_spectra_and_preserves_band_energy():
         include_band_energy=True,
     )
     info = result.statistics
-    rho = result.to_matrix()
+    rho = result.to_tb()
     error = result.entry_errors
     mu = result.mu
     assert abs(mu) < 1e-10
@@ -219,7 +219,7 @@ def test_adaptive_density_refinement_keeps_root_consistent_with_final_native_mes
         max_points=10000,
     )
     info = result.statistics
-    rho = result.to_matrix()
+    rho = result.to_tb()
     error = result.entry_errors
     mu = result.mu
     final_charge = meshes[0].estimate_charge_on_current_mesh(mu=mu).value

@@ -7,6 +7,7 @@ Dependencies are supplied by the active environment; wheel installation is offli
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -51,24 +52,36 @@ for superconducting in (False, True):
     result = meanfi.solver(model, model.random_meanfield(rng=0, scale=0),
                           integration=meanfi.PeriodicGrid(nk=32))
     assert result.converged
+    density = meanfi.density_matrix(model, mean_field=result.mean_field, keys=[(0,)],
+                                   integration=meanfi.PeriodicGrid(nk=32))
+    assert density.to_tb()[(0,)].shape == ((2, 2) if superconducting else (1, 1))
+cold = meanfi.Model(h, {(0,): np.zeros((1, 1))}, filling=.5)
+assert meanfi.solver(cold, cold.random_meanfield(rng=0)).total_energy is not None
+grid = meanfi.tb_to_kgrid(h, (8,))
+np.testing.assert_allclose(meanfi.tb_to_kgrid(meanfi.kgrid_to_tb(grid), (8,)), grid, atol=1e-14)
 
-sparse_h = {key: csr_array(value) for key, value in h.items()}
+# Distinct coupled bands exercise actual selected inverses, not a constant fit.
+sparse_h = {key: csr_array(np.kron(value, np.eye(2))) for key, value in h.items()}
+sparse_h[(0,)] = csr_array([[0., .2], [.2, 0.]])
 try:
     result = meanfi.density_matrix(
-        sparse_h, filling=.43, kT=.2, keys=[(0,)], filling_tol=1e-7,
+        sparse_h, filling=.86, kT=.2, keys=[(0,)], filling_tol=1e-7,
         integration=meanfi.PeriodicGrid(nk=32, matrix_function=meanfi.RationalFOE()),
     )
 except ImportError as exc:
     assert not sparse_enabled and "meanfi[sparse]" in str(exc)
 else:
     assert sparse_enabled
-    energies = -2 * np.cos(2 * np.pi * np.arange(32) / 32)
-    assert abs(np.mean(expit((result.mu - energies) / .2)) - .43) < 1e-7
+    energies = -2 * np.cos(2 * np.pi * np.arange(32) / 32)[:, None] + np.array([-.2, .2])
+    assert abs(np.mean(np.sum(expit((result.mu - energies) / .2), axis=1)) - .86) < 1e-7
 print("Installed wheel passed:", "sparse extra" if sparse_enabled else "core without MUMPS")
 """
 
 
 def main():
+    for name in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+        os.environ[name] = "1"
+    os.environ["MKL_DYNAMIC"] = "FALSE"
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sparse", action="store_true")
     args = parser.parse_args()

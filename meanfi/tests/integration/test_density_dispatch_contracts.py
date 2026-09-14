@@ -51,7 +51,9 @@ def test_normal_solver_warns_when_guess_is_projected_to_structural_selection():
 
 
 def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
-    with pytest.raises(ValueError, match="local key"):
+    with pytest.raises(
+        ValueError, match="keys must be integer tuples of the same length"
+    ):
         density_matrix_at_mu(
             {(): np.diag([-1.0, 1.0]), (1,): np.ones((2, 2))},
             mu=0.0,
@@ -110,8 +112,8 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
     assert np.isfinite(result.mu)
     assert abs(result.filling - 1.0) <= 2e-4
     assert np.allclose(
-        result.density_matrix[(0,)],
-        result.density_matrix[(0,)].conj().T,
+        result.to_tb()[(0,)],
+        result.to_tb()[(0,)].conj().T,
         atol=1e-8,
     )
 
@@ -169,7 +171,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     assert called["kwargs"]["charge_tol"] == 2e-4
     assert called["kwargs"]["filling_tol"] == 2e-3
     assert called["kwargs"]["num_threads"] == 3
-    assert np.allclose(result.density_matrix[(0,)], np.array([[1.0]]))
+    assert np.allclose(result.to_tb()[(0,)], np.array([[1.0]]))
     assert result.errors.density_matrix_integration == 0.0
     assert result.mu == 0.0
     assert result.filling == 1.0
@@ -405,7 +407,7 @@ def test_zero_temperature_backend_supports_higher_dimensions(ndim):
     )
 
     assert np.allclose(
-        result.density_matrix[key],
+        result.to_tb()[key],
         np.diag([1.0, 0.0]),
         atol=1e-12,
     )

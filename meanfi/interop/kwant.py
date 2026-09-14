@@ -1,177 +1,107 @@
-from itertools import product
+"""Conversions between Kwant builders and dense or sparse tight-binding blocks."""
+
 from collections import defaultdict
-from typing import Callable, Optional
+from typing import Callable
 import inspect
 
 import numpy as np
 import kwant
 from scipy import sparse as scipy_sparse
 from kwant.builder import Site
-import kwant.lattice
-import kwant.builder
-
 
 from meanfi.tb.ops import _tb_type
 
 
-def builder_to_tb(
-    builder: kwant.builder.Builder,
-    params: dict = {},
-    return_data: bool = False,
-    sparse: bool = False,
-) -> _tb_type:
-    """Construct a tight-binding dictionary from a `kwant.builder.Builder` system.
-
-    Parameters
-    ----------
-    builder :
-       system to convert to tight-binding dictionary.
-    params :
-        Dictionary of parameters to evaluate the builder on.
-    return_data :
-        Returns dictionary with sites and number of orbitals per site.
-    sparse :
-        Return CSR sparse matrices instead of dense arrays.
-
-    Returns
-    -------
-    :
-        Tight-binding dictionary that corresponds to the builder.
-    :
-        Data with sites and number of orbitals. Only if `return_data=True`.
-    """
-    prim_vecs = builder.symmetry.periods
-    dims = len(prim_vecs)
-
-    sorted_sites = sorted(builder.sites())
-    idx_by_site = {site: idx for idx, site in enumerate(sorted_sites)}
-    norbs_list = [site.family.norbs for site in sorted_sites]
-
-    if any(norbs is None for norbs in norbs_list):
+def _site_slices(sites):
+    norbs = [site.family.norbs for site in sites]
+    if any(n is None for n in norbs):
         raise ValueError("Number of orbitals must be specified for all sites.")
+    offsets = np.cumsum([0, *norbs])
+    return {
+        site: slice(start, stop)
+        for site, start, stop in zip(sites, offsets[:-1], offsets[1:], strict=True)
+    }
 
-    offsets = np.cumsum([0] + norbs_list)
 
-    tb_norbs = sum(norbs_list)
-    tb_shape = (tb_norbs, tb_norbs)
-    onsite_idx = tuple([0] * dims)
-    h_0 = defaultdict(lambda: np.zeros(tb_shape, dtype=complex))
+def builder_to_tb(
+    builder: kwant.Builder, *, params=None, return_data=False, sparse=False
+):
+    """Evaluate a builder into tight-binding blocks.
 
-    onsite = h_0[onsite_idx]
-    for site, val in builder.site_value_pairs():
-        if callable(val):
-            param_keys = inspect.getfullargspec(val).args[1:]
-            try:
-                val = val(site, *[params[key] for key in param_keys])
-            except KeyError as key:
-                raise KeyError(f"Parameter {key} not found in params.")
+    ``sparse=True`` assembles CSR output without dense unit-cell matrices.
+    ``return_data=True`` also returns sites and symmetry periods for inversion.
+    Scalars on multi-orbital sites are interpreted as multiples of the identity.
+    """
+    sites = sorted(builder.sites())
+    if not sites:
+        raise ValueError("builder must contain at least one site")
+    slices = _site_slices(sites)
+    size = slices[sites[-1]].stop
+    periods = getattr(builder.symmetry, "periods", ())
+    onsite = (0,) * len(periods)
+    params = {} if params is None else params
+    allocate = scipy_sparse.lil_matrix if sparse else np.zeros
+    blocks = defaultdict(lambda: allocate((size, size), dtype=complex))
+    blocks[onsite]  # Include the local block even when all onsite values are zero.
 
-        site_idx = idx_by_site[site]
-        onsite[
-            offsets[site_idx] : offsets[site_idx + 1],
-            offsets[site_idx] : offsets[site_idx + 1],
-        ] = val
+    def value_at(value, *sites):
+        if callable(value):
+            names = inspect.getfullargspec(value).args[len(sites) :]
+            value = value(*sites, *[params[name] for name in names])
+        return value
 
-    for (site1, site2), val in builder.hopping_value_pairs():
-        if callable(val):
-            param_keys = inspect.getfullargspec(val).args[2:]
-            try:
-                val = val(site1, site2, *[params[key] for key in param_keys])
-            except KeyError as key:
-                raise KeyError(f"Parameter {key} not found in params.")
+    def put(key, row, col, value):
+        if np.ndim(value) == 0 and not scipy_sparse.issparse(value):
+            value = value * np.eye(row.stop - row.start, col.stop - col.start)
+        blocks[key][row, col] = value
 
-        site2_dom = builder.symmetry.which(site2)
-        site2_fd = builder.symmetry.to_fd(site2)
+    for site, value in builder.site_value_pairs():
+        put(onsite, slices[site], slices[site], value_at(value, site))
+    for (site1, site2), value in builder.hopping_value_pairs():
+        key = tuple(builder.symmetry.which(site2))
+        row, col = slices[site1], slices[builder.symmetry.to_fd(site2)]
+        value = value_at(value, site1, site2)
+        if not scipy_sparse.issparse(value):
+            value = np.asarray(value)
+        put(key, row, col, value)
+        put(tuple(-r for r in key), col, row, value.conj().T)
 
-        site1_idx, site2_idx = [idx_by_site[site1], idx_by_site[site2_fd]]
-        to_slice, from_slice = [
-            slice(offsets[idx], offsets[idx + 1]) for idx in [site1_idx, site2_idx]
-        ]
-
-        h_0[site2_dom][to_slice, from_slice] = val
-        h_0[-site2_dom][from_slice, to_slice] = val.T.conj()
-
-    if sparse:
-        h_0 = {key: scipy_sparse.csr_matrix(value) for key, value in h_0.items()}
-
-    if return_data:
-        data = {}
-        data["periods"] = prim_vecs
-        data["sites"] = list(idx_by_site.keys())
-        return h_0, data
-    else:
-        return h_0
+    tb = {key: matrix.tocsr() if sparse else matrix for key, matrix in blocks.items()}
+    return (tb, {"periods": periods, "sites": sites}) if return_data else tb
 
 
 def tb_to_builder(
-    h_0: _tb_type, sites_list: list[Site, ...], periods: np.ndarray
-) -> kwant.builder.Builder:
+    h_0: _tb_type, sites_list: list[Site], periods: np.ndarray
+) -> kwant.Builder:
+    """Reconstruct a builder from blocks and ``builder_to_tb`` metadata.
+
+    Only site pairs with nonzero entries are visited. Sparse inputs are
+    densified one site-to-site block at a time, as required by Kwant.
     """
-    Construct a `kwant.builder.Builder` from a tight-binding dictionary.
-
-    Parameters
-    ----------
-    h_0 :
-        Tight-binding dictionary.
-    sites_list :
-        List of sites in the builder's unit cell.
-    periods :
-        2d array with periods of the translational symmetry.
-
-    Returns
-    -------
-    :
-        `kwant.builder.Builder` that corresponds to the tight-binding dictionary.
-    """
-    if periods == ():
-        builder = kwant.Builder()
-    else:
-        builder = kwant.Builder(kwant.TranslationalSymmetry(*periods))
-    onsite_idx = tuple([0] * len(list(h_0)[0]))
-
-    sites_list = sorted(sites_list)
-    norbs_list = [site.family.norbs for site in sites_list]
-    norbs_list = [1 if norbs is None else norbs for norbs in norbs_list]
-
-    def site_to_tbIdxs(site):
-        site_idx = sites_list.index(site)
-        return (np.sum(norbs_list[:site_idx]) + range(norbs_list[site_idx])).astype(int)
-
-    # assemble the sites first
-    for site in sites_list:
-        tb_idxs = site_to_tbIdxs(site)
-        value = h_0[onsite_idx][
-            tb_idxs[0] : tb_idxs[-1] + 1, tb_idxs[0] : tb_idxs[-1] + 1
-        ]
-        builder[site] = value
-
-    # connect hoppings within the unit-cell
-    for site1, site2 in product(sites_list, sites_list):
-        if site1 == site2:
-            continue
-        tb_idxs1 = site_to_tbIdxs(site1)
-        tb_idxs2 = site_to_tbIdxs(site2)
-        value = h_0[onsite_idx][
-            tb_idxs1[0] : tb_idxs1[-1] + 1, tb_idxs2[0] : tb_idxs2[-1] + 1
-        ]
-        if np.all(value == 0):
-            continue
-        builder[(site1, site2)] = value
-
-    # connect hoppings between unit-cells
-    for key in h_0:
-        if key == onsite_idx:
-            continue
-        for site1, site2_fd in product(sites_list, sites_list):
-            site2 = builder.symmetry.act(key, site2_fd)
-            tb_idxs1 = site_to_tbIdxs(site1)
-            tb_idxs2 = site_to_tbIdxs(site2_fd)
-            value = h_0[key][
-                tb_idxs1[0] : tb_idxs1[-1] + 1, tb_idxs2[0] : tb_idxs2[-1] + 1
-            ]
-            if np.all(value == 0):
+    builder = (
+        kwant.Builder(kwant.TranslationalSymmetry(*periods))
+        if len(periods)
+        else kwant.Builder()
+    )
+    sites = sorted(sites_list)
+    slices = _site_slices(sites)
+    onsite = (0,) * len(periods)
+    blocks = {key: scipy_sparse.csr_matrix(matrix) for key, matrix in h_0.items()}
+    for site in sites:
+        section = slices[site]
+        builder[site] = blocks[onsite][section, section].toarray()
+    site_by_orbital = np.repeat(
+        np.arange(len(sites)), [site.family.norbs for site in sites]
+    )
+    for key, matrix in blocks.items():
+        rows, cols = matrix.nonzero()
+        pairs = set(zip(site_by_orbital[rows], site_by_orbital[cols], strict=True))
+        for row, col in sorted(pairs):
+            if key == onsite and row == col:
                 continue
-            builder[(site1, site2)] = value
+            source, target = sites[row], sites[col]
+            value = matrix[slices[source], slices[target]].toarray()
+            builder[source, builder.symmetry.act(key, target)] = value
     return builder
 
 
@@ -179,7 +109,7 @@ def build_interacting_syst(
     builder: kwant.builder.Builder,
     lattice: kwant.lattice.Polyatomic,
     func_onsite: Callable,
-    func_hop: Optional[Callable] = None,
+    func_hop: Callable | None = None,
     max_neighbor: int = 1,
 ) -> kwant.builder.Builder:
     """
@@ -204,9 +134,7 @@ def build_interacting_syst(
     :
         Auxiliary `kwant.builder.Builder` that encodes the interactions of the system.
     """
-    int_builder = kwant.builder.Builder(
-        kwant.lattice.TranslationalSymmetry(*builder.symmetry.periods)
-    )
+    int_builder = kwant.Builder(builder.symmetry)
     int_builder[builder.sites()] = func_onsite
     if func_hop is not None:
         for neighbors in range(max_neighbor + 1):

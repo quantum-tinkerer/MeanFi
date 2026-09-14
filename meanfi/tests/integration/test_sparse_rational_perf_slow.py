@@ -21,7 +21,8 @@ requires_ext = pytest.mark.skipif(
 
 @pytest.mark.perf_slow
 @pytest.mark.usefixtures("require_mumps")
-def test_sparse_rational_fixed_filling_matches_dense_reference():
+@pytest.mark.parametrize("scheme", ["aaa", "ozaki"])
+def test_sparse_rational_fixed_filling_matches_dense_reference(scheme):
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     keys = [(0,), (1,), (-1,)]
     dense_result = density_matrix(
@@ -33,7 +34,8 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
             nk=128,
             matrix_function=DirectDiagonalization(),
         ),
-        filling_tol=1e-2,
+        tol=1e-9,
+        filling_tol=1e-9,
         mu_tol=1e-8,
     )
     sparse_result = density_matrix(
@@ -43,9 +45,12 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
         keys=keys,
         integration=PeriodicGrid(
             nk=128,
-            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
+            matrix_function=RationalFOE(
+                initial_poles=4, max_poles=64, rational_scheme=scheme
+            ),
         ),
-        filling_tol=1e-2,
+        tol=1e-9,
+        filling_tol=1e-9,
         mu_tol=1e-8,
     )
 
@@ -53,22 +58,20 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
     assert abs(sparse_result.filling - dense_result.filling) <= 1e-8
     for key in keys:
         assert (
-            np.max(
-                np.abs(
-                    sparse_result.density_matrix[key] - dense_result.density_matrix[key]
-                )
-            )
+            np.max(np.abs(sparse_result.to_tb()[key] - dense_result.to_tb()[key]))
             <= 5e-4
         )
 
 
 @pytest.mark.perf_slow
 @pytest.mark.usefixtures("require_mumps")
-def test_sparse_rational_fixed_mu_matches_dense_reference():
+@pytest.mark.parametrize("scheme", ["aaa", "ozaki"])
+def test_sparse_rational_fixed_mu_matches_dense_reference(scheme):
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
     keys = [(0,), (1,), (-1,)]
     dense_result = density_matrix_at_mu(
         spinful_chain(),
+        tol=1e-9,
         mu=0.05,
         kT=0.15,
         keys=keys,
@@ -79,30 +82,30 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
     )
     sparse_result = density_matrix_at_mu(
         sparse_tb,
+        tol=1e-9,
         mu=0.05,
         kT=0.15,
         keys=keys,
         integration=PeriodicGrid(
             nk=128,
-            matrix_function=RationalFOE(initial_poles=4, max_poles=64),
+            matrix_function=RationalFOE(
+                initial_poles=4, max_poles=64, rational_scheme=scheme
+            ),
         ),
     )
     for key in keys:
         assert (
-            np.max(
-                np.abs(
-                    sparse_result.density_matrix[key] - dense_result.density_matrix[key]
-                )
-            )
+            np.max(np.abs(sparse_result.to_tb()[key] - dense_result.to_tb()[key]))
             <= 1e-8
         )
 
 
 @pytest.mark.perf_slow
 @pytest.mark.usefixtures("require_mumps")
-def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
+@pytest.mark.parametrize("scheme", ["aaa", "ozaki"])
+def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend(scheme):
     from meanfi.space.coordinates import full_density_coordinates
-    from meanfi.density.kpoint.matrix_functions import shift_by_mu
+    from meanfi.density.kpoint.matrix_functions.common import shift_by_mu
     from scipy.special import expit
     from meanfi.density.kpoint.matrix_functions.rational import (
         PreparedMumpsRationalNode,
@@ -114,7 +117,7 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
             dtype=complex,
         )
     )
-    options = RationalFOE(initial_poles=4, max_poles=64)
+    options = RationalFOE(initial_poles=4, max_poles=64, rational_scheme=scheme)
     q_diag = np.array([1.0, -1.0], dtype=float)
     trace_weights = np.array([1.0, 0.0], dtype=float)
     coords = full_density_coordinates([tuple()], size=2)
@@ -124,9 +127,9 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
         kT=0.2,
         q_diag=q_diag,
         options=options,
-        charge_tolerance=1e-3,
+        charge_tolerance=1e-9,
         density_coordinates=coords,
-        density_tolerance=1e-3,
+        density_tolerance=1e-9,
         trace_weights_diag=trace_weights,
     )
 

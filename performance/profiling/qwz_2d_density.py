@@ -55,7 +55,7 @@ def main() -> None:
         ndof=2,
         benchmark_result=measurement,
         density_result=result,
-        density_matrix_error=max_density_error(result.density_matrix, reference.rho),
+        density_matrix_error=max_density_error(result.to_tb(), reference.rho),
         filling_error=abs(result.filling - filling),
         extra={"density_matrix_tol": 1e-6},
     )

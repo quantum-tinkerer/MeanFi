@@ -16,14 +16,24 @@ from meanfi.tb.ops import (
 )
 from meanfi.tb.validate import tb_dimension, zero_key
 from meanfi.tb.storage import prefers_sparse_storage
+from meanfi.results import DensityResult
+from meanfi.space.space import ActiveSCFSpace
 
 if TYPE_CHECKING:
     from meanfi.model import Model
 
 
-def meanfield(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
+def meanfield(density_matrix: _tb_type | DensityResult, h_int: _tb_type) -> _tb_type:
     """Compute the normal mean-field correction from a density matrix."""
 
+    if isinstance(density_matrix, DensityResult):
+        space = ActiveSCFSpace.from_interaction(
+            h_int, sparse=prefers_sparse_storage(h_int)
+        )
+        values = density_matrix.values_for(space.required_coordinates)
+        density_matrix = space.meanfield_input_from_params(
+            space.params_from_required_entries(values)
+        )
     onsite_key = zero_key(tb_dimension(density_matrix))
     diagonal_density = np.asarray(density_matrix[onsite_key].diagonal()).real.ravel()
     onsite_diagonal = np.zeros_like(diagonal_density, dtype=complex)

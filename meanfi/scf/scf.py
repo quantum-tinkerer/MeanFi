@@ -27,7 +27,7 @@ def solver(
     guess: _tb_type,
     *,
     integration: IntegrationMethod | None = None,
-    scf: SCFMethod = AndersonMixing(),
+    scf: SCFMethod | None = None,
     scf_tol: float | None = None,
     tol: float = 1e-3,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
@@ -67,7 +67,11 @@ def solver(
         and float(model.kT) == 0.0
         and isinstance(resolved_integration, AdaptiveSimplex)
     )
-    resolved_scf = scf
+    resolved_scf = (
+        scf
+        if scf is not None
+        else (EnergyDIIS() if supports_energy_diis else AndersonMixing())
+    )
     if not isinstance(resolved_scf, SCFMethod):
         raise TypeError("scf must be an SCFMethod instance")
     if isinstance(resolved_scf, EnergyDIIS) and not supports_energy_diis:

@@ -51,7 +51,7 @@ def test_large_sparse_model_reconstruction_avoids_dense_blocks(
     correction = model.random_meanfield(rng=3, scale=0.01)
     assert all(sparse.issparse(block) for block in correction.values())
     if superconducting:
-        hamiltonian = model.bdg_hamiltonian_from_meanfield(correction)
+        hamiltonian = model.hamiltonian_from_meanfield(correction)
         validate_bdg_tb(hamiltonian, ndof=size, ndim=1)
     else:
         coordinates = model.scf_space.required_coordinates
@@ -62,7 +62,7 @@ def test_large_sparse_model_reconstruction_avoids_dense_blocks(
             errors=ErrorValues(),
         )
         assert expectation_value(result, h) == size
-        hamiltonian = model.hamiltonian_from_rho(result)
+        hamiltonian = model.hamiltonian_from_density(result)
         density = model.scf_space.meanfield_input_from_params(
             np.ones(model.scf_space.num_params)
         )
@@ -121,12 +121,12 @@ def test_observable_from_mixed_dense_sparse_hamiltonian():
     h = {(): np.diag([-0.5, 0.5])}
     model = Model(h, {(): sparse.eye(2, format="csr")}, filling=1.0, kT=0.2)
     density = density_matrix(h, filling=1.0, kT=0.2, keys=[()])
-    hamiltonian = model.hamiltonian_from_rho(density)
+    hamiltonian = model.hamiltonian_from_density(density)
     assert expectation_value(density, hamiltonian) == pytest.approx(
-        expectation_value(density.to_matrix(), hamiltonian)
+        expectation_value(density.to_tb(), hamiltonian)
     )
-    mixed_density = add_tb(density.to_matrix(), {(): sparse.csr_matrix((2, 2))})
+    mixed_density = add_tb(density.to_tb(), {(): sparse.csr_matrix((2, 2))})
     np.testing.assert_allclose(
         to_dense(meanfield(mixed_density, model.h_int)[()]),
-        to_dense(meanfield(density.to_matrix(), model.h_int)[()]),
+        to_dense(meanfield(density.to_tb(), model.h_int)[()]),
     )

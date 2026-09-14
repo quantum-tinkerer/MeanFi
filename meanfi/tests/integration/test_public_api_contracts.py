@@ -8,7 +8,6 @@ import pytest
 
 from meanfi import (
     AdaptiveSimplex,
-    AndersonMixing,
     DensityResult,
     DirectDiagonalization,
     Model,
@@ -19,7 +18,7 @@ from meanfi import (
     total_energy,
 )
 from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.tests.fixtures.models import spinful_chain
+from meanfi.tests.fixtures.models import spinful_chain, density_result_from_tb
 
 pytestmark = pytest.mark.integration
 requires_ext = pytest.mark.skipif(
@@ -40,10 +39,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert model_params["kT"].default == 0.0
     assert model_params["reference"].kind is inspect.Parameter.KEYWORD_ONLY
     assert model_params["reference"].default is None
-    assert (
-        model_params["reference_density_matrix"].kind is inspect.Parameter.KEYWORD_ONLY
-    )
-    assert model_params["reference_density_matrix"].default is None
+    assert "reference_density_matrix" not in model_params
     for name in ("charge_tol", "density_atol", "scf_tol", "max_subdivisions"):
         assert name not in model_params
     assert model_params["superconducting"].kind is inspect.Parameter.KEYWORD_ONLY
@@ -62,7 +58,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     ):
         assert solver_params[name].kind is inspect.Parameter.KEYWORD_ONLY
     assert solver_params["integration"].default is None
-    assert isinstance(solver_params["scf"].default, AndersonMixing)
+    assert solver_params["scf"].default is None
     assert "accuracy" not in solver_params
     assert solver_params["tol"].default == 1e-3
     assert solver_params["scf_tol"].default is None
@@ -70,7 +66,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert "optimizer_kwargs" not in solver_params
 
     density_params = inspect.signature(density_matrix).parameters
-    assert density_params["kT"].default == 0.0
+    assert density_params["kT"].default is None
     assert density_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
     assert density_params["integration"].default is None
     assert density_params["tol"].default == 1e-3
@@ -86,7 +82,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert selected_density_params["interaction"].default is None
 
     density_at_mu_params = inspect.signature(density_matrix_at_mu).parameters
-    assert density_at_mu_params["kT"].default == 0.0
+    assert density_at_mu_params["kT"].default is None
     assert density_at_mu_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
     assert density_at_mu_params["integration"].default is None
     assert "filling_tol" not in density_at_mu_params
@@ -194,7 +190,7 @@ def test_internal_matrix_function_package_root_exposes_shared_symbols():
     assert matrix_functions.DirectDiagonalization is DirectDiagonalization
     assert not hasattr(matrix_functions, "ChebyshevFOE")
     assert not hasattr(matrix_functions, "density_block")
-    assert hasattr(matrix_functions, "shift_by_mu")
+    assert matrix_functions.__all__ == ["DirectDiagonalization", "RationalFOE"]
 
 
 def test_density_result_exposes_physical_values_errors_and_mesh_statistics():
@@ -211,7 +207,7 @@ def test_density_result_exposes_physical_values_errors_and_mesh_statistics():
     assert result.values is result.entries.values
     assert result.entry_errors is result.entries.errors
     assert not result.values.flags.writeable
-    assert result.filling == pytest.approx(np.trace(result.to_matrix()[()]).real)
+    assert result.filling == pytest.approx(np.trace(result.to_tb()[()]).real)
     assert result.statistics is not None
     assert not hasattr(result, "density_matrix_error")
     assert not hasattr(result, "info")
@@ -222,8 +218,12 @@ def test_density_result_exposes_physical_values_errors_and_mesh_statistics():
 @pytest.mark.parametrize(
     ("overrides", "match"),
     [
-        ({"filling": 0.0}, "positive scalar"),
-        ({"kT": -1.0}, "kT >= 0"),
+        ({"filling": -0.1}, "filling must be finite"),
+        ({"filling": np.inf}, "filling must be finite"),
+        ({"filling": np.nan}, "filling must be finite"),
+        ({"filling": 2.1}, "filling must be finite"),
+        ({"kT": np.nan}, "kT must be finite"),
+        ({"kT": -1.0}, "kT must be finite"),
     ],
 )
 def test_model_rejects_invalid_scalar_controls(overrides, match):
@@ -248,9 +248,9 @@ def test_model_rejects_nonhermitian_inputs():
 
 def test_model_rejects_invalid_reference_density_matrix_shape():
     kwargs = _base_model_kwargs()
-    kwargs["reference_density_matrix"] = {(0,): np.zeros((3, 3))}
+    kwargs["reference"] = density_result_from_tb({(0,): np.zeros((3, 3))})
 
-    with pytest.raises(ValueError, match="reference_density_matrix matrices"):
+    with pytest.raises(ValueError, match="matrix sizes do not match"):
         Model(**kwargs)
 
 
@@ -264,18 +264,19 @@ def test_model_reference_requires_a_density_result():
 
 def test_model_rejects_invalid_reference_density_matrix_dimension():
     kwargs = _base_model_kwargs()
-    kwargs["reference_density_matrix"] = {(0, 0): np.zeros((2, 2))}
+    kwargs["h_int"] = {(0,): np.ones((2, 2))}
+    kwargs["reference"] = density_result_from_tb({(0, 0): np.zeros((2, 2))})
 
-    with pytest.raises(ValueError, match="reference_density_matrix keys"):
+    with pytest.raises(ValueError, match="missing .* required coordinate"):
         Model(**kwargs)
 
 
 def test_model_rejects_reference_density_matrix_for_superconducting_models():
     kwargs = _base_model_kwargs()
     kwargs["superconducting"] = True
-    kwargs["reference_density_matrix"] = {(0,): np.zeros((2, 2))}
+    kwargs["reference"] = density_result_from_tb({(0,): np.zeros((2, 2))})
 
-    with pytest.raises(ValueError, match="normal-state models"):
+    with pytest.raises(ValueError, match="normal models"):
         Model(**kwargs)
 
 
@@ -283,7 +284,7 @@ def test_model_is_immutable_and_owns_scf_space():
     model = Model(**_base_model_kwargs())
 
     assert model.scf_space is model.scf_space
-    with pytest.raises(AttributeError, match="immutable"):
+    with pytest.raises(AttributeError, match="cannot assign"):
         model.filling = 2.0
 
 
@@ -298,3 +299,85 @@ def test_model_random_meanfield_is_seeded_and_solver_ready():
         np.testing.assert_allclose(first[key], second[key])
         np.testing.assert_allclose(zero[key], np.zeros_like(zero[key]))
         np.testing.assert_allclose(first[key], first[tuple(-np.asarray(key))].conj().T)
+
+
+@pytest.mark.parametrize("use_sparse", [False, True])
+def test_model_owns_readonly_copies_of_input_blocks(use_sparse):
+    from scipy.sparse import csr_matrix
+
+    block = np.diag([-1.0, 1.0]).astype(complex)
+    if use_sparse:
+        block = csr_matrix(block)
+    model = Model({(): block}, {(): block * 0}, filling=1)
+    if use_sparse:
+        block.data[:] = 7
+        np.testing.assert_allclose(model.h_0[()].diagonal(), [-1, 1])
+        with pytest.raises(ValueError):
+            model.h_0[()].data[0] = 7
+    else:
+        block[:] = 7
+        np.testing.assert_allclose(model.h_0[()].diagonal(), [-1, 1])
+        with pytest.raises(ValueError):
+            model.h_0[()][0, 0] = 7
+    with pytest.raises(TypeError):
+        model.h_0[()] = block
+
+
+@pytest.mark.parametrize("interaction", [{(): np.eye(1)}, {(0,): np.eye(2)}])
+def test_model_rejects_interaction_size_or_dimension_mismatch(interaction):
+    with pytest.raises(ValueError, match="same dimension and matrix size"):
+        Model({(): np.eye(2)}, interaction, filling=1)
+
+
+def test_spatial_symmetry_owns_its_inputs():
+    lattice, unitary = np.eye(1), np.eye(2)
+    symmetry = meanfi.SpatialSymmetry(lattice, {(0,): unitary})
+    lattice[:] = 7
+    unitary[:] = 7
+    np.testing.assert_array_equal(symmetry.lattice_matrix, np.eye(1))
+    np.testing.assert_array_equal(symmetry.unitaries_by_shift[(0,)], np.eye(2))
+
+
+@pytest.mark.parametrize("superconducting", [False, True])
+def test_model_density_api_matches_full_blocks_at_filling_and_mu(superconducting):
+    model = Model(
+        {(): np.array([[-0.3, 0.1j], [-0.1j, 0.2]])},
+        {(): np.array([[0.0, 0.4], [0.4, 0.0]])},
+        filling=0.8,
+        kT=0.2,
+        superconducting=superconducting,
+    )
+    correction = model.random_meanfield(rng=42, scale=0.1)
+    selected = density_matrix(model, mean_field=correction, tol=1e-8)
+    full = density_matrix(model, mean_field=correction, keys=[()], tol=1e-8)
+    at_mu = density_matrix_at_mu(
+        model, full.mu, mean_field=correction, keys=[()], tol=1e-8
+    )
+    np.testing.assert_allclose(
+        selected.values, full.values_for(selected.coordinates), atol=1e-9
+    )
+    np.testing.assert_allclose(at_mu.values, full.values, atol=1e-9)
+    assert full.filling == pytest.approx(0.8, abs=1e-9)
+    dense, sparse = full.to_tb(), full.to_tb(sparse=True)
+    np.testing.assert_allclose(sparse[()].toarray(), dense[()])
+    np.testing.assert_allclose(
+        model.hamiltonian_from_density(selected)[()],
+        model.hamiltonian_from_density(full)[()],
+        atol=1e-9,
+    )
+    if not superconducting:
+        np.testing.assert_allclose(
+            meanfi.meanfield(selected, model.h_int)[()],
+            meanfi.meanfield(dense, model.h_int)[()],
+        )
+
+
+def test_initial_integration_failure_has_the_public_solver_exception():
+    model = Model(spinful_chain(), {(0,): np.zeros((2, 2))}, filling=0.7)
+    integration = AdaptiveSimplex(max_refinements=0, density_matrix_tol=1e-9)
+    with pytest.raises(meanfi.ConvergenceError):
+        density_matrix(model, integration=integration)
+    with pytest.raises(meanfi.SolverFailure) as caught:
+        solver(model, model.random_meanfield(rng=1), integration=integration)
+    assert caught.value.result is None
+    assert isinstance(caught.value.__cause__, meanfi.ConvergenceError)

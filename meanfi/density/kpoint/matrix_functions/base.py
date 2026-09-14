@@ -15,7 +15,7 @@ class RationalFOE:
 
     initial_poles: int = 4
     max_poles: int = 256
-    rational_scheme: Literal["ozaki", "aaa"] = "ozaki"
+    rational_scheme: Literal["ozaki", "aaa"] = "aaa"
 
     def __post_init__(self) -> None:
         if self.initial_poles <= 0:

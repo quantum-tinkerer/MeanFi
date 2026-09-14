@@ -31,7 +31,6 @@ import warnings
 
 import meanfi
 from meanfi.space.reducers import LinearConstraintReducer, OrbitReducer
-from meanfi.space.support import normal_active_support
 from meanfi.space.symmetry import HermiticityConstraint
 ```
 
@@ -132,8 +131,7 @@ The raw active entries come from `h_int`.
 Hermiticity removes conjugate redundancy; the glide then removes additional SCF variables.
 
 ```{code-cell} ipython3
-support = normal_active_support(model_glide)
-entries = support.coordinates.entries
+entries = model_glide.scf_space.active_coordinates.entries
 
 hermitian_basis = OrbitReducer(entries).basis((HermiticityConstraint(),))
 glide_basis = LinearConstraintReducer(
@@ -161,7 +159,7 @@ Now solve the same interacting problem twice: once with no symmetry constraint a
 
 ```{code-cell} ipython3
 integration = meanfi.PeriodicGrid(nk=9)
-scf = meanfi.AndersonMixing(M=3, max_iterations=80)
+scf = meanfi.AndersonMixing(history_size=3, max_iterations=80)
 
 free_result = meanfi.solver(
     model_free,

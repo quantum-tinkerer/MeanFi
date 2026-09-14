@@ -41,7 +41,7 @@ def test_zero_dimensional_density_matrix_at_mu_matches_exact_occupation():
     )
     expected = np.diag(fermi_dirac(np.array([-1.0, 2.0]), kT, mu))
 
-    assert np.allclose(result.density_matrix[()], expected, atol=1e-12)
+    assert np.allclose(result.to_tb()[()], expected, atol=1e-12)
     assert result.errors.density_matrix_integration == pytest.approx(0.0)
 
 
@@ -59,16 +59,16 @@ def test_density_matrix_respects_hermiticity_and_charge_sum_rule():
     )
 
     assert np.allclose(
-        result.density_matrix[(0,)],
-        result.density_matrix[(0,)].conj().T,
+        result.to_tb()[(0,)],
+        result.to_tb()[(0,)].conj().T,
         atol=1e-8,
     )
     assert np.allclose(
-        result.density_matrix[(-1,)],
-        result.density_matrix[(1,)].conj().T,
+        result.to_tb()[(-1,)],
+        result.to_tb()[(1,)].conj().T,
         atol=1e-8,
     )
-    assert abs(np.trace(result.density_matrix[(0,)]).real - 2.0) <= 1e-8
+    assert abs(np.trace(result.to_tb()[(0,)]).real - 2.0) <= 1e-8
     assert abs(result.filling - 2.0) <= 1e-8
 
 
@@ -175,17 +175,17 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
     assert doubled_result.errors.density_matrix_integration is not None
     assert abs(primitive_result.mu - doubled_result.mu) < 1e-12
     assert np.allclose(
-        primitive_result.density_matrix[(0,)],
-        doubled_result.density_matrix[(0,)][:2, :2],
+        primitive_result.to_tb()[(0,)],
+        doubled_result.to_tb()[(0,)][:2, :2],
         atol=1e-12,
     )
     assert np.allclose(
-        primitive_result.density_matrix[(0,)],
-        doubled_result.density_matrix[(0,)][2:, 2:],
+        primitive_result.to_tb()[(0,)],
+        doubled_result.to_tb()[(0,)][2:, 2:],
         atol=1e-12,
     )
     assert np.allclose(
-        doubled_result.density_matrix[(0,)][:2, 2:],
+        doubled_result.to_tb()[(0,)][:2, 2:],
         np.zeros((2, 2)),
         atol=1e-12,
     )
@@ -201,4 +201,4 @@ def test_periodic_grid_reports_unique_eval_count():
     )
 
     assert result.errors.density_matrix_integration is None
-    assert result.density_matrix[(0,)].shape == (2, 2)
+    assert result.to_tb()[(0,)].shape == (2, 2)

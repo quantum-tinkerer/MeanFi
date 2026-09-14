@@ -27,7 +27,7 @@ def test_superconducting_model_uses_electron_first_bdg_embedding():
         superconducting=True,
     )
 
-    hamiltonian = model.bdg_hamiltonian_from_meanfield(
+    hamiltonian = model.hamiltonian_from_meanfield(
         {(): np.zeros((2, 2), dtype=complex)}
     )
 
@@ -105,7 +105,7 @@ def test_bdg_solver_supports_anderson_mixing():
         model,
         {(0,): np.zeros((4, 4), dtype=complex)},
         integration=PeriodicGrid(),
-        scf=AndersonMixing(M=0, max_iterations=4),
+        scf=AndersonMixing(history_size=0, max_iterations=4),
     )
 
     assert result.history
@@ -193,4 +193,4 @@ def test_model_random_meanfield_generates_valid_bdg_guess():
     for key in first:
         np.testing.assert_allclose(first[key], second[key])
         np.testing.assert_allclose(zero[key], np.zeros_like(zero[key]))
-    model.bdg_hamiltonian_from_meanfield(first)
+    model.hamiltonian_from_meanfield(first)
