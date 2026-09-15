@@ -153,5 +153,8 @@ per-orbital quantities and the original tight-tolerance regression.
 cleanup with `b15d729`. It records the N=200 fixed-filling timings, independent
 dense-reference errors, the original 35 thermal cases, unchanged numerical work
 counts, and the limits of the standalone-node timings. The cleanup also unifies
-normal/BdG SCF and simplex solve setup, resolves density settings once, and gives
-energy and entropy independent error targets.
+normal/BdG SCF and simplex solve setup and resolves density settings once.
+The measured snapshot included independent energy and entropy targets; these
+were removed in `bf412e6`. Their estimates are now diagnostics, and thermodynamics
+uses the accepted density calculation. The recorded measurements describe the
+earlier snapshot.

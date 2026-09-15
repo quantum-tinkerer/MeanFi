@@ -1,5 +1,10 @@
 # Shared sparse layouts
 
+This report records the snapshot preceding `5762b42`. The separate energy and
+entropy targets described here were subsequently removed in `bf412e6`; current
+thermodynamics uses density accuracy. The measurements below remain historical
+evidence for the recorded source hashes.
+
 The guidelines cleanup prepares one immutable `SparseRationalLayout` per periodic
 calculation. It owns selected-inverse patterns and the mapping to requested
 entries. Each Hamiltonian/chemical-potential node retains its own numeric factors.
