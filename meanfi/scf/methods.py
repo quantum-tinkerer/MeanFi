@@ -55,7 +55,7 @@ class AndersonMixing(SCFMethod):
 
 @dataclass(frozen=True, kw_only=True)
 class EnergyDIIS(SCFMethod):
-    """Mix a convex density history by a free-energy upper bound.
+    """Mix a convex density history by minimizing internal energy.
 
     Run EDIIS alone until density converges or the iteration budget is exhausted.
     Users can compose separate solver calls to change methods explicitly.

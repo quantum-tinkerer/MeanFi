@@ -74,7 +74,7 @@ reference_solution = mf.solver(
 assert reference_solution.converged
 
 # EDIIS is the default for normal and BdG solves, including finite temperature.
-# It uses a free-energy history bound and never switches methods automatically.
+# It minimizes internal energy and never switches methods automatically.
 cold = replace(model, kT=0.0)
 cold_solution = mf.solver(cold, cold.random_meanfield(rng=12, scale=0.03), tol=1e-4)
 np.testing.assert_allclose(cold_solution.free_energy, cold_solution.internal_energy)
@@ -143,11 +143,13 @@ pair_guess = {
     (1,): np.array([[0.0, 0.25], [-0.25, 0.0]]),
     (-1,): np.array([[0.0, -0.25], [0.25, 0.0]]),
 }
+# Internal-energy EDIIS needs a longer budget for this finite-temperature case.
 bdg = mf.solver(
     pwave,
     pair_guess,
     integration=mf.PeriodicGrid(nk=256),
     tol=1e-5,
+    scf=mf.EnergyDIIS(max_iterations=200),
 )
 bdg_density = mf.density_matrix(
     pwave,

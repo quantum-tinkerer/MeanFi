@@ -20,7 +20,7 @@ support explicit `RationalFOE` for sparse matrices at positive temperature. No a
 is provided. Both explicit `RationalFOE()` and implicit prescribed sparse selection use AAA. Choosing dense evaluation for a sparse input must be explicit.
 
 `Model` defaults to `kT=0.0`. `solver` uses `EnergyDIIS()` for all supported
-normal and BdG calculations. EDIIS uses a free-energy history bound and never
+normal and BdG calculations. EDIIS minimizes internal energy over its density history and never
 switches methods. An explicit `scf=` selects another method. All SCF settings are
 keyword-only.
 The top-level `tol`

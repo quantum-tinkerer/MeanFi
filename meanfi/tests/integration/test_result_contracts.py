@@ -83,9 +83,7 @@ def test_public_result_objects_report_physics_errors_and_density_statistics():
         "mu",
         "filling",
         "internal_energy",
-        "free_energy",
         "errors",
-        "entropy",
     ]
     assert [field.name for field in fields(SCFResult)] == [
         "density",

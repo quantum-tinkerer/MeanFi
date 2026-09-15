@@ -93,7 +93,8 @@ print(f"Delta_y = {delta_y:.6f}")
 
 The converged solution has a real $\Delta_x$ and an imaginary $\Delta_y$, which is the structure we wanted.
 `EnergyDIIS` is the default here as in normal calculations. At this nonzero
-temperature it uses a free-energy history bound. It runs EDIIS alone; any
+temperature it minimizes internal energy over its density history. It runs
+EDIIS alone; any
 change of method requires an explicit choice by the caller. Individual
 iterations need not lower the physical free energy.
 

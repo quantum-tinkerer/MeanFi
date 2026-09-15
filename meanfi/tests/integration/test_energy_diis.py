@@ -19,13 +19,12 @@ pytestmark = pytest.mark.integration
 
 def test_ediis_minimizes_exact_quadratic_energy_on_convex_hull():
     history = [
-        EDIISPoint(np.array([0.0]), 1.0, 1.0),
-        EDIISPoint(np.array([2.0]), -3.0, 1.0),
+        EDIISPoint(np.array([0.0]), 1.0),
+        EDIISPoint(np.array([2.0]), 1.0),
     ]
 
     coefficients = ediis_coefficients(
         history,
-        interaction_energy=lambda params: float(params[0] ** 2),
         interaction_gradient=lambda params, direction: float(
             2.0 * params[0] * direction[0]
         ),
@@ -238,4 +237,54 @@ def test_scf_interaction_functional_matches_exact_two_orbital_energy(kind):
     # Central differences are exact for this quadratic, up to floating-point error.
     assert problem.interaction_gradient(params, direction) == pytest.approx(
         exact_gradient, abs=2e-10
+    )
+
+
+def test_ediis_quadratic_history_matches_exact_minimum_with_reference_offset():
+    rng = np.random.default_rng(427)
+    matrix = rng.normal(size=(3, 3))
+    hessian = matrix.T @ matrix + np.eye(3)
+    target = np.array([0.15, 0.25, 0.1])
+    reference = np.array([-0.1, 0.4, 0.7])
+    vertices = np.vstack([np.zeros(3), np.eye(3)])
+
+    def exact_energy(params):
+        difference = params - target
+        return 17.0 + 0.5 * difference @ hessian @ difference
+
+    history = [EDIISPoint(params, exact_energy(params)) for params in vertices]
+    coefficients = ediis_coefficients(
+        history,
+        interaction_gradient=lambda params, direction: float(
+            direction @ hessian @ (params - reference)
+        ),
+    )
+    # The target is inside this simplex; its energy is the exact global minimum.
+    mixed = coefficients @ vertices
+    np.testing.assert_allclose(mixed, target, atol=1e-6, rtol=0)
+    assert abs(exact_energy(mixed) - 17.0) < 1e-12
+
+
+def test_ediis_trajectory_is_independent_of_reported_entropy(monkeypatch):
+    from dataclasses import replace
+    import meanfi.scf.problem as scf_problem
+
+    model = _zero_dimensional_model(kT=0.2)
+    guess = {(): np.zeros((2, 2))}
+    baseline = solver(model, guess, tol=1e-9)
+    evaluate_density = scf_problem.evaluate_density
+
+    def altered_entropy(*args, **kwargs):
+        density = evaluate_density(*args, **kwargs)
+        return replace(density, entropy=1000 * float(np.linalg.norm(density.values)))
+
+    monkeypatch.setattr(scf_problem, "evaluate_density", altered_entropy)
+    altered = solver(model, guess, tol=1e-9)
+    assert len(baseline.history) > 1
+    assert altered.history == baseline.history
+    np.testing.assert_array_equal(altered.density.values, baseline.density.values)
+    assert altered.internal_energy == baseline.internal_energy
+    assert altered.free_energy != baseline.free_energy
+    assert altered.free_energy == pytest.approx(
+        altered.internal_energy - model.kT * altered.entropy
     )

@@ -183,10 +183,8 @@ class SCFIteration:
     step: int
     mu: float
     filling: float
-    internal_energy: float | None
-    free_energy: float | None
+    internal_energy: float
     errors: ErrorValues
-    entropy: float = 0.0
 
 
 @dataclass(frozen=True)

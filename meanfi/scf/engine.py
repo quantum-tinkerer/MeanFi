@@ -16,7 +16,7 @@ from meanfi.scf.fixed_point import (
 )
 from meanfi.scf.info import SCFRunState, record_scf_iteration
 from meanfi.scf.methods import EnergyDIIS, SCFMethod
-from meanfi.scf.problem import EnergyEvaluation, SCFProblem
+from meanfi.scf.problem import SCFProblem
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.ops import _tb_type
 
@@ -28,7 +28,7 @@ class _ResidualEvaluation:
     residual: np.ndarray
     density: DensityResult
     residual_norm: float
-    energy: EnergyEvaluation
+    internal_energy: float
 
 
 def _format_scf_progress(iteration: SCFIteration) -> str:
@@ -42,7 +42,7 @@ def _format_scf_progress(iteration: SCFIteration) -> str:
         parts.append(f"filling_residual={iteration.errors.filling_residual:.6e}")
     if iteration.errors.charge_integration is not None:
         parts.append(f"charge_error={iteration.errors.charge_integration:.6e}")
-    parts.append(f"free_energy={iteration.free_energy:.12g}")
+    parts.append(f"internal_energy={iteration.internal_energy:.12g}")
     return " ".join(parts)
 
 
@@ -79,8 +79,7 @@ def iterate_density_fixed_point(
             trial.input_state,
             trial.output_state,
             residual_norm=trial.residual_norm,
-            internal_energy=trial.energy.internal_energy,
-            free_energy=trial.energy.free_energy,
+            internal_energy=trial.internal_energy,
         )
         trial_evaluations.clear()
         if verbose:
@@ -89,7 +88,7 @@ def iterate_density_fixed_point(
 
     def residual_fn(params: np.ndarray) -> np.ndarray:
         input_state = ActiveDensityState(problem.model.scf_space, params)
-        density, output_state, energy = problem.evaluate_state(
+        density, output_state, internal_energy = problem.evaluate_state(
             input_state,
             run_state.evaluation.mu,
         )
@@ -101,7 +100,7 @@ def iterate_density_fixed_point(
                 residual=np.array(residual, copy=True),
                 density=density,
                 residual_norm=max_norm(residual),
-                energy=energy,
+                internal_energy=internal_energy,
             )
         )
         return residual
@@ -133,7 +132,7 @@ def iterate_density_fixed_point(
         return
 
     input_state = ActiveDensityState(problem.model.scf_space, result_params)
-    density, output_state, energy = problem.evaluate_state(
+    density, output_state, internal_energy = problem.evaluate_state(
         input_state,
         run_state.evaluation.mu,
     )
@@ -144,7 +143,7 @@ def iterate_density_fixed_point(
         residual=residual,
         density=density,
         residual_norm=max_norm(residual),
-        energy=energy,
+        internal_energy=internal_energy,
     )
     _commit_trial(final_trial)
 
@@ -163,7 +162,7 @@ def iterate_energy_ediis(
 
     for _ in range(scf.max_iterations):
         input_state = ActiveDensityState(problem.model.scf_space, params)
-        density, output_state, energy = problem.evaluate_state(
+        density, output_state, internal_energy = problem.evaluate_state(
             input_state,
             run_state.evaluation.mu,
         )
@@ -175,8 +174,7 @@ def iterate_energy_ediis(
             input_state,
             output_state,
             residual_norm=residual_norm,
-            internal_energy=energy.internal_energy,
-            free_energy=energy.free_energy,
+            internal_energy=internal_energy,
         )
         if verbose:
             print(_format_scf_progress(iteration))
@@ -186,15 +184,13 @@ def iterate_energy_ediis(
         history.append(
             EDIISPoint(
                 params=np.array(output_state.values, copy=True),
-                linear_free_energy=energy.linear_free_energy,
-                free_energy=energy.free_energy,
+                internal_energy=internal_energy,
             )
         )
         if len(history) > scf.history_size:
             history.pop(0)
         coefficients = ediis_coefficients(
             history,
-            interaction_energy=problem.interaction_energy,
             interaction_gradient=problem.interaction_gradient,
         )
         params = np.tensordot(
@@ -220,7 +216,9 @@ def _build_result(
         density=density,
         mean_field=problem.model._mean_field_from_state(state.output_state),
         internal_energy=state.internal_energy,
-        free_energy=state.free_energy,
+        free_energy=None
+        if state.internal_energy is None
+        else state.internal_energy - problem.model.kT * density.entropy,
         errors=errors,
         history=tuple(state.history),
         converged=converged,
@@ -271,6 +269,10 @@ def run_scf_loop(
     result = _build_result(problem, run_state, converged=True)
     if result.errors.scf_residual is None:
         raise RuntimeError("converged SCF result is missing its residual")
+    if verbose:
+        print(
+            f"scf converged: entropy={result.entropy:.12g} free_energy={result.free_energy:.12g}"
+        )
     return result
 
 

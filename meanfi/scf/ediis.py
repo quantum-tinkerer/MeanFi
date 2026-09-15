@@ -9,33 +9,22 @@ from scipy.optimize import minimize
 
 @dataclass(frozen=True)
 class EDIISPoint:
-    """One evaluated density and its free-energy decomposition."""
+    """One evaluated density and its internal energy."""
 
     params: np.ndarray
-    linear_free_energy: float
-    free_energy: float
-
-
-def _recent_lowest_energy_index(history: Sequence[EDIISPoint]) -> int:
-    energies = np.asarray([point.free_energy for point in history], dtype=float)
-    minimum = int(np.argmin(energies))
-    tied = np.flatnonzero(
-        np.isclose(energies, energies[minimum], rtol=1e-12, atol=1e-14)
-    )
-    return int(tied[-1])
+    internal_energy: float
 
 
 def ediis_coefficients(
     history: Sequence[EDIISPoint],
     *,
-    interaction_energy: Callable[[np.ndarray], float],
     interaction_gradient: Callable[[np.ndarray, np.ndarray], float],
 ) -> np.ndarray:
-    """Minimize a free-energy upper bound over the convex density history.
+    """Minimize internal energy over the convex density history.
 
-    The interaction is evaluated at the mixed density. One-body energy and
-    entropy are averaged over history; entropy concavity makes this an upper
-    bound at finite temperature and an exact quadratic functional at zero T."""
+    The one-body term is linear in density and the interaction is quadratic,
+    so this is the mixed density's internal energy at every temperature.
+    """
 
     count = len(history)
     if count == 0:
@@ -43,19 +32,25 @@ def ediis_coefficients(
     if count == 1:
         return np.ones(1, dtype=float)
 
-    params = np.stack([point.params for point in history])
-    one_body = np.asarray([point.linear_free_energy for point in history], dtype=float)
+    energies = np.asarray([point.internal_energy for point in history], dtype=float)
+    curvature = np.zeros((count, count))
+    for i, left in enumerate(history):
+        for j, right in enumerate(history[:i]):
+            difference = left.params - right.params
+            curvature[i, j] = curvature[j, i] = 0.5 * (
+                interaction_gradient(left.params, difference)
+                - interaction_gradient(right.params, difference)
+            )
 
+    # For a quadratic energy and sum(c) = 1, this equals E(sum(c_i rho_i)).
+    # Prepare the small history matrix once; optimization needs no model calls.
     def objective(coefficients: np.ndarray) -> float:
-        mixed = np.tensordot(coefficients, params, axes=1)
-        return float(coefficients @ one_body + interaction_energy(mixed))
+        return float(
+            coefficients @ energies - 0.5 * coefficients @ curvature @ coefficients
+        )
 
     def gradient(coefficients: np.ndarray) -> np.ndarray:
-        mixed = np.tensordot(coefficients, params, axes=1)
-        return one_body + np.asarray(
-            [interaction_gradient(mixed, direction) for direction in params],
-            dtype=float,
-        )
+        return energies - curvature @ coefficients
 
     starts = [np.full(count, 1.0 / count)]
     starts.extend(np.eye(count, dtype=float))
@@ -91,14 +86,15 @@ def ediis_coefficients(
             best = coefficients
             best_value = value
 
-    recent_best = _recent_lowest_energy_index(history)
+    recent_best = np.flatnonzero(
+        np.isclose(energies, np.min(energies), rtol=1e-12, atol=1e-14)
+    )[-1]
     vertex = np.zeros(count, dtype=float)
     vertex[recent_best] = 1.0
     if best is None:
         return vertex
 
-    recent = history[recent_best]
-    if best_value >= recent.free_energy:
+    if best_value >= energies[recent_best]:
         return vertex
     return best
 

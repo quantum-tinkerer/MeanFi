@@ -90,3 +90,9 @@ def test_solver_verbose_prints_scf_progress(capsys):
     assert "mu=" in output
     assert "filling=" in output
     assert "charge_error=" in output
+    progress = [line for line in output.splitlines() if line.startswith("scf step=")]
+    assert all(
+        "internal_energy=" in line and "free_energy=" not in line for line in progress
+    )
+    assert output.count("free_energy=") == 1
+    assert output.splitlines()[-1].startswith("scf converged:")

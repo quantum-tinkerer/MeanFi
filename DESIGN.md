@@ -57,11 +57,15 @@ One validated scalar fit may be reused within a calculation. Sparse coordinate
 patterns belong to the calculation; numeric factors belong to an individual
 Hamiltonian and chemical potential. Retained storage must remain bounded.
 
-EDIIS is the default SCF update and minimizes a free-energy bound over its
-history. Each SCF method runs only its own update until convergence or its
+EDIIS is the default SCF update and minimizes internal energy over its density
+history. The interaction is quadratic, so history energies and gradient
+differences define a small exact quadratic objective. It is prepared once per
+update; coefficient optimization does not reconstruct model states. Each SCF method runs only its own update until convergence or its
 iteration limit. Methods never switch automatically. Users compose separate
 solver calls, using the last valid result attached to a convergence failure
-to restart with a method of their choice.
+to restart with a method of their choice. SCF history and progress output keep
+internal energy only. Final results also report entropy and free energy from
+the existing density evaluation, without another matrix pass.
 
 ## Quantities and accuracy
 

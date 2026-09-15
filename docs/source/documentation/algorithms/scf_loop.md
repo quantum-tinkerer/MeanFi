@@ -70,26 +70,27 @@ Current built-in methods include:
 - `LinearMixing(...)`
 
 `EnergyDIIS()` is the default for every supported normal and BdG calculation.
-Its history contains evaluated density states, their one-body energies, and
-entropies. For non-negative weights summing to one, it minimizes
+Its history contains evaluated densities and their internal energies. The
+one-body term is linear and the interaction term is quadratic, including normal
+reference subtraction and BdG pairing. For non-negative weights summing to one,
+the mixed density therefore has the exact internal energy
 
 :::{math}
-\widetilde F(c)
-=\sum_i c_i\left(E_{0,i}-kT S_i\right)
-+E_{\mathrm{int}}\!\left(\sum_i c_i\rho_i\right),
+E(c)=\sum_i c_i E_i-\frac12 c^T Bc,
+\qquad
+B_{ij}=\frac12(\theta_i-\theta_j)^T
+\left[\nabla E_{\mathrm{int}}(\theta_i)-\nabla E_{\mathrm{int}}(\theta_j)\right],
 \qquad c_i\geq0,\quad\sum_i c_i=1.
 :::
 
-The interaction term is the exact quadratic mean-field functional, including
-normal reference subtraction or BdG pairing as appropriate. At zero temperature
-this gives the energy of the mixed density. At finite temperature, entropy
-concavity makes it an upper bound on that density's free energy. The weighted
-history entropy is not the entropy of the mixed state.
+Here $\theta_i$ is the reduced density vector. MeanFi prepares this small history
+matrix once per update; coefficient optimization needs no further model calls.
+Temperature still enters the Fermi occupations in the density update. Entropy
+and free energy do not enter EDIIS's objective or coefficient selection.
 
-This bound can stall near a finite-temperature solution. EDIIS keeps applying
-its own update and raises `NoConvergence` if it exhausts `max_iterations`.
-No SCF method switches to another automatically. Physical free energy is
-reported for every accepted evaluation; it need not decrease at every step.
+Convergence is determined by the density residual. EDIIS raises `NoConvergence`
+if it exhausts `max_iterations`; no SCF method switches to another automatically.
+Free energy is reported for the final state and need not decrease during SCF.
 
 SCF settings are keyword-only. Anderson exposes `alpha`, `history_size`,
 `regularization`, `line_search` and `max_iterations`. Use `solver(..., scf_tol=...)`
@@ -113,7 +114,7 @@ does not trigger a second full-matrix integration. It can be passed directly as
 `Model(..., reference=result.density)` when the new model has a compatible
 interaction layout.
 
-`result.history` contains one `SCFIteration` per accepted residual evaluation. Each record contains its step, chemical potential, filling, internal energy, free energy, entropy, and unified `ErrorValues`. The SCF residual is the maximum absolute residual component. Passing `verbose=True` prints these same physical values while the solve runs.
+`result.history` contains one `SCFIteration` per accepted residual evaluation. Each record contains its step, chemical potential, filling, internal energy, and unified `ErrorValues`. The SCF residual is the maximum absolute residual component. Passing `verbose=True` prints internal energy and residuals while the solve runs, then entropy and free energy once at convergence.
 
 `NoConvergence` and `SolverFailure` are exceptions rather than alternate result shapes. When at least one physical density evaluation succeeded, the exception carries the last valid state as `exception.result` with `converged=False`.
 

@@ -19,13 +19,6 @@ from meanfi.tb.storage import tb_entries_changed
 
 
 @dataclass(frozen=True)
-class EnergyEvaluation:
-    linear_free_energy: float
-    internal_energy: float
-    free_energy: float
-
-
-@dataclass(frozen=True)
 class SCFProblem:
     model: Model
     density_problem: DensityProblem
@@ -108,7 +101,7 @@ class SCFProblem:
 
     def evaluate_state(
         self, input_state: ActiveDensityState, mu_guess: float
-    ) -> tuple[DensityResult, ActiveDensityState, EnergyEvaluation]:
+    ) -> tuple[DensityResult, ActiveDensityState, float]:
         correction = self.model._mean_field_from_state(input_state)
         density = self.evaluate_mean_field(correction, mu_guess)
         output_state = self.state_from_density(density.entries)
@@ -116,9 +109,4 @@ class SCFProblem:
             self.model._active_density_from_state(output_state), correction
         )
         internal_energy = one_body + self.interaction_energy(output_state.values)
-        energy = EnergyEvaluation(
-            linear_free_energy=one_body - self.model.kT * density.entropy,
-            internal_energy=internal_energy,
-            free_energy=internal_energy - self.model.kT * density.entropy,
-        )
-        return density, output_state, energy
+        return density, output_state, internal_energy

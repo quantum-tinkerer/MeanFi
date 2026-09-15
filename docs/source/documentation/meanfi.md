@@ -105,9 +105,9 @@ change model parameters.
 ## Solvers
 
 `EnergyDIIS()` is the default for normal and BdG models with every supported
-integration backend. At finite temperature it uses a free-energy upper bound
-formed from the history's energies and entropies. Entropy is not linear in a
-mixed density, so this is a surrogate for the mixed state's free energy.
+integration backend. It minimizes the internal energy of convex density
+combinations, using the exact quadratic mean-field interaction. Entropy and
+free energy do not participate in the coefficient optimization.
 EDIIS runs only its own update and raises `NoConvergence` on iteration
 exhaustion. Users can explicitly restart with another method using
 `failure.result.mean_field`; see [user-controlled composition](algorithms/scf_loop.md).
@@ -163,8 +163,8 @@ SCF settings are keyword-only. To change the history or iteration budget, pass
    :show-inheritance:
 ```
 
-SCF results and history entries report `internal_energy`, `free_energy`, and
-`entropy` per cell per physical orbital. Entropy is in units of Boltzmann's constant, so
+Final SCF results report `internal_energy`, `free_energy`, and `entropy` per cell
+per physical orbital. Iteration history records internal energy only. Entropy is in units of Boltzmann's constant, so
 `free_energy = internal_energy - model.kT * entropy`. This is Helmholtz free
 energy at fixed electron filling. The chemical-potential term is not subtracted.
 All thermodynamic totals are divided by N for N physical orbitals in the unit

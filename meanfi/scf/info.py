@@ -16,7 +16,6 @@ class SCFRunState:
     input_state: ActiveDensityState | None = None
     residual_norm: float | None = None
     internal_energy: float | None = None
-    free_energy: float | None = None
     history: list[SCFIteration] = field(default_factory=list)
 
 
@@ -28,7 +27,6 @@ def record_scf_iteration(
     *,
     residual_norm: float,
     internal_energy: float,
-    free_energy: float,
 ) -> SCFIteration:
     errors = replace(evaluation.errors, scf_residual=float(residual_norm))
     iteration = SCFIteration(
@@ -36,8 +34,6 @@ def record_scf_iteration(
         mu=float(evaluation.mu),
         filling=float(evaluation.filling),
         internal_energy=internal_energy,
-        free_energy=free_energy,
-        entropy=evaluation.entropy,
         errors=errors,
     )
     state.history.append(iteration)
@@ -46,5 +42,4 @@ def record_scf_iteration(
     state.output_state = output_state
     state.residual_norm = float(residual_norm)
     state.internal_energy = internal_energy
-    state.free_energy = free_energy
     return iteration

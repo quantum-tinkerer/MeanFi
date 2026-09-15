@@ -30,13 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use the same normalization. Filling remains electrons per cell; the generic
   `expectation_value` remains an unnormalized trace.
 
-- SCF results and history expose `internal_energy`, `free_energy`, and entropy
+- Final SCF results expose `internal_energy`, `free_energy`, and entropy
   in units of Boltzmann's constant. `free_energy = internal_energy - kT * entropy`.
+  Iteration history and progress report internal energy only; verbose output
+  prints entropy and free energy once at convergence.
   The old `total_energy` name is removed; use `internal_energy(model, density)`
   or `free_energy(model, density)` for observables. BdG pairing energy now uses
   the conjugate anomalous density, preserving phase invariance.
 - EDIIS is the default for every supported SCF calculation. It minimizes a
-  free-energy bound over the density history and never switches methods.
+  internal energy over the density history and never switches methods. A small
+  quadratic history matrix replaces repeated model evaluations during
+  coefficient optimization; entropy is excluded from the objective.
   Users can explicitly restart with another method after `NoConvergence`.
   An explicit density integration target supplies an omitted charge target;
   charge accuracy remains independently adjustable. SCF settings remain
@@ -145,8 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fail clearly.
 - Density results retain occupied band energy and full-state entropy, including
   selected layouts. Dense evaluation reuses the eigensystem; sparse evaluation
-  reuses selected inverse entries. Energy and entropy join the periodic mesh
-  convergence checks. Zero-temperature flat half-filled bands retain residual
+  reuses selected inverse entries. Energy and entropy error estimates are
+  diagnostics only. Zero-temperature flat half-filled bands retain residual
   entropy. FermiSimplex band-energy calculation uses its retained spectra.
 - Historical benchmark reports and compact evidence remain under `performance/`,
   outside the runtime package and release archives.
