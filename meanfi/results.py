@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from meanfi.errors import ErrorValues
-from meanfi.space.coordinates import DensityCoordinates
+from meanfi.space.coordinates import DensityCoordinates, _assemble_blocks
 from meanfi.tb.ops import _tb_type
 
 
@@ -13,11 +13,8 @@ class FermiSimplexInfo:
     """Mesh size and cumulative work for FermiSimplex integration."""
 
     n_kernel_evals: int
-    unique_evals: int
-    n_evaluator_evals: int
     n_cached_nodes: int
     n_leaves: int
-    n_leaf_nodes: int
     refinements: int
     error_estimate_available: bool
     charge_evaluations: int | None = None
@@ -59,7 +56,7 @@ def _readonly_vector(values, *, dtype, name: str) -> np.ndarray:
 
 
 @dataclass(frozen=True)
-class DensityEntries:
+class _DensityEntries:
     """Immutable computed entries and their optional integration errors.
 
     Entries outside ``coordinates`` are unknown, so selected layouts cannot be
@@ -91,7 +88,7 @@ class DensityEntries:
                 "cannot convert selected density coordinates to complete matrix "
                 "blocks; request complete keys or use coordinates and values"
             )
-        return self.coordinates.values_to_tb(self.values, sparse=sparse)
+        return _assemble_blocks(self.coordinates, self.values, sparse=sparse)
 
 
 @dataclass(frozen=True)
@@ -105,7 +102,7 @@ class DensityResult:
     these scalars; unknown real-space entries are never filled to obtain them.
     """
 
-    entries: DensityEntries
+    entries: _DensityEntries
     mu: float
     filling: float
     errors: ErrorValues
@@ -164,7 +161,7 @@ class DensityResult:
         indices = self._indices_for(coordinates)
         return replace(
             self,
-            entries=DensityEntries(
+            entries=_DensityEntries(
                 coordinates,
                 self.values[indices],
                 None if self.entry_errors is None else self.entry_errors[indices],

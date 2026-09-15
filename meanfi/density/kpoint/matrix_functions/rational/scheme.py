@@ -1,14 +1,15 @@
-"""Certified scalar approximations for sparse occupation and entropy traces."""
+"""Fermi-function fits controlling matrix-entry accuracy; entropy is diagnostic."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 from scipy import linalg as scipy_linalg
 from scipy.special import expit
 
 from .common import SparseRationalTerms
+from meanfi.density.kpoint.occupations import fermi_dirac
 
 
 @dataclass(frozen=True)
@@ -108,37 +109,30 @@ def _aaa_terms_for_interval(
     upper: float,
     kT: float,
     scalar_tolerance: float,
-    entropy_tolerance: float | None = None,
     initial_poles: int = 1,
 ) -> SparseRationalTerms:
-    """Fit and certify both functions before factoring any shifted matrices.
+    """Fit the Fermi function and check its error before matrix factorization.
 
-    A stacked Loewner matrix supplies a shared AAA denominator. QR reduces the
-    weight solve to a small SVD. Start with a small fitting grid and refine only
-    when needed; every candidate is checked on the same dense validation grid.
+    For Hermitian A, max_ij |[r(A)-f(A)]_ij| <= max_spectrum |r-f|.
+    The sampled scalar check supports the density-entry target; it is not a
+    rigorous interval bound. Entropy never changes these poles or acceptance.
     """
     max_poles = pole_cap
-    columns = 1 if entropy_tolerance is None else 2
-    tolerances = np.array(
-        [scalar_tolerance] + ([] if entropy_tolerance is None else [entropy_tolerance])
-    )
     validation = _aaa_sample_grid(lower, upper, kT=kT, count=max(2048, 32 * max_poles))
-    validation_targets = thermal_targets(validation, kT)[:, :columns]
+    validation_targets = fermi_dirac(validation, kT, 0.0)
     best_error = float("inf")
     sample_count = max(512, 8 * initial_poles)
     max_samples = max(512, 8 * max_poles)
     while True:
         x = _aaa_sample_grid(lower, upper, kT=kT, count=sample_count)
-        targets = thermal_targets(x, kT)[:, :columns]
-        constants = np.mean(targets, axis=0)
-        if np.all(np.max(np.abs(validation_targets - constants), axis=0) <= tolerances):
+        targets = fermi_dirac(x, kT, 0.0)
+        constant = float(np.mean(targets))
+        if np.max(np.abs(validation_targets - constant)) <= scalar_tolerance:
             return SparseRationalTerms(
-                constant=complex(constants[0]),
+                constant=complex(constant),
                 shifts=np.empty(0, dtype=complex),
                 residues=np.empty(0, dtype=complex),
                 pole_count=0,
-                entropy_constant=complex(constants[1]) if columns == 2 else None,
-                entropy_residues=np.empty(0, dtype=complex) if columns == 2 else None,
             )
 
         center, radius = 0.5 * (lower + upper), 0.5 * (upper - lower)
@@ -146,10 +140,9 @@ def _aaa_terms_for_interval(
         x, targets = x[unique], targets[unique]
         support: list[int] = []
         mask = np.ones(x.size, dtype=bool)
-        approximation = np.broadcast_to(constants, targets.shape).copy()
-        scales = np.min(tolerances) / tolerances
+        approximation = np.full_like(targets, constant)
         for _ in range(min(max_poles, sample_count // 8)):
-            residual = np.max(np.abs(targets - approximation) / tolerances, axis=1)
+            residual = np.abs(targets - approximation) / scalar_tolerance
             residual[~mask] = -np.inf
             pivot = int(np.argmax(residual))
             support.append(pivot)
@@ -159,26 +152,20 @@ def _aaa_terms_for_interval(
                 approximation[:] = support_y[0]
                 continue
             cauchy = 1.0 / (scaled_x[mask, None] - support_x)
-            loewner = np.concatenate(
-                [
-                    (targets[mask, None, column] - support_y[:, column])
-                    * cauchy
-                    * scales[column]
-                    for column in range(columns)
-                ]
-            )
+            loewner = (targets[mask, None] - support_y) * cauchy
             # Q preserves norms: minimizing ||L w|| is equivalent to ||R w||.
             triangular = np.linalg.qr(loewner, mode="r")
             weights = np.linalg.svd(triangular, full_matrices=False)[2][-1]
             weighted_cauchy = cauchy * weights
             approximation[mask] = (weighted_cauchy @ support_y) / np.sum(
                 weighted_cauchy, axis=1
-            )[:, None]
+            )
             approximation[support] = support_y
             # The residue refit can improve a nearly converged barycentric fit.
             # Only final partial-fraction errors decide acceptance below.
-            if len(support) < initial_poles or np.any(
-                np.max(np.abs(approximation - targets), axis=0) > 10 * tolerances
+            if (
+                len(support) < initial_poles
+                or np.max(np.abs(approximation - targets)) > 10 * scalar_tolerance
             ):
                 continue
             shifts = center + radius * _aaa_poles(support_x, weights)
@@ -187,18 +174,16 @@ def _aaa_terms_for_interval(
             shifts = shifts[
                 (shifts.imag != 0.0) | (shifts.real < lower) | (shifts.real > upper)
             ]
-            constants, residues = _fit_residues(x, targets, shifts)
+            constants, residues = _fit_residues(x, targets[:, None], shifts)
             terms = SparseRationalTerms(
                 constant=complex(constants[0]),
                 shifts=shifts,
                 residues=residues[:, 0],
                 pole_count=len(support),
-                entropy_constant=complex(constants[1]) if columns == 2 else None,
-                entropy_residues=residues[:, 1] if columns == 2 else None,
             )
-            errors = thermal_errors(terms, validation, validation_targets)
-            best_error = min(best_error, float(np.max(errors / tolerances)))
-            if np.all(errors <= tolerances):
+            error = thermal_errors(terms, validation, validation_targets[:, None])[0]
+            best_error = min(best_error, float(error / scalar_tolerance))
+            if error <= scalar_tolerance:
                 return terms
         if sample_count == max_samples:
             break
@@ -207,3 +192,27 @@ def _aaa_terms_for_interval(
         "AAA scalar certification failed within max_poles "
         f"(best error/tolerance={best_error:.3e})"
     )
+
+
+def fit_entropy(
+    terms: SparseRationalTerms, *, lower: float, upper: float, kT: float
+) -> SparseRationalTerms:
+    """Fit entropy on the accepted density poles, without a new accuracy target."""
+    grid = _aaa_sample_grid(lower, upper, kT=kT, count=max(2048, 32 * terms.pole_count))
+    constants, residues = _fit_residues(
+        grid, thermal_targets(grid, kT)[:, 1:], terms.shifts
+    )
+    result = replace(
+        terms, entropy_constant=complex(constants[0]), entropy_residues=residues[:, 0]
+    )
+    validation = _aaa_sample_grid(
+        lower, upper, kT=kT, count=max(4096, 64 * terms.pole_count)
+    )
+    # Entropy residuals can peak sharply near the thermal transition even when
+    # the wider spectral grid is dense. Resolve that region independently.
+    thermal = np.linspace(-40 * kT, 40 * kT, 4097)
+    validation = np.unique(
+        np.r_[validation, thermal[(thermal >= lower) & (thermal <= upper)]]
+    )
+    error = thermal_errors(result, validation, thermal_targets(validation, kT))[1]
+    return replace(result, entropy_error=float(error))

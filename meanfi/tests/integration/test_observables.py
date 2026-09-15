@@ -1,3 +1,4 @@
+from meanfi.results import _DensityEntries
 from dataclasses import replace
 
 import numpy as np
@@ -9,7 +10,6 @@ from meanfi.tests.fixtures.models import density_result_from_tb
 
 from meanfi import (
     DensityCoordinates,
-    DensityEntries,
     DensityResult,
     ErrorValues,
     Model,
@@ -19,7 +19,7 @@ from meanfi import (
     internal_energy,
 )
 from meanfi.meanfield import (
-    bdg_correction_from_density,
+    interaction_correction,
     meanfield,
 )
 from meanfi.tests.fixtures.models import bipartite_hubbard_2d
@@ -36,9 +36,9 @@ def test_selected_density_supports_covered_observables_and_internal_energy():
         filling=1.0,
     )
     matrix = {(): np.array([[0.25, 0.1], [0.1, 0.75]], dtype=complex)}
-    coordinates = model.scf_space.required_coordinates
+    coordinates = model.required_coordinates
     density = DensityResult(
-        entries=DensityEntries(coordinates, coordinates.values_from_tb(matrix)),
+        entries=_DensityEntries(coordinates, coordinates.values_from_tb(matrix)),
         mu=0.0,
         filling=1.0,
         errors=ErrorValues(),
@@ -60,7 +60,7 @@ def test_selected_density_rejects_uncovered_observable_coordinate():
         entries=(((), 0, 0),),
     )
     density = DensityResult(
-        entries=DensityEntries(coordinates, np.array([0.25])),
+        entries=_DensityEntries(coordinates, np.array([0.25])),
         mu=0.0,
         filling=0.25,
         errors=ErrorValues(),
@@ -135,7 +135,7 @@ def test_internal_energy_rejects_missing_one_body_density_keys():
         filling=0.5,
     )
 
-    with pytest.raises(ValueError, match="missing keys required for internal energy"):
+    with pytest.raises(ValueError, match="missing keys required by the observable"):
         internal_energy(model, {(0,): np.array([[0.5]], dtype=complex)})
 
 
@@ -221,7 +221,7 @@ def test_bdg_correction_projects_pairing_antisymmetry_noise():
         (-1,): np.array([[0.0, -0.20000004], [0.0, 0.0]], dtype=complex),
     }
 
-    correction = bdg_correction_from_density(density, model)
+    correction = interaction_correction(density, model.h_int, electron_ndof=model._ndof)
 
     assert correction[(1,)][0, 1] == pytest.approx(-0.20000002)
     assert correction[(-1,)][0, 1] == pytest.approx(0.20000002)
@@ -303,7 +303,7 @@ def test_free_energy_uses_full_state_entropy_after_selecting_entries(
         entropy *= 0.5
     entropy /= 2
     full = replace(density_result_from_tb({(): matrix}), entropy=float(entropy))
-    selected = full.select(model.scf_space.required_coordinates)
+    selected = full.select(model.required_coordinates)
 
     assert not selected.is_complete
     assert internal_energy(model, selected) == pytest.approx(

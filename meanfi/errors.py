@@ -39,6 +39,7 @@ class ErrorValues:
     charge_integration: float | None = None
     band_energy_integration: float | None = None
     entropy_integration: float | None = None
+    entropy_approximation: float | None = None
 
     def __post_init__(self) -> None:
         for name, value in self.__dict__.items():

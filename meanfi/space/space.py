@@ -4,10 +4,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from meanfi.space.coordinates import DensityCoordinates, DensityEntry
+from meanfi.space.coordinates import DensityCoordinates, DensityEntry, _assemble_blocks
 from meanfi.space.reducers import (
     LinearConstraintReducer,
-    OrbitReducer,
     _warn_missing_partner,
     complex_to_real,
     real_to_complex,
@@ -40,6 +39,18 @@ class _OrbitParametrization:
 
     def params_from_real_values(self, values: np.ndarray) -> np.ndarray:
         return values[self.required_value_rows]
+
+    def basis(self) -> np.ndarray:
+        """Materialize the same reconstruction only for general spatial constraints."""
+        count = self.active_real_param.size
+        basis = np.zeros((2 * count, self.num_params))
+        for offset, indices, signs in (
+            (0, self.active_real_param, self.active_real_sign),
+            (count, self.active_imag_param, self.active_imag_sign),
+        ):
+            rows = np.flatnonzero(indices >= 0)
+            basis[offset + rows, indices[rows]] = signs[rows]
+        return basis
 
     def values_from_params(self, params: np.ndarray) -> np.ndarray:
         values = np.zeros(self.active_real_param.size, dtype=complex)
@@ -80,9 +91,6 @@ class ActiveSCFSpace:
 
     active_coordinates: DensityCoordinates
     parametrization: _OrbitParametrization | _DenseParametrization
-    interaction_keys: list[tuple[int, ...]]
-    density_keys: list[tuple[int, ...]]
-    onsite: tuple[int, ...]
     sparse: bool
 
     @property
@@ -115,14 +123,15 @@ class ActiveSCFSpace:
             family = "normal"
             constraints = (HermiticityConstraint(),)
 
+        parametrization = _orbit_parametrization(support, constraints=constraints)
         if spatial_symmetries:
-            entries = support.coordinates.entries
+            entries = support.entries
             _raise_if_dense_basis_too_large(len(entries), family=family)
-            basis = OrbitReducer(entries).basis(constraints)
+            basis = parametrization.basis()
             basis = LinearConstraintReducer(entries, ndof=ndof, family=family).basis(
                 basis, spatial_symmetries
             )
-            selected = select_required_coordinates(support.coordinates, basis)
+            selected = select_required_coordinates(support, basis)
             sample_basis = basis[selected.active_real_rows, :]
             parametrization = _DenseParametrization(
                 required_coordinates=selected.coordinates,
@@ -130,17 +139,10 @@ class ActiveSCFSpace:
                 basis=basis,
                 required_to_params=np.linalg.inv(sample_basis),
             )
-        else:
-            parametrization = _orbit_parametrization(
-                support.coordinates, constraints=constraints
-            )
 
         return cls(
-            active_coordinates=support.coordinates,
+            active_coordinates=support,
             parametrization=parametrization,
-            interaction_keys=support.interaction_keys,
-            density_keys=support.density_keys,
-            onsite=support.onsite,
             sparse=sparse,
         )
 
@@ -150,21 +152,29 @@ class ActiveSCFSpace:
             raise ValueError("values do not match required real-space entries")
         return self.parametrization.params_from_real_values(real_values)
 
-    def params_from_meanfield_input(self, rho: _tb_type) -> np.ndarray:
+    def params_from_density(self, rho: _tb_type) -> np.ndarray:
         return self.params_from_required_entries(
             self.required_coordinates.values_from_tb(rho)
         )
 
-    def meanfield_input_from_params(self, params: np.ndarray) -> _tb_type:
+    def density_from_params(self, params: np.ndarray) -> _tb_type:
         params = np.asarray(params, dtype=float).reshape(-1)
         if params.size != self.num_params:
             raise ValueError("params has the wrong length for this active SCF space")
-        return self.active_coordinates.values_to_tb(
-            self.parametrization.values_from_params(params), sparse=self.sparse
+        return _assemble_blocks(
+            self.active_coordinates,
+            self.parametrization.values_from_params(params),
+            sparse=self.sparse,
         )
 
-    def project_meanfield_input(self, rho: _tb_type) -> _tb_type:
-        return self.meanfield_input_from_params(self.params_from_meanfield_input(rho))
+    def project_correction(self, rho: _tb_type) -> _tb_type:
+        # Corrections may omit known-zero blocks; sampled densities may not.
+        from scipy.sparse import csr_matrix
+
+        size = self.active_coordinates.size
+        zero = csr_matrix((size, size)) if self.sparse else np.zeros((size, size))
+        complete = {key: rho.get(key, zero) for key in self.required_coordinates.keys}
+        return self.density_from_params(self.params_from_density(complete))
 
 
 def _orbit_parametrization(

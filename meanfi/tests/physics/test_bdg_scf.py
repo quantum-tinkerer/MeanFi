@@ -3,7 +3,7 @@ import pytest
 from scipy.optimize import brentq
 
 from meanfi import UniformGrid, LinearMixing, Model, solver, tb_to_kfunc
-from meanfi.meanfield import bdg_correction_from_density
+from meanfi.meanfield import interaction_correction
 from meanfi.density.filling import charge_diagonal
 
 
@@ -78,7 +78,9 @@ def _dense_bdg_scf_reference(
 
     for _ in range(max_iterations):
         mu, density = _dense_bdg_density(model, meanfield, keys=keys, nk=nk)
-        updated = bdg_correction_from_density(density, model)
+        updated = interaction_correction(
+            density, model.h_int, electron_ndof=model._ndof
+        )
         residual = max(
             np.max(np.abs(updated.get(key, 0.0) - meanfield.get(key, 0.0)))
             for key in frozenset(updated) | frozenset(meanfield)

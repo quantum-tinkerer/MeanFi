@@ -363,7 +363,7 @@ def test_selected_simplex_density_does_not_assemble_unrequested_matrix_entries(
     def unexpected_matrix_assembly(*args, **kwargs):
         pytest.fail("selected density must remain coordinate values")
 
-    monkeypatch.setattr(DensityCoordinates, "values_to_tb", unexpected_matrix_assembly)
+    monkeypatch.setattr("meanfi.results._assemble_blocks", unexpected_matrix_assembly)
     selected = density_matrix(
         h, filling=0.8, coordinates=coordinates, integration=integration
     )

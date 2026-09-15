@@ -9,6 +9,7 @@ from meanfi.errors import ConvergenceError
 from meanfi.tb.ops import as_sparse, is_sparse_like
 
 from ..base import RationalFOE
+from meanfi.density.kpoint.occupations import fermi_dirac
 from ..common import spectral_interval, shift_by_mu
 from ..mumps_backend import SelectedInverseFactorization
 from .common import (
@@ -21,7 +22,7 @@ from .scheme import (
     _aaa_sample_grid,
     _aaa_terms_for_interval,
     thermal_errors,
-    thermal_targets,
+    fit_entropy,
 )
 
 
@@ -80,19 +81,13 @@ class PreparedMumpsRationalNode:
             ),
         )
 
-    def _scalar_tolerances(self) -> np.ndarray:
-        tolerance = self._charge_scalar_tolerance()
-        # Entropy shares the occupation fit's accuracy and poles. Energy follows
-        # from that occupation approximation without a separate fitting target.
-        return np.full(2 if self.compute_thermodynamics else 1, tolerance)
-
     def _sparse_terms(self, mu: float) -> SparseRationalTerms:
         pole_count = self.options.max_poles
         shifted = shift_by_mu(self.matrix, mu, self.q_diag, dtype=self.workspace_dtype)
         lower, upper = spectral_interval(shifted)
         padding = 1e-12 * max(1.0, float(upper - lower))
         lower, upper = lower - padding, upper + padding
-        tolerances = self._scalar_tolerances()
+        tolerance = self._charge_scalar_tolerance()
         margin = 0.0
         for entry in self._aaa_interval_cache:
             contained = entry.lower <= lower and upper <= entry.upper
@@ -108,15 +103,18 @@ class PreparedMumpsRationalNode:
                 entry.kT != self.kT
                 or not contained
                 or entry.terms.pole_count > pole_count
-                or (tolerances.size == 2 and entry.terms.entropy_residues is None)
             ):
                 continue
             grid = _aaa_sample_grid(
                 lower, upper, kT=self.kT, count=max(2048, 32 * pole_count)
             )
-            targets = thermal_targets(grid, self.kT)[:, : tolerances.size]
-            if np.all(thermal_errors(entry.terms, grid, targets) <= tolerances):
-                return entry.terms
+            targets = fermi_dirac(grid, self.kT, 0.0)[:, None]
+            if thermal_errors(entry.terms, grid, targets)[0] <= tolerance:
+                terms = self._with_entropy(entry.terms, entry.lower, entry.upper)
+                self._aaa_interval_cache[:] = [
+                    _AAAIntervalCacheEntry(entry.lower, entry.upper, self.kT, terms)
+                ]
+                return terms
         # Widening is optional: a restricted pole budget may only fit the actual
         # spectrum. In that case retry its original interval before failing.
         for extra in (margin, 0.0) if margin else (0.0,):
@@ -128,17 +126,22 @@ class PreparedMumpsRationalNode:
                     upper=fit_upper,
                     kT=self.kT,
                     initial_poles=self.options.initial_poles,
-                    scalar_tolerance=tolerances[0],
-                    entropy_tolerance=tolerances[1] if tolerances.size == 2 else None,
+                    scalar_tolerance=tolerance,
                 )
                 break
             except ValueError as exc:
                 if extra == 0.0:
                     raise ConvergenceError(str(exc)) from exc
+        terms = self._with_entropy(terms, fit_lower, fit_upper)
         # Keep one scalar fit shared across k-points, never their factorizations.
         self._aaa_interval_cache[:] = [
             _AAAIntervalCacheEntry(fit_lower, fit_upper, self.kT, terms)
         ]
+        return terms
+
+    def _with_entropy(self, terms, lower, upper):
+        if self.compute_thermodynamics and terms.entropy_residues is None:
+            return fit_entropy(terms, lower=lower, upper=upper, kT=self.kT)
         return terms
 
     def charge(self, mu: float) -> float:

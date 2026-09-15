@@ -9,7 +9,7 @@ from fermisimplex import SpectralMesh
 from threadpoolctl import threadpool_limits
 
 from meanfi.density.problem import DensityProblem
-from meanfi.results import FermiSimplexInfo, DensityEntries
+from meanfi.results import FermiSimplexInfo, _DensityEntries
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type, to_dense
 
@@ -248,7 +248,7 @@ class SimplexEvaluator:
         coordinates = self.problem.density_coordinates
         prescribed = self.settings.nk is not None
         if not coordinates.value_count:
-            return DensityEntries(
+            return _DensityEntries(
                 coordinates, np.empty(0, complex), None if prescribed else np.empty(0)
             ), False
         result = _integrate_density(
@@ -276,7 +276,7 @@ class SimplexEvaluator:
             if prescribed
             else np.full(coordinates.value_count, result.stopping_error)
         )
-        return DensityEntries(
+        return _DensityEntries(
             coordinates, result.values, errors
         ), result.stats.refinements > 0
 
@@ -284,11 +284,8 @@ class SimplexEvaluator:
         work, mesh = self.work, self.mesh
         return FermiSimplexInfo(
             n_kernel_evals=int(work.evaluations),
-            unique_evals=int(work.evaluations),
-            n_evaluator_evals=int(work.evaluations),
             n_cached_nodes=int(mesh.cached_vertices),
             n_leaves=int(mesh.active_simplices),
-            n_leaf_nodes=int(mesh.active_vertices),
             refinements=int(work.refinements),
             error_estimate_available=self.settings.nk is None,
             num_threads=self.settings.num_threads,

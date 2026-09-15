@@ -218,7 +218,7 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     )
     model_sparse = Model(sparse_h0, sparse_hint, filling=1.0, kT=0.15)
 
-    space = model_sparse.scf_space
+    space = model_sparse._space
 
     dense_result = density_matrix(
         dense_h0,
@@ -385,7 +385,7 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
         filling=1.0,
         kT=0.15,
     )
-    space = model.scf_space
+    space = model._space
     node = PreparedMumpsRationalNode(
         matrix,
         kT=0.15,

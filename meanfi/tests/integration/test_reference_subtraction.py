@@ -1,3 +1,4 @@
+from meanfi.results import _DensityEntries
 import numpy as np
 import pytest
 
@@ -6,7 +7,6 @@ from meanfi.tests.fixtures.models import density_result_from_tb
 from meanfi import (
     UniformGrid,
     DensityCoordinates,
-    DensityEntries,
     DensityResult,
     ErrorValues,
     LinearMixing,
@@ -36,7 +36,7 @@ def test_selected_density_is_an_efficient_reference_without_zero_filling():
     model = Model(h_0, h_int, filling=1.0, kT=0.2, reference=reference)
 
     assert reference.is_complete is False
-    assert reference.coordinates.entries == model.scf_space.required_coordinates.entries
+    assert reference.coordinates.entries == model.required_coordinates.entries
     assert reference.coordinates.value_count < 2**2
     assert model.reference is reference
     with pytest.raises(ValueError, match="selected density coordinates"):
@@ -57,7 +57,7 @@ def test_model_rejects_selected_reference_missing_an_interaction_coordinate():
         entries=(((), 0, 0),),
     )
     reference = DensityResult(
-        entries=DensityEntries(coordinates, np.array([0.5])),
+        entries=_DensityEntries(coordinates, np.array([0.5])),
         mu=0.0,
         filling=1.0,
         errors=ErrorValues(),
@@ -155,9 +155,9 @@ def test_reference_is_a_private_read_only_active_density_state():
     assert not hasattr(model, "reference_density_matrix")
     reference_state = model._reference_state
     assert isinstance(reference_state, ActiveDensityState)
-    assert reference_state.space is model.scf_space
+    assert reference_state.space is model._space
     assert reference_state.values.flags.writeable is False
-    expected = model.scf_space.params_from_meanfield_input(rho_ref)
+    expected = model._space.params_from_density(rho_ref)
     np.testing.assert_allclose(reference_state.values, expected)
 
     rho_ref[()][0, 0] = 0.0

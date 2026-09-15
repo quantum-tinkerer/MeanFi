@@ -6,7 +6,7 @@ import pytest
 kwant = pytest.importorskip("kwant")
 
 from meanfi.interop.kwant import builder_to_tb, tb_to_builder  # noqa: E402
-from meanfi.tb.ops import compare_dicts  # noqa: E402
+from meanfi.tests.fixtures.assertions import compare_dicts  # noqa: E402
 from meanfi.tb.utils import generate_tb_keys  # noqa: E402
 
 

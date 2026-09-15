@@ -17,7 +17,7 @@ except ImportError:
     __version__ = "unknown"
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
-from .results import DensityEntries, DensityResult, SCFIteration, SCFResult
+from .results import DensityResult, SCFIteration, SCFResult
 from .density.api import density_matrix, density_matrix_at_mu
 from .density.integrate.methods import (
     FermiSimplex,
@@ -55,7 +55,6 @@ __all__ = [
     "ErrorTolerances",
     "ErrorValues",
     "DensityCoordinates",
-    "DensityEntries",
     "DensityResult",
     "DirectDiagonalization",
     "LinearMixing",

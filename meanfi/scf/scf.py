@@ -54,10 +54,10 @@ def solver(
     density_problem = build_density_problem(
         model.hamiltonian_from_meanfield(),
         kT=model.kT,
-        keys=model.scf_space.density_keys,
+        keys=model.required_coordinates.keys,
         integration=integration,
         tolerances=tolerances,
-        density_coordinates=model.scf_space.required_coordinates,
+        density_coordinates=model.required_coordinates,
         electron_ndof=model._ndof if model.superconducting else None,
     )
     problem = SCFProblem(model, density_problem, mu_tol, max_charge_evaluations)

@@ -1,11 +1,12 @@
 """Sparse SCF reconstruction must stay sparse through Hamiltonian assembly."""
 
+from meanfi.results import _DensityEntries
+
 import numpy as np
 import pytest
 from scipy import sparse
 
 from meanfi import (
-    DensityEntries,
     DensityResult,
     DirectDiagonalization,
     ErrorValues,
@@ -54,18 +55,16 @@ def test_large_sparse_model_reconstruction_avoids_dense_blocks(
         hamiltonian = model.hamiltonian_from_meanfield(correction)
         validate_bdg_tb(hamiltonian, ndof=size, ndim=1)
     else:
-        coordinates = model.scf_space.required_coordinates
+        coordinates = model.required_coordinates
         result = DensityResult(
-            entries=DensityEntries(coordinates, np.ones(coordinates.value_count)),
+            entries=_DensityEntries(coordinates, np.ones(coordinates.value_count)),
             mu=0.0,
             filling=size,
             errors=ErrorValues(),
         )
         assert expectation_value(result, h) == size
         hamiltonian = model.hamiltonian_from_density(result)
-        density = model.scf_space.meanfield_input_from_params(
-            np.ones(model.scf_space.num_params)
-        )
+        density = model._space.density_from_params(np.ones(model._space.num_params))
         assert np.isfinite(expectation_value(density, meanfield(density, interaction)))
     assert all(sparse.issparse(block) for block in hamiltonian.values())
 

@@ -12,6 +12,7 @@ from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationa
 from meanfi.density.kpoint.matrix_functions.rational.scheme import (
     _aaa_terms_for_interval,
     thermal_errors,
+    fit_entropy,
     thermal_targets,
 )
 from meanfi.space.coordinates import DensityCoordinates
@@ -30,23 +31,25 @@ def _reference(matrix, q_diag, kT, mu):
 
 
 @pytest.mark.parametrize("kT", [0.2, 0.01, 0.001])
-def test_joint_aaa_certifies_density_and_entropy_on_independent_grid(kT):
+def test_density_poles_and_entropy_estimate_on_independent_grid(kT):
     terms = _aaa_terms_for_interval(
         lower=-3,
         upper=3,
         kT=kT,
         scalar_tolerance=1e-9,
-        entropy_tolerance=1e-9,
         initial_poles=4,
         pole_cap=100,
     )
+    terms = fit_entropy(terms, lower=-3, upper=3, kT=kT)
     grid = np.unique(
         np.r_[np.linspace(-3, 3, 20001), np.linspace(-40 * kT, 40 * kT, 7000)]
     )
     grid = grid[(grid >= -3) & (grid <= 3)]
     f = expit(-grid / kT)
     entropy = -xlogy(f, f) - xlogy(1 - f, 1 - f)
-    assert np.all(thermal_errors(terms, grid, np.column_stack([f, entropy])) < 1e-9)
+    errors = thermal_errors(terms, grid, np.column_stack([f, entropy]))
+    assert errors[0] < 1e-9
+    assert errors[1] <= 1.01 * terms.entropy_error + 1e-13
     assert terms.entropy_residues.shape == terms.residues.shape == terms.shifts.shape
 
 
@@ -119,7 +122,10 @@ def test_sparse_thermodynamics_reuses_density_factorizations(monkeypatch, bdg):
     )
     actual_energy, actual_entropy = node.thermodynamics(mu)
     np.testing.assert_allclose(actual_energy, energy, atol=1e-8, rtol=0)
-    np.testing.assert_allclose(actual_entropy, entropy, atol=1e-8, rtol=0)
+    assert (
+        abs(actual_entropy - entropy)
+        <= node.size * node._last_terms.entropy_error + 1e-12
+    )
     assert node._last_factorizations == factors
     assert node.layout.charge.nnz == matrix.shape[0]
 
@@ -153,19 +159,19 @@ def test_sparse_thermodynamics_handles_filled_empty_and_narrow_spectra(mu):
 
 
 @pytest.mark.parametrize(
-    "lower,upper,tolerances,pole_cap",
+    "lower,upper,tolerance,pole_cap",
     [
-        (-2.2218477871579956, 8.218921136460922, [1.52e-11, 1.25e-10], 128),
+        (-2.2218477871579956, 8.218921136460922, 1.52e-11, 128),
         (
             -2.7305826304965994,
             2.503516271744375,
-            [1.0924347951653114e-14, 3.125e-14],
+            1.0924347951653114e-14,
             256,
         ),
     ],
 )
-def test_joint_aaa_certifies_asymmetric_intervals_without_real_poles(
-    lower, upper, tolerances, pole_cap
+def test_density_aaa_certifies_asymmetric_intervals_without_real_poles(
+    lower, upper, tolerance, pole_cap
 ):
     kT = 0.02
     terms = _aaa_terms_for_interval(
@@ -173,19 +179,18 @@ def test_joint_aaa_certifies_asymmetric_intervals_without_real_poles(
         lower=lower,
         upper=upper,
         kT=kT,
-        scalar_tolerance=tolerances[0],
-        entropy_tolerance=tolerances[1],
+        scalar_tolerance=tolerance,
     )
+    terms = fit_entropy(terms, lower=lower, upper=upper, kT=kT)
     grid = np.linspace(lower, upper, 50003)
     f = expit(-grid / kT)
     entropy = -xlogy(f, f) - xlogy(1 - f, 1 - f)
     # Independent grid evaluations can differ by a few ulps across BLAS builds.
     # Keep this roundoff allowance separate from the requested fit tolerance.
     roundoff = 4 * np.finfo(float).eps
-    assert np.all(
-        thermal_errors(terms, grid, np.column_stack([f, entropy]))
-        <= np.asarray(tolerances) + roundoff
-    )
+    errors = thermal_errors(terms, grid, np.column_stack([f, entropy]))
+    assert errors[0] <= tolerance + roundoff
+    assert errors[1] <= 1.01 * terms.entropy_error + 1e-13
     assert not np.any(
         (terms.shifts.imag == 0)
         & (terms.shifts.real >= lower)
@@ -246,13 +251,12 @@ def test_rational_minimum_can_use_the_entire_pole_budget():
         kT=0.2,
         initial_poles=options.initial_poles,
         scalar_tolerance=1e-8,
-        entropy_tolerance=1e-8,
     )
     np.testing.assert_allclose(terms.constant, expit(-0.5), atol=1e-8)
 
 
 @pytest.mark.usefixtures("require_mumps")
-def test_joint_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
+def test_density_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
     # This case previously stalled before residue refitting near machine precision.
     size, mu, kT, tolerance = 32, 0.13, 0.02, 1e-12
     rng = np.random.default_rng(174729 + size)
@@ -289,8 +293,11 @@ def test_joint_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
         atol=tolerance,
         rtol=0,
     )
-    np.testing.assert_allclose(
-        node.thermodynamics(mu), [energy, entropy], atol=tolerance, rtol=0
+    actual_energy, actual_entropy = node.thermodynamics(mu)
+    assert abs(actual_energy - energy) <= tolerance
+    assert (
+        abs(actual_entropy - entropy)
+        <= size * node._last_terms.entropy_error + tolerance
     )
 
 
@@ -332,7 +339,8 @@ def test_nearby_intervals_reuse_one_accurate_fit(bdg):
         # Check the whole interval independently, including the Fermi transition.
         energies = np.linspace(cache[0].lower, cache[0].upper, 15001)
         errors = thermal_errors(terms, energies, thermal_targets(energies, node.kT))
-        assert np.all(errors < 1e-8)
+        assert errors[0] < 1e-8
+        assert errors[1] <= 1.01 * terms.entropy_error + 1e-13
         assert len(cache) == 1
         return terms
 
@@ -374,7 +382,11 @@ def test_shared_fit_rechecks_accuracy_entropy_and_pole_budget():
     joint = node(1e-10, compute_thermodynamics=True)._sparse_terms(0.0)
     assert joint.entropy_residues is not None
     grid = np.linspace(-0.3, 0.2, 15001)
-    assert np.all(thermal_errors(joint, grid, thermal_targets(grid, 0.02)) < 5e-11)
+    np.testing.assert_array_equal(joint.shifts, tight.shifts)
+    np.testing.assert_array_equal(joint.residues, tight.residues)
+    errors = thermal_errors(joint, grid, thermal_targets(grid, 0.02))
+    assert errors[0] < 5e-11
+    assert errors[1] <= 1.01 * joint.entropy_error + 1e-13
     with pytest.raises(ConvergenceError, match="max_poles"):
         node(1e-10, options=RationalFOE(max_poles=4))._sparse_terms(0.0)
 
@@ -414,10 +426,12 @@ def test_failed_interval_expansion_retries_actual_spectrum(monkeypatch):
     assert len(attempts) == 2
     assert attempts[0][0] < attempts[1][0] < attempts[1][1] < attempts[0][1]
     grid = np.linspace(-0.31, 0.19, 15001)
-    assert np.all(thermal_errors(terms, grid, thermal_targets(grid, 0.1)) < 5e-11)
+    errors = thermal_errors(terms, grid, thermal_targets(grid, 0.1))
+    assert errors[0] < 5e-11
+    assert errors[1] <= 1.01 * terms.entropy_error + 1e-13
 
 
-def test_joint_aaa_refines_the_grid_for_a_sharp_fermi_transition():
+def test_density_aaa_refines_the_grid_for_a_sharp_fermi_transition():
     kT = 1e-5
     terms = _aaa_terms_for_interval(
         256,
@@ -425,8 +439,8 @@ def test_joint_aaa_refines_the_grid_for_a_sharp_fermi_transition():
         upper=2.0,
         kT=kT,
         scalar_tolerance=1e-10,
-        entropy_tolerance=1e-9,
     )
+    terms = fit_entropy(terms, lower=-3, upper=2, kT=kT)
     # Resolve both the narrow transition and the much wider spectral interval.
     grid = np.unique(
         np.concatenate(
@@ -435,10 +449,9 @@ def test_joint_aaa_refines_the_grid_for_a_sharp_fermi_transition():
     )
     f = expit(-grid / kT)
     entropy = -xlogy(f, f) - xlogy(1 - f, 1 - f)
-    assert np.all(
-        thermal_errors(terms, grid, np.column_stack([f, entropy]))
-        <= np.array([1e-10, 1e-9])
-    )
+    errors = thermal_errors(terms, grid, np.column_stack([f, entropy]))
+    assert errors[0] <= 1e-10
+    assert errors[1] <= 1.01 * terms.entropy_error + 1e-13
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -533,3 +546,53 @@ def test_cached_entropy_fit_does_not_enable_unrequested_thermodynamics():
         ValueError, match="Prepare the node with compute_thermodynamics=True"
     ):
         charge_only.thermodynamics(0.1)
+
+
+@pytest.mark.usefixtures("require_mumps")
+def test_entropy_reporting_leaves_density_and_charge_unchanged():
+    matrix = sp.diags(
+        [-np.ones(5), np.linspace(-0.3, 0.3, 6), -np.ones(5)], [-1, 0, 1], format="csr"
+    )
+    coordinates = DensityCoordinates.from_entries(
+        size=6, keys=[()], entries=tuple(((), i, j) for i in range(6) for j in range(6))
+    )
+    layout = SparseRationalLayout.build(
+        density_coordinates=coordinates,
+        trace_weights_diag=np.ones(6),
+        include_all_diagonal=True,
+    )
+    nodes = [
+        PreparedMumpsRationalNode(
+            matrix,
+            kT=0.1,
+            q_diag=np.ones(6),
+            options=RationalFOE(),
+            charge_tolerance=1e-9,
+            density_tolerance=1e-9,
+            layout=layout,
+            compute_thermodynamics=thermal,
+        )
+        for thermal in (False, True)
+    ]
+    charges = [node.charge(0.13) for node in nodes]
+    np.testing.assert_array_equal(
+        nodes[0]._last_terms.shifts, nodes[1]._last_terms.shifts
+    )
+    np.testing.assert_array_equal(
+        nodes[0]._last_terms.residues, nodes[1]._last_terms.residues
+    )
+    np.testing.assert_array_equal(charges[0], charges[1])
+    np.testing.assert_array_equal(
+        nodes[0].density_values_from_charge_order(0.13),
+        nodes[1].density_values_from_charge_order(0.13),
+    )
+    exact, _, _ = _reference(matrix.toarray(), np.ones(6), 0.1, 0.13)
+    assert (
+        np.max(
+            abs(
+                nodes[0].density_values_from_charge_order(0.13)
+                - coordinates.values_from_assembled_matrix(exact)
+            )
+        )
+        < 1e-9
+    )

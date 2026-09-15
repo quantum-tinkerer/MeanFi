@@ -11,7 +11,8 @@ def fermi_dirac(energies: np.ndarray, kT: float, mu: float) -> np.ndarray:
     energies = np.asarray(energies, dtype=float)
     if kT == 0:
         return np.where(energies == mu, 0.5, energies < mu).astype(float)
-    return expit((mu - energies) / kT)
+    with np.errstate(over="ignore"):
+        return expit((mu - energies) / kT)
 
 
 def occupation_entropy(occupation: np.ndarray) -> np.ndarray:

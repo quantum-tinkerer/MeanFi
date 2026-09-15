@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from numbers import Integral
 import math
 import numpy as np
+from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
 
 
 def _positive_integer(name, value, *, allow_none=False, minimum=1):
@@ -84,7 +85,7 @@ class UniformGrid(IntegrationMethod):
     max_refinements: int | None = 12
     batch_size: int = 128
     max_spectrum_bytes: int = 256 * 1024 * 1024
-    matrix_function: object | None = None
+    matrix_function: DirectDiagonalization | RationalFOE | None = None
     dtype: str | np.dtype = "complex128"
 
     def __post_init__(self):

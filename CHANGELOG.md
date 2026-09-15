@@ -1,3 +1,18 @@
+# Design simplification
+
+- Shared interaction correction/energy formulas and one SCF evaluation record.
+- One compact symmetry reconstruction, also used to construct spatial bases.
+- `Model.required_coordinates` exposes density selection; the reduced space and
+  density payload are private. References also accept complete density dictionaries.
+- Density coordinate slices are derived. Missing sampled blocks raise; zero-filled
+  reconstruction is internal. Redundant simplex statistics and helper wrappers removed.
+- Density settings resolve in one place. SCF reuses static inverse patterns and
+  the bare BdG embedding. Dense density reconstruction is shared across evaluators.
+- AAA chooses poles solely for worst density-entry accuracy, tightened for charge
+  traces. Entropy uses those poles afterward; `errors.entropy_approximation` reports
+  its independent diagnostic error. Entropy has no tolerance and never controls
+  EDIIS, AAA acceptance, or integration refinement.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

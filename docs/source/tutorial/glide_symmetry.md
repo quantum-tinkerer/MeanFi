@@ -129,16 +129,12 @@ The raw active entries come from `h_int`.
 Hermiticity removes conjugate redundancy; the glide then removes additional SCF variables.
 
 ```{code-cell} ipython3
-entries = model_glide.scf_space.active_coordinates.entries
-
-print(f"raw active real variables:      {2 * len(entries):2d}")
-print(f"after Hermiticity:              {model_free.scf_space.num_params:2d}")
-print(f"after glide symmetry:           {model_glide.scf_space.num_params:2d}")
-print(f"required real-space entries:    {len(model_glide.scf_space.required_coordinates.entries):2d}")
+print(f"entries after Hermiticity: {model_free.required_coordinates.value_count}")
+print(f"entries after glide:       {model_glide.required_coordinates.value_count}")
 ```
 
 ```{code-cell} ipython3
-model_glide.scf_space.required_coordinates.entries
+model_glide.required_coordinates.entries
 ```
 
 The backend does not need all active density entries.
@@ -164,8 +160,8 @@ glide_result = meanfi.solver(
     scf_tol=1e-6,
 )
 
-print(f"unconstrained SCF variables: {model_free.scf_space.num_params}")
-print(f"glide-constrained variables: {model_glide.scf_space.num_params}")
+print(f"unconstrained required entries: {model_free.required_coordinates.value_count}")
+print(f"glide-constrained required entries: {model_glide.required_coordinates.value_count}")
 print(f"unconstrained residual:      {free_result.errors.scf_residual:.2e}")
 print(f"glide residual:              {glide_result.errors.scf_residual:.2e}")
 print(f"unconstrained free energy:   {free_result.free_energy:.8f}")

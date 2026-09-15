@@ -10,12 +10,35 @@ import numpy as np
 from meanfi.density.density import evaluate_density
 from meanfi.density.problem import DensityProblem
 from meanfi.model import Model
-from meanfi.observables import _bdg_correction_expectation, expectation_value
-from meanfi.results import DensityEntries, DensityResult
+from meanfi.meanfield import correction_expectation, interaction_energy
+from meanfi.results import _DensityEntries, DensityResult
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
-from meanfi.tb.ops import _tb_type
+from meanfi.tb.ops import _tb_type, add_tb
 from meanfi.tb.storage import tb_entries_changed
+
+
+@dataclass(frozen=True)
+class SCFEvaluation:
+    """One density evaluation; the initial guess has no input density or energy."""
+
+    density: DensityResult
+    output_state: ActiveDensityState
+    input_state: ActiveDensityState | None = None
+    internal_energy: float | None = None
+
+    @property
+    def residual(self) -> np.ndarray | None:
+        if self.input_state is None:
+            return None
+        return self.output_state.values - self.input_state.values
+
+    @property
+    def residual_norm(self) -> float | None:
+        residual = self.residual
+        return (
+            None if residual is None else float(np.max(np.abs(residual), initial=0.0))
+        )
 
 
 @dataclass(frozen=True)
@@ -31,7 +54,7 @@ class SCFProblem:
             validate_bdg_tb(
                 guess, ndof=model._ndof, ndim=model._ndim, name="BdG correction"
             )
-        projected = model.scf_space.project_meanfield_input(guess)
+        projected = model._space.project_correction(guess)
         if model.superconducting:
             projected = assemble_bdg_tb(
                 {
@@ -59,7 +82,7 @@ class SCFProblem:
         return evaluate_density(
             replace(
                 self.density_problem,
-                hamiltonian=self.model.hamiltonian_from_meanfield(mean_field),
+                hamiltonian=add_tb(self.model._hamiltonian, mean_field),
             ),
             filling=self.model.filling,
             mu_tol=self.mu_tol,
@@ -67,46 +90,37 @@ class SCFProblem:
             mu_guess=mu_guess,
         )
 
-    def state_from_density(self, density: DensityEntries) -> ActiveDensityState:
-        space = self.model.scf_space
-        if density.coordinates.entries != space.required_coordinates.entries:
+    def state_from_density(self, density: _DensityEntries) -> ActiveDensityState:
+        space = self.model._space
+        if density.coordinates is not space.required_coordinates:
             raise ValueError("density slice does not match the SCF space")
         return ActiveDensityState(
             space, space.params_from_required_entries(density.values)
         )
 
-    def correction_expectation(self, density: _tb_type, correction: _tb_type) -> float:
-        """Correction energy per physical orbital, without Nambu double counting."""
-        if self.model.superconducting:
-            energy = _bdg_correction_expectation(density, correction, self.model._ndof)
-        else:
-            energy = float(np.real(expectation_value(density, correction)))
-        return energy / self.model._ndof
-
-    def interaction_energy(self, params: np.ndarray) -> float:
-        state = ActiveDensityState(self.model.scf_space, params)
-        difference = self.model._active_density_from_state(
-            self.model._reference_difference(state)
-        )
-        correction = self.model._mean_field_from_state(state)
-        return 0.5 * self.correction_expectation(difference, correction)
-
-    def interaction_gradient(self, params: np.ndarray, direction: np.ndarray) -> float:
-        state = ActiveDensityState(self.model.scf_space, params)
-        direction_state = ActiveDensityState(self.model.scf_space, direction)
-        return self.correction_expectation(
-            self.model._active_density_from_state(direction_state),
-            self.model._mean_field_from_state(state),
+    def interaction_curvature(self, difference: np.ndarray) -> float:
+        """Quadratic energy of a direction; the reference cancels in EDIIS differences."""
+        return interaction_energy(
+            self.model._space.density_from_params(difference),
+            self.model.h_int,
+            electron_ndof=self.model._electron_ndof,
         )
 
     def evaluate_state(
         self, input_state: ActiveDensityState, mu_guess: float
-    ) -> tuple[DensityResult, ActiveDensityState, float]:
-        correction = self.model._mean_field_from_state(input_state)
+    ) -> SCFEvaluation:
+        model = self.model
+        correction = model._mean_field_from_state(input_state)
         density = self.evaluate_mean_field(correction, mu_guess)
         output_state = self.state_from_density(density.entries)
-        one_body = density.band_energy - self.correction_expectation(
-            self.model._active_density_from_state(output_state), correction
+        output = model._active_density_from_state(output_state)
+        one_body = density.band_energy - correction_expectation(
+            output, correction, electron_ndof=model._electron_ndof
         )
-        internal_energy = one_body + self.interaction_energy(output_state.values)
-        return density, output_state, internal_energy
+        difference = model._active_density_from_state(
+            model._reference_difference(output_state)
+        )
+        energy = one_body + interaction_energy(
+            difference, model.h_int, electron_ndof=model._electron_ndof
+        )
+        return SCFEvaluation(density, output_state, input_state, energy)

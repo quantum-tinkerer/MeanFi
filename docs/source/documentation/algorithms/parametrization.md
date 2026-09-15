@@ -13,7 +13,7 @@ kernelspec:
 # Parametrization and symmetry reduction
 
 The SCF loop is a fixed-point iteration on **real parameters**, not directly on a density-matrix dictionary.
-This page explains the parametrization used by `model.scf_space` and how it connects to the SCF-loop step
+This page explains the private parametrization owned by the model and how it connects to the SCF-loop step
 
 :::{math}
 \rho \longrightarrow h_{\mathrm{MF}}[\rho].
@@ -52,7 +52,7 @@ z_i = \rho_{ab}(R).
 :::
 
 The ordered list of active entries is stored as density coordinates.
-This list is only a layout: it can extract selected values from a tight-binding dictionary and put selected values back into tight-binding blocks.
+This list is only a layout: it can extract selected values from a tight-binding dictionary. Internal reconstruction assembles constrained active blocks.
 It does not impose Hermiticity, particle-hole constraints, positivity, or SCF logic.
 
 For normal-state models, the active entries are:
@@ -107,7 +107,9 @@ It does not enforce positivity, trace constraints beyond the fixed-filling densi
 For models without spatial symmetries, MeanFi does not materialize the matrix `B`.
 Hermiticity and particle-hole constraints are represented as small entry orbits instead:
 each required representative density entry is gathered into parameters, and expansion scatters those parameters back to the active entries with the appropriate sign or conjugation.
-This keeps storage linear in the number of active entries.
+This keeps storage linear in the number of active entries. When spatial symmetry
+requires a dense basis, that basis is materialized from the same compact mapping
+before the additional spatial constraints are applied.
 
 ## How symmetries produce `B`
 
@@ -239,7 +241,7 @@ has full column rank.
 The required complex entries are exposed by
 
 ```python
-model.scf_space.required_coordinates.entries
+model.required_coordinates.entries
 ```
 
 Selected-density backends use exactly these entries.
@@ -254,7 +256,7 @@ Those values are packed into `P x` and compressed to SCF parameters:
 y = (P B)^+ P x.
 :::
 
-In the implementation, `model.scf_space` precomputes this compression map during model construction.
+In the implementation, the model precomputes this compression map during model construction.
 During SCF iterations, compression is therefore just a matrix-vector multiply.
 For the compact no-spatial-symmetry path, the same compression is represented by row-index gathers rather than a dense matrix.
 
@@ -295,5 +297,5 @@ The SCF loop uses this space at four points:
    The next `y` is expanded to active density input, then the normal or BdG mean-field map turns it into the next Hamiltonian correction.
 
 Random guesses use the same map.
-`model.random_meanfield(...)` samples the minimal real vector `y`, expands it through `model.scf_space`, and applies the model's mean-field map.
+`model.random_meanfield(...)` samples the minimal real vector `y`, expands it through the private density space, and applies the model's mean-field map.
 The returned object is a solver-ready mean-field correction, not raw density parameters.

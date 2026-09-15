@@ -32,14 +32,6 @@ def matrix_shape(matrix: Any) -> tuple[int, int]:
     return int(shape[0]), int(shape[1])
 
 
-def transpose(matrix: Any):
-    return matrix.T
-
-
-def conjugate_transpose(matrix: Any):
-    return matrix.conj().T
-
-
 def elementwise_product(lhs: Any, rhs: Any):
     if is_sparse_like(lhs):
         return lhs.multiply(rhs).tocsr()
@@ -77,8 +69,3 @@ def add_tb(tb1: _tb_type, tb2: _tb_type) -> _tb_type:
 
 def scale_tb(tb: _tb_type, scale: float) -> _tb_type:
     return {key: matrix * scale for key, matrix in tb.items()}
-
-
-def compare_dicts(dict1: dict, dict2: dict, atol: float = 1e-10) -> None:
-    for key in frozenset(dict1) | frozenset(dict2):
-        assert np.allclose(dict1[key], dict2[key], atol=atol)

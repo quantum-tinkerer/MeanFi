@@ -18,7 +18,7 @@ class EDIISPoint:
 def ediis_coefficients(
     history: Sequence[EDIISPoint],
     *,
-    interaction_gradient: Callable[[np.ndarray, np.ndarray], float],
+    interaction_curvature: Callable[[np.ndarray], float],
 ) -> np.ndarray:
     """Minimize internal energy over the convex density history.
 
@@ -37,10 +37,7 @@ def ediis_coefficients(
     for i, left in enumerate(history):
         for j, right in enumerate(history[:i]):
             difference = left.params - right.params
-            curvature[i, j] = curvature[j, i] = 0.5 * (
-                interaction_gradient(left.params, difference)
-                - interaction_gradient(right.params, difference)
-            )
+            curvature[i, j] = curvature[j, i] = interaction_curvature(difference)
 
     # For a quadratic energy and sum(c) = 1, this equals E(sum(c_i rho_i)).
     # Prepare the small history matrix once; optimization needs no model calls.

@@ -8,7 +8,7 @@ import numpy as np
 from meanfi.density.integrate.methods import UniformGrid
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
 from meanfi.density.kpoint.matrix_functions.direct import (
-    selected_density_values_from_eigensystem,
+    density_values_from_eigensystem,
 )
 from meanfi.density.kpoint.matrix_functions.rational import PreparedMumpsRationalNode
 from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationalLayout
@@ -105,6 +105,7 @@ class _Evaluator:
         q_diag: np.ndarray | None,
         trace_weights: np.ndarray,
         tolerances: ErrorTolerances,
+        sparse_layout: SparseRationalLayout | None,
     ):
         self.hamiltonian = hamiltonian
         self.kT = kT
@@ -115,18 +116,10 @@ class _Evaluator:
         self.q_diag = np.ones(self.size) if q_diag is None else np.asarray(q_diag)
         self.trace_weights = trace_weights
         self.dtype = integration.dtype
-        self.batch_size = integration.batch_size or 128
+        self.batch_size = integration.batch_size
         self.tolerances = tolerances
         self.method = integration.matrix_function
-        self.sparse_layout = (
-            SparseRationalLayout.build(
-                density_coordinates=coordinates,
-                trace_weights_diag=trace_weights,
-                include_all_diagonal=True,
-            )
-            if isinstance(self.method, RationalFOE)
-            else None
-        )
+        self.sparse_layout = sparse_layout
         self.tb_keys = np.asarray(list(hamiltonian), dtype=float)
         self.density_keys = np.asarray(coordinates.keys, dtype=float)
         self.matrices = (
@@ -141,6 +134,7 @@ class _Evaluator:
         )
         self.work = _Work()
         self._aaa_interval_cache = []
+        self.entropy_approximation_error = None
 
     def matrices_at(self, points: np.ndarray):
         phases = np.exp(-1j * (points @ self.tb_keys.T))
@@ -195,7 +189,7 @@ class _Evaluator:
         if previous is not None:
             previous.spectra = None
 
-    def _rational_node(self, matrix):
+    def _rational_node(self, matrix, *, thermodynamics=False):
         return PreparedMumpsRationalNode(
             matrix,
             kT=self.kT,
@@ -208,7 +202,7 @@ class _Evaluator:
             density_tolerance=self.tolerances.density_matrix_integration,
             workspace_dtype=self.dtype,
             shared_aaa_interval_cache=self._aaa_interval_cache,
-            compute_thermodynamics=True,
+            compute_thermodynamics=thermodynamics,
         )
 
     def charge(self, grid: _Grid, mu: float) -> tuple[float, float, float | None]:
@@ -280,10 +274,14 @@ class _Evaluator:
                 energies = np.empty(len(points))
                 entropies = np.empty(len(points))
                 for index, matrix in enumerate(matrices):
-                    node = self._rational_node(matrix)
+                    node = self._rational_node(matrix, thermodynamics=True)
                     charges[index] = node.charge(mu)
                     packed[index] = node.density_values_from_charge_order(mu)
                     energies[index], entropies[index] = node.thermodynamics(mu)
+                    self.entropy_approximation_error = max(
+                        self.entropy_approximation_error or 0.0,
+                        node._last_terms.entropy_error,
+                    )
                     for group, (_key, _rows, _cols, value_slice) in enumerate(
                         self.coordinates.iter_key_coordinates()
                     ):
@@ -299,24 +297,9 @@ class _Evaluator:
                 occupation = fermi_dirac(
                     eigenvalues, self.kT, mu if self.normal else 0.0
                 )
-                if any(rows.size > self.size for rows in self.coordinates.rows_by_key):
-                    # Full layouts must not create a batch x size**3 temporary.
-                    density = (
-                        vectors * occupation[:, None, :]
-                    ) @ vectors.conj().swapaxes(-1, -2)
-                    packed = np.empty(
-                        (len(points), self.coordinates.value_count), dtype=complex
-                    )
-                    for group, (_key, rows, cols, value_slice) in enumerate(
-                        self.coordinates.iter_key_coordinates()
-                    ):
-                        packed[:, value_slice] = (
-                            density[:, rows, cols] * phases[:, group, None]
-                        )
-                else:
-                    packed = selected_density_values_from_eigensystem(
-                        vectors, occupation, self.coordinates, phases=phases
-                    )
+                packed = density_values_from_eigensystem(
+                    vectors, occupation, self.coordinates, phases=phases
+                )
                 diagonal = np.einsum(
                     "bia,ba,bia->bi", vectors, occupation, vectors.conj(), optimize=True
                 ).real

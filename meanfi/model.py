@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, KW_ONLY
+from collections.abc import Mapping
 
 import numpy as np
 
-from meanfi.meanfield import bdg_correction_from_density_parts, meanfield
+from meanfi.meanfield import interaction_correction
 from meanfi.results import DensityResult
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.space.space import ActiveSCFSpace
@@ -13,7 +14,7 @@ from meanfi.space.symmetry import SpatialSymmetry
 from meanfi.tb.bdg import electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import add_tb, _tb_type
 from meanfi.tb.storage import prefers_sparse_storage
-from meanfi.tb.validate import freeze_tb, tb_dimension, tb_orbital_count, zero_key
+from meanfi.tb.validate import freeze_tb, tb_dimension, tb_orbital_count
 
 
 @dataclass(frozen=True, eq=False)
@@ -32,12 +33,12 @@ class Model:
     kT: float = 0.0
     superconducting: bool = False
     spatial_symmetries: tuple[SpatialSymmetry, ...] = ()
-    reference: DensityResult | None = None
-    scf_space: ActiveSCFSpace = field(init=False, repr=False)
+    reference: _tb_type | DensityResult | None = None
+    _space: ActiveSCFSpace = field(init=False, repr=False)
     _reference_state: ActiveDensityState | None = field(init=False, repr=False)
     _ndim: int = field(init=False, repr=False)
     _ndof: int = field(init=False, repr=False)
-    _local_key: tuple[int, ...] = field(init=False, repr=False)
+    _hamiltonian: _tb_type = field(init=False, repr=False)
 
     def __post_init__(self):
         h_0, h_int = freeze_tb(self.h_0), freeze_tb(self.h_int)
@@ -70,7 +71,7 @@ class Model:
             spatial_symmetries=symmetries,
             _ndim=ndim,
             _ndof=ndof,
-            _local_key=zero_key(ndim),
+            _hamiltonian=electron_to_bdg_tb(h_0, ndof) if self.superconducting else h_0,
         ).items():
             object.__setattr__(self, name, value)
         space = ActiveSCFSpace.from_interaction(
@@ -81,10 +82,26 @@ class Model:
         )
         reference_state = None
         if self.reference is not None:
-            if not isinstance(self.reference, DensityResult):
-                raise TypeError("reference must be a DensityResult")
+            reference = self.reference
+            if isinstance(reference, DensityResult):
+                size = reference.coordinates.size
+                read_values = reference.values_for
+            else:
+                if not isinstance(reference, Mapping):
+                    raise TypeError(
+                        "reference must be a density dictionary or DensityResult"
+                    )
+                reference = freeze_tb(reference)
+                size = tb_orbital_count(reference)
+
+                def read_values(coordinates):
+                    return coordinates.values_from_tb(reference)
+
+                object.__setattr__(self, "reference", reference)
             coordinates = space.required_coordinates
-            if self.superconducting and self.reference.coordinates.size == ndof:
+            if size not in ((ndof, 2 * ndof) if self.superconducting else (ndof,)):
+                raise ValueError("density coordinate matrix sizes do not match")
+            if self.superconducting and size == ndof:
                 # An electron-space reference specifies zero pairing. Read only
                 # its required normal entries, without building Nambu matrices.
                 normal = DensityCoordinates.from_pairs(
@@ -96,45 +113,52 @@ class Model:
                     },
                 )
                 values = np.zeros(coordinates.value_count, dtype=complex)
-                values[coordinates.all_cols < ndof] = self.reference.values_for(normal)
+                values[coordinates.all_cols < ndof] = read_values(normal)
             else:
-                values = self.reference.values_for(coordinates)
+                values = read_values(coordinates)
             reference_state = ActiveDensityState(
                 space, space.params_from_required_entries(values)
             )
-        object.__setattr__(self, "scf_space", space)
+        object.__setattr__(self, "_space", space)
         object.__setattr__(self, "_reference_state", reference_state)
+
+    @property
+    def required_coordinates(self) -> DensityCoordinates:
+        """Density entries needed to evaluate this model's interaction."""
+        return self._space.required_coordinates
+
+    @property
+    def _electron_ndof(self) -> int | None:
+        return self._ndof if self.superconducting else None
 
     def _density_state(self, rho: _tb_type | DensityResult) -> ActiveDensityState:
         if isinstance(rho, DensityResult):
-            params = self.scf_space.params_from_required_entries(
-                rho.values_for(self.scf_space.required_coordinates)
+            params = self._space.params_from_required_entries(
+                rho.values_for(self.required_coordinates)
             )
         else:
-            params = self.scf_space.params_from_meanfield_input(rho)
+            params = self._space.params_from_density(rho)
         return ActiveDensityState(
-            self.scf_space,
+            self._space,
             params,
         )
 
     def _active_density_from_state(self, state: ActiveDensityState) -> _tb_type:
-        require_same_space(state, self.scf_space)
-        return self.scf_space.meanfield_input_from_params(state.values)
+        require_same_space(state, self._space)
+        return self._space.density_from_params(state.values)
 
     def _reference_difference(
         self,
         state: ActiveDensityState,
     ) -> ActiveDensityState:
-        require_same_space(state, self.scf_space)
+        require_same_space(state, self._space)
         return state.relative_to(self._reference_state)
 
     def _mean_field_from_state(self, state: ActiveDensityState) -> _tb_type:
         active = self._active_density_from_state(self._reference_difference(state))
-        if self.superconducting:
-            return bdg_correction_from_density_parts(
-                active, h_int=self.h_int, ndof=self._ndof, ndim=self._ndim
-            )
-        return meanfield(active, self.h_int)
+        return interaction_correction(
+            active, self.h_int, electron_ndof=self._electron_ndof
+        )
 
     def hamiltonian_from_density(self, density: _tb_type | DensityResult) -> _tb_type:
         """Build the normal or BdG Hamiltonian from a trial density.
@@ -143,8 +167,8 @@ class Model:
         Subtract the reference normal and pairing densities before computing
         the correction; a normal reference contributes no pairing.
         """
-        return self.hamiltonian_from_meanfield(
-            self._mean_field_from_state(self._density_state(density))
+        return add_tb(
+            self._hamiltonian, self._mean_field_from_state(self._density_state(density))
         )
 
     def hamiltonian_from_meanfield(
@@ -155,13 +179,11 @@ class Model:
         Omitting ``mean_field`` returns the noninteracting Hamiltonian.
         Chemical potential is applied during density evaluation.
         """
-        if not self.superconducting:
-            return add_tb(self.h_0, mean_field or {})
-        if mean_field is not None:
+        if self.superconducting and mean_field is not None:
             validate_bdg_tb(
                 mean_field, ndof=self._ndof, ndim=self._ndim, name="BdG correction"
             )
-        return add_tb(electron_to_bdg_tb(self.h_0, self._ndof), mean_field or {})
+        return add_tb(self._hamiltonian, mean_field or {})
 
     def random_meanfield(self, rng=None, scale: float = 1.0) -> _tb_type:
         """Sample a solver-ready mean-field correction in this model's SCF space."""
@@ -169,13 +191,8 @@ class Model:
         generator = (
             rng if isinstance(rng, np.random.Generator) else np.random.default_rng(rng)
         )
-        params = float(scale) * generator.standard_normal(self.scf_space.num_params)
-        meanfield_input = self.scf_space.meanfield_input_from_params(params)
-        if self.superconducting:
-            return bdg_correction_from_density_parts(
-                meanfield_input,
-                h_int=self.h_int,
-                ndof=self._ndof,
-                ndim=self._ndim,
-            )
-        return meanfield(meanfield_input, self.h_int)
+        params = float(scale) * generator.standard_normal(self._space.num_params)
+        meanfield_input = self._space.density_from_params(params)
+        return interaction_correction(
+            meanfield_input, self.h_int, electron_ndof=self._electron_ndof
+        )

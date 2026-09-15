@@ -1,26 +1,22 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 import scipy.sparse as sparse
 
-from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
+from meanfi.tb.bdg import assemble_bdg_tb
 from meanfi.tb.ops import (
     _tb_type,
     add_tb,
     as_sparse,
     elementwise_product,
     is_sparse_like,
-    transpose,
 )
-from meanfi.tb.validate import tb_dimension, zero_key
+from meanfi.tb.validate import tb_dimension, tb_orbital_count
+from meanfi.space.coordinates import onsite_key
+from meanfi.tb.expectation import expectation_value
 from meanfi.tb.storage import prefers_sparse_storage
 from meanfi.results import DensityResult
 from meanfi.space.space import ActiveSCFSpace
-
-if TYPE_CHECKING:
-    from meanfi.model import Model
 
 
 def meanfield(density_matrix: _tb_type | DensityResult, h_int: _tb_type) -> _tb_type:
@@ -31,17 +27,17 @@ def meanfield(density_matrix: _tb_type | DensityResult, h_int: _tb_type) -> _tb_
             h_int, sparse=prefers_sparse_storage(h_int)
         )
         values = density_matrix.values_for(space.required_coordinates)
-        density_matrix = space.meanfield_input_from_params(
+        density_matrix = space.density_from_params(
             space.params_from_required_entries(values)
         )
-    onsite_key = zero_key(tb_dimension(density_matrix))
-    diagonal_density = np.asarray(density_matrix[onsite_key].diagonal()).real.ravel()
+    local = onsite_key(tb_dimension(density_matrix))
+    diagonal_density = np.asarray(density_matrix[local].diagonal()).real.ravel()
     onsite_diagonal = np.zeros_like(diagonal_density, dtype=complex)
     sparse_present = prefers_sparse_storage(density_matrix, h_int)
     for interaction in h_int.values():
         onsite_diagonal += np.asarray(diagonal_density @ interaction).ravel()
     direct = {
-        onsite_key: (
+        local: (
             sparse.diags(onsite_diagonal, format="csr")
             if sparse_present
             else np.diag(onsite_diagonal)
@@ -52,20 +48,6 @@ def meanfield(density_matrix: _tb_type | DensityResult, h_int: _tb_type) -> _tb_
         for key, interaction in h_int.items()
     }
     return add_tb(direct, exchange)
-
-
-def extract_electron_density(density_matrix: _tb_type, model: Model) -> _tb_type:
-    return {
-        key: matrix[: model._ndof, : model._ndof]
-        for key, matrix in density_matrix.items()
-    }
-
-
-def extract_anomalous_density(density_matrix: _tb_type, model: Model) -> _tb_type:
-    return {
-        key: matrix[: model._ndof, model._ndof :]
-        for key, matrix in density_matrix.items()
-    }
 
 
 def _antisymmetrize_anomalous_block(anomalous_block: _tb_type, ndof: int) -> _tb_type:
@@ -87,26 +69,29 @@ def _antisymmetrize_anomalous_block(anomalous_block: _tb_type, ndof: int) -> _tb
         block = anomalous_block.get(key, zero)
         opposite_block = anomalous_block.get(opposite, zero)
         if is_sparse_like(block) or is_sparse_like(opposite_block):
-            projected = 0.5 * (as_sparse(block) - transpose(as_sparse(opposite_block)))
+            projected = 0.5 * (as_sparse(block) - as_sparse(opposite_block).T)
             projected = projected.tocsr()
         else:
             projected = 0.5 * (
                 np.asarray(block, dtype=complex)
-                - transpose(np.asarray(opposite_block, dtype=complex))
+                - np.asarray(opposite_block, dtype=complex).T
             )
         result[key] = projected
         if opposite != key:
-            result[opposite] = -transpose(projected)
+            result[opposite] = -projected.T
     return result
 
 
-def bdg_correction_from_density_parts(
+def interaction_correction(
     density_matrix: _tb_type,
-    *,
     h_int: _tb_type,
-    ndof: int,
-    ndim: int,
+    *,
+    electron_ndof: int | None = None,
 ) -> _tb_type:
+    """Apply the linear interaction map to normal or normal-and-pairing density."""
+    if electron_ndof is None:
+        return meanfield(density_matrix, h_int)
+    ndof = electron_ndof
     electron_density = {
         key: matrix[:ndof, :ndof] for key, matrix in density_matrix.items()
     }
@@ -122,15 +107,34 @@ def bdg_correction_from_density_parts(
         for key, interaction in h_int.items()
     }
     anomalous_block = _antisymmetrize_anomalous_block(anomalous_block, ndof)
-    correction = assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
-    validate_bdg_tb(correction, ndof=ndof, ndim=ndim, name="BdG correction")
-    return correction
+    return assemble_bdg_tb(normal_block, anomalous_block, ndof=ndof)
 
 
-def bdg_correction_from_density(density_matrix: _tb_type, model: Model) -> _tb_type:
-    return bdg_correction_from_density_parts(
-        density_matrix,
-        h_int=model.h_int,
-        ndof=model._ndof,
-        ndim=model._ndim,
+def correction_expectation(
+    density: _tb_type, correction: _tb_type, *, electron_ndof: int | None = None
+) -> float:
+    """Interaction contraction per physical orbital, with BdG counting applied once."""
+    if electron_ndof is None:
+        return float(
+            np.real(expectation_value(density, correction))
+        ) / tb_orbital_count(density)
+    ndof = electron_ndof
+    electron = {key: block[:ndof, :ndof] for key, block in density.items()}
+    normal = {key: block[:ndof, :ndof] for key, block in correction.items()}
+    energy = expectation_value(electron, normal)
+    # Pairing contracts at the same displacement and conjugates the density.
+    for key, block in correction.items():
+        energy += elementwise_product(
+            density[key][:ndof, ndof:].conj(), block[:ndof, ndof:]
+        ).sum()
+    return float(np.real(energy)) / ndof
+
+
+def interaction_energy(
+    difference: _tb_type, h_int: _tb_type, *, electron_ndof: int | None = None
+) -> float:
+    """Quadratic interaction energy of a density difference, per physical orbital."""
+    correction = interaction_correction(difference, h_int, electron_ndof=electron_ndof)
+    return 0.5 * correction_expectation(
+        difference, correction, electron_ndof=electron_ndof
     )

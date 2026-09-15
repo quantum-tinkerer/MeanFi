@@ -6,7 +6,7 @@ from meanfi.density.filling import charge_diagonal, mu_bracket, solve_mu
 from meanfi.density.problem import DensityProblem
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization
 from meanfi.errors import ErrorValues
-from meanfi.results import DensityEntries, DensityResult, UniformGridInfo
+from meanfi.results import _DensityEntries, DensityResult, UniformGridInfo
 from meanfi.tb.validate import tb_dimension
 from .periodic_grid import _Evaluator, _Grid, periodic_grid_resolution
 
@@ -42,6 +42,7 @@ def solve_periodic(
         q_diag=q_diag,
         trace_weights=weights,
         tolerances=tolerances,
+        sparse_layout=problem.sparse_layout,
     )
     n = (
         periodic_grid_resolution(integration.nk, dimension)
@@ -163,7 +164,7 @@ def solve_periodic(
         spectrum_bytes=work.spectrum_bytes,
     )
     return DensityResult(
-        entries=DensityEntries(coordinates, values, density_error),
+        entries=_DensityEntries(coordinates, values, density_error),
         mu=resolved_mu,
         filling=charge,
         errors=ErrorValues(
@@ -173,6 +174,7 @@ def solve_periodic(
             charge_integration=charge_error,
             band_energy_integration=energy_error,
             entropy_integration=entropy_error,
+            entropy_approximation=evaluator.entropy_approximation_error,
             filling_residual=None if filling is None else abs(charge - filling),
         ),
         statistics=info,

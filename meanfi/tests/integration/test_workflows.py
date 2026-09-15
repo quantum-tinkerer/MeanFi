@@ -68,20 +68,35 @@ def test_solver_supports_anderson_mixing():
     )
 
 
-def test_anderson_mixing_forwards_scipy_options(monkeypatch):
+def test_anderson_adapter_records_only_accepted_evaluations_and_forwards_options(
+    monkeypatch,
+):
+    from types import SimpleNamespace
     import meanfi.scf.fixed_point as fixed_point
 
-    calls = {}
+    calls, evaluated, accepted = {}, [], []
+
+    def evaluate(x):
+        x = np.array(x, copy=True)
+        evaluated.append(x)
+        return SimpleNamespace(
+            input_state=SimpleNamespace(values=x),
+            residual=x + 0.5,
+            residual_norm=float(np.max(abs(x + 0.5))),
+        )
 
     def fake_anderson(func, x0, **kwargs):
         calls.update(kwargs)
-        return np.asarray(x0, dtype=float)
+        func(x0)
+        func(np.array([99.0]))  # Rejected line-search trial.
+        residual = func(np.array([1.0]))
+        kwargs["callback"](np.array([1.0]), residual)
+        return np.array([1.0])
 
     monkeypatch.setattr(fixed_point, "anderson", fake_anderson)
-
-    result = fixed_point.solve_fixed_point(
-        lambda x: np.zeros_like(x),
-        np.array([1.0]),
+    fixed_point.iterate_anderson(
+        evaluate,
+        np.array([0.0]),
         scf=AndersonMixing(
             max_iterations=7,
             alpha=0.3,
@@ -90,53 +105,16 @@ def test_anderson_mixing_forwards_scipy_options(monkeypatch):
             line_search=None,
         ),
         scf_tol=1e-9,
-        on_iteration=lambda *_args: None,
+        accept=accepted.append,
     )
-
-    assert np.allclose(result, [1.0])
+    assert [float(x[0]) for x in evaluated] == [0.0, 99.0, 1.0]
+    assert [float(item.input_state.values[0]) for item in accepted] == [0.0, 1.0]
     assert calls["alpha"] == 0.3
     assert calls["w0"] == 0.2
     assert calls["M"] == 4
     assert calls["line_search"] is None
     assert calls["maxiter"] == 7
     assert calls["f_tol"] == 1e-9
-
-
-def test_anderson_mixing_reports_only_accepted_iterations(monkeypatch):
-    import meanfi.scf.fixed_point as fixed_point
-
-    events = []
-
-    def fake_anderson(func, x0, **kwargs):
-        func(np.asarray(x0, dtype=float))
-        func(np.array([99.0]))
-        kwargs["callback"](np.array([1.0]), np.array([0.25]))
-        return np.array([1.0])
-
-    def on_iteration(params, residual):
-        events.append(
-            (
-                np.asarray(params, dtype=float).copy(),
-                np.asarray(residual, dtype=float).copy(),
-            )
-        )
-
-    monkeypatch.setattr(fixed_point, "anderson", fake_anderson)
-
-    result = fixed_point.solve_fixed_point(
-        lambda x: np.asarray(x, dtype=float) + 0.5,
-        np.array([0.0]),
-        scf=AndersonMixing(max_iterations=3),
-        scf_tol=1e-9,
-        on_iteration=on_iteration,
-    )
-
-    assert np.allclose(result, [1.0])
-    assert len(events) == 2
-    assert np.allclose(events[0][0], [0.0])
-    assert np.allclose(events[0][1], [0.5])
-    assert np.allclose(events[1][0], [1.0])
-    assert np.allclose(events[1][1], [0.25])
 
 
 @pytest.mark.parametrize(

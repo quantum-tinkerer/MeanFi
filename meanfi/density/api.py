@@ -35,7 +35,7 @@ def _density_problem(
         if interaction is not None or spatial_symmetries:
             raise ValueError("set interaction and spatial_symmetries on the Model")
         if keys is None and coordinates is None:
-            coordinates = model.scf_space.required_coordinates
+            coordinates = model.required_coordinates
         kT = model.kT if kT is None else kT
         electron_ndof = model._ndof if model.superconducting else None
         h = model.hamiltonian_from_meanfield(mean_field)

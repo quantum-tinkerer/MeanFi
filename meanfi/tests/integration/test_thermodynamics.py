@@ -102,7 +102,7 @@ def test_user_can_restart_stalled_ediis_with_explicit_anderson(a, b, kT, monkeyp
         raise AssertionError("EDIIS must not invoke another SCF method")
 
     with monkeypatch.context() as patch:
-        patch.setattr(engine, "iterate_density_fixed_point", unexpected_switch)
+        patch.setattr(engine, "iterate_anderson", unexpected_switch)
         with pytest.raises(mf.NoConvergence) as failure:
             mf.solver(
                 model,
@@ -199,8 +199,22 @@ def test_bdg_shifted_grid_energy_uses_full_nambu_charge(use_sparse, request):
     if use_sparse:
         request.getfixturevalue("require_mumps")
         h = {key: sparse.csr_matrix(block) for key, block in h.items()}
+    from meanfi.density.kpoint.matrix_functions.rational.common import (
+        SparseRationalLayout,
+    )
+
+    layout = (
+        SparseRationalLayout.build(
+            density_coordinates=coordinates,
+            trace_weights_diag=np.array([1.0, 0.0]),
+            include_all_diagonal=True,
+        )
+        if use_sparse
+        else None
+    )
     evaluator = _Evaluator(
         h,
+        sparse_layout=layout,
         kT=0.12,
         integration=mf.UniformGrid(
             nk=3,
@@ -283,7 +297,7 @@ def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
             integration=integration,
             tol=1e-7,
         )
-        selected = density.select(model.scf_space.required_coordinates)
+        selected = density.select(model.required_coordinates)
         assert selected.entropy == density.entropy
         return (
             density,
@@ -295,9 +309,12 @@ def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
     repeated, energy, free_energy = evaluate(3)
     assert repeated.filling == pytest.approx(3 * base.filling, abs=1e-7)
     assert repeated.band_energy == pytest.approx(base.band_energy, abs=1e-7)
-    assert repeated.entropy == pytest.approx(base.entropy, abs=1e-7)
+    entropy_error = (base.errors.entropy_approximation or 0.0) + (
+        repeated.errors.entropy_approximation or 0.0
+    )
+    assert repeated.entropy == pytest.approx(base.entropy, abs=entropy_error + 1e-7)
     assert energy == pytest.approx(base_energy, abs=1e-7)
-    assert free_energy == pytest.approx(base_free_energy, abs=1e-7)
+    assert free_energy == pytest.approx(base_free_energy, abs=kT * entropy_error + 1e-7)
 
 
 @pytest.mark.parametrize("superconducting", [False, True])

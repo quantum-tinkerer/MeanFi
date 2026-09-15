@@ -14,9 +14,10 @@ warm measurements construct a new node sharing the previous scalar fit. Every
 measurement still factors its matrices. Public fixed-filling calls use their
 normal per-calculation caches. Timings exclude the independent dense references.
 --large-matrices measures N=100, 200, and 512 with chain, rectangular-grid, and
-random-graph sparsity, including chemical-potential searches. It uses the public
-per-orbital thermodynamic tolerance; the original node suite keeps total-trace
-error targets for direct comparison with its archived results. Use --per-cell
+random-graph sparsity, including chemical-potential searches. It reports energy
+and entropy errors per orbital; the original node suite reports total-trace
+errors for comparison with its archived results. Accuracy requires the density
+and charge targets; thermodynamic errors are separate diagnostics. Use --per-cell
 when benchmarking public APIs from before thermodynamic normalization.
 """
 
@@ -415,11 +416,15 @@ def measure(call, *, reference_charge, reference_values, tolerance):
                 accurate=(
                     error_charge <= tolerance
                     and error_density <= tolerance
-                    and extra.get("energy_error", 0.0) <= tolerance
-                    and extra.get("entropy_error", 0.0) <= tolerance
                     and extra.get("thermo_factorizations", 0) == 0
                     and extra.get("thermo_inverse_queries", 0) == 0
                 ),
+                thermodynamics_within_density_tolerance=(
+                    extra.get("energy_error", 0.0) <= tolerance
+                    and extra.get("entropy_error", 0.0) <= tolerance
+                )
+                if "entropy_error" in extra
+                else None,
                 **extra,
             )
         except Exception as exc:
@@ -503,6 +508,13 @@ def node_case(case, scheme):
                 entropy=entropy,
                 energy_error=abs(energy - reference_energy) / normalization,
                 entropy_error=abs(entropy - reference_entropy) / normalization,
+                entropy_approximation_error=(
+                    None
+                    if getattr(node._last_terms, "entropy_error", None) is None
+                    else node._last_terms.entropy_error
+                    * matrix.shape[0]
+                    / normalization
+                ),
                 thermo_factorizations=thermal_work["factorizations"],
                 thermo_inverse_queries=thermal_work["selected_inverse_calls"],
             )
@@ -637,6 +649,9 @@ def filling_case(case, scheme):
                 reference_seconds=time.perf_counter() - start,
                 energy_error=abs(result.band_energy - band_energy),
                 entropy_error=abs(result.entropy - entropy),
+                entropy_approximation_error=getattr(
+                    result.errors, "entropy_approximation", None
+                ),
             )
         return result.filling, result.values, extra
 

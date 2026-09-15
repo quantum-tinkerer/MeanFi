@@ -351,10 +351,10 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
         filling=0.5,
         kT=0.2,
         superconducting=True,
-    ).scf_space
+    )._space
     np.testing.assert_allclose(
-        space.params_from_meanfield_input(dense_result.to_tb()),
-        space.params_from_meanfield_input(sparse_result.to_tb()),
+        space.params_from_density(dense_result.to_tb()),
+        space.params_from_density(sparse_result.to_tb()),
         atol=1e-3,
     )
 
@@ -383,7 +383,7 @@ def test_bdg_sparse_periodic_grid_selected_density_matches_dense_reference(
     sparse_model = Model(
         sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True
     )
-    space = dense_model.scf_space
+    space = dense_model._space
 
     dense_result = density_matrix(
         dense_model,

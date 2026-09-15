@@ -1,3 +1,4 @@
+from meanfi.results import _DensityEntries
 from dataclasses import fields, replace
 
 import numpy as np
@@ -5,7 +6,6 @@ import pytest
 
 from meanfi import (
     UniformGrid,
-    DensityEntries,
     DensityResult,
     ErrorValues,
     SCFIteration,
@@ -97,7 +97,7 @@ def test_public_result_objects_report_physics_errors_and_density_statistics():
 
     coordinates = full_density_coordinates([(0,)], size=2)
     density = DensityResult(
-        entries=DensityEntries(coordinates, np.zeros(coordinates.value_count)),
+        entries=_DensityEntries(coordinates, np.zeros(coordinates.value_count)),
         mu=0.0,
         filling=1.0,
         errors=ErrorValues(),
@@ -125,7 +125,7 @@ def test_selected_density_entries_cannot_be_exposed_as_a_full_matrix():
         keys=[(0,)],
         pairs_by_key={(0,): (np.array([0]), np.array([1]))},
     )
-    density = DensityEntries(coordinates, np.array([0.25 + 0.5j]))
+    density = _DensityEntries(coordinates, np.array([0.25 + 0.5j]))
 
     assert coordinates.is_full is False
     with pytest.raises(ValueError, match="selected density coordinates"):
@@ -144,7 +144,7 @@ def test_selected_density_entries_cannot_be_exposed_as_a_full_matrix():
 
 def test_density_layout_and_values_are_read_only():
     coordinates = full_density_coordinates([(0,)], size=2)
-    density = DensityEntries(
+    density = _DensityEntries(
         coordinates,
         np.arange(4, dtype=float).astype(complex),
         np.zeros(4),
@@ -224,7 +224,7 @@ def test_results_share_immutable_entries_and_preserve_selected_errors():
     coordinates = full_density_coordinates([()], size=2)
     values = np.arange(4, dtype=complex)
     errors = np.arange(4, dtype=float) / 10
-    entries = DensityEntries(coordinates, values, errors)
+    entries = _DensityEntries(coordinates, values, errors)
     result = DensityResult(
         entries, mu=0.25, filling=1.5, errors=ErrorValues(), band_energy=-0.75
     )
@@ -256,7 +256,7 @@ def test_results_share_immutable_entries_and_preserve_selected_errors():
     )
     assert empty.values.size == empty.entry_errors.size == 0
     assert (
-        replace(result, entries=DensityEntries(coordinates, result.values))
+        replace(result, entries=_DensityEntries(coordinates, result.values))
         .select(selected_coordinates)
         .entry_errors
         is None
@@ -277,4 +277,4 @@ def test_results_share_immutable_entries_and_preserve_selected_errors():
 def test_density_entries_reject_invalid_arrays(values, errors, message):
     coordinates = full_density_coordinates([()], size=1)
     with pytest.raises(ValueError, match=message):
-        DensityEntries(coordinates, values, errors)
+        _DensityEntries(coordinates, values, errors)

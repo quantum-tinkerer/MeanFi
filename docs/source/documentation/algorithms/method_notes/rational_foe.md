@@ -16,8 +16,9 @@ f(x)=\frac{1}{1+e^{x/kT}},
 s(x)=-f(x)\log f(x)-(1-f(x))\log(1-f(x)).
 :::
 
-AAA chooses a common denominator for these functions on a spectral interval
-bounded by Gershgorin estimates. Occupation and entropy have different residues
+AAA chooses poles using only the Fermi function on a spectral interval
+bounded by Gershgorin estimates. After acceptance, entropy residues are fitted
+on those fixed poles. Occupation and entropy have different residues
 but share the same poles:
 
 :::{math}
@@ -29,14 +30,28 @@ w_{g,\ell}(A-z_\ell I)^{-1},
 Here the matrix real part denotes the Hermitian combination with the conjugate
 pole. Off-diagonal entries use the transposed conjugate resolvent entry.
 
-The fit combines occupation and entropy residuals, refits residues on the
-resulting poles, and checks both approximations on a separate, denser scalar
-grid. Fitting starts on a small grid and doubles its resolution only if needed,
-up to the full approximation budget. The validation grid stays dense throughout.
-Samples resolve the band edges, Fermi transition, and thermal tails.
+Only the Fermi-function approximation determines pole selection and acceptance.
+For Hermitian $A$, the spectral theorem gives
+
+:::{math}
+\max_{ij}|[r(A)-f(A)]_{ij}|\leq \|r(A)-f(A)\|_2
+=\max_{\lambda\in\mathrm{spec}(A)} |r(\lambda)-f(\lambda)|.
+:::
+
+This controls off-diagonal as well as diagonal density entries. The scalar
+tolerance is the smaller of the density target and the charge budget divided
+by the sum of absolute charge weights. Filling searches reserve part of the
+filling-residual budget for approximation error. Positive uniform-grid weights
+preserve the matrix-entry bound; mesh error is checked separately when available.
+
+Fitting starts on a small grid and refines only when needed. Accepted Fermi fits
+pass a dense scalar validation grid resolving edges, the transition and tails.
+Entropy is fitted afterward and reports a sampled approximation error in
+`errors.entropy_approximation`. It has no acceptance target and may be much less
+accurate than density. Charge-only evaluations skip the entropy fit.
 
 AAA finds denominator weights by minimizing $\|Lw\|$ with $\|w\|=1$,
-where $L$ is the stacked Loewner matrix. We first compute $L=QR$, then take the
+where $L$ is the Loewner matrix for the Fermi function. We first compute $L=QR$, then take the
 smallest right singular vector of $R$. Since $Q$ has orthonormal columns,
 $\|Lw\|=\|Rw\|$: the SVD operates on a small square matrix with the same
 least-squares objective. This avoids forming $L^T L$, which would square the
@@ -52,9 +67,9 @@ calculation. The first fit uses the actual spectral bounds. When an overlapping
 interval extends beyond those bounds, the next fit adds 20% of the new interval's
 width at each end, leaving room for subsequent shifts. If the expanded interval
 cannot be fitted within the pole budget, fitting retries the actual bounds.
-Every reuse checks temperature, pole budget, required functions, and sampled
-accuracy on the current interval. Charge-only evaluations can fit just the
-occupation function; the final density evaluation includes entropy.
+Every reuse checks temperature, pole budget, and sampled Fermi-function
+accuracy on the current interval. Entropy coefficients are attached when needed
+without changing the accepted density poles or residues.
 
 ## Reusing sparse work
 
@@ -75,11 +90,12 @@ physical energy and entropy by the number of physical orbitals per cell.
 The SCF layer subtracts interaction double counting to obtain internal energy,
 then returns `free_energy = internal_energy - kT * entropy`.
 
-Scalar tolerances account for charge trace weights, matrix size, and the spectral
-energy scale. Occupation accuracy alone is insufficient for entropy near empty
-or occupied states. A fit that cannot meet its requested accuracy within
-`max_poles` raises `ConvergenceError`; a prescribed grid still has no
-Brillouin-zone integration error estimate.
+The density fit accounts for charge trace weights and matrix size. Band-energy
+error scales with Hamiltonian energy units. Sparse free-energy comparisons must
+also account for `kT * errors.entropy_approximation`; this diagnostic does not
+control convergence. A Fermi fit that cannot meet its target within `max_poles`
+raises `ConvergenceError`. A prescribed grid has no Brillouin-zone integration
+error estimate.
 
 ## Cost and configuration
 

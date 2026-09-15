@@ -137,7 +137,11 @@ def evaluate(model, mf):
     from meanfi.density.problem import build_normal_problem
     from meanfi.density.integrate.bdg import solve_bdg_density_fixed_filling
 
-    coordinates = model.scf_space.required_coordinates
+    coordinates = (
+        model.required_coordinates
+        if hasattr(model, "required_coordinates")
+        else model.scf_space.required_coordinates
+    )
     common = dict(
         keys=list(coordinates.keys),
         integration=integration,
@@ -188,7 +192,11 @@ def reference(model, mf, result, order, shift):
     size = next(iter(h.values())).shape[0]
     keys = np.asarray(list(h))
     matrices = np.asarray(list(h.values()))
-    coordinates = model.scf_space.required_coordinates
+    coordinates = (
+        model.required_coordinates
+        if hasattr(model, "required_coordinates")
+        else model.scf_space.required_coordinates
+    )
     values = np.zeros(coordinates.value_count, complex)
     charge = 0.0
     count = order**dimension

@@ -16,7 +16,7 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.results import DensityEntries, DensityResult
+from meanfi.results import _DensityEntries, DensityResult
 from meanfi.errors import ErrorValues
 from meanfi.results import FermiSimplexInfo
 from meanfi.scf.problem import SCFProblem
@@ -122,7 +122,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     def fake_simplex(problem, **kwargs):
         called["problem"] = problem
         return DensityResult(
-            entries=DensityEntries(
+            entries=_DensityEntries(
                 problem.density_coordinates, np.array([1.0]), np.array([0.0])
             ),
             mu=0.0,
@@ -134,11 +134,8 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
             ),
             statistics=FermiSimplexInfo(
                 n_kernel_evals=1,
-                unique_evals=1,
-                n_evaluator_evals=1,
                 n_cached_nodes=1,
                 n_leaves=1,
-                n_leaf_nodes=1,
                 refinements=0,
                 error_estimate_available=True,
                 charge_integration_calls=1,
@@ -177,13 +174,13 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
         {(0,): np.array([[0.0, 1.0], [1.0, 0.0]])},
         filling=1.0,
     )
-    required = model.scf_space.required_coordinates
+    required = model.required_coordinates
     captured = {}
 
     def fake_density_update(problem, **kwargs):
         captured["density_coordinates"] = problem.density_coordinates
         return DensityResult(
-            entries=DensityEntries(
+            entries=_DensityEntries(
                 required,
                 np.ones(required.value_count, dtype=complex),
                 np.zeros(required.value_count),
@@ -209,7 +206,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
         build_density_problem(
             model.h_0,
             kT=model.kT,
-            keys=model.scf_space.density_keys,
+            keys=model.required_coordinates.keys,
             integration=FermiSimplex(),
             tolerances=default_solver_tolerances(1e-3),
             density_coordinates=required,
@@ -217,7 +214,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
     )
 
     problem.evaluate_state(
-        ActiveDensityState(model.scf_space, np.zeros(model.scf_space.num_params)),
+        ActiveDensityState(model._space, np.zeros(model._space.num_params)),
         0.0,
     )
 

@@ -1,4 +1,3 @@
-import importlib
 import inspect
 from types import SimpleNamespace
 
@@ -120,27 +119,6 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
     assert tolerances.charge_integration == pytest.approx(5.4e-4)
 
 
-@pytest.mark.parametrize(
-    "module_name",
-    [
-        "meanfi._bdg",
-        "meanfi._finite_temp",
-        "meanfi._info",
-        "meanfi._validation",
-        "meanfi._zero_dim",
-        "meanfi.mean_field",
-        "meanfi.zero_temp",
-        "meanfi.bdg",
-        "meanfi.scf.accuracy",
-        "meanfi.density.integrate.uniform",
-        "meanfi.density.integrate.quadrature.runtime",
-    ],
-)
-def test_removed_shim_modules_are_no_longer_importable(module_name):
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module(module_name)
-
-
 def test_top_level_exports_only_supported_diagonalization_names():
     assert DirectDiagonalization.__name__ == "DirectDiagonalization"
     assert not hasattr(meanfi, "AdaptiveQuadrature")
@@ -157,29 +135,6 @@ def test_top_level_exports_only_supported_diagonalization_names():
     assert not hasattr(meanfi, "FixedAccuracy")
     assert not hasattr(meanfi, "ResidualDrivenAccuracy")
     assert not hasattr(meanfi, "SCFAccuracy")
-
-
-def test_guess_tb_is_removed_from_public_tb_api():
-    import meanfi.tb as tb
-
-    assert not hasattr(tb, "guess_tb")
-    assert not hasattr(tb, "tb_to_vertex_cache")
-    assert not hasattr(tb, "tb_to_tight_binding_model")
-    with pytest.raises(ImportError):
-        exec("from meanfi import guess_tb")
-    with pytest.raises(ImportError):
-        exec("from meanfi import tb_to_tight_binding_model")
-    with pytest.raises(ImportError):
-        exec("from meanfi.tb import guess_tb")
-    with pytest.raises(ImportError):
-        exec("from meanfi import tb_to_vertex_cache")
-    with pytest.raises(ImportError):
-        exec("from meanfi.tb import tb_to_vertex_cache")
-
-
-def test_removed_chebyshev_public_api_is_not_importable():
-    with pytest.raises(ImportError):
-        exec("from meanfi import ChebyshevFOE")
 
 
 def test_internal_matrix_function_package_root_exposes_shared_symbols():
@@ -252,12 +207,15 @@ def test_model_rejects_invalid_reference_density_matrix_shape():
         Model(**kwargs)
 
 
-def test_model_reference_requires_a_density_result():
+def test_model_accepts_and_owns_a_manually_supplied_reference():
     kwargs = _base_model_kwargs()
     kwargs["reference"] = {(0,): np.eye(2)}
 
-    with pytest.raises(TypeError, match="DensityResult"):
-        Model(**kwargs)
+    model = Model(**kwargs)
+    kwargs["reference"][(0,)][:] = 0.0
+    np.testing.assert_array_equal(model.reference[(0,)], np.eye(2))
+    with pytest.raises(ValueError, match="read-only"):
+        model.reference[(0,)][0, 0] = 0.0
 
 
 def test_model_rejects_invalid_reference_density_matrix_dimension():
@@ -281,7 +239,7 @@ def test_model_rejects_incompatible_reference_shape_for_superconducting_models()
 def test_model_is_immutable_and_owns_scf_space():
     model = Model(**_base_model_kwargs())
 
-    assert model.scf_space is model.scf_space
+    assert model._space is model._space
     with pytest.raises(AttributeError, match="cannot assign"):
         model.filling = 2.0
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from meanfi.results import DensityEntries, DensityResult
+from meanfi.results import _DensityEntries, DensityResult
 from meanfi.density.kpoint.matrix_functions.direct import (
-    selected_density_values_from_eigensystem,
+    density_values_from_eigensystem,
 )
 from meanfi.density.kpoint.occupations import fermi_dirac, occupation_entropy
 from meanfi.errors import ErrorValues
@@ -37,23 +37,13 @@ def evaluate_zero_dim(
             )
     occupation = fermi_dirac(eigenvalues, 0.0, mu)
     charge = float(np.sum(occupation))
-    # Full layouts use a matrix product; selected layouts avoid the full density.
-    if coordinates.is_full:
-        density = (eigenvectors * occupation) @ eigenvectors.conj().T
-        values = coordinates.values_from_assembled_matrix(density)
-    else:
-        values = selected_density_values_from_eigensystem(
-            eigenvectors, occupation, coordinates
-        )
+    values = density_values_from_eigensystem(eigenvectors, occupation, coordinates)
     estimated = nk is None
     error = 0.0 if estimated else None
     info = FermiSimplexInfo(
         n_kernel_evals=1,
-        unique_evals=1,
-        n_evaluator_evals=1,
         n_cached_nodes=1,
         n_leaves=1,
-        n_leaf_nodes=1,
         refinements=0,
         error_estimate_available=estimated,
         charge_evaluations=0 if filling is None else 1,
@@ -64,7 +54,7 @@ def evaluate_zero_dim(
         n_diagonalizations=1,
     )
     return DensityResult(
-        entries=DensityEntries(
+        entries=_DensityEntries(
             coordinates,
             values,
             np.zeros(coordinates.value_count) if estimated else None,

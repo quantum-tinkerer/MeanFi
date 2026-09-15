@@ -34,7 +34,7 @@ np.testing.assert_allclose(
 
 # A Model supplies filling, temperature, normal/BdG structure and needed entries.
 selected = mf.density_matrix(model, mean_field=solution.mean_field, tol=1e-6)
-assert selected.covers(model.scf_space.required_coordinates)
+assert selected.covers(model.required_coordinates)
 assert not selected.is_complete
 print("Selected entries:", selected.coordinates.entries, selected.values)
 
@@ -60,6 +60,12 @@ assert subset.entropy == full.entropy  # Selecting entries keeps full-state meta
 np.testing.assert_allclose(
     mf.free_energy(model, full),
     mf.internal_energy(model, full) - model.kT * full.entropy,
+)
+
+# Manual references use density blocks directly, without result metadata.
+manual = replace(model, reference={(0,): np.diag([0.4, 0.4])})
+np.testing.assert_allclose(
+    manual.hamiltonian_from_density(manual.reference)[(0,)], h0[(0,)]
 )
 
 # Reference subtraction uses the complete Hartree/Fock correction of rho-rho_ref.
@@ -214,6 +220,11 @@ if args.sparse:
     sparse_density = mf.density_matrix(sparse_model, integration=sparse_grid, tol=1e-5)
     print(
         "Sparse AAA:", sparse_density.mu, sparse_density.filling, sparse_density.entropy
+    )
+    print(
+        "Sparse entropy estimate / approximation error:",
+        sparse_density.entropy,
+        sparse_density.errors.entropy_approximation,
     )
     sparse_solution = mf.solver(
         sparse_model,

@@ -1,3 +1,4 @@
+from meanfi.space.coordinates import _assemble_blocks
 import itertools as it
 
 import numpy as np
@@ -12,7 +13,7 @@ from meanfi.space import (
 from meanfi.space.coordinates import canonical_tb_keys
 from meanfi.space.reducers import real_to_complex
 from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
-from meanfi.tb.ops import compare_dicts
+from meanfi.tests.fixtures.assertions import compare_dicts
 from meanfi.tb.transforms import ifftn_to_tb, tb_to_kfunc, tb_to_kgrid
 from meanfi.tests.fixtures.models import qiwuzhang, spinful_chain
 
@@ -57,12 +58,11 @@ def test_density_coordinates_value_order_and_negative_grid_key():
     assert coords.key_slice((-1,)) == slice(1, 2)
 
     values = np.array([1.0 + 2.0j, 3.0 + 4.0j])
-    selected_tb = coords.values_to_tb(values)
+    selected_tb = _assemble_blocks(coords, values)
     assert selected_tb[(0,)][0, 0] == values[0]
     assert selected_tb[(-1,)][1, 0] == values[1]
-    np.testing.assert_allclose(
-        coords.values_from_tb({(0,): selected_tb[(0,)]}), [values[0], 0.0]
-    )
+    with pytest.raises(ValueError, match="missing required coordinate"):
+        coords.values_from_tb({(0,): selected_tb[(0,)]})
     np.testing.assert_allclose(coords.values_from_tb(selected_tb), values)
 
 
@@ -73,12 +73,12 @@ def test_active_density_space_required_entries_roundtrip():
         filling=1.0,
         kT=0.1,
     )
-    space = model.scf_space
+    space = model._space
     values = np.array([0.25 + 0.0j])
 
     params = space.params_from_required_entries(values)
     recovered = space.required_coordinates.values_from_tb(
-        space.meanfield_input_from_params(params)
+        space.density_from_params(params)
     )
 
     assert space.required_coordinates.entries == (((0,), 0, 0),)
@@ -102,44 +102,42 @@ def test_normal_density_matrix_space_roundtrip():
         (-1,): np.array([[0.0, 2.0], [0.0, 0.0]], dtype=complex),
     }
     model = Model(spinful_chain(), interaction, filling=1.0, kT=0.1)
-    space = model.scf_space
+    space = model._space
     density = {
         (0,): np.array([[0.3, 0.2j], [-0.2j, 1.7]], dtype=complex),
         (1,): np.array([[0.4, 0.5], [0.6, 0.7]], dtype=complex),
         (-1,): np.array([[0.4, 0.6], [0.5, 0.7]], dtype=complex),
     }
 
-    projected = space.project_meanfield_input(density)
-    recovered = space.meanfield_input_from_params(
-        space.params_from_meanfield_input(projected)
-    )
+    projected = space.project_correction(density)
+    recovered = space.density_from_params(space.params_from_density(projected))
     compare_dicts(projected, recovered)
 
 
 def test_no_symmetry_normal_space_uses_compact_orbits_for_full_onsite_support(
     monkeypatch,
 ):
-    from meanfi.space.reducers import OrbitReducer
+    from meanfi.space.space import _OrbitParametrization
 
     def reject_dense_basis(*args, **kwargs):
         raise AssertionError("compact parametrization must not construct a dense basis")
 
-    monkeypatch.setattr(OrbitReducer, "basis", reject_dense_basis)
+    monkeypatch.setattr(_OrbitParametrization, "basis", reject_dense_basis)
     ndof = 32
     h_0 = {(0,): np.zeros((ndof, ndof), dtype=complex)}
     h_int = {(0,): np.ones((ndof, ndof), dtype=complex)}
 
     model = Model(h_0, h_int, filling=1.0, kT=0.1)
-    space = model.scf_space
+    space = model._space
 
     assert space.num_params == ndof * ndof
     assert len(space.active_coordinates.entries) == ndof * ndof
     assert len(space.required_coordinates.entries) == ndof * (ndof + 1) // 2
 
     params = np.arange(space.num_params, dtype=float)
-    density = space.meanfield_input_from_params(params)
+    density = space.density_from_params(params)
     np.testing.assert_allclose(density[(0,)], density[(0,)].conj().T)
-    np.testing.assert_allclose(space.params_from_meanfield_input(density), params)
+    np.testing.assert_allclose(space.params_from_density(density), params)
 
 
 @pytest.mark.parametrize("superconducting", [False, True])
@@ -175,7 +173,7 @@ def test_active_space_reconstruction_preserves_sparse_model_inputs(
         superconducting=superconducting,
         spatial_symmetries=symmetries,
     )
-    dense_space = Model(h0, interaction, **options).scf_space
+    dense_space = Model(h0, interaction, **options)._space
     space = Model(
         {key: sparse.csr_matrix(value) for key, value in h0.items()}
         if sparse_h0
@@ -184,16 +182,16 @@ def test_active_space_reconstruction_preserves_sparse_model_inputs(
         if sparse_interaction
         else interaction,
         **options,
-    ).scf_space
+    )._space
     params = np.random.default_rng(7).normal(size=dense_space.num_params)
-    expected = dense_space.meanfield_input_from_params(params)
-    reconstructed = space.meanfield_input_from_params(params)
+    expected = dense_space.density_from_params(params)
+    reconstructed = space.density_from_params(params)
 
     for key, block in reconstructed.items():
         assert sparse.issparse(block) == (sparse_h0 or sparse_interaction)
         actual = block.toarray() if sparse.issparse(block) else block
         np.testing.assert_allclose(actual, expected[key], atol=1e-14)
-    np.testing.assert_allclose(space.params_from_meanfield_input(reconstructed), params)
+    np.testing.assert_allclose(space.params_from_density(reconstructed), params)
 
 
 @pytest.mark.parametrize("superconducting", [False, True])
@@ -218,14 +216,14 @@ def test_empty_active_space_reconstructs_sparse_zero_blocks(
         kT=0.1,
         superconducting=superconducting,
         spatial_symmetries=symmetries,
-    ).scf_space
-    reconstructed = space.meanfield_input_from_params(np.empty(0))
+    )._space
+    reconstructed = space.density_from_params(np.empty(0))
 
     assert space.num_params == space.required_coordinates.value_count == 0
     assert reconstructed[(0,)].shape == ((4, 4) if superconducting else (2, 2))
     assert sparse.isspmatrix_csr(reconstructed[(0,)])
     assert reconstructed[(0,)].nnz == 0
-    assert space.params_from_meanfield_input(reconstructed).size == 0
+    assert space.params_from_density(reconstructed).size == 0
 
 
 def test_large_sparse_active_space_never_materializes_dense_blocks(monkeypatch):
@@ -236,9 +234,9 @@ def test_large_sparse_active_space_never_materializes_dense_blocks(monkeypatch):
     monkeypatch.setattr(sparse.csr_matrix, "todense", reject_dense)
     ndof = 20_000
     identity = sparse.eye(ndof, format="csr", dtype=complex)
-    space = Model({(): identity}, {(): identity}, filling=1.0, kT=0.1).scf_space
+    space = Model({(): identity}, {(): identity}, filling=1.0, kT=0.1)._space
     params = np.linspace(0.0, 1.0, space.num_params)
-    reconstructed = space.meanfield_input_from_params(params)[()]
+    reconstructed = space.density_from_params(params)[()]
 
     assert space.num_params == ndof
     assert sparse.isspmatrix_csr(reconstructed)
@@ -247,14 +245,14 @@ def test_large_sparse_active_space_never_materializes_dense_blocks(monkeypatch):
 
 
 def test_large_spatial_symmetry_space_fails_before_allocating_dense_basis(monkeypatch):
-    from meanfi.space.reducers import OrbitReducer
+    from meanfi.space.space import _OrbitParametrization
 
     def reject_dense_basis(*args, **kwargs):
         raise AssertionError(
             "dense basis safety limit must be checked before allocation"
         )
 
-    monkeypatch.setattr(OrbitReducer, "basis", reject_dense_basis)
+    monkeypatch.setattr(_OrbitParametrization, "basis", reject_dense_basis)
     ndof = 128
     with pytest.raises(MemoryError, match="above.*safety limit"):
         Model(
@@ -279,7 +277,7 @@ def test_bdg_space_imposes_strict_particle_hole_reduction():
         kT=0.1,
         superconducting=True,
     )
-    space = model.scf_space
+    space = model._space
     assert space.num_params == 6
 
     density = {
@@ -294,9 +292,7 @@ def test_bdg_space_imposes_strict_particle_hole_reduction():
         )
     }
 
-    projected = space.meanfield_input_from_params(
-        space.params_from_meanfield_input(density)
-    )
+    projected = space.density_from_params(space.params_from_density(density))
 
     np.testing.assert_allclose(
         projected[(0,)][:2, 2:],
@@ -328,10 +324,8 @@ def test_scalar_onsite_bdg_pairing_is_rejected_or_projected_to_zero():
         kT=0.1,
         superconducting=True,
     )
-    space = model.scf_space
-    projected = space.meanfield_input_from_params(
-        space.params_from_meanfield_input(invalid)
-    )
+    space = model._space
+    projected = space.density_from_params(space.params_from_density(invalid))
 
     assert space.num_params == 1
     assert projected[(0,)][0, 1] == pytest.approx(0.0)
@@ -351,13 +345,11 @@ def test_bdg_meanfield_density_space_roundtrip():
         kT=0.1,
         superconducting=True,
     )
-    space = model.scf_space
+    space = model._space
     guess = model.random_meanfield(rng=0)
 
-    projected = space.project_meanfield_input(guess)
-    density = space.meanfield_input_from_params(
-        space.params_from_meanfield_input(projected)
-    )
+    projected = space.project_correction(guess)
+    density = space.density_from_params(space.params_from_density(projected))
 
     np.testing.assert_allclose(density[(0,)], projected[(0,)])
     validate_bdg_tb(
@@ -404,11 +396,11 @@ def test_spatial_symmetry_can_force_unsupported_active_entries_to_zero():
                 ),
             ),
         )
-        space = model.scf_space
+        space = model._space
 
     assert space.num_params == 0
     np.testing.assert_allclose(
-        space.meanfield_input_from_params(np.empty(0))[(0,)],
+        space.density_from_params(np.empty(0))[(0,)],
         np.zeros((2, 2)),
     )
 
@@ -434,12 +426,10 @@ def test_spatial_symmetry_with_orbital_shifts_reduces_required_entries():
                 ),
             ),
         )
-        space = model.scf_space
+        space = model._space
     params = np.arange(space.num_params, dtype=float)
     compressed = space.params_from_required_entries(
-        space.required_coordinates.values_from_tb(
-            space.meanfield_input_from_params(params)
-        )
+        space.required_coordinates.values_from_tb(space.density_from_params(params))
     )
 
     assert len(space.required_coordinates.entries) <= len(
@@ -464,8 +454,8 @@ def test_antiunitary_spatial_symmetry_constrains_active_values_to_real():
         ),
     )
 
-    space = model.scf_space
-    active_density = space.meanfield_input_from_params(np.ones(space.num_params))
+    space = model._space
+    active_density = space.density_from_params(np.ones(space.num_params))
 
     for block in active_density.values():
         np.testing.assert_allclose(block.imag, np.zeros_like(block.imag), atol=1e-12)

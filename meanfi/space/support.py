@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 
 from meanfi.space.coordinates import (
@@ -16,14 +14,6 @@ from meanfi.tb.ops import _tb_type
 from meanfi.tb.validate import tb_dimension, tb_orbital_count
 
 
-@dataclass(frozen=True)
-class ActiveCoordinateSupport:
-    coordinates: DensityCoordinates
-    interaction_keys: list[tuple[int, ...]]
-    density_keys: list[tuple[int, ...]]
-    onsite: tuple[int, ...]
-
-
 def active_tb_keys(keys) -> list[tuple[int, ...]]:
     key_set = {tuple(key) for key in keys}
     if not key_set:
@@ -32,7 +22,7 @@ def active_tb_keys(keys) -> list[tuple[int, ...]]:
     return canonical_tb_keys(key_set)
 
 
-def normal_active_support(h_int: _tb_type) -> ActiveCoordinateSupport:
+def normal_active_support(h_int: _tb_type) -> DensityCoordinates:
     onsite = onsite_key(tb_dimension(h_int))
     interaction_keys = list(h_int)
     density_keys = active_tb_keys([*interaction_keys, onsite])
@@ -45,15 +35,10 @@ def normal_active_support(h_int: _tb_type) -> ActiveCoordinateSupport:
             onsite=onsite,
         ),
     )
-    return ActiveCoordinateSupport(
-        coordinates=coordinates,
-        interaction_keys=interaction_keys,
-        density_keys=density_keys,
-        onsite=onsite,
-    )
+    return coordinates
 
 
-def bdg_active_support(h_int: _tb_type) -> ActiveCoordinateSupport:
+def bdg_active_support(h_int: _tb_type) -> DensityCoordinates:
     onsite = onsite_key(tb_dimension(h_int))
     density_keys = active_tb_keys([*h_int, onsite])
     electron_pairs = _normal_active_pairs_from_interaction(
@@ -71,12 +56,7 @@ def bdg_active_support(h_int: _tb_type) -> ActiveCoordinateSupport:
         keys=density_keys,
         pairs_by_key=_merge_pair_maps(electron_pairs, anomalous_pairs),
     )
-    return ActiveCoordinateSupport(
-        coordinates=coordinates,
-        interaction_keys=list(h_int),
-        density_keys=density_keys,
-        onsite=onsite,
-    )
+    return coordinates
 
 
 def _normal_active_pairs_from_interaction(

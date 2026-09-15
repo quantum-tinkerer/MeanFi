@@ -25,9 +25,7 @@ def test_ediis_minimizes_exact_quadratic_energy_on_convex_hull():
 
     coefficients = ediis_coefficients(
         history,
-        interaction_gradient=lambda params, direction: float(
-            2.0 * params[0] * direction[0]
-        ),
+        interaction_curvature=lambda difference: float(difference[0] ** 2),
     )
 
     assert coefficients == pytest.approx([0.5, 0.5], abs=1e-8)
@@ -164,7 +162,7 @@ def test_default_zero_temperature_solver_uses_ediis(monkeypatch):
     def unexpected_fixed_point(*args, **kwargs):
         raise AssertionError("normal zero-temperature default must use EDIIS")
 
-    monkeypatch.setattr(engine, "iterate_density_fixed_point", unexpected_fixed_point)
+    monkeypatch.setattr(engine, "iterate_anderson", unexpected_fixed_point)
     result = solver(_zero_dimensional_model(), {(): np.zeros((2, 2))})
     assert result.converged
 
@@ -200,17 +198,17 @@ def test_scf_interaction_functional_matches_exact_two_orbital_energy(kind):
             keys=[()],
             integration=UniformGrid(nk=1),
             tolerances=default_solver_tolerances(1e-10),
-            density_coordinates=model.scf_space.required_coordinates,
+            density_coordinates=model.required_coordinates,
             electron_ndof=2 if model.superconducting else None,
         ),
     )
     rng = np.random.default_rng(421)
-    params = rng.uniform(-0.5, 0.5, model.scf_space.num_params)
+    params = rng.uniform(-0.5, 0.5, model._space.num_params)
     direction = rng.normal(size=params.size)
 
     def exact_energy(values):
         density = model._active_density_from_state(
-            ActiveDensityState(model.scf_space, values)
+            ActiveDensityState(model._space, values)
         )[()]
         electron = density[:2, :2]
         if reference is not None:
@@ -231,12 +229,34 @@ def test_scf_interaction_functional_matches_exact_two_orbital_energy(kind):
         exact_energy(params + step * direction)
         - exact_energy(params - step * direction)
     ) / (2 * step)
-    assert problem.interaction_energy(params) == pytest.approx(
-        exact_energy(params), abs=1e-13
+    from meanfi.meanfield import (
+        interaction_energy,
+        correction_expectation,
+        interaction_correction,
     )
+
+    state = ActiveDensityState(model._space, params)
+    difference = model._active_density_from_state(model._reference_difference(state))
+    assert interaction_energy(
+        difference, model.h_int, electron_ndof=model._electron_ndof
+    ) == pytest.approx(exact_energy(params), abs=1e-13)
     # Central differences are exact for this quadratic, up to floating-point error.
-    assert problem.interaction_gradient(params, direction) == pytest.approx(
-        exact_gradient, abs=2e-10
+    correction = interaction_correction(
+        difference, model.h_int, electron_ndof=model._electron_ndof
+    )
+    assert correction_expectation(
+        model._space.density_from_params(direction),
+        correction,
+        electron_ndof=model._electron_ndof,
+    ) == pytest.approx(exact_gradient, abs=2e-10)
+    assert problem.interaction_curvature(direction) == pytest.approx(
+        (
+            exact_energy(params + direction)
+            + exact_energy(params - direction)
+            - 2 * exact_energy(params)
+        )
+        / 2,
+        abs=1e-13,
     )
 
 
@@ -245,7 +265,6 @@ def test_ediis_quadratic_history_matches_exact_minimum_with_reference_offset():
     matrix = rng.normal(size=(3, 3))
     hessian = matrix.T @ matrix + np.eye(3)
     target = np.array([0.15, 0.25, 0.1])
-    reference = np.array([-0.1, 0.4, 0.7])
     vertices = np.vstack([np.zeros(3), np.eye(3)])
 
     def exact_energy(params):
@@ -255,8 +274,8 @@ def test_ediis_quadratic_history_matches_exact_minimum_with_reference_offset():
     history = [EDIISPoint(params, exact_energy(params)) for params in vertices]
     coefficients = ediis_coefficients(
         history,
-        interaction_gradient=lambda params, direction: float(
-            direction @ hessian @ (params - reference)
+        interaction_curvature=lambda difference: float(
+            0.5 * difference @ hessian @ difference
         ),
     )
     # The target is inside this simplex; its energy is the exact global minimum.

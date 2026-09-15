@@ -41,12 +41,22 @@ with threadpool_limits(1):
         )
     }
     model = Model(h, interaction, filling=size / 2)
-    space = model.scf_space
+    space = model._space if hasattr(model, "_space") else model.scf_space
+    decode = (
+        space.density_from_params
+        if hasattr(space, "density_from_params")
+        else space.meanfield_input_from_params
+    )
+    encode = (
+        space.params_from_density
+        if hasattr(space, "params_from_density")
+        else space.params_from_meanfield_input
+    )
     params = np.random.default_rng(42).standard_normal(space.num_params)
 
     def reconstruct():
-        density = space.meanfield_input_from_params(params)
-        recovered = space.params_from_meanfield_input(density)
+        density = decode(params)
+        recovered = encode(density)
         correction = meanfield(density, interaction)
         return recovered, correction
 

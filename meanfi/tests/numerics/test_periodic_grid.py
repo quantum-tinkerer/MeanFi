@@ -7,7 +7,7 @@ from scipy.optimize import brentq
 from scipy.special import expit
 
 from meanfi import DirectDiagonalization, UniformGrid, RationalFOE
-from meanfi.density.kpoint.matrix_functions import resolve_periodic_matrix_function
+from meanfi.density.problem import resolve_integration
 from meanfi.density.problem import build_density_problem
 from meanfi.density.density import evaluate_density
 from meanfi.errors import default_solver_tolerances
@@ -264,21 +264,37 @@ def test_sparse_defaults_never_silently_densify():
 
     hamiltonian = {(0,): csr_matrix(np.eye(2))}
     with pytest.raises(ValueError, match="Automatic sparse"):
-        resolve_periodic_matrix_function(None, hamiltonian, kT=0.2, prescribed=False)
+        resolve_integration(
+            hamiltonian,
+            kT=0.2,
+            integration=UniformGrid(nk=1 if False else None, matrix_function=None),
+        ).matrix_function
     assert isinstance(
-        resolve_periodic_matrix_function(None, hamiltonian, kT=0.2, prescribed=True),
+        resolve_integration(
+            hamiltonian,
+            kT=0.2,
+            integration=UniformGrid(nk=1 if True else None, matrix_function=None),
+        ).matrix_function,
         RationalFOE,
     )
     assert isinstance(
-        resolve_periodic_matrix_function(
-            DirectDiagonalization(), hamiltonian, kT=0.2, prescribed=False
-        ),
+        resolve_integration(
+            hamiltonian,
+            kT=0.2,
+            integration=UniformGrid(
+                nk=1 if False else None, matrix_function=DirectDiagonalization()
+            ),
+        ).matrix_function,
         DirectDiagonalization,
     )
     with pytest.raises(ValueError, match="adaptive RationalFOE is unsupported"):
-        resolve_periodic_matrix_function(
-            RationalFOE(), hamiltonian, kT=0.2, prescribed=False
-        )
+        resolve_integration(
+            hamiltonian,
+            kT=0.2,
+            integration=UniformGrid(
+                nk=1 if False else None, matrix_function=RationalFOE()
+            ),
+        ).matrix_function
 
 
 def test_charge_derivative_matches_finite_difference_on_retained_grid():
@@ -294,6 +310,7 @@ def test_charge_derivative_matches_finite_difference_on_retained_grid():
         q_diag=None,
         trace_weights=np.ones(1),
         tolerances=default_solver_tolerances(1e-4),
+        sparse_layout=None,
     )
     grid = _Grid(32, 1)
     evaluator.retain_spectra(grid, None)

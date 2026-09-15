@@ -12,10 +12,10 @@
 `Model(..., reference=reference)` enables reference-state subtraction for normal
 and superconducting calculations. The effective Hamiltonian is built as
 `h_0 + W[rho - rho_ref]`, where `W` is the complete density-density mean-field
-correction, including both Hartree and exchange-like terms. This is not a
-Hartree-only background subtraction. `reference` is a layout-aware
-`DensityResult`: it may contain only the entries required by the interaction,
-but every required coordinate is validated when the model is constructed.
+correction, including both Hartree and exchange-like terms. `reference` accepts
+a complete density dictionary or a `DensityResult`. Selected results need only
+the interaction's required entries; every required coordinate is validated when
+the model is constructed. Dictionaries are copied into read-only storage.
 Missing entries are never interpreted as zeros.
 
 If the reference should be the non-interacting density at a chosen filling,
@@ -87,11 +87,16 @@ one to complete matrix blocks raises instead of filling uncomputed entries with
 zeros. `result.select(coordinates)` selects both values and entry errors while
 preserving the chemical potential, filling, entropy, band energy, and integration statistics.
 
-Integrators and SCF share the immutable `DensityEntries` payload in
-`result.entries`. To construct a result from separately computed entries, use
-`DensityResult(entries=DensityEntries(coordinates, values, entry_errors),
-mu=mu, filling=filling, entropy=entropy, errors=ErrorValues(...))`. The optional entry errors
-use the same coordinate order as the values; `None` means no estimate exists.
+`DensityResult` is returned by the density functions. Read its `coordinates`,
+`values`, `entry_errors`, and physical quantities directly. The shared storage
+payload is private. Manually supplied reference densities can be ordinary
+matrix dictionaries:
+
+```python
+reference = {(0,): np.diag([0.5, 0.5])}
+model = mf.Model(h_0, h_int, filling=1.0, reference=reference)
+required = model.required_coordinates
+```
 
 ## Mean-field and density matrix
 
@@ -109,11 +114,6 @@ use the same coordinate order as the values; `None` means no estimate exists.
 
 ```{eval-rst}
 .. autofunction:: meanfi.fermi_dirac
-```
-
-```{eval-rst}
-.. autoclass:: meanfi.DensityEntries
-   :show-inheritance:
 ```
 
 ```{eval-rst}
@@ -148,7 +148,8 @@ exhaustion. Users can explicitly restart with another method using
 Physical free energy need not fall on every iteration.
 
 Sparse `RationalFOE()` uses AAA at positive temperature on a prescribed
-`UniformGrid(nk=...)`. Density and entropy share poles and sparse factorizations.
+`UniformGrid(nk=...)`. Density determines the poles. Entropy uses a subsequent residue fit on those
+poles and reports its approximation error; it does not affect pole selection.
 
 SCF settings are keyword-only. To change the history or iteration budget, pass
 `scf=meanfi.EnergyDIIS(history_size=6, max_iterations=100)`. Explicit
@@ -235,7 +236,7 @@ missing coordinates. For a separate energy evaluation, request full blocks
 covering the bare Hamiltonian and interaction:
 
 ```python
-energy_keys = sorted(set(model.h_0) | set(model.scf_space.density_keys))
+energy_keys = sorted(set(model.h_0) | set(model.required_coordinates.keys))
 density = meanfi.density_matrix(
     model, mean_field=solution.mean_field, keys=energy_keys
 )
@@ -246,7 +247,11 @@ print(meanfi.free_energy(model, density))
 `free_energy` requires a `DensityResult`, because a dictionary of a few
 real-space density blocks does not contain the full state's entropy.
 `density.entropy` is computed during density evaluation and remains available
-when selecting fewer entries. Reference subtraction affects the
+when selecting fewer entries. For sparse AAA, inspect
+`density.errors.entropy_approximation`: density-selected poles can give a much
+larger entropy error than the density tolerance. The corresponding free-energy
+uncertainty is `kT` times that entropy error, in addition to energy and mesh errors.
+This is an empirical scalar-fit estimate, not a rigorous bound. Reference subtraction affects the
 interaction energy, not entropy. BdG entropy includes the factor of one half
 that removes Nambu doubling.
 

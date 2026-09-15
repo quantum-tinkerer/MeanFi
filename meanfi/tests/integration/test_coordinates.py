@@ -1,3 +1,4 @@
+from meanfi.space.coordinates import _assemble_blocks
 import builtins
 
 import numpy as np
@@ -26,8 +27,14 @@ def test_sparse_gather_matches_dense_in_coordinate_order(sparse_type, monkeypatc
         },
     )
     matrix = np.array([[1, 0, 2j], [0, 0, 3], [4 - 1j, 0, 5]])
-    expected = coordinates.values_from_tb({(1,): matrix, (0,): matrix})
-    blocks = {(1,): sparse_type(matrix), (0,): sparse_type(matrix)}
+    expected = coordinates.values_from_tb(
+        {(1,): matrix, (0,): matrix, (-1,): matrix * 0}
+    )
+    blocks = {
+        (1,): sparse_type(matrix),
+        (0,): sparse_type(matrix),
+        (-1,): sparse_type(matrix * 0),
+    }
 
     def unexpected_dense(*args, **kwargs):
         pytest.fail("selected sparse extraction must not form a dense matrix")
@@ -48,8 +55,8 @@ def test_sparse_reconstruction_matches_dense_and_preserves_selected_zeros():
         },
     )
     values = np.array([2j, 0, 0.5])
-    dense = coordinates.values_to_tb(values)
-    compact = coordinates.values_to_tb(values, sparse=True)
+    dense = _assemble_blocks(coordinates, values)
+    compact = _assemble_blocks(coordinates, values, sparse=True)
     for key in coordinates.keys:
         assert sparse.isspmatrix_csr(compact[key])
         np.testing.assert_array_equal(compact[key].toarray(), dense[key])
@@ -88,7 +95,7 @@ def test_large_selected_layout_never_allocates_or_enumerates_the_full_matrix(
     monkeypatch.setattr(np, "zeros", guarded_zeros)
     monkeypatch.setattr(sparse.csr_matrix, "toarray", unexpected_dense)
     assert coordinates.is_full is False
-    blocks = coordinates.values_to_tb(values, sparse=True)
+    blocks = _assemble_blocks(coordinates, values, sparse=True)
     block = blocks[(0,)]
     assert block.nnz == 2
     assert block.data.nbytes + block.indices.nbytes + block.indptr.nbytes < 1_000_000
@@ -103,7 +110,7 @@ def test_empty_layouts_are_valid_and_roundtrip(keys):
         assert coordinates.value_count == 0
         assert coordinates.entries == ()
         for use_sparse in (False, True):
-            blocks = coordinates.values_to_tb(np.empty(0), sparse=use_sparse)
+            blocks = _assemble_blocks(coordinates, np.empty(0), sparse=use_sparse)
             assert list(blocks) == keys
             np.testing.assert_array_equal(coordinates.values_from_tb(blocks), [])
 
@@ -149,6 +156,14 @@ def test_full_layout_can_use_arbitrary_unique_coordinate_order():
     assert coordinates.is_full
     values = np.array([1, 2, 3, 4])
     np.testing.assert_array_equal(
-        coordinates.values_from_tb(coordinates.values_to_tb(values, sparse=True)),
+        coordinates.values_from_tb(_assemble_blocks(coordinates, values, sparse=True)),
         values,
     )
+
+
+def test_density_gather_rejects_unknown_blocks():
+    coordinates = DensityCoordinates.from_entries(
+        size=2, keys=[(0,), (1,)], entries=(((0,), 0, 0), ((1,), 0, 1))
+    )
+    with pytest.raises(ValueError, match="missing required coordinate"):
+        coordinates.values_from_tb({(0,): np.eye(2)})

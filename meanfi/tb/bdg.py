@@ -9,10 +9,8 @@ from meanfi.tb.ops import (
     _tb_type,
     as_sparse,
     block_diag,
-    conjugate_transpose,
     is_sparse_like,
     matrix_shape,
-    transpose,
 )
 from meanfi.tb.validate import matrix_allclose
 from meanfi.tb.storage import prefers_sparse_storage
@@ -32,7 +30,7 @@ def electron_to_bdg_tb(h: _tb_type, ndof: int) -> _tb_type:
     for key in keys:
         opposite = tuple(-np.asarray(key, dtype=int))
         top = h.get(key, zero)
-        bottom = -transpose(h.get(opposite, zero))
+        bottom = -h.get(opposite, zero).T
         bdg[key] = block_diag(top, bottom)
     return bdg
 
@@ -62,7 +60,7 @@ def validate_bdg_tb(
         if opposite not in tb:
             raise ValueError(f"{name} must include opposite keys for Hermiticity")
         opposite_matrix = tb[opposite]
-        if not matrix_allclose(matrix, conjugate_transpose(opposite_matrix)):
+        if not matrix_allclose(matrix, opposite_matrix.conj().T):
             raise ValueError(
                 f"{name} must be Hermitian in real-space tight-binding form"
             )
@@ -75,15 +73,15 @@ def validate_bdg_tb(
             opposite_matrix, ndof
         )
 
-        if not matrix_allclose(hole, -transpose(opposite_normal)):
+        if not matrix_allclose(hole, -opposite_normal.T):
             raise ValueError(
                 f"{name} lower-right block must equal -h(-R).T in electron-first BdG form"
             )
-        if not matrix_allclose(lower, conjugate_transpose(opposite_anomalous)):
+        if not matrix_allclose(lower, opposite_anomalous.conj().T):
             raise ValueError(
                 f"{name} lower-left block must equal Delta(-R).dagger in electron-first BdG form"
             )
-        if not matrix_allclose(anomalous, -transpose(opposite_anomalous)):
+        if not matrix_allclose(anomalous, -opposite_anomalous.T):
             raise ValueError(
                 f"{name} anomalous block must satisfy Delta(R) = -Delta(-R).T"
             )
@@ -93,7 +91,7 @@ def particle_hole_conjugate(tb: _tb_type) -> _tb_type:
     result = {}
     for key, matrix in tb.items():
         opposite = tuple(-np.asarray(key, dtype=int))
-        result[opposite] = -transpose(matrix)
+        result[opposite] = -matrix.T
     return result
 
 
@@ -117,7 +115,7 @@ def assemble_bdg_tb(
         opposite = tuple(-np.asarray(key, dtype=int))
         normal = normal_block.get(key, zero)
         anomalous = anomalous_block.get(key, zero)
-        lower = conjugate_transpose(anomalous_block.get(opposite, zero))
+        lower = anomalous_block.get(opposite, zero).conj().T
         hole = hole_block.get(key, zero)
         if any(is_sparse_like(block) for block in (normal, anomalous, lower, hole)):
             assembled[key] = sparse.bmat(

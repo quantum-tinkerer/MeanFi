@@ -82,7 +82,9 @@ else:
     assert abs(np.mean(np.sum(expit((result.mu - energies) / .2), axis=1)) - .86) < 1e-7
     occupations = expit((result.mu - energies) / .2)
     assert abs(result.band_energy - np.mean(energies * occupations)) < 5e-5
-    assert abs(result.entropy - np.mean(entr(occupations) + entr(1-occupations))) < 5e-5
+    entropy_error = result.errors.entropy_approximation
+    assert entropy_error is not None and np.isfinite(entropy_error)
+    assert abs(result.entropy - np.mean(entr(occupations) + entr(1-occupations))) <= entropy_error + 5e-5
 print("Installed wheel passed:", "sparse extra" if sparse_enabled else "core without MUMPS")
 """
 

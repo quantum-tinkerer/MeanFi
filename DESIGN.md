@@ -1,116 +1,104 @@
 # MeanFi design
 
 MeanFi solves self-consistent tight-binding models with density-density
-interactions. The implementation should follow the physical calculation directly:
-trial density -> mean-field Hamiltonian -> density at the requested filling ->
-SCF update. This document describes the contracts shared by those steps; the
-algorithm reference in `docs/source/documentation/algorithms/` gives the details.
+interactions. The calculation is:
+
+trial density -> interaction correction -> Hamiltonian -> density at the
+requested filling -> SCF update.
 
 ## Concepts and ownership
 
-- `Model` owns immutable Hamiltonian and interaction blocks, physical temperature
-  and filling, and an `ActiveSCFSpace` that encodes Hermiticity, particle-hole
-  constraints, and optional spatial symmetry.
-- `DensityCoordinates` describes computed entries. `DensityEntries` owns their
-  immutable values and optional integration errors, shared when result metadata
-  changes. `DensityResult` adds physical quantities and evaluation diagnostics.
-  Missing entries are unknown, never implicitly zero. The SCF space reconstructs only entries fixed by its
-  constraints.
-- `DensityProblem` holds validated, resolved integration settings and coordinates.
-  Public density calls and SCF use the same preparation boundary and evaluator.
-  Integration backends consume this resolved problem directly.
-- One SCF problem implements the shared evaluation flow. Small normal/BdG
-  helpers supply the distinct correction and interaction-energy formulas.
-- Density results own physical quantities and numerical error estimates.
-  Statistics describe numerical work and retained storage, not physical values.
+- `Model` owns immutable physical inputs, the reference density, the bare
+  normal/BdG Hamiltonian, and a private reduced density space. Its public
+  `required_coordinates` describes the entries needed by the interaction.
+- `meanfield.py` implements the linear interaction correction and its quadratic
+  energy contraction. Observables and SCF use these same operations.
+- `DensityCoordinates` describes entry addresses; slices are derived from them.
+  `DensityResult` exposes computed values, optional entry errors, and physical
+  metadata. Its immutable payload is private. Missing entries are unknown.
+  Only internal constrained reconstruction assembles incomplete blocks with zeros.
+- `space/` builds one compact representation of Hermiticity and pairing
+  antisymmetry. General spatial constraints materialize that same representation
+  as a basis and reduce it further. The common path has linear storage.
+- `density/problem.py` resolves integration defaults and compatibility once.
+  Its prepared sparse coordinate pattern survives Hamiltonian updates in SCF.
+- `scf/problem.py` evaluates the physical self-consistency map. One evaluation
+  record carries the density, input/output states, residual and internal energy.
+  The driver records accepted evaluations; the Anderson adapter owns trial
+  callbacks. Mixing methods retain their own update and iteration limit.
+- `tb/` owns tight-binding operations and contractions. `observables.py` combines
+  those with interaction energy to expose physical observables.
 
-The runtime hierarchy follows those responsibilities:
+## Numerical methods
 
-| Location | Responsibility |
-| --- | --- |
-| `model.py`, `meanfield.py`, `observables.py` | Physical inputs, corrections, observables |
-| `space/`, `tb/` | Coordinates, constraints, tight-binding operations |
-| `scf/problem.py`, `scf/engine.py` | Shared physical SCF map and iteration |
-| `density/problem.py`, `density/density.py` | Resolved inputs and backend dispatch |
-| `density/integrate/periodic.py`, `periodic_grid.py` | Refinement and streamed grid evaluation |
-| `density/integrate/simplex/` | Shared solve loop and native mesh operations |
-| `density/kpoint/matrix_functions/` | Dense and sparse matrix-function algorithms |
-| `results.py`, `errors.py` | Physical results, work statistics, numerical targets |
+For each momentum, the density is the Fermi function of `A = H(k) - mu Q`.
+`Q = I` normally; BdG uses the electron/hole charge diagonal. Filling searches
+use a bracket and verify the charge residual. A small chemical-potential step
+alone does not establish convergence.
 
-## Numerical methods and assumptions
+Normal zero-temperature calculations use `FermiSimplex`. `UniformGrid` supports
+normal and BdG models, with direct diagonalization or positive-temperature
+sparse AAA/MUMPS evaluation on a prescribed mesh. Adaptive grids compare nested
+and shifted meshes. Prescribed meshes provide no integration error estimate.
 
-For each momentum, occupations are the Fermi function of `H(k) - mu Q`, with
-`Q = I` normally and the electron/hole charge diagonal for BdG models. Filling
-searches use a bracket and verify the charge residual; a small change in chemical
-potential alone does not establish convergence.
+For Hermitian `A`, a scalar Fermi-function error bounds every density entry:
 
-Normal zero-temperature calculations use `FermiSimplex`. `UniformGrid`
-integration uses direct diagonalization or, for prescribed sparse calculations
-at positive temperature, AAA and MUMPS selected inversion. Adaptive periodic calculations
-compare nested and shifted grids. Prescribed meshes do not estimate integration
-error. Sampled rational and integration checks are empirical accuracy checks,
-not rigorous bounds between sample points.
+`max_ij |[r(A)-f(A)]_ij| <= ||r(A)-f(A)||_2 = max_spectrum |r-f|`.
 
-AAA jointly approximates occupation and entropy, sharing poles and shifted
-factorizations. A small fitting grid is refined as needed; every accepted fit
-passes a dense validation grid. QR reduces the denominator solve to a small SVD.
-One validated scalar fit may be reused within a calculation. Sparse coordinate
-patterns belong to the calculation; numeric factors belong to an individual
-Hamiltonian and chemical potential. Retained storage must remain bounded.
+AAA therefore targets the worst density-matrix element through the scalar
+Fermi function. A weighted charge trace can accumulate errors, so the scalar
+tolerance also respects the charge budget divided by the absolute trace-weight
+sum. Mesh-integration and SCF residual checks remain separate.
 
-EDIIS is the default SCF update and minimizes internal energy over its density
-history. The interaction is quadratic, so history energies and gradient
-differences define a small exact quadratic objective. It is prepared once per
-update; coefficient optimization does not reconstruct model states. Each SCF method runs only its own update until convergence or its
-iteration limit. Methods never switch automatically. Users compose separate
-solver calls, using the last valid result attached to a convergence failure
-to restart with a method of their choice. SCF history and progress output keep
-internal energy only. Final results also report entropy and free energy from
-the existing density evaluation, without another matrix pass.
+AAA uses a small adaptive fitting grid and a dense validation grid; QR reduces
+its denominator solve to a small SVD. Its acceptance depends only on the Fermi
+function. Scalar checks and mesh estimates are empirical, not rigorous bounds
+between sampled points. Independent dense references also check matrix errors.
 
-## Quantities and accuracy
+Entropy is diagnostic. Charge searches skip its fit; density evaluation fits
+entropy residues on the accepted density poles without changing those poles.
+`errors.entropy_approximation` reports the sampled scalar entropy error in
+per-orbital units. This error can be much larger than the density target and
+must be considered when comparing sparse free energies. It never controls
+acceptance, mesh refinement, or EDIIS. Band energy uses the density resolvents.
 
-Filling counts electrons per cell. Band, internal, and free energies and entropy
-are per cell per physical orbital; a 2N-dimensional BdG Hamiltonian has N
-physical orbitals. Entropy is in units of Boltzmann's constant. Free energy is
-`internal_energy - kT * entropy`. Generic observable contractions remain raw
-traces. Interaction double counting and BdG normal ordering are applied once.
+One bounded scalar fit can be shared across k-points and chemical potentials.
+Numeric factors belong to one Hamiltonian and chemical potential. Density,
+energy and entropy reuse those factors; retained storage remains bounded.
 
-Normal reference subtraction uses `delta = rho - reference` in both the
-Hartree/Fock correction and quadratic interaction energy. The energy per orbital
-is `(Tr(h_0 rho) + Tr(W[delta] delta)/2)/N`; differentiating the total
-energy `N * U` gives the effective Hamiltonian. The reference's one-body energy
-is not removed, and entropy belongs to the actual state. This defines a modified model, not an energy difference
-from the reference. BdG references subtract both normal and anomalous density
-components in the same quadratic functional. An N-orbital normal reference
-means zero reference pairing; a 2N-dimensional BdG reference must supply the
-required normal and pairing entries. Map normal references directly into the
-selected entries, without constructing Nambu matrices or inserting a hole
-identity into a density difference.
+## Interaction and SCF
 
-Density accuracy controls the calculation. Filling and SCF have their own
-residual checks. Energy and entropy are computed on the accepted density mesh;
-their estimated errors are diagnostics and never trigger refinement. The sparse
-entropy fit shares the occupation fit's scalar accuracy and poles; band energy
-uses that occupation approximation without an extra accuracy target.
+Write `delta = rho - reference`. The correction is `W[delta]` and the interaction
+energy is `Tr(W[delta] delta)/(2N)` normally. BdG uses the normal and conjugate
+pairing contraction with Nambu counting applied once. The one-body term always
+uses the actual density. References define a modified interaction model, not
+an energy difference from the reference. Both complete density dictionaries and
+selected results are accepted; every required entry is checked. A normal
+N-orbital reference in a BdG model specifies zero reference pairing.
+
+EDIIS is the default and minimizes internal energy over convex density history.
+The interaction energy of pairwise density differences supplies its exact
+quadratic curvature; reference offsets cancel. A small history objective is
+prepared once per update. Entropy and free energy do not enter the optimization.
+SCF stops on the density-parameter residual, or raises at its iteration limit.
+Users explicitly compose solver calls to change methods. Failures retain the
+last accepted result when available.
+
+## Units, accuracy, and verification
+
+Filling counts electrons per cell. Energy and entropy are per cell per physical
+orbital: a 2N-dimensional BdG Hamiltonian has N physical orbitals. Entropy is in
+units of Boltzmann's constant; free energy is `internal_energy - kT * entropy`.
+Generic observable contractions remain raw traces per cell.
 
 The default policy assigns `tol/5` to density and charge integration, `tol/10`
-to the filling residual, and `tol` to the SCF residual. An explicit density
-target also supplies an omitted charge target; an explicit charge target may
-be tighter or looser. Without mesh overrides, custom tolerance policies retain
-both of their targets. An unavailable estimate is `None`, including
-thermodynamic integration errors that a backend cannot estimate.
-
-## Verification and release
+to filling residual, and `tol` to SCF residual. An explicit density target also
+supplies an omitted charge target; users can override charge independently.
+Energy and entropy have no accuracy targets. Unavailable error estimates are
+`None`. Sparse entropy approximation error is distinct from mesh error.
 
 Numerical changes are checked against exact finite systems or independently
-converged dense references. Tests preserve complex BdG phases, reference
-subtraction, units, coordinate selection, and resource limits. Rational
-benchmarks retain their original trace tolerances, including the 1e-12
-regression, and compare complete solves as well as coefficient work.
-
-Run the core suites on Python 3.11–3.13, the optional sparse suite, slow numerical
-regressions when algorithms change, executed tutorials, installed-wheel checks,
-and clean dependency installation before release. Benchmark records document
-reference errors, tolerances, timing conditions, and source versions. Historical
-benchmark evidence is retained outside the distributions.
+converged dense references, including complex pairing phases, reference
+subtraction, units, coordinate selection and resource limits. See
+`RELEASE_CHECKS.md` for repeatable checks. Historical benchmarks remain under
+`performance/`, outside distributions.

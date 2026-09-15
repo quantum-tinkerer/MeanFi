@@ -34,10 +34,6 @@ def tb_orbital_count(tb: _tb_type) -> int:
     return rows
 
 
-def zero_key(ndim: int) -> tuple[int, ...]:
-    return (0,) * ndim
-
-
 def validate_tb_dict(tb: _tb_type) -> None:
     ndim = tb_dimension(tb)
     n_orbitals = tb_orbital_count(tb)

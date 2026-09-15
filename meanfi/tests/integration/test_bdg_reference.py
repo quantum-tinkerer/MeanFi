@@ -1,5 +1,7 @@
 """BdG references checked against two-orbital formulas and a scalar gap equation."""
 
+from meanfi.results import _DensityEntries
+
 from dataclasses import replace
 
 import numpy as np
@@ -49,13 +51,13 @@ def test_bdg_reference_energy_and_hamiltonian(
     bare = mf.Model(tb(h0), tb(hint), filling=1.0, kT=0.2, superconducting=True)
     if selected:
         ref_model = replace(bare, superconducting=not normal_reference)
-        reference = reference.select(ref_model.scf_space.required_coordinates)
+        reference = reference.select(ref_model.required_coordinates)
         # The bare Hamiltonian also needs the conjugate off-diagonal entry.
         energy_coordinates = mf.DensityCoordinates.from_entries(
             size=4,
             keys=[()],
             entries=tuple(
-                sorted(set(bare.scf_space.required_coordinates.entries) | {((), 1, 0)})
+                sorted(set(bare.required_coordinates.entries) | {((), 1, 0)})
             ),
         )
         density = density.select(energy_coordinates)
@@ -119,9 +121,12 @@ def test_bdg_reference_energy_and_hamiltonian(
     ) == pytest.approx(expected_energy, abs=1e-14)
 
 
+@pytest.mark.parametrize("manual_reference", [False, True])
 @pytest.mark.parametrize("normal_reference", [False, True])
 @pytest.mark.parametrize("use_sparse", [False, True])
-def test_reference_bdg_ediis_matches_scalar_gap_equation(normal_reference, use_sparse):
+def test_reference_bdg_ediis_matches_scalar_gap_equation(
+    normal_reference, use_sparse, manual_reference
+):
     if use_sparse:
         pytest.importorskip("mumps")
     interaction, temperature, onsite = 1.6, 0.15, 0.23
@@ -134,6 +139,8 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(normal_reference, use_s
     reference = density_result_from_tb(
         {(): normal if normal_reference else covariance(normal, ref_pairing)}
     )
+    if manual_reference:
+        reference = reference.to_tb(sparse=use_sparse)
     h0 = {(): onsite * np.eye(2)}
     hint = {(): np.array([[0.0, interaction], [interaction, 0.0]])}
     if use_sparse:
@@ -169,10 +176,11 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(normal_reference, use_s
     assert abs(result.mu - onsite) < 2e-8
     assert abs(result.mean_field[()][0, 3] + gap * phase) < 2e-8
     assert abs(result.internal_energy - expected_energy) < 2e-8
-    assert abs(result.entropy - expected_entropy) < 2e-8
+    entropy_error = result.errors.entropy_approximation or 0.0
+    assert abs(result.entropy - expected_entropy) < entropy_error + 2e-8
     assert (
         abs(result.free_energy - (expected_energy - temperature * expected_entropy))
-        < 2e-8
+        < temperature * entropy_error + 2e-8
     )
     assert mf.internal_energy(model, result.density) == pytest.approx(
         result.internal_energy, abs=2e-8
@@ -189,12 +197,12 @@ def test_bdg_reference_rejects_missing_required_entries(normal_reference):
         superconducting=True,
     )
     ref_model = replace(bare, superconducting=not normal_reference)
-    required = ref_model.scf_space.required_coordinates
+    required = ref_model.required_coordinates
     coordinates = mf.DensityCoordinates.from_entries(
         size=required.size, keys=[()], entries=required.entries[:-1]
     )
     reference = mf.DensityResult(
-        entries=mf.DensityEntries(coordinates, np.zeros(coordinates.value_count)),
+        entries=_DensityEntries(coordinates, np.zeros(coordinates.value_count)),
         mu=0.0,
         filling=1.0,
         errors=mf.ErrorValues(),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterator
 
 import numpy as np
@@ -99,7 +99,7 @@ class DensityCoordinates:
     keys: tuple[tuple[int, ...], ...]
     rows_by_key: tuple[np.ndarray, ...]
     cols_by_key: tuple[np.ndarray, ...]
-    value_slices: tuple[slice, ...]
+    value_slices: tuple[slice, ...] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.size <= 0:
@@ -107,22 +107,13 @@ class DensityCoordinates:
         count = len(self.keys)
         if len(set(self.keys)) != count:
             raise ValueError("density coordinate keys must be unique")
-        if not (
-            len(self.rows_by_key)
-            == len(self.cols_by_key)
-            == len(self.value_slices)
-            == count
-        ):
+        if len(self.rows_by_key) != count or len(self.cols_by_key) != count:
             raise ValueError("density coordinate arrays must match the key count")
         rows_by_key = []
         cols_by_key = []
+        value_slices = []
         offset = 0
-        for rows, cols, value_slice in zip(
-            self.rows_by_key,
-            self.cols_by_key,
-            self.value_slices,
-            strict=True,
-        ):
+        for rows, cols in zip(self.rows_by_key, self.cols_by_key, strict=True):
             rows = np.array(rows, dtype=int, copy=True)
             cols = np.array(cols, dtype=int, copy=True)
             if rows.ndim != 1 or cols.ndim != 1 or rows.size != cols.size:
@@ -136,8 +127,7 @@ class DensityCoordinates:
             indices = np.sort(rows * self.size + cols)
             if np.any(indices[1:] == indices[:-1]):
                 raise ValueError("density coordinates must be unique within each key")
-            if value_slice.start != offset or value_slice.stop != offset + rows.size:
-                raise ValueError("density coordinate slices must be contiguous")
+            value_slices.append(slice(offset, offset + rows.size))
             rows.setflags(write=False)
             cols.setflags(write=False)
             rows_by_key.append(rows)
@@ -145,6 +135,7 @@ class DensityCoordinates:
             offset += rows.size
         object.__setattr__(self, "rows_by_key", tuple(rows_by_key))
         object.__setattr__(self, "cols_by_key", tuple(cols_by_key))
+        object.__setattr__(self, "value_slices", tuple(value_slices))
 
     @property
     def is_full(self) -> bool:
@@ -233,34 +224,18 @@ class DensityCoordinates:
         values = np.empty(self.value_count, dtype=complex)
         for key, rows, cols, value_slice in self.iter_key_coordinates():
             block = tb.get(key)
-            if block is None or not rows.size:
-                selected = np.zeros(rows.size, dtype=complex)
-            elif is_sparse_like(block):
+            if not rows.size:
+                continue
+            if block is None:
+                raise ValueError(f"density is missing required coordinate key {key}")
+            if block.shape != (self.size, self.size):
+                raise ValueError("density coordinate matrix sizes do not match")
+            if is_sparse_like(block):
                 selected = np.asarray(block.tocsr()[rows, cols]).reshape(-1)
             else:
                 selected = np.asarray(block)[rows, cols]
             values[value_slice] = selected
         return values
-
-    def values_to_tb(self, values: np.ndarray, *, sparse: bool = False) -> _tb_type:
-        """Place coordinate values into dense blocks, or CSR blocks when requested."""
-
-        values = np.asarray(values)
-        if values.ndim != 1 or values.size != self.value_count:
-            raise ValueError("values must match the density coordinate count")
-        rho: _tb_type = {}
-        for key, rows, cols, value_slice in self.iter_key_coordinates():
-            if sparse:
-                block = csr_matrix(
-                    (values[value_slice], (rows, cols)),
-                    shape=(self.size, self.size),
-                    dtype=complex,
-                )
-            else:
-                block = np.zeros((self.size, self.size), dtype=complex)
-                block[rows, cols] = values[value_slice]
-            rho[key] = block
-        return rho
 
     @classmethod
     def from_pairs(
@@ -272,8 +247,6 @@ class DensityCoordinates:
     ) -> DensityCoordinates:
         rows_by_key: list[np.ndarray] = []
         cols_by_key: list[np.ndarray] = []
-        value_slices: list[slice] = []
-        offset = 0
         for key in keys:
             rows, cols = pairs_by_key.get(
                 key,
@@ -281,19 +254,13 @@ class DensityCoordinates:
             )
             rows = np.asarray(rows, dtype=int)
             cols = np.asarray(cols, dtype=int)
-            if rows.size != cols.size:
-                raise ValueError("coordinate rows and cols must have matching size")
-            count = int(rows.size)
             rows_by_key.append(rows)
             cols_by_key.append(cols)
-            value_slices.append(slice(offset, offset + count))
-            offset += count
         return cls(
             size=int(size),
             keys=tuple(keys),
             rows_by_key=tuple(rows_by_key),
             cols_by_key=tuple(cols_by_key),
-            value_slices=tuple(value_slices),
         )
 
     @classmethod
@@ -346,3 +313,26 @@ def full_density_coordinates(
         keys=keys,
         pairs_by_key=pairs,
     )
+
+
+def _assemble_blocks(
+    coordinates: DensityCoordinates, values: np.ndarray, *, sparse: bool = False
+) -> _tb_type:
+    """Place coordinate values into dense blocks, or CSR blocks when requested."""
+
+    values = np.asarray(values)
+    if values.ndim != 1 or values.size != coordinates.value_count:
+        raise ValueError("values must match the density coordinate count")
+    rho: _tb_type = {}
+    for key, rows, cols, value_slice in coordinates.iter_key_coordinates():
+        if sparse:
+            block = csr_matrix(
+                (values[value_slice], (rows, cols)),
+                shape=(coordinates.size, coordinates.size),
+                dtype=complex,
+            )
+        else:
+            block = np.zeros((coordinates.size, coordinates.size), dtype=complex)
+            block[rows, cols] = values[value_slice]
+        rho[key] = block
+    return rho
