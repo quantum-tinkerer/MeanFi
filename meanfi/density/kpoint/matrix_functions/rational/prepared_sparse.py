@@ -36,8 +36,7 @@ class PreparedMumpsRationalNode:
         charge_tolerance: float,
         layout: SparseRationalLayout,
         density_tolerance: float,
-        band_energy_tolerance: float | None = None,
-        entropy_tolerance: float | None = None,
+        compute_thermodynamics: bool = False,
         workspace_dtype: np.dtype = np.dtype(complex),
         shared_aaa_interval_cache: list[_AAAIntervalCacheEntry] | None = None,
     ) -> None:
@@ -51,15 +50,12 @@ class PreparedMumpsRationalNode:
         self.options = options
         self.charge_tolerance = float(charge_tolerance)
         self.density_tolerance = float(density_tolerance)
-        self.band_energy_tolerance = band_energy_tolerance
-        self.entropy_tolerance = entropy_tolerance
+        self.compute_thermodynamics = compute_thermodynamics
         self.layout = layout
         self.size = int(getattr(matrix, "shape")[0])
         if layout.charge.size != self.size:
             raise ValueError("Sparse layout must match the Hamiltonian size")
-        if (
-            band_energy_tolerance is not None or entropy_tolerance is not None
-        ) and layout.charge.nnz != self.size:
+        if compute_thermodynamics and layout.charge.nnz != self.size:
             raise ValueError("Thermodynamics requires all inverse diagonal entries")
         self._aaa_interval_cache: list[_AAAIntervalCacheEntry] = (
             shared_aaa_interval_cache if shared_aaa_interval_cache is not None else []
@@ -84,20 +80,11 @@ class PreparedMumpsRationalNode:
             ),
         )
 
-    def _scalar_tolerances(self, lower: float, upper: float, mu: float) -> np.ndarray:
-        density_tolerance = self._charge_scalar_tolerance()
-        if self.band_energy_tolerance is not None:
-            # Bound the unshifted Hamiltonian used for band energy.
-            energy_scale = max(abs(lower), abs(upper)) + abs(mu) * np.max(
-                np.abs(self.q_diag)
-            )
-            density_tolerance = min(
-                density_tolerance,
-                self.band_energy_tolerance / (self.size * max(1.0, energy_scale)),
-            )
-        if self.entropy_tolerance is None:
-            return np.array([density_tolerance])
-        return np.array([density_tolerance, self.entropy_tolerance / self.size])
+    def _scalar_tolerances(self) -> np.ndarray:
+        tolerance = self._charge_scalar_tolerance()
+        # Entropy shares the occupation fit's accuracy and poles. Energy follows
+        # from that occupation approximation without a separate fitting target.
+        return np.full(2 if self.compute_thermodynamics else 1, tolerance)
 
     def _sparse_terms(self, mu: float) -> SparseRationalTerms:
         pole_count = self.options.max_poles
@@ -105,7 +92,7 @@ class PreparedMumpsRationalNode:
         lower, upper = spectral_interval(shifted)
         padding = 1e-12 * max(1.0, float(upper - lower))
         lower, upper = lower - padding, upper + padding
-        tolerances = self._scalar_tolerances(lower, upper, mu)
+        tolerances = self._scalar_tolerances()
         margin = 0.0
         for entry in self._aaa_interval_cache:
             contained = entry.lower <= lower and upper <= entry.upper
@@ -218,8 +205,8 @@ class PreparedMumpsRationalNode:
                 "Evaluate charge at the requested mu before thermodynamics"
             )
         terms = self._last_terms
-        if self.entropy_tolerance is None:
-            raise ValueError("Prepare the node with entropy_tolerance first")
+        if not self.compute_thermodynamics:
+            raise ValueError("Prepare the node with compute_thermodynamics=True first")
         energy = float(np.real(terms.constant * np.sum(self.matrix.diagonal())))
         entropy = float(np.real(terms.entropy_constant * self.size))
         for shift, residue, entropy_residue in zip(

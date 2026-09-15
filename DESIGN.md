@@ -70,11 +70,15 @@ physical orbitals. Entropy is in units of Boltzmann's constant. Free energy is
 `internal_energy - kT * entropy`. Generic observable contractions remain raw
 traces. Interaction double counting and BdG normal ordering are applied once.
 
-Density, charge, energy, and entropy have distinct absolute accuracy targets.
-The default policy assigns `tol/5` to each integration target and `tol/10` to
-the filling residual; the SCF residual uses `tol`. Energy targets use the input
-Hamiltonian's energy units and entropy targets use k_B per orbital. Explicit
-targets override this policy. An unavailable estimate is `None`, including
+Density accuracy controls the calculation. Filling and SCF have their own
+residual checks. Energy and entropy are computed on the accepted density mesh;
+their estimated errors are diagnostics and never trigger refinement. The sparse
+entropy fit shares the occupation fit's scalar accuracy and poles; band energy
+uses that occupation approximation without an extra accuracy target.
+
+The default policy assigns `tol/5` to density and charge integration, `tol/10`
+to the filling residual, and `tol` to the SCF residual. Explicit density and
+charge targets override this policy. An unavailable estimate is `None`, including
 thermodynamic integration errors that a backend cannot estimate.
 
 ## Verification and release

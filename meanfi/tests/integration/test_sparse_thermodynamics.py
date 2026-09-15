@@ -88,8 +88,7 @@ def test_sparse_thermodynamics_reuses_density_factorizations(monkeypatch, bdg):
         options=RationalFOE(max_poles=128),
         charge_tolerance=1e-9,
         density_tolerance=1e-9,
-        band_energy_tolerance=1e-8,
-        entropy_tolerance=1e-8,
+        compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=trace_weights,
@@ -137,8 +136,7 @@ def test_sparse_thermodynamics_handles_filled_empty_and_narrow_spectra(mu):
         options=RationalFOE(),
         charge_tolerance=1e-10,
         density_tolerance=1e-10,
-        band_energy_tolerance=1e-10,
-        entropy_tolerance=1e-10,
+        compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coords,
             trace_weights_diag=np.ones(coords.size),
@@ -196,7 +194,7 @@ def test_joint_aaa_certifies_asymmetric_intervals_without_real_poles(
 
 
 @pytest.mark.usefixtures("require_mumps")
-def test_sparse_band_energy_retains_accuracy_far_from_zero_energy():
+def test_sparse_band_energy_error_scales_with_hamiltonian_norm():
     matrix = np.diag([999.5, 999.8, 1000.2, 1000.9]).astype(complex)
     matrix[0, 1] = 0.11j
     matrix[1, 0] = -0.11j
@@ -211,8 +209,7 @@ def test_sparse_band_energy_retains_accuracy_far_from_zero_energy():
         options=RationalFOE(),
         charge_tolerance=1e-7,
         density_tolerance=1e-7,
-        band_energy_tolerance=1e-8,
-        entropy_tolerance=1e-8,
+        compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=np.ones(coordinates.size),
@@ -222,7 +219,9 @@ def test_sparse_band_energy_retains_accuracy_far_from_zero_energy():
     _, expected, _ = _reference(matrix, np.ones(4), kT, mu)
     node.charge(mu)
     actual_energy, _ = node.thermodynamics(mu)
-    np.testing.assert_allclose(actual_energy, expected, atol=1e-8, rtol=0)
+    # Tr(H delta_rho) scales with the energy units; it is not a separate target.
+    error_bound = np.linalg.norm(matrix, 2) * node.charge_tolerance
+    assert abs(actual_energy - expected) <= error_bound
 
 
 def test_thermal_targets_handle_extreme_energy_over_temperature():
@@ -273,8 +272,7 @@ def test_joint_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
         options=RationalFOE(),
         charge_tolerance=tolerance,
         density_tolerance=tolerance,
-        band_energy_tolerance=tolerance,
-        entropy_tolerance=tolerance,
+        compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=np.ones(coordinates.size),
@@ -318,8 +316,7 @@ def test_nearby_intervals_reuse_one_accurate_fit(bdg):
             options=RationalFOE(),
             charge_tolerance=1e-8,
             density_tolerance=1e-8,
-            band_energy_tolerance=1e-8,
-            entropy_tolerance=1e-8,
+            compute_thermodynamics=True,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
                 trace_weights_diag=weights,
@@ -374,9 +371,7 @@ def test_shared_fit_rechecks_accuracy_entropy_and_pole_budget():
     tight = node(1e-10)._sparse_terms(0.0)
     assert tight is not loose
     assert tight.entropy_residues is None
-    joint = node(
-        1e-10, band_energy_tolerance=1e-10, entropy_tolerance=1e-10
-    )._sparse_terms(0.0)
+    joint = node(1e-10, compute_thermodynamics=True)._sparse_terms(0.0)
     assert joint.entropy_residues is not None
     grid = np.linspace(-0.3, 0.2, 15001)
     assert np.all(thermal_errors(joint, grid, thermal_targets(grid, 0.02)) < 5e-11)
@@ -396,8 +391,7 @@ def test_failed_interval_expansion_retries_actual_spectrum(monkeypatch):
         options=RationalFOE(),
         charge_tolerance=1e-10,
         density_tolerance=1e-10,
-        band_energy_tolerance=1e-10,
-        entropy_tolerance=1e-10,
+        compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=np.ones(coordinates.size),
@@ -507,50 +501,13 @@ def test_shared_sparse_layout_preserves_requested_complex_entries(include_all):
 
 
 @pytest.mark.usefixtures("require_mumps")
-@pytest.mark.parametrize(
-    "energy_tolerance,entropy_tolerance", [(1e-9, 1e-5), (1e-5, 1e-9)]
-)
-def test_sparse_thermodynamic_targets_have_independent_units(
-    energy_tolerance, entropy_tolerance
-):
-    matrix = np.diag([999.5, 999.8, 1000.2, 1000.9]).astype(complex)
-    matrix[0, 1], matrix[1, 0] = 0.11j, -0.11j
-    mu, kT = 1000.13, 0.2
-    coordinates = DensityCoordinates.from_entries(size=4, keys=[()], entries=())
-    node = PreparedMumpsRationalNode(
-        sp.csr_matrix(matrix),
-        kT=kT,
-        q_diag=np.ones(4),
-        options=RationalFOE(),
-        charge_tolerance=1e-4,
-        density_tolerance=1e-4,
-        band_energy_tolerance=energy_tolerance,
-        entropy_tolerance=entropy_tolerance,
-        layout=SparseRationalLayout.build(
-            density_coordinates=coordinates, trace_weights_diag=np.ones(4)
-        ),
-    )
-    _, expected_energy, expected_entropy = _reference(matrix, np.ones(4), kT, mu)
-    node.charge(mu)
-    energy, entropy = node.thermodynamics(mu)
-    assert abs(energy - expected_energy) <= energy_tolerance
-    assert abs(entropy - expected_entropy) <= entropy_tolerance
-    scalar_tolerances = node._scalar_tolerances(-1.0, 1.0, mu)
-    assert scalar_tolerances[0] == pytest.approx(energy_tolerance / (4 * (1 + mu)))
-    assert scalar_tolerances[1] == pytest.approx(entropy_tolerance / 4)
-
-
-@pytest.mark.usefixtures("require_mumps")
-@pytest.mark.parametrize("band_energy_tolerance", [None, 1e-8])
-def test_cached_entropy_fit_does_not_enable_unrequested_thermodynamics(
-    band_energy_tolerance,
-):
+def test_cached_entropy_fit_does_not_enable_unrequested_thermodynamics():
     coordinates = DensityCoordinates.from_entries(size=4, keys=[()], entries=())
     matrix = sp.diags([-0.4, 0.3, 0.4, -0.3], format="csr")
     weights = np.array([1.0, 1.0, 0.0, 0.0])
     cache = []
 
-    def node(*, energy, entropy):
+    def node(compute_thermodynamics):
         return PreparedMumpsRationalNode(
             matrix,
             kT=0.2,
@@ -558,20 +515,21 @@ def test_cached_entropy_fit_does_not_enable_unrequested_thermodynamics(
             options=RationalFOE(),
             charge_tolerance=1e-8,
             density_tolerance=1e-8,
-            band_energy_tolerance=energy,
-            entropy_tolerance=entropy,
+            compute_thermodynamics=compute_thermodynamics,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
                 trace_weights_diag=weights,
-                include_all_diagonal=energy is not None or entropy is not None,
+                include_all_diagonal=compute_thermodynamics,
             ),
             shared_aaa_interval_cache=cache,
         )
 
-    joint = node(energy=1e-8, entropy=1e-8)
+    joint = node(True)
     joint.charge(0.1)
-    charge_only = node(energy=band_energy_tolerance, entropy=None)
+    charge_only = node(False)
     charge_only.charge(0.1)
     assert charge_only._last_terms is joint._last_terms
-    with pytest.raises(ValueError, match="Prepare the node with entropy_tolerance"):
+    with pytest.raises(
+        ValueError, match="Prepare the node with compute_thermodynamics=True"
+    ):
         charge_only.thermodynamics(0.1)

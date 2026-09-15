@@ -132,7 +132,7 @@ def test_reference_subtraction_does_not_subtract_entropy():
     )
 
 
-def test_empty_density_selection_still_refines_energy_and_entropy():
+def test_empty_density_selection_reports_thermal_errors_without_refining_them():
     h = {(0,): np.zeros((1, 1)), (1,): np.array([[0.5]]), (-1,): np.array([[0.5]])}
     coordinates = mf.DensityCoordinates.from_entries(size=1, keys=[(0,)], entries=())
     result = mf.density_matrix_at_mu(
@@ -142,10 +142,14 @@ def test_empty_density_selection_still_refines_energy_and_entropy():
         h, mu=0.0, kT=0.1, coordinates=coordinates, integration=mf.PeriodicGrid(nk=8192)
     )
     assert result.values.size == 0
-    assert result.band_energy == pytest.approx(reference.band_energy, abs=1e-6)
-    assert result.entropy == pytest.approx(reference.entropy, abs=1e-6)
-    assert result.errors.band_energy_integration <= 5e-7
-    assert result.errors.entropy_integration <= 5e-7
+    assert result.errors.density_matrix_integration == 0.0
+    assert result.errors.charge_integration <= 2e-6
+    # No density entries were requested. Charge is constant at half filling,
+    # so thermal discrepancies must not force more integration work.
+    assert abs(result.band_energy - reference.band_energy) > 1e-3
+    assert abs(result.entropy - reference.entropy) > 1e-3
+    assert result.errors.band_energy_integration > 1e-3
+    assert result.errors.entropy_integration > 1e-3
 
 
 @pytest.mark.parametrize("use_sparse", [False, True])

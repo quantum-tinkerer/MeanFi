@@ -208,8 +208,7 @@ class _Evaluator:
             density_tolerance=self.tolerances.density_matrix_integration,
             workspace_dtype=self.dtype,
             shared_aaa_interval_cache=self._aaa_interval_cache,
-            band_energy_tolerance=self.size * self.tolerances.band_energy_integration,
-            entropy_tolerance=self.size * self.tolerances.entropy_integration,
+            compute_thermodynamics=True,
         )
 
     def charge(self, grid: _Grid, mu: float) -> tuple[float, float, float | None]:

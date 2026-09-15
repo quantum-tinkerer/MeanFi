@@ -14,19 +14,12 @@ class ConvergenceError(RuntimeError):
 
 @dataclass(frozen=True)
 class ErrorTolerances:
-    """Absolute targets for one density or SCF calculation.
-
-    Band energy uses Hamiltonian energy units per cell per physical orbital;
-    entropy uses k_B per cell per physical orbital. Their targets are independent
-    of the dimensionless density-entry target.
-    """
+    """Absolute targets for density, filling, and SCF convergence."""
 
     scf_residual: float
     density_matrix_integration: float
     filling_residual: float
     charge_integration: float
-    band_energy_integration: float
-    entropy_integration: float
 
     def __post_init__(self) -> None:
         for name, value in self.__dict__.items():
@@ -71,8 +64,6 @@ def default_solver_tolerances(tol: float) -> ErrorTolerances:
         density_matrix_integration=tol / 5.0,
         filling_residual=tol / 10.0,
         charge_integration=tol / 5.0,
-        band_energy_integration=tol / 5.0,
-        entropy_integration=tol / 5.0,
     )
 
 
@@ -94,20 +85,9 @@ def resolve_error_tolerances(
 
 
 def resolve_integration_tolerances(integration, tolerances: ErrorTolerances):
-    """Apply explicit targets once, leaving integration settings immutable.
-
-    Energy and entropy use separate absolute targets in energy units per orbital
-    and k_B per orbital. A prescribed mesh has no integration error estimate.
-    """
-    from meanfi.density.integrate.methods import PeriodicGrid
-
+    """Apply explicit density and charge targets once."""
     settings = {
         "density_matrix_integration": integration.density_matrix_tol,
         "charge_integration": integration.charge_tol,
     }
-    if isinstance(integration, PeriodicGrid):
-        settings.update(
-            band_energy_integration=integration.energy_tol,
-            entropy_integration=integration.entropy_tol,
-        )
     return replace(tolerances, **{k: v for k, v in settings.items() if v is not None})

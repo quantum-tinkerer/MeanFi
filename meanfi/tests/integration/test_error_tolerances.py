@@ -29,8 +29,6 @@ def test_default_solver_tolerances_define_the_public_error_hierarchy():
         density_matrix_integration=2e-4,
         filling_residual=1e-4,
         charge_integration=2e-4,
-        band_energy_integration=2e-4,
-        entropy_integration=2e-4,
     )
     with pytest.raises(FrozenInstanceError):
         tolerances.scf_residual = 1e-2
@@ -76,8 +74,6 @@ def test_explicit_integration_tolerances_are_effective_internal_requests():
         density_matrix_integration=5e-7,
         filling_residual=1e-5,
         charge_integration=2e-7,
-        band_energy_integration=2e-5,
-        entropy_integration=2e-5,
     )
 
 
@@ -99,50 +95,52 @@ def test_unavailable_periodic_grid_estimators_are_none():
     assert result.errors.charge_integration is None
 
 
-@pytest.mark.parametrize("energy_scale", [1.0, 20.0])
-def test_energy_and_entropy_targets_are_independent_and_have_physical_units(
-    energy_scale,
-):
+def test_energy_units_do_not_control_density_refinement():
     from scipy.special import entr, expit
     from meanfi import density_matrix_at_mu
 
     h = {(0,): np.array([[0.13]]), (1,): np.array([[0.5]]), (-1,): np.array([[0.5]])}
-    h = {key: energy_scale * block for key, block in h.items()}
-    mu, kT = energy_scale * 0.27, energy_scale * 0.037
-    energy_tol, entropy_tol = energy_scale * 1e-9, 1e-10
-    result = density_matrix_at_mu(
-        h,
-        mu=mu,
-        kT=kT,
-        keys=[(0,)],
-        integration=PeriodicGrid(
-            density_matrix_tol=1e-3,
-            charge_tol=1e-3,
-            energy_tol=energy_tol,
-            entropy_tol=entropy_tol,
-        ),
+    tolerance = 1e-3
+    results = []
+    for scale in (1.0, 1e6):
+        results.append(
+            density_matrix_at_mu(
+                {key: scale * block for key, block in h.items()},
+                mu=scale * 0.27,
+                kT=scale * 0.037,
+                keys=[(0,)],
+                integration=PeriodicGrid(
+                    density_matrix_tol=tolerance, charge_tol=tolerance
+                ),
+            )
+        )
+    base, scaled = results
+    assert base.statistics.n_kpoints == scaled.statistics.n_kpoints
+    np.testing.assert_allclose(
+        base.entries.values, scaled.entries.values, atol=1e-12, rtol=0
     )
 
     def reference(count):
-        energies = energy_scale * (0.13 + np.cos(2 * np.pi * np.arange(count) / count))
-        f = expit((mu - energies) / kT)
-        return np.array([np.mean(energies * f), np.mean(entr(f) + entr(1 - f))])
+        energies = 0.13 + np.cos(2 * np.pi * np.arange(count) / count)
+        occupations = expit((0.27 - energies) / 0.037)
+        return np.array(
+            [
+                np.mean(occupations),
+                np.mean(energies * occupations),
+                np.mean(entr(occupations) + entr(1 - occupations)),
+            ]
+        )
 
     exact = reference(32768)
-    # Doubling the independent grid establishes substantially tighter accuracy.
+    np.testing.assert_allclose(exact, reference(65536), atol=2e-14, rtol=0)
+    actual = [base.entries.values[0].real, base.band_energy, base.entropy]
+    errors = np.abs(actual - exact)
+    assert errors[0] <= tolerance, errors
+    # These are checks against an independently converged reference, not solver
+    # stopping criteria. Their scale changes with the Hamiltonian's energy units.
+    assert np.all(errors[1:] <= 1e-3), errors
+    assert scaled.errors.band_energy_integration > tolerance
     np.testing.assert_allclose(
-        exact, reference(65536), rtol=0, atol=energy_scale * 2e-14
+        scaled.band_energy / 1e6, base.band_energy, atol=1e-12, rtol=0
     )
-    actual_errors = np.abs([result.band_energy, result.entropy] - exact)
-    assert np.all(actual_errors <= [energy_tol, entropy_tol]), actual_errors
-    assert result.errors.band_energy_integration <= energy_tol
-    assert result.errors.entropy_integration <= entropy_tol
-
-
-@pytest.mark.parametrize("target", ["energy_tol", "entropy_tol"])
-def test_thermal_integration_targets_reject_invalid_or_prescribed_requests(target):
-    for value in [0, -1, float("nan"), float("inf")]:
-        with pytest.raises(ValueError, match=target):
-            PeriodicGrid(**{target: value})
-    with pytest.raises(ValueError, match="nk cannot be combined"):
-        PeriodicGrid(nk=16, **{target: 1e-8})
+    np.testing.assert_allclose(scaled.entropy, base.entropy, atol=1e-12, rtol=0)

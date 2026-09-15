@@ -19,16 +19,15 @@ At positive temperature, omit `nk` to start from a small deterministic grid:
    or use the supplied fixed chemical potential.
 2. Integrate charge, requested density entries, band energy, and entropy.
 3. Compare with the previous grid at the **same chemical potential**.
-4. When all changes meet their targets, validate with a deterministic shifted
+4. When density and charge changes meet their targets, validate with a deterministic shifted
    grid at the same resolution and chemical potential.
 5. Accept only if validation passes; otherwise double every axis and repeat.
 
 Validation offsets are deterministic and distinct by axis: `sqrt(p) % 1`
 for successive primes `p = 2, 3, 5, ...`. Shifted validation is mandatory:
 nested meshes alone can agree through aliasing.
-Band energy and entropy use independent `energy_tol` and `entropy_tol` targets.
-Their error estimates
-are available as `errors.band_energy_integration` and `errors.entropy_integration`.
+Band energy and entropy are computed on the accepted density mesh. Their error
+estimates are diagnostics and do not trigger refinement. They are available as `errors.band_energy_integration` and `errors.entropy_integration`.
 Both the quantities and their errors are per cell per physical orbital.
 The estimates remain empirical. Exhausting `max_points` or `max_refinements`
 raises an actionable convergence error rather than returning an unconverged

@@ -1,4 +1,4 @@
-"""Periodic filling and integration refinement with independent error targets."""
+"""Periodic filling and integration refinement controlled by density accuracy."""
 
 import numpy as np
 
@@ -57,8 +57,6 @@ def solve_periodic(
         return (
             np.max(density_error, initial=0.0) <= tolerances.density_matrix_integration
             and charge_error <= tolerances.charge_integration
-            and energy_error <= tolerances.band_energy_integration
-            and entropy_error <= tolerances.entropy_integration
         )
 
     while True:

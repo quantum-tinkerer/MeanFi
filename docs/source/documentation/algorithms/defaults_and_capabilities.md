@@ -26,8 +26,8 @@ stagnation. An explicit `scf=` selects another method. All SCF settings are
 keyword-only.
 The top-level `tol`
 provides a convenient shared accuracy policy, while `scf_tol`, `filling_tol`,
-`mu_tol`, `density_matrix_tol`, `charge_tol`, `energy_tol` and `entropy_tol`
-separate individual budgets. Energy and entropy estimates are in `result.errors`.
+`mu_tol`, `density_matrix_tol` and `charge_tol` separate individual budgets.
+Energy and entropy estimates in `result.errors` are diagnostics, not targets.
 Integration targets are populated only after the prescribed/accuracy-controlled
 mode has been resolved. An explicit `nk` always retains prescribed-size semantics.
 

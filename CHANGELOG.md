@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Integration results keep physical quantities on the result and error estimates
   in `errors`; removed physical values, errors and unused energy counters from
-  backend statistics. `band_energy_integration` and `entropy_integration` are
-  independent fields of `ErrorTolerances` and `ErrorValues`. `PeriodicGrid`
-  exposes `energy_tol` and `entropy_tol` in energy units and k_B per orbital.
-  Changing the density target no longer implicitly changes these targets.
+  backend statistics. `band_energy_integration` and `entropy_integration` in
+  `ErrorValues` are diagnostics only. Density accuracy controls integration;
+  energy and entropy have no separate targets and do not trigger refinement.
+  Sparse thermodynamics uses the density fit without extra energy-driven accuracy.
 - Density preparation resolves settings once. Normal and BdG SCF share a single
   problem implementation; simplex fixed-mu and fixed-filling calculations share
   one refinement loop. Removed obsolete private dispatch functions and simplex
