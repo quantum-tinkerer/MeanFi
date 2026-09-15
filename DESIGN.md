@@ -12,8 +12,9 @@ algorithm reference in `docs/source/documentation/algorithms/` gives the details
   and filling, and an `ActiveSCFSpace` that encodes Hermiticity, particle-hole
   constraints, and optional spatial symmetry.
 - `DensityCoordinates` describes computed entries. `DensityEntries` owns their
-  immutable values and optional integration errors. Missing entries are unknown,
-  never implicitly zero. The SCF space reconstructs only entries fixed by its
+  immutable values and optional integration errors, shared when result metadata
+  changes. `DensityResult` adds physical quantities and evaluation diagnostics.
+  Missing entries are unknown, never implicitly zero. The SCF space reconstructs only entries fixed by its
   constraints.
 - `DensityProblem` holds validated, resolved integration settings and coordinates.
   Public density calls and SCF use the same preparation boundary and evaluator.
@@ -78,9 +79,14 @@ traces. Interaction double counting and BdG normal ordering are applied once.
 Normal reference subtraction uses `delta = rho - reference` in both the
 Hartree/Fock correction and quadratic interaction energy. The energy per orbital
 is `(Tr(h_0 rho) + Tr(W[delta] delta)/2)/N`; differentiating the total
-energy `N * U` gives the effective Hamiltonian. The reference's one-body energy is not removed, and entropy belongs
-to the actual state. This defines a modified model, not an energy difference
-from the reference. Superconducting references are not implemented.
+energy `N * U` gives the effective Hamiltonian. The reference's one-body energy
+is not removed, and entropy belongs to the actual state. This defines a modified model, not an energy difference
+from the reference. BdG references subtract both normal and anomalous density
+components in the same quadratic functional. An N-orbital normal reference
+means zero reference pairing; a 2N-dimensional BdG reference must supply the
+required normal and pairing entries. Map normal references directly into the
+selected entries, without constructing Nambu matrices or inserting a hole
+identity into a density difference.
 
 Density accuracy controls the calculation. Filling and SCF have their own
 residual checks. Energy and entropy are computed on the accepted density mesh;

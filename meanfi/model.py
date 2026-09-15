@@ -6,6 +6,7 @@ import numpy as np
 
 from meanfi.meanfield import bdg_correction_from_density_parts, meanfield
 from meanfi.results import DensityResult
+from meanfi.space.coordinates import DensityCoordinates
 from meanfi.space.space import ActiveSCFSpace
 from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.space.symmetry import SpatialSymmetry
@@ -19,8 +20,9 @@ from meanfi.tb.validate import freeze_tb, tb_dimension, tb_orbital_count, zero_k
 class Model:
     """Owned, read-only tight-binding inputs and their reduced SCF space.
 
-    ``reference`` subtracts a normal reference density from the complete
-    Hartree/Fock correction. Filling counts electrons per unit cell.
+    ``reference`` subtracts the normal and pairing reference densities from
+    the mean-field correction. A normal reference has zero pairing in a BdG
+    model. Filling counts electrons per unit cell.
     """
 
     h_0: _tb_type
@@ -79,17 +81,26 @@ class Model:
         )
         reference_state = None
         if self.reference is not None:
-            if self.superconducting:
-                raise ValueError(
-                    "reference density is supported only for normal models"
-                )
             if not isinstance(self.reference, DensityResult):
                 raise TypeError("reference must be a DensityResult")
+            coordinates = space.required_coordinates
+            if self.superconducting and self.reference.coordinates.size == ndof:
+                # An electron-space reference specifies zero pairing. Read only
+                # its required normal entries, without building Nambu matrices.
+                normal = DensityCoordinates.from_pairs(
+                    size=ndof,
+                    keys=list(coordinates.keys),
+                    pairs_by_key={
+                        key: (rows[cols < ndof], cols[cols < ndof])
+                        for key, rows, cols, _ in coordinates.iter_key_coordinates()
+                    },
+                )
+                values = np.zeros(coordinates.value_count, dtype=complex)
+                values[coordinates.all_cols < ndof] = self.reference.values_for(normal)
+            else:
+                values = self.reference.values_for(coordinates)
             reference_state = ActiveDensityState(
-                space,
-                space.params_from_required_entries(
-                    self.reference.values_for(space.required_coordinates)
-                ),
+                space, space.params_from_required_entries(values)
             )
         object.__setattr__(self, "scf_space", space)
         object.__setattr__(self, "_reference_state", reference_state)
@@ -129,7 +140,8 @@ class Model:
         """Build the normal or BdG Hamiltonian from a trial density.
 
         Selected results must cover this model's required coordinates.
-        Normal models subtract their reference before computing the correction.
+        Subtract the reference normal and pairing densities before computing
+        the correction; a normal reference contributes no pairing.
         """
         return self.hamiltonian_from_meanfield(
             self._mean_field_from_state(self._density_state(density))

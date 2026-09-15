@@ -169,6 +169,31 @@ np.testing.assert_allclose(
     mf.internal_energy(pwave, bdg_density) - pwave.kT * bdg_density.entropy,
 )
 
+# A normal reference also works in BdG: its reference pairing is zero.
+normal_reference = mf.density_matrix(
+    replace(pwave, superconducting=False),
+    integration=mf.UniformGrid(nk=256),
+    tol=1e-6,
+)
+referenced_pwave = replace(pwave, reference=normal_reference)
+referenced_bdg = mf.solver(
+    referenced_pwave,
+    pair_guess,
+    integration=mf.UniformGrid(nk=256),
+    scf=mf.EnergyDIIS(max_iterations=200),
+    tol=1e-5,
+)
+assert referenced_bdg.converged
+print("BdG with a normal reference:", referenced_bdg.internal_energy)
+
+# A BdG reference subtracts both normal and pairing densities, even when selected.
+paired_reference_model = replace(pwave, reference=bdg.density)
+bare_bdg_h = pwave.hamiltonian_from_meanfield()
+for key, block in paired_reference_model.hamiltonian_from_density(bdg.density).items():
+    np.testing.assert_allclose(
+        block, bare_bdg_h.get(key, np.zeros_like(block)), atol=1e-14
+    )
+
 # Fourier helpers use explicit points PER AXIS and FFT ordering.
 grid = mf.tb_to_kgrid(h0, (16,))
 recovered = mf.kgrid_to_tb(grid)

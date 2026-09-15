@@ -269,12 +269,12 @@ def test_model_rejects_invalid_reference_density_matrix_dimension():
         Model(**kwargs)
 
 
-def test_model_rejects_reference_density_matrix_for_superconducting_models():
+def test_model_rejects_incompatible_reference_shape_for_superconducting_models():
     kwargs = _base_model_kwargs()
     kwargs["superconducting"] = True
-    kwargs["reference"] = density_result_from_tb({(0,): np.zeros((2, 2))})
+    kwargs["reference"] = density_result_from_tb({(0,): np.zeros((3, 3))})
 
-    with pytest.raises(ValueError, match="normal models"):
+    with pytest.raises(ValueError, match="matrix sizes do not match"):
         Model(**kwargs)
 
 

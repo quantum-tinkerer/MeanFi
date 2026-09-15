@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Superconducting models now accept normal or BdG reference densities. Normal
+  references imply zero pairing; BdG references subtract both normal and pairing
+  contributions. Hamiltonian corrections, internal/free energies and EDIIS use
+  the same reference-subtracted functional, including sparse selected layouts.
+
 - The public integration methods are `FermiSimplex` and `UniformGrid`, replacing
   the development names `AdaptiveSimplex` and `PeriodicGrid` without aliases.
   Settings and numerical behavior are unchanged; `nk` still requests total points.

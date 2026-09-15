@@ -112,9 +112,9 @@ def internal_energy(model: Model, density_matrix: _tb_type | DensityResult) -> f
 
     The density must cover the one-body Hamiltonian and interaction. Selected
     results may use the model's reduced interaction coordinates. Interaction
-    energy carries a factor of one half; normal reference subtraction affects
-    that term only. BdG pairing is contracted with the conjugate anomalous
-    density, preserving its global phase symmetry.
+    energy carries a factor of one half and uses the difference from the
+    reference normal and pairing densities. The one-body term uses the actual
+    density. BdG pairing uses the conjugate anomalous density difference.
     """
     if not isinstance(density_matrix, DensityResult):
         required = set(model.h_0) | set(model.scf_space.interaction_keys)

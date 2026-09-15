@@ -9,8 +9,8 @@
    :members: hamiltonian_from_density, hamiltonian_from_meanfield, random_meanfield
 ```
 
-`Model(..., reference=reference)` enables full reference-state subtraction for
-normal calculations. The effective Hamiltonian is built as
+`Model(..., reference=reference)` enables reference-state subtraction for normal
+and superconducting calculations. The effective Hamiltonian is built as
 `h_0 + W[rho - rho_ref]`, where `W` is the complete density-density mean-field
 correction, including both Hartree and exchange-like terms. This is not a
 Hartree-only background subtraction. `reference` is a layout-aware
@@ -246,7 +246,7 @@ print(meanfi.free_energy(model, density))
 `free_energy` requires a `DensityResult`, because a dictionary of a few
 real-space density blocks does not contain the full state's entropy.
 `density.entropy` is computed during density evaluation and remains available
-when selecting fewer entries. Normal reference subtraction affects the
+when selecting fewer entries. Reference subtraction affects the
 interaction energy, not entropy. BdG entropy includes the factor of one half
 that removes Nambu doubling.
 
@@ -283,12 +283,38 @@ Hamiltonian is adjusted consistently. Compare solutions with the same model
 and reference; an energy difference from the reference requires explicitly
 subtracting its energy evaluated with that same model.
 
-Superconducting references are currently rejected by `Model`. This is an
-implementation restriction, not a physical prohibition. A BdG extension would
-specify both the normal reference density and anomalous pairing density, and
-subtract their corrections with the matching interaction functional. A normal
-reference would have zero anomalous density. The Nambu covariance itself must
-not be treated as a density difference with the usual identity offset.
+For a superconducting model, `reference` accepts either an N-dimensional normal
+`DensityResult` or a 2N-dimensional BdG `DensityResult`:
+
+- A normal reference supplies $\rho_{\rm ref}$ and means $\kappa_{\rm ref}=0$.
+- A BdG reference supplies both $\rho_{\rm ref}$ and $\kappa_{\rm ref}$.
+
+The correction and quadratic interaction energy use the same differences
+$\delta\rho=\rho-\rho_{\rm ref}$ and
+$\delta\kappa=\kappa-\kappa_{\rm ref}$. The one-body energy uses the actual
+normal density; entropy uses the actual full state. The factor removing Nambu
+doubling and normalization by N physical orbitals are unchanged. A paired
+reference sets a phase: rotating both the state and reference leaves the energy
+unchanged, while rotating only the state can change its energy.
+
+```python
+from dataclasses import replace
+
+grid = meanfi.UniformGrid(nk=256)
+normal_model = meanfi.Model(h_0, h_int, filling=filling, kT=kT)
+reference = meanfi.density_matrix(normal_model, integration=grid)
+bdg_model = replace(normal_model, superconducting=True, reference=reference)
+solution = meanfi.solver(
+    bdg_model, bdg_model.random_meanfield(rng=0, scale=0.1), integration=grid
+)
+```
+
+To subtract a paired reference instead, pass a density result calculated from a
+BdG model. Both forms may contain selected entries, but every required entry
+must be present. Missing pairing entries in a BdG reference are unknown and
+raise an error; only an explicitly normal, N-dimensional reference implies zero
+pairing. The conversion reads selected entries directly and preserves sparse
+Hamiltonian storage.
 
 ## Tight-binding dictionary utilities
 
