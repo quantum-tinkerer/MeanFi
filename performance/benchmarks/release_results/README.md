@@ -137,3 +137,12 @@ whose error is bounded by endpoint occupations over the full spectral interval.
 This avoids an unnecessary ill-conditioned fit; the core regression verifies
 cache reuse without eigensolves, and sparse references verify the density and
 charge to `1e-8` with requests of `1e-9`.
+
+## AAA fitting and reuse
+
+[The AAA fitting report](aaa_fitting_and_reuse.md) compares the smaller fitting
+grid, QR with a small SVD, and interval reuse against `56b8822`. It includes
+N=100, 200, and 512 timings, scalar and matrix costs, accuracy checks, and the
+tradeoff from occasional extra poles. The earlier
+[normalization and fit-cost study](normalization_and_fit_cost.md) documents the
+per-orbital quantities and the original tight-tolerance regression.

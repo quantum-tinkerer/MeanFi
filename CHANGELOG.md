@@ -102,6 +102,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Accuracy and resource contracts
 
+- AAA fitting starts on a smaller grid and refines only when needed, while keeping
+  the dense validation grid and final accuracy targets unchanged. QR reduces its
+  weight solve to a small SVD. One validated fit is reused across nearby chemical
+  potentials and k-points, with modest interval padding after a bounds miss and
+  a retry on the actual spectrum when padding exceeds the pole budget. No new
+  settings or dependencies are introduced.
+
 - AAA can now refit residues from a nearly converged intermediate approximation.
   Final certification keeps the requested tolerance, fixing the 32-orbital
   thermodynamic regression at its original `1e-12` total-trace target.

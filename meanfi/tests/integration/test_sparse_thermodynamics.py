@@ -11,6 +11,7 @@ from meanfi.density.kpoint.matrix_functions.rational import PreparedMumpsRationa
 from meanfi.density.kpoint.matrix_functions.rational.scheme import (
     _aaa_terms_for_interval,
     thermal_errors,
+    thermal_targets,
 )
 from meanfi.space.coordinates import DensityCoordinates
 
@@ -210,8 +211,6 @@ def test_sparse_band_energy_retains_accuracy_far_from_zero_energy():
 
 
 def test_thermal_targets_handle_extreme_energy_over_temperature():
-    from meanfi.density.kpoint.matrix_functions.rational.scheme import thermal_targets
-
     targets = thermal_targets(np.array([-1e308, 0.0, 1e308]), 1e-300)
     np.testing.assert_allclose(targets[:, 0], [1.0, 0.5, 0.0])
     np.testing.assert_allclose(targets[:, 1], [0.0, np.log(2.0), 0.0])
@@ -274,4 +273,140 @@ def test_joint_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
     )
     np.testing.assert_allclose(
         node.thermodynamics(mu), [energy, entropy], atol=tolerance, rtol=0
+    )
+
+
+@pytest.mark.parametrize("bdg", [False, True])
+def test_nearby_intervals_reuse_one_accurate_fit(bdg):
+    from meanfi.tb.bdg import assemble_bdg_tb
+
+    matrix = np.array([[-0.3, 0.05j], [-0.05j, 0.2]])
+    if bdg:
+        matrix = assemble_bdg_tb(
+            {(): matrix}, {(): np.array([[0.0, 0.12], [-0.12, 0.0]])}, ndof=2
+        )[()]
+    size = len(matrix)
+    q = np.array([1, 1, -1, -1]) if bdg else np.ones(size)
+    weights = np.array([1, 1, 0, 0]) if bdg else np.ones(size)
+    coordinates = DensityCoordinates.from_entries(size=size, keys=[()], entries=())
+    cache = []
+
+    def fit(mu, offset=0.0, **overrides):
+        options = dict(
+            kT=0.1,
+            q_diag=q,
+            trace_weights_diag=weights,
+            options=RationalFOE(),
+            charge_tolerance=1e-8,
+            density_tolerance=1e-8,
+            thermodynamic_tolerance=1e-8,
+            density_coordinates=coordinates,
+            shared_aaa_interval_cache=cache,
+        )
+        options.update(overrides)
+        node = PreparedMumpsRationalNode(
+            sp.csr_matrix(matrix + offset * np.diag(q)), **options
+        )
+        terms = node._sparse_terms(mu)
+        # Check the whole interval independently, including the Fermi transition.
+        energies = np.linspace(cache[0].lower, cache[0].upper, 15001)
+        errors = thermal_errors(terms, energies, thermal_targets(energies, node.kT))
+        assert np.all(errors < 1e-8)
+        assert len(cache) == 1
+        return terms
+
+    first = fit(0.0)
+    widened = fit(0.01)
+    assert widened is not first
+    assert fit(0.015) is widened
+    assert fit(0.015, offset=0.005) is widened
+    assert fit(0.015, kT=0.2) is not widened
+
+
+def test_shared_fit_rechecks_accuracy_entropy_and_pole_budget():
+    from meanfi import ConvergenceError
+
+    coordinates = DensityCoordinates.from_entries(size=2, keys=[()], entries=())
+    cache = []
+
+    def node(tolerance, **overrides):
+        options = dict(
+            kT=0.02,
+            q_diag=np.ones(2),
+            options=RationalFOE(),
+            charge_tolerance=tolerance,
+            density_tolerance=tolerance,
+            density_coordinates=coordinates,
+            shared_aaa_interval_cache=cache,
+        )
+        options.update(overrides)
+        return PreparedMumpsRationalNode(sp.diags([-0.3, 0.2], format="csr"), **options)
+
+    loose = node(0.1)._sparse_terms(0.0)
+    tight = node(1e-10)._sparse_terms(0.0)
+    assert tight is not loose
+    assert tight.entropy_residues is None
+    joint = node(1e-10, thermodynamic_tolerance=1e-10)._sparse_terms(0.0)
+    assert joint.entropy_residues is not None
+    grid = np.linspace(-0.3, 0.2, 15001)
+    assert np.all(thermal_errors(joint, grid, thermal_targets(grid, 0.02)) < 5e-11)
+    with pytest.raises(ConvergenceError, match="max_poles"):
+        node(1e-10, options=RationalFOE(max_poles=4))._sparse_terms(0.0)
+
+
+def test_failed_interval_expansion_retries_actual_spectrum(monkeypatch):
+    from meanfi.density.kpoint.matrix_functions.rational import prepared_sparse
+
+    coordinates = DensityCoordinates.from_entries(size=2, keys=[()], entries=())
+    cache = []
+    node = PreparedMumpsRationalNode(
+        sp.diags([-0.3, 0.2], format="csr"),
+        kT=0.1,
+        q_diag=np.ones(2),
+        options=RationalFOE(),
+        charge_tolerance=1e-10,
+        density_tolerance=1e-10,
+        thermodynamic_tolerance=1e-10,
+        density_coordinates=coordinates,
+        shared_aaa_interval_cache=cache,
+    )
+    node._sparse_terms(0.0)
+    fit = prepared_sparse._aaa_terms_for_interval
+    attempts = []
+
+    def restricted(*args, **kwargs):
+        attempts.append((kwargs["lower"], kwargs["upper"]))
+        if kwargs["upper"] - kwargs["lower"] > 0.6:
+            raise ValueError("expanded interval exceeds the available fit budget")
+        return fit(*args, **kwargs)
+
+    monkeypatch.setattr(prepared_sparse, "_aaa_terms_for_interval", restricted)
+    terms = node._sparse_terms(0.01)
+    assert len(attempts) == 2
+    assert attempts[0][0] < attempts[1][0] < attempts[1][1] < attempts[0][1]
+    grid = np.linspace(-0.31, 0.19, 15001)
+    assert np.all(thermal_errors(terms, grid, thermal_targets(grid, 0.1)) < 5e-11)
+
+
+def test_joint_aaa_refines_the_grid_for_a_sharp_fermi_transition():
+    kT = 1e-5
+    terms = _aaa_terms_for_interval(
+        256,
+        lower=-3.0,
+        upper=2.0,
+        kT=kT,
+        scalar_tolerance=1e-10,
+        entropy_tolerance=1e-9,
+    )
+    # Resolve both the narrow transition and the much wider spectral interval.
+    grid = np.unique(
+        np.concatenate(
+            [np.linspace(-3, 2, 50003), np.linspace(-40 * kT, 40 * kT, 20003)]
+        )
+    )
+    f = expit(-grid / kT)
+    entropy = -xlogy(f, f) - xlogy(1 - f, 1 - f)
+    assert np.all(
+        thermal_errors(terms, grid, np.column_stack([f, entropy]))
+        <= np.array([1e-10, 1e-9])
     )

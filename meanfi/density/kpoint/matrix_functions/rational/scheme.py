@@ -113,87 +113,96 @@ def _aaa_terms_for_interval(
 ) -> SparseRationalTerms:
     """Fit and certify both functions before factoring any shifted matrices.
 
-    A stacked Loewner matrix supplies a shared AAA denominator. Refitting the
-    residues on its poles avoids cancellation in barycentric pole conversion.
+    A stacked Loewner matrix supplies a shared AAA denominator. QR reduces the
+    weight solve to a small SVD. Start with a small fitting grid and refine only
+    when needed; every candidate is checked on the same dense validation grid.
     """
     max_poles = pole_cap
     columns = 1 if entropy_tolerance is None else 2
     tolerances = np.array(
         [scalar_tolerance] + ([] if entropy_tolerance is None else [entropy_tolerance])
     )
-    x = _aaa_sample_grid(lower, upper, kT=kT, count=max(512, 8 * max_poles))
-    targets = thermal_targets(x, kT)[:, :columns]
     validation = _aaa_sample_grid(lower, upper, kT=kT, count=max(2048, 32 * max_poles))
     validation_targets = thermal_targets(validation, kT)[:, :columns]
-    constants = np.mean(targets, axis=0)
-    if np.all(np.max(np.abs(validation_targets - constants), axis=0) <= tolerances):
-        return SparseRationalTerms(
-            constant=complex(constants[0]),
-            shifts=np.empty(0, dtype=complex),
-            residues=np.empty(0, dtype=complex),
-            pole_count=0,
-            entropy_constant=complex(constants[1]) if columns == 2 else None,
-            entropy_residues=np.empty(0, dtype=complex) if columns == 2 else None,
-        )
-
-    center, radius = 0.5 * (lower + upper), 0.5 * (upper - lower)
-    scaled_x, unique = np.unique((x - center) / radius, return_index=True)
-    x, targets = x[unique], targets[unique]
-    support: list[int] = []
-    mask = np.ones(x.size, dtype=bool)
-    approximation = np.broadcast_to(constants, targets.shape).copy()
-    scales = np.min(tolerances) / tolerances
     best_error = float("inf")
-    for _ in range(max_poles):
-        residual = np.max(np.abs(targets - approximation) / tolerances, axis=1)
-        residual[~mask] = -np.inf
-        pivot = int(np.argmax(residual))
-        support.append(pivot)
-        mask[pivot] = False
-        support_x, support_y = scaled_x[support], targets[support]
-        if len(support) == 1:
-            approximation[:] = support_y[0]
-            continue
-        cauchy = 1.0 / (scaled_x[mask, None] - support_x)
-        loewner = np.concatenate(
-            [
-                (targets[mask, None, column] - support_y[:, column])
-                * cauchy
-                * scales[column]
-                for column in range(columns)
+    sample_count = max(512, 8 * initial_poles)
+    max_samples = max(512, 8 * max_poles)
+    while True:
+        x = _aaa_sample_grid(lower, upper, kT=kT, count=sample_count)
+        targets = thermal_targets(x, kT)[:, :columns]
+        constants = np.mean(targets, axis=0)
+        if np.all(np.max(np.abs(validation_targets - constants), axis=0) <= tolerances):
+            return SparseRationalTerms(
+                constant=complex(constants[0]),
+                shifts=np.empty(0, dtype=complex),
+                residues=np.empty(0, dtype=complex),
+                pole_count=0,
+                entropy_constant=complex(constants[1]) if columns == 2 else None,
+                entropy_residues=np.empty(0, dtype=complex) if columns == 2 else None,
+            )
+
+        center, radius = 0.5 * (lower + upper), 0.5 * (upper - lower)
+        scaled_x, unique = np.unique((x - center) / radius, return_index=True)
+        x, targets = x[unique], targets[unique]
+        support: list[int] = []
+        mask = np.ones(x.size, dtype=bool)
+        approximation = np.broadcast_to(constants, targets.shape).copy()
+        scales = np.min(tolerances) / tolerances
+        for _ in range(min(max_poles, sample_count // 8)):
+            residual = np.max(np.abs(targets - approximation) / tolerances, axis=1)
+            residual[~mask] = -np.inf
+            pivot = int(np.argmax(residual))
+            support.append(pivot)
+            mask[pivot] = False
+            support_x, support_y = scaled_x[support], targets[support]
+            if len(support) == 1:
+                approximation[:] = support_y[0]
+                continue
+            cauchy = 1.0 / (scaled_x[mask, None] - support_x)
+            loewner = np.concatenate(
+                [
+                    (targets[mask, None, column] - support_y[:, column])
+                    * cauchy
+                    * scales[column]
+                    for column in range(columns)
+                ]
+            )
+            # Q preserves norms: minimizing ||L w|| is equivalent to ||R w||.
+            triangular = np.linalg.qr(loewner, mode="r")
+            weights = np.linalg.svd(triangular, full_matrices=False)[2][-1]
+            weighted_cauchy = cauchy * weights
+            approximation[mask] = (weighted_cauchy @ support_y) / np.sum(
+                weighted_cauchy, axis=1
+            )[:, None]
+            approximation[support] = support_y
+            # The residue refit can improve a nearly converged barycentric fit.
+            # Only final partial-fraction errors decide acceptance below.
+            if len(support) < initial_poles or np.any(
+                np.max(np.abs(approximation - targets), axis=0) > 10 * tolerances
+            ):
+                continue
+            shifts = center + radius * _aaa_poles(support_x, weights)
+            # Real poles inside the spectrum are spurious pole/zero pairs. Discard
+            # them before refitting; certification checks the remaining expansion.
+            shifts = shifts[
+                (shifts.imag != 0.0) | (shifts.real < lower) | (shifts.real > upper)
             ]
-        )
-        weights = np.linalg.svd(loewner, full_matrices=False)[2][-1]
-        weighted_cauchy = cauchy * weights
-        approximation[mask] = (weighted_cauchy @ support_y) / np.sum(
-            weighted_cauchy, axis=1
-        )[:, None]
-        approximation[support] = support_y
-        # The residue refit can improve a nearly converged barycentric fit.
-        # Only final partial-fraction errors decide acceptance below.
-        if len(support) < initial_poles or np.any(
-            np.max(np.abs(approximation - targets), axis=0) > 10 * tolerances
-        ):
-            continue
-        shifts = center + radius * _aaa_poles(support_x, weights)
-        # Real poles inside the spectrum are spurious pole/zero pairs. Discard
-        # them before refitting; certification checks the remaining expansion.
-        shifts = shifts[
-            (shifts.imag != 0.0) | (shifts.real < lower) | (shifts.real > upper)
-        ]
-        constants, residues = _fit_residues(x, targets, shifts)
-        terms = SparseRationalTerms(
-            constant=complex(constants[0]),
-            shifts=shifts,
-            residues=residues[:, 0],
-            pole_count=len(support),
-            entropy_constant=complex(constants[1]) if columns == 2 else None,
-            entropy_residues=residues[:, 1] if columns == 2 else None,
-        )
-        errors = thermal_errors(terms, validation, validation_targets)
-        best_error = min(best_error, float(np.max(errors / tolerances)))
-        if np.all(errors <= tolerances):
-            return terms
+            constants, residues = _fit_residues(x, targets, shifts)
+            terms = SparseRationalTerms(
+                constant=complex(constants[0]),
+                shifts=shifts,
+                residues=residues[:, 0],
+                pole_count=len(support),
+                entropy_constant=complex(constants[1]) if columns == 2 else None,
+                entropy_residues=residues[:, 1] if columns == 2 else None,
+            )
+            errors = thermal_errors(terms, validation, validation_targets)
+            best_error = min(best_error, float(np.max(errors / tolerances)))
+            if np.all(errors <= tolerances):
+                return terms
+        if sample_count == max_samples:
+            break
+        sample_count = min(2 * sample_count, max_samples)
     raise ValueError(
         "AAA scalar certification failed within max_poles "
         f"(best error/tolerance={best_error:.3e})"

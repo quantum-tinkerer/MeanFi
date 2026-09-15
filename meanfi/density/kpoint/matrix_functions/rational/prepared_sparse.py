@@ -151,36 +151,51 @@ class PreparedMumpsRationalNode:
         padding = 1e-12 * max(1.0, float(upper - lower))
         lower, upper = lower - padding, upper + padding
         tolerances = self._scalar_tolerances(lower, upper, mu)
-        grid = _aaa_sample_grid(
-            lower, upper, kT=self.kT, count=max(2048, 32 * pole_count)
-        )
-        targets = thermal_targets(grid, self.kT)[:, : tolerances.size]
+        margin = 0.0
         for entry in self._aaa_interval_cache:
+            contained = entry.lower <= lower and upper <= entry.upper
+            if (
+                entry.kT == self.kT
+                and not contained
+                and max(lower, entry.lower) < min(upper, entry.upper)
+            ):
+                # A nearby miss gets room for subsequent k-point and mu shifts.
+                # Keep the first fit narrow so one-off evaluations pay no premium.
+                margin = 0.2 * (upper - lower)
             if (
                 entry.kT != self.kT
-                or lower < entry.lower
-                or upper > entry.upper
+                or not contained
                 or entry.terms.pole_count > pole_count
                 or (tolerances.size == 2 and entry.terms.entropy_residues is None)
             ):
                 continue
+            grid = _aaa_sample_grid(
+                lower, upper, kT=self.kT, count=max(2048, 32 * pole_count)
+            )
+            targets = thermal_targets(grid, self.kT)[:, : tolerances.size]
             if np.all(thermal_errors(entry.terms, grid, targets) <= tolerances):
                 return entry.terms
-        try:
-            terms = _aaa_terms_for_interval(
-                pole_cap=pole_count,
-                lower=lower,
-                upper=upper,
-                kT=self.kT,
-                initial_poles=self.options.initial_poles,
-                scalar_tolerance=tolerances[0],
-                entropy_tolerance=tolerances[1] if tolerances.size == 2 else None,
-            )
-        except ValueError as exc:
-            raise ConvergenceError(str(exc)) from exc
+        # Widening is optional: a restricted pole budget may only fit the actual
+        # spectrum. In that case retry its original interval before failing.
+        for extra in (margin, 0.0) if margin else (0.0,):
+            fit_lower, fit_upper = lower - extra, upper + extra
+            try:
+                terms = _aaa_terms_for_interval(
+                    pole_cap=pole_count,
+                    lower=fit_lower,
+                    upper=fit_upper,
+                    kT=self.kT,
+                    initial_poles=self.options.initial_poles,
+                    scalar_tolerance=tolerances[0],
+                    entropy_tolerance=tolerances[1] if tolerances.size == 2 else None,
+                )
+                break
+            except ValueError as exc:
+                if extra == 0.0:
+                    raise ConvergenceError(str(exc)) from exc
         # Keep one scalar fit shared across k-points, never their factorizations.
         self._aaa_interval_cache[:] = [
-            _AAAIntervalCacheEntry(lower, upper, self.kT, terms)
+            _AAAIntervalCacheEntry(fit_lower, fit_upper, self.kT, terms)
         ]
         return terms
 

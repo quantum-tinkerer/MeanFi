@@ -31,15 +31,30 @@ pole. Off-diagonal entries use the transposed conjugate resolvent entry.
 
 The fit combines occupation and entropy residuals, refits residues on the
 resulting poles, and checks both approximations on a separate, denser scalar
-grid. Samples resolve the band edges, Fermi transition, and thermal tails.
+grid. Fitting starts on a small grid and doubles its resolution only if needed,
+up to the full approximation budget. The validation grid stays dense throughout.
+Samples resolve the band edges, Fermi transition, and thermal tails.
+
+AAA finds denominator weights by minimizing $\|Lw\|$ with $\|w\|=1$,
+where $L$ is the stacked Loewner matrix. We first compute $L=QR$, then take the
+smallest right singular vector of $R$. Since $Q$ has orthonormal columns,
+$\|Lw\|=\|Rw\|$: the SVD operates on a small square matrix with the same
+least-squares objective. This avoids forming $L^T L$, which would square the
+condition number.
+
 A nearly converged intermediate fit may proceed to residue refitting; only the
 final partial-fraction errors determine acceptance. Constant approximations
 must pass the same checks. These are sampled scalar
 checks, not rigorous uniform-error certificates between sample points.
 
-A scalar fit may be reused for a contained spectral interval after checking its
-requested accuracy. Charge-only evaluations can fit just the occupation
-function; the final density evaluation includes entropy.
+One scalar fit is shared across chemical potentials and k-points within a
+calculation. The first fit uses the actual spectral bounds. When an overlapping
+interval extends beyond those bounds, the next fit adds 20% of the new interval's
+width at each end, leaving room for subsequent shifts. If the expanded interval
+cannot be fitted within the pole budget, fitting retries the actual bounds.
+Every reuse checks temperature, pole budget, required functions, and sampled
+accuracy on the current interval. Charge-only evaluations can fit just the
+occupation function; the final density evaluation includes entropy.
 
 ## Reusing sparse work
 
