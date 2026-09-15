@@ -85,9 +85,15 @@ def resolve_error_tolerances(
 
 
 def resolve_integration_tolerances(integration, tolerances: ErrorTolerances):
-    """Apply explicit density and charge targets once."""
+    """An explicit density target also supplies an omitted charge target.
+
+    Without mesh overrides, retain both targets from the tolerance policy.
+    """
+    charge = integration.charge_tol
+    if charge is None and integration.density_matrix_tol is not None:
+        charge = integration.density_matrix_tol
     settings = {
         "density_matrix_integration": integration.density_matrix_tol,
-        "charge_integration": integration.charge_tol,
+        "charge_integration": charge,
     }
     return replace(tolerances, **{k: v for k, v in settings.items() if v is not None})

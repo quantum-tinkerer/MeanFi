@@ -86,9 +86,9 @@ this gives the energy of the mixed density. At finite temperature, entropy
 concavity makes it an upper bound on that density's free energy. The weighted
 history entropy is not the entropy of the mixed state.
 
-This bound can stall near a finite-temperature solution. The solver switches
-to bounded Anderson mixing for final convergence, stagnation, or a prolonged
-EDIIS phase. Both phases share `max_iterations`. Physical free energy is
+This bound can stall near a finite-temperature solution. EDIIS keeps applying
+its own update and raises `NoConvergence` if it exhausts `max_iterations`.
+No SCF method switches to another automatically. Physical free energy is
 reported for every accepted evaluation; it need not decrease at every step.
 
 SCF settings are keyword-only. Anderson exposes `alpha`, `history_size`,
@@ -121,3 +121,30 @@ Density integration and filling failures raise `ConvergenceError`. SCF failures
 are subclasses: `NoConvergence` means the iteration budget was exhausted;
 `SolverFailure` means a numerical evaluation failed. A failure before the first
 valid density has `result=None`. Invalid inputs retain `ValueError` or `TypeError`.
+
+
+## User-controlled composition
+
+Separate solver calls let users choose their own sequence of methods. For example,
+this user-defined function tries EDIIS and explicitly chooses Anderson if EDIIS
+exhausts its budget:
+
+```python
+import meanfi
+
+
+def my_solver(model, guess):
+    try:
+        return meanfi.solver(
+            model, guess, scf=meanfi.EnergyDIIS(max_iterations=20)
+        )
+    except meanfi.NoConvergence as failure:
+        return meanfi.solver(
+            model, failure.result.mean_field,
+            scf=meanfi.AndersonMixing(max_iterations=80),
+        )
+```
+
+Each call has its own iteration budget and history. Numerical evaluation errors
+still propagate; the function catches only iteration exhaustion. This policy
+belongs to the user function, not either SCF method.

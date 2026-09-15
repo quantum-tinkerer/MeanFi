@@ -91,7 +91,7 @@ def test_scf_selected_energy_agrees_with_full_density(superconducting):
 
 
 @pytest.mark.parametrize("a,b,kT", [(0.2, 3.0, 0.2), (0.5, 5.0, 0.1)])
-def test_finite_temperature_ediis_finishes_when_entropy_history_stalls(a, b, kT):
+def test_user_can_restart_stalled_ediis_with_explicit_anderson(a, b, kT, monkeypatch):
     model = mf.Model(
         {(): np.diag([a, -a])},
         {(): np.array([[0.0, -2 * b], [-2 * b, 0.0]])},
@@ -99,11 +99,33 @@ def test_finite_temperature_ediis_finishes_when_entropy_history_stalls(a, b, kT)
         kT=kT,
     )
     expected_q = brentq(lambda q: q + np.tanh((a + b * q) / (2 * kT)), -1, 1)
+    import meanfi.scf.engine as engine
+
+    def unexpected_switch(*args, **kwargs):
+        raise AssertionError("EDIIS must not invoke another SCF method")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(engine, "iterate_density_fixed_point", unexpected_switch)
+        with pytest.raises(mf.NoConvergence) as failure:
+            mf.solver(
+                model,
+                {(): np.diag([0.5, -0.5])},
+                tol=1e-9,
+                scf=mf.EnergyDIIS(max_iterations=12),
+            )
+    partial = failure.value.result
+    assert not partial.converged
+    assert len(partial.history) == 12
+    assert partial.errors.scf_residual > 1e-9
+    assert np.isfinite(partial.free_energy)
+
+    # The user chooses the next method and its budget. The restart still has
+    # to match the independent scalar self-consistency equation above.
     result = mf.solver(
         model,
-        {(): np.diag([0.5, -0.5])},
+        partial.mean_field,
         tol=1e-9,
-        scf=mf.EnergyDIIS(max_iterations=60),
+        scf=mf.AndersonMixing(max_iterations=48),
     )
     values = (
         result.density.to_tb()[()]
@@ -112,7 +134,7 @@ def test_finite_temperature_ediis_finishes_when_entropy_history_stalls(a, b, kT)
     )
     assert (values[0, 0] - values[1, 1]).real == pytest.approx(expected_q, abs=1e-8)
     assert result.errors.scf_residual <= 1e-9
-    assert len(result.history) <= 60
+    assert len(partial.history) + len(result.history) <= 60
     assert result.free_energy < result.internal_energy
 
 

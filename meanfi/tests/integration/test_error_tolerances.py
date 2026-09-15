@@ -6,6 +6,7 @@ import pytest
 from meanfi.density.problem import build_density_problem
 
 from meanfi import (
+    AdaptiveSimplex,
     ErrorTolerances,
     ErrorValues,
     PeriodicGrid,
@@ -57,14 +58,17 @@ def test_custom_tolerance_function_controls_density_calculation_and_result():
     assert result.errors.charge_integration <= requested.charge_integration
 
 
-def test_explicit_integration_tolerances_are_effective_internal_requests():
+@pytest.mark.parametrize("charge_tolerance", [2e-7, 2e-4])
+def test_explicit_integration_tolerances_are_effective_internal_requests(
+    charge_tolerance,
+):
     problem = build_density_problem(
         _two_level_hamiltonian(),
         kT=0.2,
         keys=[()],
         integration=PeriodicGrid(
             density_matrix_tol=5e-7,
-            charge_tol=2e-7,
+            charge_tol=charge_tolerance,
         ),
         tolerances=default_solver_tolerances(1e-4),
     )
@@ -73,7 +77,7 @@ def test_explicit_integration_tolerances_are_effective_internal_requests():
         scf_residual=1e-4,
         density_matrix_integration=5e-7,
         filling_residual=1e-5,
-        charge_integration=2e-7,
+        charge_integration=charge_tolerance,
     )
 
 
@@ -144,3 +148,28 @@ def test_energy_units_do_not_control_density_refinement():
         scaled.band_energy / 1e6, base.band_energy, atol=1e-12, rtol=0
     )
     np.testing.assert_allclose(scaled.entropy, base.entropy, atol=1e-12, rtol=0)
+
+
+@pytest.mark.parametrize("method,kT", [(AdaptiveSimplex, 0.0), (PeriodicGrid, 0.2)])
+def test_explicit_density_target_supplies_omitted_charge_target(method, kT):
+    problem = build_density_problem(
+        _two_level_hamiltonian(),
+        kT=kT,
+        keys=[()],
+        integration=method(density_matrix_tol=5e-7),
+        tolerances=default_solver_tolerances(1e-3),
+    )
+    assert problem.tolerances.density_matrix_integration == 5e-7
+    assert problem.tolerances.charge_integration == 5e-7
+
+
+def test_custom_charge_policy_is_retained_without_mesh_overrides():
+    tolerances = replace(default_solver_tolerances(1e-3), charge_integration=1e-2)
+    problem = build_density_problem(
+        _two_level_hamiltonian(),
+        kT=0.2,
+        keys=[()],
+        integration=PeriodicGrid(),
+        tolerances=tolerances,
+    )
+    assert problem.tolerances == tolerances

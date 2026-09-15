@@ -90,13 +90,13 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
 
 
-def test_explicit_density_tolerance_does_not_redefine_other_error_budgets():
+def test_explicit_density_tolerance_sets_charge_but_preserves_filling_residual():
     from meanfi.errors import resolve_integration_tolerances, default_solver_tolerances
 
     tolerances = resolve_integration_tolerances(
         PeriodicGrid(density_matrix_tol=1e-8), default_solver_tolerances(1e-3)
     )
-    assert tolerances.charge_integration == pytest.approx(2e-4)
+    assert tolerances.charge_integration == pytest.approx(1e-8)
     assert tolerances.filling_residual == pytest.approx(1e-4)
 
 

@@ -160,7 +160,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     )
 
     assert called["problem"].tolerances.density_matrix_integration == 1e-4
-    assert called["problem"].tolerances.charge_integration == 2e-4
+    assert called["problem"].tolerances.charge_integration == 1e-4
     assert called["problem"].tolerances.filling_residual == 2e-3
     assert called["problem"].integration.num_threads == 3
     assert np.allclose(result.to_tb()[(0,)], np.array([[1.0]]))

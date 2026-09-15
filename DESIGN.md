@@ -57,10 +57,11 @@ One validated scalar fit may be reused within a calculation. Sparse coordinate
 patterns belong to the calculation; numeric factors belong to an individual
 Hamiltonian and chemical potential. Retained storage must remain bounded.
 
-EDIIS is the default SCF update. It minimizes a free-energy bound over its
-history, with Anderson finishing finite-temperature convergence when needed.
-Both methods share one accepted-iteration budget and return the last valid
-state on numerical failure.
+EDIIS is the default SCF update and minimizes a free-energy bound over its
+history. Each SCF method runs only its own update until convergence or its
+iteration limit. Methods never switch automatically. Users compose separate
+solver calls, using the last valid result attached to a convergence failure
+to restart with a method of their choice.
 
 ## Quantities and accuracy
 
@@ -77,8 +78,10 @@ entropy fit shares the occupation fit's scalar accuracy and poles; band energy
 uses that occupation approximation without an extra accuracy target.
 
 The default policy assigns `tol/5` to density and charge integration, `tol/10`
-to the filling residual, and `tol` to the SCF residual. Explicit density and
-charge targets override this policy. An unavailable estimate is `None`, including
+to the filling residual, and `tol` to the SCF residual. An explicit density
+target also supplies an omitted charge target; an explicit charge target may
+be tighter or looser. Without mesh overrides, custom tolerance policies retain
+both of their targets. An unavailable estimate is `None`, including
 thermodynamic integration errors that a backend cannot estimate.
 
 ## Verification and release

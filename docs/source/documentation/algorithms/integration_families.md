@@ -24,6 +24,9 @@ meanfi.PeriodicGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
 
 An explicit `nk` requests a prescribed final mesh size. Omitting `nk` requests
 accuracy control, using explicit targets or MeanFi's public tolerance policy.
+An explicit `density_matrix_tol` also supplies `charge_tol` when it is omitted.
+An explicit `charge_tol` can be either tighter or looser. Without mesh overrides,
+both targets come from the tolerance policy.
 Passing both `nk` and an integration target is an error. Safety limits such as
 `max_points` and `max_refinements` do not select the mode. The top-level `tol`
 continues to control filling roots and SCF convergence on a prescribed mesh.

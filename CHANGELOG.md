@@ -36,8 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or `free_energy(model, density)` for observables. BdG pairing energy now uses
   the conjugate anomalous density, preserving phase invariance.
 - EDIIS is the default for every supported SCF calculation. It minimizes a
-  free-energy bound over the density history, with Anderson finishing finite-T
-  convergence when needed within the same iteration budget. SCF settings remain
+  free-energy bound over the density history and never switches methods.
+  Users can explicitly restart with another method after `NoConvergence`.
+  An explicit density integration target supplies an omitted charge target;
+  charge accuracy remains independently adjustable. SCF settings remain
   keyword-only; `history_size` and `regularization` replace `M` and `w0`; use
   `scf_tol` for the residual target instead of secondary stopping controls.
 - RationalFOE now uses one AAA implementation for density and entropy with shared

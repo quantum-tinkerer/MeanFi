@@ -20,14 +20,15 @@ support explicit `RationalFOE` for sparse matrices at positive temperature. No a
 is provided. Both explicit `RationalFOE()` and implicit prescribed sparse selection use AAA. Choosing dense evaluation for a sparse input must be explicit.
 
 `Model` defaults to `kT=0.0`. `solver` uses `EnergyDIIS()` for all supported
-normal and BdG calculations. At finite temperature, EDIIS uses a free-energy
-history bound and bounded Anderson mixing finishes convergence or handles
-stagnation. An explicit `scf=` selects another method. All SCF settings are
+normal and BdG calculations. EDIIS uses a free-energy history bound and never
+switches methods. An explicit `scf=` selects another method. All SCF settings are
 keyword-only.
 The top-level `tol`
 provides a convenient shared accuracy policy, while `scf_tol`, `filling_tol`,
 `mu_tol`, `density_matrix_tol` and `charge_tol` separate individual budgets.
-Energy and entropy estimates in `result.errors` are diagnostics, not targets.
+An explicit `density_matrix_tol` also supplies an omitted `charge_tol`; users
+may override charge accuracy independently. Energy and entropy estimates in
+`result.errors` are diagnostics, not targets.
 Integration targets are populated only after the prescribed/accuracy-controlled
 mode has been resolved. An explicit `nk` always retains prescribed-size semantics.
 

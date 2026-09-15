@@ -15,7 +15,7 @@ from meanfi.scf.fixed_point import (
     solve_fixed_point,
 )
 from meanfi.scf.info import SCFRunState, record_scf_iteration
-from meanfi.scf.methods import AndersonMixing, EnergyDIIS, SCFMethod
+from meanfi.scf.methods import EnergyDIIS, SCFMethod
 from meanfi.scf.problem import EnergyEvaluation, SCFProblem
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.ops import _tb_type
@@ -160,9 +160,8 @@ def iterate_energy_ediis(
     scf_tol = problem.density_problem.tolerances.scf_residual
     params = np.array(state0.values, copy=True)
     history: list[EDIISPoint] = []
-    residuals: list[float] = []
 
-    for _iteration in range(1, int(scf.max_iterations) + 1):
+    for _ in range(scf.max_iterations):
         input_state = ActiveDensityState(problem.model.scf_space, params)
         density, output_state, energy = problem.evaluate_state(
             input_state,
@@ -203,30 +202,6 @@ def iterate_energy_ediis(
             np.stack([point.params for point in history]),
             axes=1,
         )
-
-        # Averaging history entropies bounds the mixed free energy from above.
-        # That bound can stall near a solution: finish with the existing local
-        # accelerator, sharing this solve's total accepted-iteration budget.
-        residuals.append(residual_norm)
-        remaining = scf.max_iterations - len(run_state.history)
-        stagnating = len(residuals) >= 4 and min(residuals[-3:]) >= 0.9 * residuals[-4]
-        if (
-            problem.model.kT > 0
-            and remaining > 0
-            and (
-                residual_norm < 0.05
-                or stagnating
-                or _iteration >= max(6, scf.max_iterations // 4)
-            )
-        ):
-            iterate_density_fixed_point(
-                ActiveDensityState(problem.model.scf_space, params),
-                problem=problem,
-                scf=AndersonMixing(max_iterations=remaining),
-                verbose=verbose,
-                run_state=run_state,
-            )
-            return
 
     raise NoConvergence(params)
 

@@ -108,9 +108,10 @@ change model parameters.
 integration backend. At finite temperature it uses a free-energy upper bound
 formed from the history's energies and entropies. Entropy is not linear in a
 mixed density, so this is a surrogate for the mixed state's free energy.
-The solver switches to bounded Anderson mixing for final convergence or when
-EDIIS stalls; both phases share `max_iterations`. Physical free energy need not
-fall on every iteration.
+EDIIS runs only its own update and raises `NoConvergence` on iteration
+exhaustion. Users can explicitly restart with another method using
+`failure.result.mean_field`; see [user-controlled composition](algorithms/scf_loop.md).
+Physical free energy need not fall on every iteration.
 
 Sparse `RationalFOE()` uses AAA at positive temperature on a prescribed
 `PeriodicGrid(nk=...)`. Density and entropy share poles and sparse factorizations.

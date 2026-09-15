@@ -74,7 +74,7 @@ reference_solution = mf.solver(
 assert reference_solution.converged
 
 # EDIIS is the default for normal and BdG solves, including finite temperature.
-# It uses a free-energy history bound, then bounded Anderson for final convergence.
+# It uses a free-energy history bound and never switches methods automatically.
 cold = replace(model, kT=0.0)
 cold_solution = mf.solver(cold, cold.random_meanfield(rng=12, scale=0.03), tol=1e-4)
 np.testing.assert_allclose(cold_solution.free_energy, cold_solution.internal_energy)
@@ -102,7 +102,10 @@ try:
     )
 except mf.NoConvergence as failure:
     assert failure.result is not None
-    restarted = mf.solver(model, failure.result.mean_field, tol=1e-5)
+    # This choice belongs to the caller; neither method switches automatically.
+    restarted = mf.solver(
+        model, failure.result.mean_field, tol=1e-5, scf=mf.AndersonMixing()
+    )
     assert restarted.converged
 # SolverFailure.result may be None if the first density evaluation fails.
 # All numerical convergence failures are catchable as mf.ConvergenceError.
