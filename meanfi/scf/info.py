@@ -27,8 +27,8 @@ def record_scf_iteration(
     output_state: ActiveDensityState,
     *,
     residual_norm: float,
-    internal_energy: float | None,
-    free_energy: float | None,
+    internal_energy: float,
+    free_energy: float,
 ) -> SCFIteration:
     errors = replace(evaluation.errors, scf_residual=float(residual_norm))
     iteration = SCFIteration(

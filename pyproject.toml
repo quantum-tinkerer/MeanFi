@@ -24,7 +24,6 @@ classifiers = [
 dependencies = [
     "FermiSimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@7921df11518f45505bd09ff32497f50d75ba4bce",
     "numpy>=2.0",
-    "packaging>=22.0",
     "scipy>=1.13",
     "threadpoolctl>=3.0",
 ]
@@ -44,6 +43,8 @@ include = [
   "/meanfi",
   "/examples",
   "/README.md",
+  "/DESIGN.md",
+  "/AGENTS.md",
   "/LICENSE",
   "/pyproject.toml",
   "/AUTHORS.md",
@@ -203,6 +204,7 @@ pre-commit = "pre-commit"
 [tool.pixi.feature.build.tasks]
 build = "python -m build --no-isolation"
 check-wheel = "python tools/check_wheel.py"
+check-install = "python tools/check_wheel.py --clean"
 check-wheel-sparse = "python tools/check_wheel.py --sparse"
 
 [tool.pixi.feature.publish.tasks]

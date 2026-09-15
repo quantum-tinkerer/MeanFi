@@ -1,3 +1,4 @@
+from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationalLayout
 import numpy as np
 import pytest
 import scipy.sparse as sp
@@ -9,14 +10,9 @@ from meanfi import (
     density_matrix,
     density_matrix_at_mu,
 )
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 @pytest.mark.perf_slow
@@ -121,9 +117,12 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
         q_diag=q_diag,
         options=options,
         charge_tolerance=1e-9,
-        density_coordinates=coords,
+        layout=SparseRationalLayout.build(
+            density_coordinates=coords,
+            trace_weights_diag=trace_weights,
+            include_all_diagonal=False,
+        ),
         density_tolerance=1e-9,
-        trace_weights_diag=trace_weights,
     )
 
     for mu in (0.05, -0.3):

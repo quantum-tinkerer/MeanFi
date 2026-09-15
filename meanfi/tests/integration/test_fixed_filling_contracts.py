@@ -7,15 +7,10 @@ from meanfi import (
     density_matrix,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tb.ops import matrix_bound
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 def test_sparse_mu_bracket_uses_conservative_row_sum_bound():
@@ -98,10 +93,10 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
 def test_explicit_density_tolerance_does_not_redefine_other_error_budgets():
     from meanfi.errors import resolve_integration_tolerances, default_solver_tolerances
 
-    integration, tolerances = resolve_integration_tolerances(
+    tolerances = resolve_integration_tolerances(
         PeriodicGrid(density_matrix_tol=1e-8), default_solver_tolerances(1e-3)
     )
-    assert integration.charge_tol == pytest.approx(2e-4)
+    assert tolerances.charge_integration == pytest.approx(2e-4)
     assert tolerances.filling_residual == pytest.approx(1e-4)
 
 

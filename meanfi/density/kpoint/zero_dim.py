@@ -59,8 +59,6 @@ def evaluate_zero_dim(
         charge_evaluations=0 if filling is None else 1,
         charge_integration_calls=0,
         density_integration_calls=1,
-        charge_error=error,
-        charge=charge,
         requested_nk=nk,
         n_kpoints=1,
         n_diagonalizations=1,
@@ -76,6 +74,8 @@ def evaluate_zero_dim(
         errors=ErrorValues(
             density_matrix_integration=error,
             charge_integration=error,
+            band_energy_integration=error,
+            entropy_integration=error,
             filling_residual=None if filling is None else abs(charge - filling),
         ),
         statistics=info,

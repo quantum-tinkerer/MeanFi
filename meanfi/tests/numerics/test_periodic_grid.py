@@ -7,10 +7,12 @@ from scipy.optimize import brentq
 from scipy.special import expit
 
 from meanfi import DirectDiagonalization, PeriodicGrid, RationalFOE
-from meanfi.density.integrate.periodic import (
-    resolve_periodic_matrix_function,
-    solve_periodic,
-)
+from meanfi.density.kpoint.matrix_functions import resolve_periodic_matrix_function
+from meanfi.density.problem import build_density_problem
+from meanfi.density.density import evaluate_density
+from meanfi.errors import default_solver_tolerances
+from dataclasses import replace
+from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationalLayout
 from meanfi.space.coordinates import DensityCoordinates
 
 
@@ -23,13 +25,23 @@ def wire(harmonic=1):
 
 
 def evaluate(hamiltonian=None, *, integration=None, **kwargs):
-    return solve_periodic(
+    tolerances = kwargs.pop("tolerances", default_solver_tolerances(1e-5))
+    if "filling_tol" in kwargs:
+        tolerances = replace(tolerances, filling_residual=kwargs.pop("filling_tol"))
+    electron_ndof = None
+    if kwargs.pop("q_diag", None) is not None:
+        electron_ndof = next(iter(hamiltonian.values())).shape[0] // 2
+    kwargs.pop("trace_weights_diag", None)
+    problem = build_density_problem(
         wire() if hamiltonian is None else hamiltonian,
         kT=kwargs.pop("kT", 0.2),
         keys=kwargs.pop("keys", [(0,), (1,)]),
+        density_coordinates=kwargs.pop("density_coordinates", None),
         integration=PeriodicGrid() if integration is None else integration,
-        **kwargs,
+        tolerances=tolerances,
+        electron_ndof=electron_ndof,
     )
+    return evaluate_density(problem, **kwargs)
 
 
 @pytest.mark.parametrize(
@@ -223,7 +235,7 @@ def test_zero_temperature_fixed_grid_and_unattainable_filling():
     assert fixed.errors.density_matrix_integration is None
     with pytest.raises(RuntimeError, match="Chemical-potential solve failed"):
         evaluate(kT=0, integration=PeriodicGrid(nk=8), filling=0.37)
-    with pytest.raises(ValueError, match="requires kT > 0"):
+    with pytest.raises(ValueError, match="requires explicit nk"):
         evaluate(kT=0, mu=0)
 
 
@@ -270,14 +282,14 @@ def test_sparse_defaults_never_silently_densify():
 
 
 def test_charge_derivative_matches_finite_difference_on_retained_grid():
-    from meanfi.density.integrate.periodic import _Evaluator, _Grid
+    from meanfi.density.integrate.periodic_grid import _Evaluator, _Grid
     from meanfi.errors import default_solver_tolerances
     from meanfi.space.coordinates import full_density_coordinates
 
     evaluator = _Evaluator(
         wire(),
         kT=0.2,
-        integration=PeriodicGrid(nk=32),
+        integration=PeriodicGrid(nk=32, matrix_function=DirectDiagonalization()),
         coordinates=full_density_coordinates([(0,)], size=1),
         q_diag=None,
         trace_weights=np.ones(1),
@@ -328,7 +340,7 @@ def test_shifted_grid_rejects_diagonal_multidimensional_alias():
 @pytest.mark.usefixtures("require_mumps")
 def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatch, bdg):
     import scipy.sparse as sparse
-    import meanfi.density.integrate.periodic as periodic
+    import meanfi.density.integrate.periodic_grid as periodic
     import meanfi.density.kpoint.matrix_functions.rational.prepared_sparse as prepared
 
     hamiltonian = {(0,): sparse.csr_matrix([[0.4, 0.15], [0.15, -0.4]])}
@@ -341,6 +353,7 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
     original_fit = prepared._aaa_terms_for_interval
     original_node = periodic.PreparedMumpsRationalNode
     cache_sizes = []
+    layouts = []
 
     def fit(*args, **kwargs):
         nonlocal fits
@@ -348,6 +361,7 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
         return original_fit(*args, **kwargs)
 
     def node(*args, **kwargs):
+        layouts.append(kwargs["layout"])
         cache_sizes.append(len(kwargs["shared_aaa_interval_cache"]))
         return original_node(*args, **kwargs)
 
@@ -362,6 +376,10 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
         assert_allclose(result.filling, reference.filling, atol=2e-6)
     # Eight identical points need one scalar approximation for each new solve.
     assert fits == 2
+    assert len(layouts) == 16
+    assert all(layout is layouts[0] for layout in layouts[:8])
+    assert all(layout is layouts[8] for layout in layouts[8:])
+    assert layouts[0] is not layouts[8]
     assert max(cache_sizes) == 1
 
     result = evaluate(
@@ -377,7 +395,7 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
 
 @pytest.mark.parametrize("temperature", [np.nan, np.inf, -0.1])
 def test_periodic_rejects_invalid_temperature(temperature):
-    with pytest.raises(ValueError, match="kT must be finite and non-negative"):
+    with pytest.raises(ValueError, match="finite non-negative temperatures"):
         evaluate(kT=temperature, integration=PeriodicGrid(nk=4), mu=0.1)
 
 
@@ -437,7 +455,13 @@ def test_sparse_constant_spectrum_reuses_empty_aaa_fit_without_eigensolves(
             q_diag=np.ones(2),
             options=RationalFOE(),
             charge_tolerance=1e-8,
-            density_coordinates=full_density_coordinates([(0,)], size=2),
+            layout=SparseRationalLayout.build(
+                density_coordinates=full_density_coordinates([(0,)], size=2),
+                trace_weights_diag=np.ones(
+                    full_density_coordinates([(0,)], size=2).size
+                ),
+                include_all_diagonal=False,
+            ),
             density_tolerance=1e-8,
             shared_aaa_interval_cache=cache,
         )

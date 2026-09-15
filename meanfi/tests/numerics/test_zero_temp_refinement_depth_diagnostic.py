@@ -11,14 +11,9 @@ from meanfi import (
     expectation_value,
     solver,
 )
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 
 
 pytestmark = [pytest.mark.numerics, pytest.mark.perf_slow]
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 def _build_graphene_bad_point():
@@ -99,7 +94,6 @@ def _broad_hermitian_correction(keys, ndof: int, *, seed: int):
     return correction
 
 
-@requires_ext
 def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
     h0, h_int, sz = _build_graphene_bad_point()
     ndof = len(next(iter(h0.values())))

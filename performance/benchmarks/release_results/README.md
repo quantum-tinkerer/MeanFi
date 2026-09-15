@@ -146,3 +146,12 @@ N=100, 200, and 512 timings, scalar and matrix costs, accuracy checks, and the
 tradeoff from occasional extra poles. The earlier
 [normalization and fit-cost study](normalization_and_fit_cost.md) documents the
 per-orbital quantities and the original tight-tolerance regression.
+
+## Guidelines cleanup
+
+[The shared-layout report](guidelines_sparse_layout.md) compares the guidelines
+cleanup with `b15d729`. It records the N=200 fixed-filling timings, independent
+dense-reference errors, the original 35 thermal cases, unchanged numerical work
+counts, and the limits of the standalone-node timings. The cleanup also unifies
+normal/BdG SCF and simplex solve setup, resolves density settings once, and gives
+energy and entropy independent error targets.

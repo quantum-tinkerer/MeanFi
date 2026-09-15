@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import pytest
 
 from meanfi import AdaptiveSimplex, PeriodicGrid, density_matrix, density_matrix_at_mu
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import (
     assert_estimator_covers_actual,
     converged_dense_reference,
@@ -15,10 +14,6 @@ from meanfi.tests.fixtures.models import (
 
 
 pytestmark = pytest.mark.numerics
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 @dataclass(frozen=True)
@@ -48,7 +43,6 @@ ZERO_TEMP_CASES = (
 )
 
 
-@requires_ext
 @pytest.mark.parametrize("case", ZERO_TEMP_CASES, ids=lambda case: case.name)
 def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_across_density_ladder(
     case,
@@ -86,7 +80,6 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
         )
 
 
-@requires_ext
 @pytest.mark.parametrize("case", ZERO_TEMP_CASES, ids=lambda case: case.name)
 def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_tolerance_ladder(
     case,
@@ -140,7 +133,6 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
         assert result.errors.density_matrix_integration is not None
 
 
-@requires_ext
 def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_seam():
     tb = shifted_spinful_chain()
     keys = [(0,), (1,), (-1,)]
@@ -174,7 +166,6 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
     )
 
 
-@requires_ext
 @pytest.mark.parametrize("case", ZERO_TEMP_CASES, ids=lambda case: case.name)
 def test_periodic_grid_density_at_mu_converges_against_dense_reference(case):
     tb = case.builder()

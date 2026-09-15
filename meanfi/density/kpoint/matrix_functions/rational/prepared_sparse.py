@@ -6,21 +6,15 @@ import numpy as np
 
 from meanfi.errors import ConvergenceError
 
-from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import as_sparse, is_sparse_like
 
 from ..base import RationalFOE
 from ..common import spectral_interval, shift_by_mu
-from ..mumps_backend import (
-    SelectedInverseFactorization,
-    build_selected_inverse_pattern,
-)
+from ..mumps_backend import SelectedInverseFactorization
 from .common import (
+    SparseRationalLayout,
     SparseRationalTerms,
-    _pattern_subset_mappings,
     _sparse_shifted_matrix,
-    build_sparse_charge_pattern,
-    build_sparse_density_pattern,
 )
 from .scheme import (
     _AAAIntervalCacheEntry,
@@ -40,11 +34,11 @@ class PreparedMumpsRationalNode:
         q_diag: np.ndarray,
         options: RationalFOE,
         charge_tolerance: float,
-        density_coordinates: DensityCoordinates,
+        layout: SparseRationalLayout,
         density_tolerance: float,
-        thermodynamic_tolerance: float | None = None,
+        band_energy_tolerance: float | None = None,
+        entropy_tolerance: float | None = None,
         workspace_dtype: np.dtype = np.dtype(complex),
-        trace_weights_diag: np.ndarray | None = None,
         shared_aaa_interval_cache: list[_AAAIntervalCacheEntry] | None = None,
     ) -> None:
         if not is_sparse_like(matrix):
@@ -57,49 +51,16 @@ class PreparedMumpsRationalNode:
         self.options = options
         self.charge_tolerance = float(charge_tolerance)
         self.density_tolerance = float(density_tolerance)
-        self.thermodynamic_tolerance = thermodynamic_tolerance
+        self.band_energy_tolerance = band_energy_tolerance
+        self.entropy_tolerance = entropy_tolerance
+        self.layout = layout
         self.size = int(getattr(matrix, "shape")[0])
-        self._trace_weights = (
-            np.ones(self.size, dtype=float)
-            if trace_weights_diag is None
-            else np.asarray(trace_weights_diag, dtype=float)
-        )
-        self._charge_pattern = build_sparse_charge_pattern(
-            self._trace_weights, include_all=thermodynamic_tolerance is not None
-        )
-        self._density_pattern = build_sparse_density_pattern(
-            size=self.size,
-            density_coordinates=density_coordinates,
-        )
-        density_extra_positions = np.asarray(
-            [
-                position
-                for position in range(self._density_pattern.pattern.nnz)
-                if (
-                    int(self._density_pattern.pattern.rows[position]),
-                    int(self._density_pattern.pattern.cols[position]),
-                )
-                not in self._charge_pattern.pattern.lookup
-            ],
-            dtype=int,
-        )
-        self._density_extra_pattern = build_selected_inverse_pattern(
-            size=self.size,
-            rows=self._density_pattern.pattern.rows[density_extra_positions],
-            cols=self._density_pattern.pattern.cols[density_extra_positions],
-        )
-        (
-            self._charge_to_density_source_positions,
-            self._charge_to_density_target_positions,
-        ) = _pattern_subset_mappings(
-            self._charge_pattern.pattern, self._density_pattern.pattern
-        )
-        (
-            self._extra_to_density_source_positions,
-            self._extra_to_density_target_positions,
-        ) = _pattern_subset_mappings(
-            self._density_extra_pattern, self._density_pattern.pattern
-        )
+        if layout.charge.size != self.size:
+            raise ValueError("Sparse layout must match the Hamiltonian size")
+        if (
+            band_energy_tolerance is not None or entropy_tolerance is not None
+        ) and layout.charge.nnz != self.size:
+            raise ValueError("Thermodynamics requires all inverse diagonal entries")
         self._aaa_interval_cache: list[_AAAIntervalCacheEntry] = (
             shared_aaa_interval_cache if shared_aaa_interval_cache is not None else []
         )
@@ -110,7 +71,7 @@ class PreparedMumpsRationalNode:
         self._last_charge_entries: dict[complex, np.ndarray] = {}
 
     def _charge_scalar_tolerance(self) -> float:
-        weight_sum = float(np.sum(np.abs(self._charge_pattern.charge_weights)))
+        weight_sum = float(np.sum(np.abs(self.layout.charge_weights)))
         if weight_sum <= 0.0:
             return self.density_tolerance
         # Charge is a weighted trace, so the scalar Fermi-operator error must
@@ -125,24 +86,18 @@ class PreparedMumpsRationalNode:
 
     def _scalar_tolerances(self, lower: float, upper: float, mu: float) -> np.ndarray:
         density_tolerance = self._charge_scalar_tolerance()
-        if self.thermodynamic_tolerance is None:
+        if self.band_energy_tolerance is not None:
+            # Bound the unshifted Hamiltonian used for band energy.
+            energy_scale = max(abs(lower), abs(upper)) + abs(mu) * np.max(
+                np.abs(self.q_diag)
+            )
+            density_tolerance = min(
+                density_tolerance,
+                self.band_energy_tolerance / (self.size * max(1.0, energy_scale)),
+            )
+        if self.entropy_tolerance is None:
             return np.array([density_tolerance])
-        trace_tolerance = self.thermodynamic_tolerance / self.size
-        return np.array(
-            [
-                min(
-                    density_tolerance,
-                    # Bound the unshifted Hamiltonian used for band energy.
-                    trace_tolerance
-                    / max(
-                        1.0,
-                        max(abs(lower), abs(upper))
-                        + abs(mu) * np.max(np.abs(self.q_diag)),
-                    ),
-                ),
-                trace_tolerance,
-            ]
-        )
+        return np.array([density_tolerance, self.entropy_tolerance / self.size])
 
     def _sparse_terms(self, mu: float) -> SparseRationalTerms:
         pole_count = self.options.max_poles
@@ -212,8 +167,8 @@ class PreparedMumpsRationalNode:
             factorization = SelectedInverseFactorization()
             factorization.factor(_sparse_shifted_matrix(shifted, key))
             factorizations[key] = factorization
-            entries[key] = factorization.selected_inverse(self._charge_pattern.pattern)
-        charge = self._charge_pattern.charge_from_inverse_entries(
+            entries[key] = factorization.selected_inverse(self.layout.charge)
+        charge = self.layout.charge_from_inverse_entries(
             entries,
             constant=terms.constant,
             shifts=terms.shifts,
@@ -226,60 +181,25 @@ class PreparedMumpsRationalNode:
         self._last_mu = float(mu)
         return self._last_charge
 
-    def _request_extra_density_entries_from_cached_factorizations(
-        self,
-        *,
-        shifts: np.ndarray,
-    ) -> dict[complex, np.ndarray]:
-        if self._density_extra_pattern.nnz == 0:
-            return {
-                complex(shift): np.empty(0, dtype=np.complex128) for shift in shifts
-            }
-        return {
-            complex(shift): self._last_factorizations[complex(shift)].selected_inverse(
-                self._density_extra_pattern
-            )
-            for shift in shifts
-        }
-
-    def _merge_charge_and_extra_entries(
-        self,
-        charge_entries: dict[complex, np.ndarray],
-        extra_entries: dict[complex, np.ndarray],
-        *,
-        shifts: np.ndarray,
-    ) -> dict[complex, np.ndarray]:
-        merged: dict[complex, np.ndarray] = {}
-        for shift in shifts:
-            key = complex(shift)
-            full_entries = np.zeros(
-                self._density_pattern.pattern.nnz, dtype=np.complex128
-            )
-            if self._charge_to_density_source_positions.size:
-                full_entries[self._charge_to_density_target_positions] = charge_entries[
-                    key
-                ][self._charge_to_density_source_positions]
-            if self._extra_to_density_source_positions.size:
-                full_entries[self._extra_to_density_target_positions] = extra_entries[
-                    key
-                ][self._extra_to_density_source_positions]
-            merged[key] = full_entries
-        return merged
-
     def density_values_from_charge_order(self, mu: float) -> np.ndarray:
         """Use only the factors from charge evaluation at this same mu."""
         if self._last_mu != float(mu) or self._last_terms is None:
             raise ValueError("Evaluate charge at the requested mu before density")
         terms = self._last_terms
-        extra_entries = self._request_extra_density_entries_from_cached_factorizations(
-            shifts=terms.shifts,
-        )
-        entries = self._merge_charge_and_extra_entries(
-            self._last_charge_entries,
-            extra_entries,
-            shifts=terms.shifts,
-        )
-        return self._density_pattern.density_values_from_inverse_entries(
+        layout = self.layout
+        entries = {}
+        for shift in terms.shifts:
+            key = complex(shift)
+            values = np.empty(layout.density.nnz, dtype=np.complex128)
+            values[layout.density_charge_positions] = self._last_charge_entries[key][
+                layout.charge_positions
+            ]
+            if layout.extra.nnz:
+                values[layout.density_extra_positions] = self._last_factorizations[
+                    key
+                ].selected_inverse(layout.extra)
+            entries[key] = values
+        return layout.density_values_from_inverse_entries(
             entries,
             constant=terms.constant,
             shifts=terms.shifts,
@@ -298,16 +218,14 @@ class PreparedMumpsRationalNode:
                 "Evaluate charge at the requested mu before thermodynamics"
             )
         terms = self._last_terms
-        if terms.entropy_residues is None:
-            raise ValueError("Prepare the node with thermodynamic_tolerance first")
+        if self.entropy_tolerance is None:
+            raise ValueError("Prepare the node with entropy_tolerance first")
         energy = float(np.real(terms.constant * np.sum(self.matrix.diagonal())))
         entropy = float(np.real(terms.entropy_constant * self.size))
         for shift, residue, entropy_residue in zip(
             terms.shifts, terms.residues, terms.entropy_residues, strict=True
         ):
-            diagonal = self._last_charge_entries[complex(shift)][
-                self._charge_pattern.diagonal_positions
-            ]
+            diagonal = self._last_charge_entries[complex(shift)]
             trace_inverse = np.sum(diagonal)
             energy += float(
                 2.0

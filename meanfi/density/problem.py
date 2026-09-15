@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from meanfi.errors import ErrorTolerances, resolve_integration_tolerances
+from meanfi.density.kpoint.matrix_functions import resolve_periodic_matrix_function
 from meanfi.density.integrate.common import validate_integration_method
 from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.density.integrate.methods import IntegrationMethod, PeriodicGrid
@@ -32,7 +33,7 @@ def build_density_problem(
     hamiltonian: _tb_type,
     *,
     kT: float,
-    keys: list[tuple[int, ...]],
+    keys: list[tuple[int, ...]] | None = None,
     integration: IntegrationMethod | None,
     tolerances: ErrorTolerances,
     density_coordinates: DensityCoordinates | None = None,
@@ -43,15 +44,30 @@ def build_density_problem(
     integration = integration or select_default_integration(
         hamiltonian, kT=kT, superconducting=electron_ndof is not None
     )
-    integration, tolerances = resolve_integration_tolerances(integration, tolerances)
     validate_integration_method(integration, kT=kT)
+    tolerances = resolve_integration_tolerances(integration, tolerances)
+    if isinstance(integration, PeriodicGrid):
+        integration = replace(
+            integration,
+            matrix_function=resolve_periodic_matrix_function(
+                integration.matrix_function,
+                hamiltonian,
+                kT=kT,
+                prescribed=integration.nk is not None,
+            ),
+        )
     if electron_ndof is not None and not isinstance(integration, PeriodicGrid):
         raise ValueError(
             "Superconducting density requires PeriodicGrid; at kT == 0 specify nk"
         )
-    keys = normalize_keys(hamiltonian, keys)
     size = tb_orbital_count(hamiltonian)
-    coordinates = density_coordinates or full_density_coordinates(keys, size=size)
+    if density_coordinates is None:
+        coordinates = full_density_coordinates(
+            normalize_keys(hamiltonian, keys), size=size
+        )
+    else:
+        normalize_keys(hamiltonian, list(density_coordinates.keys))
+        coordinates = density_coordinates
     if coordinates.size != size:
         raise ValueError(
             "density coordinate matrix size must match the Hamiltonian shape"

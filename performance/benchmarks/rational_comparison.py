@@ -27,6 +27,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 import gc
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -151,6 +152,7 @@ def certified_ozaki_charge(self, mu):
     return self._last_charge
 
 
+node_parameters = inspect.signature(PreparedMumpsRationalNode).parameters
 original_charge = PreparedMumpsRationalNode.charge
 if args.certify_ozaki:
     PreparedMumpsRationalNode.charge = certified_ozaki_charge
@@ -456,22 +458,34 @@ def node_case(case, scheme):
 
     def evaluate():
         start = time.perf_counter()
-        node = PreparedMumpsRationalNode(
-            matrix,
+        settings = dict(
             kT=case.kT,
             q_diag=q_diag,
             options=options,
             charge_tolerance=case.tolerance,
-            density_coordinates=coords,
             density_tolerance=case.tolerance,
-            trace_weights_diag=trace_weights,
             shared_aaa_interval_cache=interval_cache,
-            **(
-                {"thermodynamic_tolerance": normalization * case.tolerance}
-                if args.thermodynamics or args.large_matrices
-                else {}
-            ),
         )
+        thermodynamics = args.thermodynamics or args.large_matrices
+        if "layout" in node_parameters:
+            settings["layout"] = prepared_sparse.SparseRationalLayout.build(
+                density_coordinates=coords,
+                trace_weights_diag=trace_weights,
+                include_all_diagonal=thermodynamics,
+            )
+        else:
+            settings.update(
+                density_coordinates=coords, trace_weights_diag=trace_weights
+            )
+        if thermodynamics:
+            tolerance = normalization * case.tolerance
+            if "band_energy_tolerance" in node_parameters:
+                settings.update(
+                    band_energy_tolerance=tolerance, entropy_tolerance=tolerance
+                )
+            else:
+                settings["thermodynamic_tolerance"] = tolerance
+        node = PreparedMumpsRationalNode(matrix, **settings)
         setup_seconds = time.perf_counter() - start
         obtained_charge = node.charge(case.mu)
         density = node.density_values_from_charge_order(case.mu)

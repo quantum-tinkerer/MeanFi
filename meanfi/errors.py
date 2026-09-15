@@ -14,12 +14,19 @@ class ConvergenceError(RuntimeError):
 
 @dataclass(frozen=True)
 class ErrorTolerances:
-    """Requested scalar tolerances for one density or SCF calculation."""
+    """Absolute targets for one density or SCF calculation.
+
+    Band energy uses Hamiltonian energy units per cell per physical orbital;
+    entropy uses k_B per cell per physical orbital. Their targets are independent
+    of the dimensionless density-entry target.
+    """
 
     scf_residual: float
     density_matrix_integration: float
     filling_residual: float
     charge_integration: float
+    band_energy_integration: float
+    entropy_integration: float
 
     def __post_init__(self) -> None:
         for name, value in self.__dict__.items():
@@ -37,6 +44,8 @@ class ErrorValues:
     density_matrix_integration: float | None = None
     filling_residual: float | None = None
     charge_integration: float | None = None
+    band_energy_integration: float | None = None
+    entropy_integration: float | None = None
 
     def __post_init__(self) -> None:
         for name, value in self.__dict__.items():
@@ -62,6 +71,8 @@ def default_solver_tolerances(tol: float) -> ErrorTolerances:
         density_matrix_integration=tol / 5.0,
         filling_residual=tol / 10.0,
         charge_integration=tol / 5.0,
+        band_energy_integration=tol / 5.0,
+        entropy_integration=tol / 5.0,
     )
 
 
@@ -83,33 +94,20 @@ def resolve_error_tolerances(
 
 
 def resolve_integration_tolerances(integration, tolerances: ErrorTolerances):
-    """Fill automatic integration tolerances and retain explicit overrides."""
+    """Apply explicit targets once, leaving integration settings immutable.
 
-    if getattr(integration, "nk", None) is not None:
-        return integration, tolerances
+    Energy and entropy use separate absolute targets in energy units per orbital
+    and k_B per orbital. A prescribed mesh has no integration error estimate.
+    """
+    from meanfi.density.integrate.methods import PeriodicGrid
 
-    density_setting = getattr(integration, "density_matrix_tol", None)
-    charge_setting = getattr(integration, "charge_tol", None)
-    density_tolerance = (
-        tolerances.density_matrix_integration
-        if density_setting is None
-        else float(density_setting)
-    )
-    charge_tolerance = (
-        tolerances.charge_integration
-        if charge_setting is None
-        else float(charge_setting)
-    )
-    resolved_tolerances = replace(
-        tolerances,
-        density_matrix_integration=density_tolerance,
-        charge_integration=charge_tolerance,
-    )
-    return (
-        replace(
-            integration,
-            density_matrix_tol=density_tolerance,
-            charge_tol=charge_tolerance,
-        ),
-        resolved_tolerances,
-    )
+    settings = {
+        "density_matrix_integration": integration.density_matrix_tol,
+        "charge_integration": integration.charge_tol,
+    }
+    if isinstance(integration, PeriodicGrid):
+        settings.update(
+            band_energy_integration=integration.energy_tol,
+            entropy_integration=integration.entropy_tol,
+        )
+    return replace(tolerances, **{k: v for k, v in settings.items() if v is not None})

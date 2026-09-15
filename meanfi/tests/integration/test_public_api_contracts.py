@@ -17,14 +17,9 @@ from meanfi import (
     solver,
     internal_energy,
 )
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import spinful_chain, density_result_from_tb
 
 pytestmark = pytest.mark.integration
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 def _base_model_kwargs():
@@ -118,7 +113,7 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
     result = solver(model, guess, integration=integration)
 
     assert result == SimpleNamespace()
-    tolerances = captured["problem"].runtime.tolerances
+    tolerances = captured["problem"].density_problem.tolerances
     assert tolerances.scf_residual == pytest.approx(1e-3)
     assert tolerances.density_matrix_integration == pytest.approx(5.4e-4)
     assert tolerances.filling_residual == pytest.approx(1e-4)

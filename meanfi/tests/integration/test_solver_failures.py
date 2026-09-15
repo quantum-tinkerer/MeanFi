@@ -16,9 +16,9 @@ pytestmark = pytest.mark.integration
 
 
 def test_numerical_failure_attaches_last_valid_physical_result(monkeypatch):
-    import meanfi.scf.normal as normal_scf
+    import meanfi.scf.problem as scf_problem
 
-    original = normal_scf.evaluate_density
+    original = scf_problem.evaluate_density
     calls = 0
 
     def fail_after_initial_density(*args, **kwargs):
@@ -29,7 +29,7 @@ def test_numerical_failure_attaches_last_valid_physical_result(monkeypatch):
         return original(*args, **kwargs)
 
     monkeypatch.setattr(
-        normal_scf,
+        scf_problem,
         "evaluate_density",
         fail_after_initial_density,
     )

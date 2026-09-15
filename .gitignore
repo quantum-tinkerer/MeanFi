@@ -90,6 +90,7 @@ nosetests.xml
 
 ### Documentation and performance outputs
 docs/build/
+docs/jupyter_execute/
 performance/results/
 *.bin
 *.html

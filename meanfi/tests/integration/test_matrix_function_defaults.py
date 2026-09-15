@@ -3,7 +3,7 @@ import scipy.sparse as sp
 
 from meanfi import AdaptiveSimplex, DirectDiagonalization, PeriodicGrid, RationalFOE
 from meanfi.density.integrate.defaults import select_default_integration
-from meanfi.density.integrate.periodic import resolve_periodic_matrix_function
+from meanfi.density.kpoint.matrix_functions import resolve_periodic_matrix_function
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration

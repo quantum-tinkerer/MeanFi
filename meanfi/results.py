@@ -23,16 +23,11 @@ class AdaptiveSimplexInfo:
     charge_evaluations: int | None = None
     charge_integration_calls: int | None = None
     density_integration_calls: int | None = None
-    charge_error: float | None = None
     num_threads: int | None = None
-    band_energy_integration_calls: int = 0
-    band_energy_n_kernel_evals: int = 0
 
     requested_nk: int | None = None
     n_kpoints: int | None = None
     n_diagonalizations: int | None = None
-    charge: float | None = None
-    band_energy: float | None = None
 
 
 @dataclass(frozen=True)
@@ -51,11 +46,8 @@ class PeriodicGridInfo:
     charge_evaluations: int = 0
     charge_integration_calls: int = 0
     density_integration_calls: int = 0
-    charge_error: float | None = None
     error_estimate_available: bool = False
     spectrum_bytes: int = 0
-    band_energy_error: float | None = None
-    entropy_error: float | None = None
 
 
 def _readonly_vector(values, *, dtype, name: str) -> np.ndarray:

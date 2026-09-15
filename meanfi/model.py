@@ -117,22 +117,23 @@ class Model:
         require_same_space(state, self.scf_space)
         return state.relative_to(self._reference_state)
 
+    def _mean_field_from_state(self, state: ActiveDensityState) -> _tb_type:
+        active = self._active_density_from_state(self._reference_difference(state))
+        if self.superconducting:
+            return bdg_correction_from_density_parts(
+                active, h_int=self.h_int, ndof=self._ndof, ndim=self._ndim
+            )
+        return meanfield(active, self.h_int)
+
     def hamiltonian_from_density(self, density: _tb_type | DensityResult) -> _tb_type:
         """Build the normal or BdG Hamiltonian from a trial density.
 
         Selected results must cover this model's required coordinates.
         Normal models subtract their reference before computing the correction.
         """
-        difference = self._reference_difference(self._density_state(density))
-        active = self._active_density_from_state(difference)
-        correction = (
-            bdg_correction_from_density_parts(
-                active, h_int=self.h_int, ndof=self._ndof, ndim=self._ndim
-            )
-            if self.superconducting
-            else meanfield(active, self.h_int)
+        return self.hamiltonian_from_meanfield(
+            self._mean_field_from_state(self._density_state(density))
         )
-        return self.hamiltonian_from_meanfield(correction)
 
     def hamiltonian_from_meanfield(
         self, mean_field: _tb_type | None = None

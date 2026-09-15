@@ -47,6 +47,8 @@ check installed wheel:
         WHEEL_TASK: check-wheel
       - PIXI_ENV: test-sparse
         WHEEL_TASK: check-wheel-sparse
+      - PIXI_ENV: test-py312
+        WHEEL_TASK: check-install
   script:
     - pixi run -e $PIXI_ENV $WHEEL_TASK
   artifacts:

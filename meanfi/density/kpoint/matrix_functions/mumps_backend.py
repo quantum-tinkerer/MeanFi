@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 import numpy as np
@@ -18,7 +20,13 @@ class SelectedInversePattern:
     cols: np.ndarray
     fortran_indptr: np.ndarray
     fortran_indices: np.ndarray
-    lookup: dict[tuple[int, int], int]
+    lookup: Mapping[tuple[int, int], int]
+
+    def __post_init__(self) -> None:
+        for value in vars(self).values():
+            if isinstance(value, np.ndarray):
+                value.flags.writeable = False
+        object.__setattr__(self, "lookup", MappingProxyType(self.lookup))
 
     @property
     def nnz(self) -> int:
@@ -36,17 +44,9 @@ def build_selected_inverse_pattern(
     if rows.size != cols.size:
         raise ValueError("rows and cols must have the same size")
 
-    if rows.size == 0:
-        pattern_matrix = sparse.csc_matrix((size, size), dtype=np.complex128)
-    else:
-        pairs = np.unique(np.stack([rows, cols], axis=1), axis=0)
-        pattern_matrix = sparse.csc_matrix(
-            (
-                np.ones(pairs.shape[0], dtype=np.complex128),
-                (pairs[:, 0], pairs[:, 1]),
-            ),
-            shape=(size, size),
-        )
+    pattern_matrix = sparse.csc_matrix(
+        (np.ones(rows.size, dtype=np.complex128), (rows, cols)), shape=(size, size)
+    )
     pattern_matrix.sort_indices()
 
     pattern_rows = np.asarray(pattern_matrix.indices, dtype=int)

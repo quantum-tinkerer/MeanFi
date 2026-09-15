@@ -1,638 +1,104 @@
-from __future__ import annotations
-
-from contextlib import contextmanager, nullcontext
-from dataclasses import replace
-from math import comb, factorial
+"""Zero-temperature integration on one mesh shared by charge and density."""
 
 import numpy as np
-from fermisimplex import SpectralMesh
-from threadpoolctl import threadpool_limits
 
-from meanfi.density.filling import FixedFillingSolve
-from meanfi.density.filling import mu_bracket as build_mu_bracket
-from meanfi.density.filling import solve_mu
-from meanfi.results import AdaptiveSimplexInfo
+from meanfi.density.filling import mu_bracket, solve_mu
+from meanfi.density.kpoint.zero_dim import evaluate_zero_dim
+from meanfi.density.problem import DensityProblem
 from meanfi.errors import ErrorValues
-from meanfi.results import DensityEntries, DensityResult
-from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
-from meanfi.tb.ops import _tb_type, to_dense
+from meanfi.results import DensityResult
+from meanfi.tb.ops import to_dense
+from meanfi.tb.validate import tb_dimension
+from .mesh import SimplexEvaluator, _occupied_band_energy, _zero_temperature_entropy
 
 
-_ZERO_TEMP_EXT_AVAILABLE = True
-_CHARGE_ERROR_DEPTH = 2
-_DENSITY_PREVIEW_DEPTH = 1
-_MIN_REFINEMENT_BATCH_SIZE = 1
-_MAX_REFINEMENT_BATCH_SIZE = 100
-
-
-def _density_coordinates(
-    h: _tb_type,
+def solve_simplex(
+    problem: DensityProblem,
     *,
-    keys: list[tuple[int, ...]],
-    density_coordinates: DensityCoordinates | None,
-) -> DensityCoordinates:
-    if density_coordinates is not None:
-        return density_coordinates
-    size = int(next(iter(h.values())).shape[0])
-    return full_density_coordinates(keys, size=size)
-
-
-def _spectral_mesh(
-    h: _tb_type,
-    *,
-    nk: int | None = None,
-    max_points: int | None = None,
-) -> SpectralMesh:
-    # FermiSimplex's dyadic root mesh includes both faces of the unit cell.
-    # Its native construction gives (2**level + 1)**dimension distinct nodes.
-    dimension = len(next(iter(h)))
-    level = 1 if nk is None else 0
-    while nk is not None and (2**level + 1) ** dimension < nk:
-        level += 1
-    nodes = (2**level + 1) ** dimension
-    if max_points is not None and nodes > max_points:
-        raise RuntimeError(
-            f"AdaptiveSimplex mesh requires {nodes} nodes for nk={nk}, "
-            f"exceeding max_points={max_points}; increase max_points or reduce nk"
-        )
-    dense_hamiltonian = {
-        key: np.asarray(to_dense(matrix), dtype=np.complex128)
-        for key, matrix in h.items()
-    }
-    return SpectralMesh(dense_hamiltonian, root_level=level)
-
-
-def _bounded_refinements(
-    mesh: SpectralMesh,
-    max_refinements: int | None,
-    max_points: int | None,
-    *,
-    preview_depth: int,
-) -> int | None:
-    """Conservatively bound native retained spectra, including density previews.
-
-    Each native refinement splits one simplex into 2**dimension children.
-    Reserving their vertices before the call avoids an unbounded native cache
-    without implementing another refinement engine. Shared vertices can make
-    this reserve larger than the actual allocation.
-    """
-    if max_points is None:
-        return max_refinements
-    dimension = int(mesh.ndim)
-    nodes_per_simplex = comb(dimension + 2**preview_depth, dimension)
-    initial = max(int(mesh.cached_vertices), int(mesh.active_vertices))
-    initial += int(mesh.active_simplices) * (nodes_per_simplex - dimension - 1)
-    if initial > max_points:
-        raise RuntimeError(
-            f"AdaptiveSimplex needs a reserve of {initial} cached/preview nodes, "
-            f"exceeding max_points={max_points}; increase max_points or loosen tolerances"
-        )
-    per_refinement = 2**dimension * nodes_per_simplex
-    available = (max_points - initial) // per_refinement
-    return available if max_refinements is None else min(max_refinements, available)
-
-
-def _native_thread_context(num_threads: int | None):
-    if num_threads is None:
-        return nullcontext()
-    return threadpool_limits(limits=int(num_threads), user_api="openmp")
-
-
-@contextmanager
-def _integration_context(num_threads: int | None):
-    try:
-        with _native_thread_context(num_threads):
-            yield
-    except RuntimeError as error:
-        if "did not converge" not in str(error):
-            raise
-        raise RuntimeError(
-            f"{error}; increase max_points/max_refinements or loosen integration tolerances"
-        ) from error
-
-
-def _integrate_charge(
-    mesh: SpectralMesh,
-    *,
-    mu: float,
-    charge_tol: float,
-    max_refinements: int | None,
-    num_threads: int | None,
-    max_points: int | None = None,
-):
-    max_refinements = _bounded_refinements(
-        mesh, max_refinements, max_points, preview_depth=0
-    )
-    with _integration_context(num_threads):
-        return mesh.integrate_charge(
-            mu=float(mu),
-            target_error=float(charge_tol),
-            max_refinements=max_refinements,
-            error_depth=_CHARGE_ERROR_DEPTH,
-            min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
-            max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
-        )
-
-
-def _evaluate_charge(
-    mesh: SpectralMesh,
-    *,
-    mu: float,
-    num_threads: int | None,
-):
-    cached_vertices = int(mesh.cached_vertices)
-    with _native_thread_context(num_threads):
-        result = mesh.estimate_charge_on_current_mesh(mu=float(mu))
-    return result, int(mesh.cached_vertices) - cached_vertices
-
-
-def _occupied_band_energy(
-    mesh: SpectralMesh,
-    *,
-    mu: float,
-) -> float | None:
-    if not hasattr(mesh, "occupied_weights"):
-        return None
-    weights = np.asarray(mesh.occupied_weights(float(mu)))
-    energies = np.asarray(mesh.eigenvalues)
-    return float(np.sum(weights * energies)) / energies.shape[-1]
-
-
-def _zero_temperature_entropy(mesh: SpectralMesh, mu: float) -> float:
-    """Only flat bands at mu have nonzero entropy in simplex integration."""
-    at_mu = np.abs(np.asarray(mesh.eigenvalues) - mu) <= mesh.tolerance
-    if not np.any(at_mu):
-        return 0.0
-    simplices = np.asarray(mesh.simplices)
-    counts = np.all(at_mu[simplices], axis=1).sum(axis=1)
-    vertices = np.asarray(mesh.points)[simplices[counts > 0]]
-    edges = vertices[:, 1:] - vertices[:, :1]
-    volumes = np.abs(np.linalg.det(edges)) / factorial(mesh.ndim)
-    return float(np.log(2.0) * (volumes @ counts[counts > 0])) / at_mu.shape[-1]
-
-
-def _integrate_density(
-    mesh: SpectralMesh,
-    density_coordinates: DensityCoordinates,
-    *,
-    mu: float,
-    density_atol: float,
-    max_refinements: int | None,
-    num_threads: int | None,
-    prescribed: bool = False,
-    max_points: int | None = None,
-):
-    preview_depth = 0 if prescribed else _DENSITY_PREVIEW_DEPTH
-    max_refinements = _bounded_refinements(
-        mesh, max_refinements, max_points, preview_depth=preview_depth
-    )
-    key_indices = {key: index for index, key in enumerate(density_coordinates.keys)}
-    components = np.asarray(
-        [(key_indices[key], row, col) for key, row, col in density_coordinates.entries],
-        dtype=np.int64,
-    ).reshape((-1, 3))
-    with _integration_context(num_threads):
-        return mesh.integrate_density_components(
-            mu=float(mu),
-            lattice_vectors=density_coordinates.keys,
-            components=components,
-            target_error=float(density_atol),
-            max_refinements=max_refinements,
-            preview_depth=preview_depth,
-            min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
-            max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
-        )
-
-
-def _density_slice(
-    result, coordinates: DensityCoordinates, *, prescribed: bool
-) -> DensityEntries:
-    errors = (
-        None if prescribed else np.full(coordinates.value_count, result.stopping_error)
-    )
-    return DensityEntries(coordinates, result.values, errors)
-
-
-def _empty_density_result(
-    mesh: SpectralMesh,
-    coordinates: DensityCoordinates,
-    *,
-    num_threads: int | None,
-    nk: int | None = None,
-) -> tuple[DensityEntries, AdaptiveSimplexInfo]:
-    return (
-        DensityEntries(
-            coordinates,
-            np.empty(0, dtype=complex),
-            None if nk is not None else np.empty(0),
-        ),
-        AdaptiveSimplexInfo(
-            n_kernel_evals=0,
-            unique_evals=0,
-            n_evaluator_evals=0,
-            n_cached_nodes=int(mesh.cached_vertices),
-            n_leaves=int(mesh.active_simplices),
-            n_leaf_nodes=int(mesh.active_vertices),
-            refinements=0,
-            error_estimate_available=nk is None,
-            num_threads=num_threads,
-            requested_nk=nk,
-            n_kpoints=int(mesh.active_vertices),
-            n_diagonalizations=0,
-        ),
-    )
-
-
-def _density_evaluation(
-    density: DensityEntries,
-    mu: float,
-    info: AdaptiveSimplexInfo,
-    target_filling: float | None = None,
-    entropy: float = 0.0,
+    mu: float | None,
+    filling: float | None,
+    mu_tol: float,
+    max_charge_evaluations: int | None,
+    mu_guess: float,
 ) -> DensityResult:
+    """Find a common mesh satisfying density and, when requested, filling."""
+    if tb_dimension(problem.hamiltonian) == 0:
+        return evaluate_zero_dim(
+            to_dense(problem.hamiltonian[()]),
+            problem.density_coordinates,
+            mu=mu,
+            filling=filling,
+            mu_guess=mu_guess,
+            filling_tol=problem.tolerances.filling_residual,
+            nk=problem.integration.nk,
+        )
+    evaluator = SimplexEvaluator(problem)
+    adaptive = problem.integration.nk is None
+    tolerances = problem.tolerances
+    charge_evaluations = 0
+
+    def frozen_charge(candidate):
+        result = evaluator.charge(candidate, adaptive=False)
+        # Root finding uses a frozen discretization; its integration error is
+        # checked separately before accepting the result.
+        return float(result.value), 0.0, float(result.dcharge_dmu)
+
+    while True:
+        charge = None
+        if filling is not None:
+            remaining = (
+                None
+                if max_charge_evaluations is None
+                else max_charge_evaluations - charge_evaluations
+            )
+            if remaining is not None and remaining <= 0:
+                raise RuntimeError(
+                    "Chemical-potential solve reached maximum charge-evaluation budget"
+                )
+            root = solve_mu(
+                evaluate_charge=frozen_charge,
+                initial_bracket=lambda: mu_bracket(problem.hamiltonian, 0.0),
+                filling=filling,
+                mu_guess=mu_guess,
+                filling_tol=min(
+                    tolerances.filling_residual, tolerances.charge_integration
+                )
+                if adaptive
+                else tolerances.filling_residual,
+                mu_tol=mu_tol,
+                max_charge_evaluations=remaining,
+                use_derivative=True,
+            )
+            charge_evaluations += root.charge_evaluations
+            mu = mu_guess = root.mu
+            if adaptive:
+                charge = evaluator.charge(mu, adaptive=True)
+                if abs(charge.value - filling) > tolerances.filling_residual:
+                    continue
+
+        density, refined = evaluator.density(mu)
+        if filling is None or (adaptive and refined):
+            charge = evaluator.charge(mu, adaptive=adaptive)
+            # Charge refinement invalidates the density estimate on the old mesh.
+            if adaptive and charge.stats.refinements and density.values.size:
+                continue
+        value = float(root.charge if charge is None else charge.value)
+        if filling is not None and abs(value - filling) > tolerances.filling_residual:
+            continue
+        break
+
     return DensityResult(
         entries=density,
         mu=float(mu),
-        filling=info.charge,
+        filling=value,
         errors=ErrorValues(
-            density_matrix_integration=(
-                None
-                if density.errors is None
-                else float(np.max(density.errors, initial=0.0))
-            ),
-            charge_integration=info.charge_error,
-            filling_residual=(
-                None if target_filling is None else abs(info.charge - target_filling)
-            ),
+            density_matrix_integration=None
+            if density.errors is None
+            else float(np.max(density.errors, initial=0.0)),
+            charge_integration=float(charge.stopping_error) if adaptive else None,
+            filling_residual=None if filling is None else abs(value - filling),
         ),
-        statistics=info,
-        band_energy=info.band_energy,
-        entropy=entropy,
+        statistics=evaluator.statistics(charge_evaluations),
+        band_energy=_occupied_band_energy(evaluator.mesh, mu=mu),
+        entropy=_zero_temperature_entropy(evaluator.mesh, mu),
     )
-
-
-def _raise_if_not_converged(result, message: str) -> None:
-    if not bool(result.stats.target_reached):
-        raise RuntimeError(message)
-
-
-def _density_info(
-    result,
-    *,
-    num_threads: int | None,
-    nk: int | None = None,
-) -> AdaptiveSimplexInfo:
-    stats = result.stats
-    evaluations = int(stats.evaluations)
-    return AdaptiveSimplexInfo(
-        n_kernel_evals=evaluations,
-        unique_evals=evaluations,
-        n_evaluator_evals=evaluations,
-        n_cached_nodes=int(stats.cached_vertices),
-        n_leaves=int(stats.active_simplices),
-        n_leaf_nodes=int(stats.active_vertices),
-        refinements=int(stats.refinements),
-        error_estimate_available=nk is None and bool(stats.target_reached),
-        num_threads=num_threads,
-        requested_nk=nk,
-        n_kpoints=int(stats.active_vertices),
-        n_diagonalizations=evaluations,
-    )
-
-
-def density_matrix_at_mu_zero_temp(
-    h: _tb_type,
-    *,
-    mu: float,
-    keys: list[tuple[int, ...]],
-    density_coordinates: DensityCoordinates | None = None,
-    density_atol: float,
-    density_rtol: float,
-    max_subdivisions: int | None = None,
-    num_threads: int | None = None,
-    nk: int | None = None,
-    max_points: int | None = None,
-    charge_tol: float | None = None,
-):
-    del density_rtol
-    coordinates = _density_coordinates(
-        h,
-        keys=keys,
-        density_coordinates=density_coordinates,
-    )
-    mesh = _spectral_mesh(h, nk=nk, max_points=max_points)
-    work = diagonalizations = refinements = 0
-    charge_error = None
-    while True:
-        remaining = None if max_subdivisions is None else max_subdivisions - refinements
-        if coordinates.value_count == 0:
-            density, density_info = _empty_density_result(
-                mesh, coordinates, num_threads=num_threads, nk=nk
-            )
-        else:
-            result = _integrate_density(
-                mesh,
-                coordinates,
-                mu=float(mu),
-                density_atol=0.0 if nk is not None else float(density_atol),
-                max_refinements=remaining,
-                num_threads=num_threads,
-                prescribed=nk is not None,
-                max_points=max_points,
-            )
-            _raise_if_not_converged(
-                result,
-                "Adaptive simplex loop did not converge while evaluating density",
-            )
-            density = _density_slice(result, coordinates, prescribed=nk is not None)
-            density_info = _density_info(result, num_threads=num_threads, nk=nk)
-            work += int(result.stats.evaluations)
-            diagonalizations += int(result.stats.evaluations)
-            refinements += int(result.stats.refinements)
-
-        # Charge is independent of the requested density layout. Prescribed
-        # meshes are evaluated directly; adaptive calls must meet both targets.
-        if nk is not None:
-            charge, evaluations = _evaluate_charge(mesh, mu=mu, num_threads=num_threads)
-            work += evaluations
-            diagonalizations += evaluations
-            break
-        remaining = None if max_subdivisions is None else max_subdivisions - refinements
-        charge = _integrate_charge(
-            mesh,
-            mu=float(mu),
-            charge_tol=float(density_atol if charge_tol is None else charge_tol),
-            max_refinements=remaining,
-            num_threads=num_threads,
-            max_points=max_points,
-        )
-        _raise_if_not_converged(
-            charge, "Adaptive simplex loop did not converge while evaluating charge"
-        )
-        work += int(charge.stats.evaluations) + int(
-            charge.error_stats.hamiltonian_evaluations
-        )
-        diagonalizations += int(charge.stats.evaluations) + sum(
-            int(getattr(charge.error_stats, name, 0))
-            for name in (
-                "full_eigensystems",
-                "reduced_eigensystems",
-                "norm_eigensystems",
-            )
-        )
-        refinements += int(charge.stats.refinements)
-        charge_error = float(charge.stopping_error)
-        if coordinates.value_count == 0 or int(charge.stats.refinements) == 0:
-            break
-        # Charge refinement changed the mesh: evaluate density again before
-        # accepting a pair of estimates on the same final native mesh.
-
-    density_info = replace(
-        density_info,
-        charge=float(charge.value),
-        band_energy=_occupied_band_energy(mesh, mu=mu),
-        charge_error=charge_error,
-        n_kernel_evals=work,
-        unique_evals=work,
-        n_evaluator_evals=work,
-        n_diagonalizations=diagonalizations,
-        refinements=refinements,
-        n_cached_nodes=int(mesh.cached_vertices),
-        n_leaves=int(mesh.active_simplices),
-        n_leaf_nodes=int(mesh.active_vertices),
-        n_kpoints=int(mesh.active_vertices),
-    )
-    return _density_evaluation(
-        density, mu, density_info, entropy=_zero_temperature_entropy(mesh, mu)
-    )
-
-
-def _fixed_filling_info(
-    *,
-    root,
-    charge_integration_calls: int,
-    density_integration_calls: int,
-    charge_work: int,
-    charge_refinements: int,
-    density_info: AdaptiveSimplexInfo,
-    band_energy: float | None = None,
-    nk: int | None = None,
-    charge_diagonalizations: int = 0,
-) -> AdaptiveSimplexInfo:
-    return replace(
-        density_info,
-        charge=float(root.charge),
-        charge_error=float(root.charge_error) if nk is None else None,
-        charge_evaluations=int(root.charge_evaluations),
-        charge_integration_calls=charge_integration_calls,
-        density_integration_calls=density_integration_calls,
-        n_kernel_evals=charge_work + density_info.n_kernel_evals,
-        unique_evals=charge_work + density_info.unique_evals,
-        n_evaluator_evals=charge_work + density_info.n_evaluator_evals,
-        refinements=charge_refinements + density_info.refinements,
-        band_energy=band_energy,
-        band_energy_integration_calls=int(band_energy is not None),
-        n_diagonalizations=charge_diagonalizations + density_info.n_kernel_evals,
-    )
-
-
-def density_matrix_zero_temp(
-    h: _tb_type,
-    *,
-    filling: float,
-    keys: list[tuple[int, ...]],
-    density_coordinates: DensityCoordinates | None = None,
-    charge_tol: float,
-    filling_tol: float,
-    density_atol: float,
-    density_rtol: float,
-    mu_guess: float,
-    mu_xtol: float,
-    max_charge_evaluations: int | None,
-    max_subdivisions: int | None = None,
-    num_threads: int | None = None,
-    nk: int | None = None,
-    max_points: int | None = None,
-):
-    coordinates = _density_coordinates(
-        h,
-        keys=keys,
-        density_coordinates=density_coordinates,
-    )
-    mesh = _spectral_mesh(h, nk=nk, max_points=max_points)
-    charge_integration_calls = 0
-    charge_work = 0
-    charge_diagonalizations = 0
-    charge_refinements = 0
-    charge_evaluations = 0
-    density_integration_calls = 0
-    density_work = 0
-    density_refinements = 0
-    current_mu_guess = float(mu_guess)
-
-    def remaining_refinements():
-        return (
-            None
-            if max_subdivisions is None
-            else max_subdivisions - charge_refinements - density_refinements
-        )
-
-    def evaluate_charge(candidate_mu: float) -> tuple[float, float, float | None]:
-        nonlocal charge_integration_calls, charge_work, charge_diagonalizations
-        result, evaluations = _evaluate_charge(
-            mesh, mu=float(candidate_mu), num_threads=num_threads
-        )
-        charge_integration_calls += 1
-        charge_work += evaluations
-        charge_diagonalizations += evaluations
-        # This root searches a frozen native discretization. Integration error
-        # is estimated separately after root finding, never assumed to be zero.
-        return float(result.value), 0.0, float(result.dcharge_dmu)
-
-    def integrate_charge(candidate_mu: float):
-        nonlocal charge_integration_calls, charge_work
-        nonlocal charge_diagonalizations, charge_refinements
-        result = _integrate_charge(
-            mesh,
-            mu=candidate_mu,
-            charge_tol=float(charge_tol),
-            max_refinements=remaining_refinements(),
-            num_threads=num_threads,
-            max_points=max_points,
-        )
-        charge_integration_calls += 1
-        charge_work += int(result.stats.evaluations)
-        charge_work += int(result.error_stats.hamiltonian_evaluations)
-        charge_diagonalizations += int(result.stats.evaluations) + sum(
-            int(getattr(result.error_stats, name, 0))
-            for name in (
-                "full_eigensystems",
-                "reduced_eigensystems",
-                "norm_eigensystems",
-            )
-        )
-        charge_refinements += int(result.stats.refinements)
-        _raise_if_not_converged(
-            result,
-            "Adaptive simplex loop did not converge while solving for the chemical potential",
-        )
-        return result
-
-    while True:
-        remaining_charge_evaluations = (
-            None
-            if max_charge_evaluations is None
-            else max_charge_evaluations - charge_evaluations
-        )
-        if (
-            remaining_charge_evaluations is not None
-            and remaining_charge_evaluations <= 0
-        ):
-            raise RuntimeError(
-                "Chemical-potential solve failed: maximum charge-evaluation budget "
-                "reached before satisfying the filling tolerance"
-            )
-        root = solve_mu(
-            evaluate_charge=evaluate_charge,
-            initial_bracket=lambda: build_mu_bracket(h, 0.0),
-            filling=float(filling),
-            mu_guess=current_mu_guess,
-            filling_tol=(
-                float(filling_tol)
-                if nk is not None
-                else min(float(filling_tol), float(charge_tol))
-            ),
-            mu_tol=float(mu_xtol),
-            max_charge_evaluations=remaining_charge_evaluations,
-            use_derivative=True,
-        )
-        charge_evaluations += int(root.charge_evaluations)
-        current_mu_guess = float(root.mu)
-        if nk is None:
-            charge_result = integrate_charge(float(root.mu))
-            if abs(float(charge_result.value) - filling) > filling_tol:
-                continue
-
-        if coordinates.value_count == 0:
-            density, density_info = _empty_density_result(
-                mesh, coordinates, num_threads=num_threads, nk=nk
-            )
-        else:
-            density_result = _integrate_density(
-                mesh,
-                coordinates,
-                mu=float(root.mu),
-                density_atol=0.0 if nk is not None else float(density_atol),
-                max_refinements=remaining_refinements(),
-                num_threads=num_threads,
-                prescribed=nk is not None,
-                max_points=max_points,
-            )
-            _raise_if_not_converged(
-                density_result,
-                "Adaptive simplex loop did not converge while evaluating density",
-            )
-            density_integration_calls += 1
-            density_work += int(density_result.stats.evaluations)
-            density_refinements += int(density_result.stats.refinements)
-            density = _density_slice(
-                density_result, coordinates, prescribed=nk is not None
-            )
-            density_info = _density_info(density_result, num_threads=num_threads, nk=nk)
-
-            if nk is None and int(density_result.stats.refinements) > 0:
-                # Density refinement can change the charge at the solved mu.
-                # Recheck on that mesh; repeat the solve if either integral
-                # still needs a different mesh or chemical potential.
-                charge_result = integrate_charge(float(root.mu))
-                if (
-                    int(charge_result.stats.refinements) > 0
-                    or abs(float(charge_result.value) - filling) > filling_tol
-                ):
-                    continue
-
-        if nk is None:
-            root = FixedFillingSolve(
-                mu=float(root.mu),
-                charge=float(charge_result.value),
-                charge_error=float(charge_result.stopping_error),
-                residual=float(charge_result.value) - filling,
-                derivative=float(charge_result.dcharge_dmu),
-                charge_evaluations=charge_evaluations,
-            )
-        break
-
-    density_info = replace(
-        density_info,
-        n_kernel_evals=density_work,
-        unique_evals=density_work,
-        n_evaluator_evals=density_work,
-        n_diagonalizations=density_work,
-        refinements=density_refinements,
-    )
-    band_energy = _occupied_band_energy(mesh, mu=float(root.mu))
-    info = _fixed_filling_info(
-        root=root,
-        charge_integration_calls=charge_integration_calls,
-        density_integration_calls=density_integration_calls,
-        charge_work=charge_work,
-        charge_refinements=charge_refinements,
-        density_info=density_info,
-        band_energy=band_energy,
-        nk=nk,
-        charge_diagonalizations=charge_diagonalizations,
-    )
-    return _density_evaluation(
-        density,
-        root.mu,
-        info,
-        target_filling=filling,
-        entropy=_zero_temperature_entropy(mesh, root.mu),
-    )
-
-
-__all__ = [
-    "_ZERO_TEMP_EXT_AVAILABLE",
-    "density_matrix_at_mu_zero_temp",
-    "density_matrix_zero_temp",
-]

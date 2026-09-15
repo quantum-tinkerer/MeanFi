@@ -8,17 +8,15 @@ from meanfi.errors import (
     ToleranceFunction,
     default_solver_tolerances,
     resolve_error_tolerances,
-    resolve_integration_tolerances,
 )
 
-from meanfi.density.integrate.defaults import select_default_integration
+from meanfi.density.problem import build_density_problem
 from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.model import Model
 from meanfi.results import SCFResult
-from meanfi.scf.bdg import build_bdg_scf_problem
-from meanfi.scf.engine import SolverRuntime, run_scf_loop
+from meanfi.scf.engine import run_scf_loop
 from meanfi.scf.methods import EnergyDIIS, SCFMethod
-from meanfi.scf.normal import build_normal_scf_problem
+from meanfi.scf.problem import SCFProblem
 from meanfi.tb.ops import _tb_type
 
 
@@ -38,15 +36,6 @@ def solver(
 ) -> SCFResult:
     """Run mean-field update -> density update -> SCF mixing."""
 
-    resolved_integration = (
-        integration
-        if integration is not None
-        else select_default_integration(
-            model.h_0,
-            kT=model.kT,
-            superconducting=model.superconducting,
-        )
-    )
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
     if scf_tol is not None:
         tolerances = replace(
@@ -58,25 +47,20 @@ def solver(
             tolerances,
             filling_residual=float(filling_tol),
         )
-    resolved_integration, tolerances = resolve_integration_tolerances(
-        resolved_integration,
-        tolerances,
-    )
     resolved_scf = scf if scf is not None else EnergyDIIS()
     if not isinstance(resolved_scf, SCFMethod):
         raise TypeError("scf must be an SCFMethod instance")
 
-    runtime = SolverRuntime(
-        integration=resolved_integration,
+    density_problem = build_density_problem(
+        model.hamiltonian_from_meanfield(),
+        kT=model.kT,
+        keys=model.scf_space.density_keys,
+        integration=integration,
         tolerances=tolerances,
-        mu_tol=mu_tol,
-        max_charge_evaluations=max_charge_evaluations,
+        density_coordinates=model.scf_space.required_coordinates,
+        electron_ndof=model._ndof if model.superconducting else None,
     )
-    problem = (
-        build_bdg_scf_problem(model, runtime)
-        if model.superconducting
-        else build_normal_scf_problem(model, runtime)
-    )
+    problem = SCFProblem(model, density_problem, mu_tol, max_charge_evaluations)
     return run_scf_loop(
         guess,
         scf=resolved_scf,

@@ -20,14 +20,12 @@ from meanfi.space.coordinates import full_density_coordinates
 def test_mode_is_resolved_before_policy_targets(method):
     policy = default_solver_tolerances(1e-5)
     fixed = method(nk=17, max_refinements=0)
-    resolved, tolerances = resolve_integration_tolerances(fixed, policy)
-    assert resolved == fixed
-    assert resolved.density_matrix_tol is resolved.charge_tol is None
+    tolerances = resolve_integration_tolerances(fixed, policy)
+    assert fixed.density_matrix_tol is fixed.charge_tol is None
     assert tolerances == policy
-    adaptive, _ = resolve_integration_tolerances(method(max_refinements=0), policy)
-    assert adaptive.nk is None
-    assert adaptive.density_matrix_tol == policy.density_matrix_integration
-    assert adaptive.charge_tol == policy.charge_integration
+    adaptive = method(max_refinements=0)
+    assert resolve_integration_tolerances(adaptive, policy) == policy
+    assert adaptive.nk is adaptive.density_matrix_tol is adaptive.charge_tol is None
 
 
 @pytest.mark.parametrize("method", [AdaptiveSimplex, PeriodicGrid])
@@ -116,7 +114,7 @@ def test_zero_dimensional_prescribed_statistics_do_not_invent_integration_error(
     assert result.statistics.requested_nk == 20
     assert result.statistics.n_kpoints == 1
     assert result.statistics.n_diagonalizations == 1
-    assert result.statistics.charge_error is None
+    assert result.errors.charge_integration is None
     assert result.errors.charge_integration is None
 
 

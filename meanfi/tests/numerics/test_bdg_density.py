@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import scipy.sparse as sparse
 
-import meanfi.density.integrate.periodic as periodic
+import meanfi.density.integrate.periodic_grid as periodic
 
 from meanfi import (
     DirectDiagonalization,

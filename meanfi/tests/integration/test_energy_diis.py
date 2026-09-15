@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from fermisimplex import SpectralMesh
 
 from meanfi import (
     PeriodicGrid,
@@ -81,6 +80,8 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
             density_matrix_integration=tol / 20,
             filling_residual=tol / 5,
             charge_integration=tol / 50,
+            band_energy_integration=tol / 5,
+            entropy_integration=tol / 5,
         )
 
     result = solver(
@@ -96,6 +97,8 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
         density_matrix_integration=5e-8,
         filling_residual=2e-7,
         charge_integration=2e-8,
+        band_energy_integration=2e-7,
+        entropy_integration=2e-7,
     )
     assert calls == [1e-6]
     assert result.errors.scf_residual <= requested.scf_residual
@@ -131,10 +134,6 @@ def test_energy_diis_supports_periodic_integration():
     assert np.isfinite(result.free_energy)
 
 
-@pytest.mark.skipif(
-    not hasattr(SpectralMesh, "occupied_weights"),
-    reason="installed FermiSimplex does not yet provide occupied weights",
-)
 def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():
     hopping = np.diag([-0.5, -0.5]).astype(complex)
     model = Model(
@@ -173,3 +172,74 @@ def test_default_zero_temperature_solver_uses_ediis(monkeypatch):
     monkeypatch.setattr(engine, "iterate_density_fixed_point", unexpected_fixed_point)
     result = solver(_zero_dimensional_model(), {(): np.zeros((2, 2))})
     assert result.converged
+
+
+@pytest.mark.parametrize("kind", ["normal", "reference", "bdg"])
+def test_scf_interaction_functional_matches_exact_two_orbital_energy(kind):
+    """For two orbitals, Wick's theorem gives the full interaction polynomial."""
+    from meanfi.density.problem import build_density_problem
+    from meanfi.errors import default_solver_tolerances
+    from meanfi.scf.problem import SCFProblem
+    from meanfi.space.state import ActiveDensityState
+    from meanfi.tests.fixtures.models import density_result_from_tb
+
+    reference = None
+    if kind == "reference":
+        reference = density_result_from_tb(
+            {(): np.array([[0.3, 0.02j], [-0.02j, 0.6]])}
+        )
+    interaction = 1.7
+    model = Model(
+        {(): np.diag([-0.3, 0.2])},
+        {(): np.array([[0.0, interaction], [interaction, 0.0]])},
+        filling=0.9,
+        kT=0.2,
+        superconducting=kind == "bdg",
+        reference=reference,
+    )
+    problem = SCFProblem(
+        model,
+        build_density_problem(
+            model.hamiltonian_from_meanfield(),
+            kT=model.kT,
+            keys=[()],
+            integration=PeriodicGrid(nk=1),
+            tolerances=default_solver_tolerances(1e-10),
+            density_coordinates=model.scf_space.required_coordinates,
+            electron_ndof=2 if model.superconducting else None,
+        ),
+    )
+    rng = np.random.default_rng(421)
+    params = rng.uniform(-0.5, 0.5, model.scf_space.num_params)
+    direction = rng.normal(size=params.size)
+
+    def exact_energy(values):
+        density = model._active_density_from_state(
+            ActiveDensityState(model.scf_space, values)
+        )[()]
+        electron = density[:2, :2]
+        if reference is not None:
+            electron = electron - reference.to_tb()[()]
+        pairing = abs(density[0, 3]) ** 2 if model.superconducting else 0.0
+        return float(
+            interaction
+            * (
+                electron[0, 0].real * electron[1, 1].real
+                - abs(electron[0, 1]) ** 2
+                - pairing
+            )
+            / 2
+        )
+
+    step = 1e-5
+    exact_gradient = (
+        exact_energy(params + step * direction)
+        - exact_energy(params - step * direction)
+    ) / (2 * step)
+    assert problem.interaction_energy(params) == pytest.approx(
+        exact_energy(params), abs=1e-13
+    )
+    # Central differences are exact for this quadratic, up to floating-point error.
+    assert problem.interaction_gradient(params, direction) == pytest.approx(
+        exact_gradient, abs=2e-10
+    )

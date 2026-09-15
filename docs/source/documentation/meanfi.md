@@ -174,7 +174,7 @@ removing Nambu doubling. Spin components count as separate orbitals.
 | --- | --- |
 | `internal_energy`, `free_energy`, `band_energy` | Energy per cell per physical orbital |
 | `entropy` | Entropy / k_B per cell per physical orbital |
-| `statistics.band_energy_error`, `statistics.entropy_error` | Same normalized units as the corresponding quantity |
+| `errors.band_energy_integration`, `errors.entropy_integration` | Same normalized units as the corresponding quantity |
 | `filling` | Electrons per cell, from 0 to N |
 | `mu`, `kT` | Single-particle energy units |
 | Density entries | Occupations and coherences, without normalization by N |

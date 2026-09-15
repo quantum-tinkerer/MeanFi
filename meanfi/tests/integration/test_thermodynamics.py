@@ -144,14 +144,14 @@ def test_empty_density_selection_still_refines_energy_and_entropy():
     assert result.values.size == 0
     assert result.band_energy == pytest.approx(reference.band_energy, abs=1e-6)
     assert result.entropy == pytest.approx(reference.entropy, abs=1e-6)
-    assert result.statistics.band_energy_error <= 5e-7
-    assert result.statistics.entropy_error <= 5e-7
+    assert result.errors.band_energy_integration <= 5e-7
+    assert result.errors.entropy_integration <= 5e-7
 
 
 @pytest.mark.parametrize("use_sparse", [False, True])
 def test_bdg_shifted_grid_energy_uses_full_nambu_charge(use_sparse, request):
     from scipy import sparse
-    from meanfi.density.integrate.periodic import _Evaluator, _Grid
+    from meanfi.density.integrate.periodic_grid import _Evaluator, _Grid
     from meanfi.errors import default_solver_tolerances
 
     h0 = {
@@ -179,7 +179,12 @@ def test_bdg_shifted_grid_energy_uses_full_nambu_charge(use_sparse, request):
     evaluator = _Evaluator(
         h,
         kT=0.12,
-        integration=mf.PeriodicGrid(nk=3),
+        integration=mf.PeriodicGrid(
+            nk=3,
+            matrix_function=mf.RationalFOE()
+            if use_sparse
+            else mf.DirectDiagonalization(),
+        ),
         coordinates=coordinates,
         q_diag=q,
         trace_weights=np.array([1.0, 0.0]),

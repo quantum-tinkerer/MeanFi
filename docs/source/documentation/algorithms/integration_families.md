@@ -19,7 +19,10 @@ meanfi.AdaptiveSimplex(nk=4096)
 meanfi.PeriodicGrid(nk=4096)
 
 meanfi.AdaptiveSimplex(density_matrix_tol=1e-5, charge_tol=1e-6)
-meanfi.PeriodicGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
+meanfi.PeriodicGrid(
+    density_matrix_tol=1e-5, charge_tol=1e-6,
+    energy_tol=1e-7, entropy_tol=1e-7,
+)
 ```
 
 An explicit `nk` requests a prescribed final mesh size. Omitting `nk` requests
@@ -48,6 +51,31 @@ convergence error. Reported error estimates are empirical, not certificates.
 Keep density error at the returned chemical potential, uncertainty transferred
 from the chemical potential, charge-integration error, root residual and SCF
 residual distinct. See [fixed filling](fixed_filling.md).
+
+## Energy and entropy accuracy
+
+`PeriodicGrid.energy_tol` is an absolute band-energy integration target in the
+Hamiltonian's energy units per cell per physical orbital. `entropy_tol` is an
+absolute entropy target in k_B per cell per physical orbital. These are
+independent of the density-entry and charge targets. The default tolerance
+policy sets each integration target to `tol/5`, the filling residual to `tol/10`,
+and the SCF residual to `tol`. An explicit target overrides only its own budget.
+For example, changing `density_matrix_tol` does not change the energy target.
+
+Read estimates through `result.errors.band_energy_integration` and
+`result.errors.entropy_integration`, alongside the density and charge errors.
+All four integration estimates are `None` on prescribed meshes. FermiSimplex
+currently supplies density and charge estimates but does not estimate band-energy
+or entropy integration error; these fields remain `None` there, except for an
+exact finite-system evaluation. `result.statistics` contains work and mesh
+information, not physical quantities or their errors.
+
+For a prescribed sparse calculation, scalar matrix-function targets still come
+from `tol` or `tolerance_policy`; passing mesh integration targets with `nk` is
+an error. A custom policy can independently replace
+`ErrorTolerances.band_energy_integration` and `entropy_integration`. These control
+the sampled matrix-function error; they do not estimate unsampled Brillouin-zone
+integration error.
 
 ## Migration
 

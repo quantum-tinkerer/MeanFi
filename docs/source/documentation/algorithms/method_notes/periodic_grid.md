@@ -26,8 +26,9 @@ At positive temperature, omit `nk` to start from a small deterministic grid:
 Validation offsets are deterministic and distinct by axis: `sqrt(p) % 1`
 for successive primes `p = 2, 3, 5, ...`. Shifted validation is mandatory:
 nested meshes alone can agree through aliasing.
-Band energy and entropy use the density-integration target. Their error estimates
-are available as `statistics.band_energy_error` and `statistics.entropy_error`.
+Band energy and entropy use independent `energy_tol` and `entropy_tol` targets.
+Their error estimates
+are available as `errors.band_energy_integration` and `errors.entropy_integration`.
 Both the quantities and their errors are per cell per physical orbital.
 The estimates remain empirical. Exhausting `max_points` or `max_refinements`
 raises an actionable convergence error rather than returning an unconverged

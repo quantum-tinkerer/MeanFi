@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Integration results keep physical quantities on the result and error estimates
+  in `errors`; removed physical values, errors and unused energy counters from
+  backend statistics. `band_energy_integration` and `entropy_integration` are
+  independent fields of `ErrorTolerances` and `ErrorValues`. `PeriodicGrid`
+  exposes `energy_tol` and `entropy_tol` in energy units and k_B per orbital.
+  Changing the density target no longer implicitly changes these targets.
+- Density preparation resolves settings once. Normal and BdG SCF share a single
+  problem implementation; simplex fixed-mu and fixed-filling calculations share
+  one refinement loop. Removed obsolete private dispatch functions and simplex
+  compatibility switches. Sparse inverse layouts are immutable and shared across
+  a calculation, while numeric factorizations remain local to each node.
+- Added the contributor guidelines in `AGENTS.md`, the package design in
+  `DESIGN.md`, a runnable quickstart, and isolated dependency-install CI coverage.
+  Removed the unused `packaging` dependency; version is `2.0.0rc1`.
+
 - Internal, free, and band energies and entropy are now per cell per physical
   orbital. Divide physical totals by N for an N-orbital model, including BdG
   models with 2N-dimensional Hamiltonians. Energy and entropy integration errors

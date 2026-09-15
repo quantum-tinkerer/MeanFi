@@ -1,3 +1,7 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
+from meanfi.density.problem import build_density_problem
+from meanfi.density.density import evaluate_density
 from types import SimpleNamespace
 
 import numpy as np
@@ -6,7 +10,6 @@ import pytest
 from meanfi import (
     AdaptiveSimplex,
     LinearMixing,
-    default_solver_tolerances,
     Model,
     PeriodicGrid,
     density_matrix,
@@ -16,18 +19,12 @@ from meanfi import (
 from meanfi.results import DensityEntries, DensityResult
 from meanfi.errors import ErrorValues
 from meanfi.results import AdaptiveSimplexInfo
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
-from meanfi.scf.engine import SolverRuntime
-from meanfi.scf.normal import build_normal_scf_problem
+from meanfi.scf.problem import SCFProblem
 from meanfi.space.state import ActiveDensityState
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 def test_normal_solver_warns_when_guess_is_projected_to_structural_selection():
@@ -63,7 +60,6 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
         )
 
 
-@requires_ext
 @pytest.mark.parametrize("mode", ("at_mu", "fixed_filling"))
 def test_zero_temperature_backend_raises_when_refinement_cap_prevents_convergence(mode):
     tb = spinful_chain()
@@ -93,14 +89,14 @@ def test_zero_temperature_backend_raises_when_refinement_cap_prevents_convergenc
 def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.density.integrate.normal as integration
+    import meanfi.density.density as integration
 
     def fail(*args, **kwargs):  # pragma: no cover - executed only on regression
         raise AssertionError(
             "PeriodicGrid should not call the zero-temperature backend"
         )
 
-    monkeypatch.setattr(integration, "density_matrix_zero_temp", fail)
+    monkeypatch.setattr(integration, "solve_simplex", fail)
     result = density_matrix(
         spinful_chain(),
         filling=1.0,
@@ -121,15 +117,15 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
 def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
     monkeypatch,
 ):
-    import meanfi.density.integrate.normal as integration
+    import meanfi.density.density as integration
 
     called = {}
 
-    def fake_density_matrix_zero_temp(*args, **kwargs):
-        called["kwargs"] = kwargs
+    def fake_simplex(problem, **kwargs):
+        called["problem"] = problem
         return DensityResult(
             entries=DensityEntries(
-                kwargs["density_coordinates"], np.array([1.0]), np.array([0.0])
+                problem.density_coordinates, np.array([1.0]), np.array([0.0])
             ),
             mu=0.0,
             filling=1.0,
@@ -147,17 +143,13 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
                 n_leaf_nodes=1,
                 refinements=0,
                 error_estimate_available=True,
-                charge=1.0,
-                charge_error=0.0,
                 charge_integration_calls=1,
                 density_integration_calls=1,
                 num_threads=3,
             ),
         )
 
-    monkeypatch.setattr(
-        integration, "density_matrix_zero_temp", fake_density_matrix_zero_temp
-    )
+    monkeypatch.setattr(integration, "solve_simplex", fake_simplex)
     result = density_matrix(
         {(0,): np.zeros((1, 1)), (1,): np.zeros((1, 1)), (-1,): np.zeros((1, 1))},
         filling=1.0,
@@ -167,10 +159,10 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
         filling_tol=2e-3,
     )
 
-    assert called["kwargs"]["density_atol"] == 1e-4
-    assert called["kwargs"]["charge_tol"] == 2e-4
-    assert called["kwargs"]["filling_tol"] == 2e-3
-    assert called["kwargs"]["num_threads"] == 3
+    assert called["problem"].tolerances.density_matrix_integration == 1e-4
+    assert called["problem"].tolerances.charge_integration == 2e-4
+    assert called["problem"].tolerances.filling_residual == 2e-3
+    assert called["problem"].integration.num_threads == 3
     assert np.allclose(result.to_tb()[(0,)], np.array([[1.0]]))
     assert result.errors.density_matrix_integration == 0.0
     assert result.mu == 0.0
@@ -180,7 +172,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
 def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
     monkeypatch,
 ):
-    import meanfi.scf.normal as normal_scf
+    import meanfi.scf.problem as scf_problem
 
     model = Model(
         {(0,): np.diag([-0.5, 0.5]).astype(complex)},
@@ -210,22 +202,24 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
         )
 
     monkeypatch.setattr(
-        normal_scf,
+        scf_problem,
         "evaluate_density",
         fake_density_update,
     )
-    problem = build_normal_scf_problem(
+    problem = SCFProblem(
         model,
-        SolverRuntime(
+        build_density_problem(
+            model.h_0,
+            kT=model.kT,
+            keys=model.scf_space.density_keys,
             integration=AdaptiveSimplex(),
             tolerances=default_solver_tolerances(1e-3),
-            mu_tol=1e-10,
-            max_charge_evaluations=None,
+            density_coordinates=required,
         ),
     )
 
     problem.evaluate_state(
-        ActiveDensityState(problem.state_space, np.zeros(model.scf_space.num_params)),
+        ActiveDensityState(model.scf_space, np.zeros(model.scf_space.num_params)),
         0.0,
     )
 
@@ -234,6 +228,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
 
 def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkeypatch):
     import meanfi.density.integrate.simplex as simplex_integration
+    from meanfi.density.integrate.simplex import mesh as native_mesh
 
     coordinates = DensityCoordinates.from_pairs(
         size=2,
@@ -259,10 +254,15 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
             refinements=2,
             target_reached=True,
         ),
-        error_stats=SimpleNamespace(hamiltonian_evaluations=3),
+        error_stats=SimpleNamespace(
+            hamiltonian_evaluations=3,
+            full_eigensystems=0,
+            reduced_eigensystems=0,
+            norm_eigensystems=0,
+        ),
     )
 
-    monkeypatch.setattr(simplex_integration, "_spectral_mesh", lambda h, **kwargs: mesh)
+    monkeypatch.setattr(native_mesh, "_spectral_mesh", lambda h, **kwargs: mesh)
     monkeypatch.setattr(
         simplex_integration, "_zero_temperature_entropy", lambda mesh, mu: 0.0
     )
@@ -282,25 +282,31 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
         ),
     )
     monkeypatch.setattr(
-        simplex_integration,
+        native_mesh,
         "_integrate_charge",
         lambda *args, **kwargs: charge_result,
     )
 
-    result = simplex_integration.density_matrix_zero_temp(
-        spinful_chain(),
+    result = evaluate_density(
+        build_density_problem(
+            spinful_chain(),
+            kT=0.0,
+            keys=[(0,)],
+            density_coordinates=coordinates,
+            integration=AdaptiveSimplex(
+                nk=None, max_refinements=None, num_threads=None
+            ),
+            tolerances=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=0.001,
+                charge_integration=0.001,
+                filling_residual=0.001,
+            ),
+        ),
         filling=1.0,
-        keys=[(0,)],
-        density_coordinates=coordinates,
-        charge_tol=1e-3,
-        filling_tol=1e-3,
-        density_atol=1e-3,
-        density_rtol=0.0,
         mu_guess=0.0,
-        mu_xtol=1e-10,
+        mu_tol=1e-10,
         max_charge_evaluations=None,
-        max_subdivisions=None,
-        num_threads=None,
     )
 
     assert result.mu == 0.0
@@ -310,7 +316,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
 
 
 def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one():
-    import meanfi.density.integrate.simplex as simplex_integration
+    from meanfi.density.integrate.simplex import mesh as native_mesh
 
     coordinates = DensityCoordinates.from_pairs(
         size=2,
@@ -327,7 +333,7 @@ def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one(
             calls.append(kwargs)
             return "density"
 
-    result = simplex_integration._integrate_density(
+    result = native_mesh._integrate_density(
         Mesh(),
         coordinates,
         mu=0.25,
@@ -352,7 +358,7 @@ def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one(
 
 
 def test_adaptive_simplex_calls_fermisimplex_charge_apis():
-    import meanfi.density.integrate.simplex as simplex_integration
+    import meanfi.density.integrate.simplex.mesh as simplex_integration
 
     calls = []
 
@@ -400,7 +406,6 @@ def test_adaptive_simplex_calls_fermisimplex_charge_apis():
     ]
 
 
-@requires_ext
 @pytest.mark.parametrize("ndim", (3, 4))
 def test_zero_temperature_backend_supports_higher_dimensions(ndim):
     key = (0,) * ndim

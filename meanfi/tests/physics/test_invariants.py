@@ -9,7 +9,6 @@ from meanfi import (
     density_matrix_at_mu,
     fermi_dirac,
 )
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import (
     antiferromagnetic_guess,
     bipartite_hubbard_1d,
@@ -21,10 +20,6 @@ from meanfi.tests.fixtures.models import (
 
 
 pytestmark = pytest.mark.physics
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 def test_zero_dimensional_density_matrix_at_mu_matches_exact_occupation():
@@ -86,7 +81,6 @@ def test_half_filling_keeps_particle_hole_symmetry():
     assert abs(result.filling - 1.0) < 1e-9
 
 
-@requires_ext
 def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
     tb = spinful_chain()
     filling_tol = 5e-5
@@ -112,7 +106,6 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
         assert result.errors.density_matrix_integration is not None
 
 
-@requires_ext
 def test_zero_temperature_fixed_filling_default_charge_evaluation_limit_matches_explicit_limit():
     tb = spinful_chain()
 
@@ -144,7 +137,6 @@ def test_zero_temperature_fixed_filling_default_charge_evaluation_limit_matches_
     assert abs(default_result.filling - explicit_result.filling) <= 1e-12
 
 
-@requires_ext
 def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell():
     primitive, doubled = duplicated_local_two_band_1d()
 

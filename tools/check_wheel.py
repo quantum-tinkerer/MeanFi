@@ -1,7 +1,9 @@
 """Build a distribution and exercise its installed wheel outside the checkout.
 
 Run in the core test-py312 environment, or with --sparse in test-sparse.
-Dependencies are supplied by the active environment; wheel installation is offline.
+By default, reuse the active environment's dependencies for an offline smoke test.
+Use --clean to resolve and install dependencies into an isolated virtual environment;
+this requires network access and the native compiler supplied by Pixi.
 """
 
 from __future__ import annotations
@@ -91,6 +93,11 @@ def main():
     os.environ["MKL_DYNAMIC"] = "FALSE"
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sparse", action="store_true")
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="install dependencies from scratch instead of borrowing the active environment",
+    )
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="meanfi-wheel-check-") as directory:
@@ -116,7 +123,9 @@ def main():
             )
         environment = work / "environment"
         subprocess.run(
-            [sys.executable, "-m", "venv", "--system-site-packages", str(environment)],
+            [sys.executable, "-m", "venv"]
+            + ([] if args.clean else ["--system-site-packages"])
+            + [str(environment)],
             check=True,
         )
         python = environment / (
@@ -128,14 +137,14 @@ def main():
                 "-m",
                 "pip",
                 "install",
-                "--no-index",
-                "--no-deps",
-                "--ignore-installed",
-                f"{wheel}[sparse]" if args.sparse else str(wheel),
-            ],
+            ]
+            + ([] if args.clean else ["--no-index", "--no-deps", "--ignore-installed"])
+            + [f"{wheel}[sparse]" if args.sparse else str(wheel)],
             cwd=work,
             check=True,
         )
+        if args.clean:
+            subprocess.run([str(python), "-m", "pip", "check"], cwd=work, check=True)
         subprocess.run(
             [str(python), "-I", "-c", SMOKE, "sparse" if args.sparse else "core"],
             cwd=work,

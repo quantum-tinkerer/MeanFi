@@ -8,10 +8,9 @@ from numbers import Integral
 import numpy as np
 
 from meanfi.errors import ConvergenceError
-from meanfi.density.filling import charge_diagonal
 
 from meanfi.density.integrate.methods import AdaptiveSimplex
-from meanfi.density.integrate.normal import evaluate_simplex
+from meanfi.density.integrate.simplex import solve_simplex
 from meanfi.density.integrate.periodic import solve_periodic
 from meanfi.results import DensityResult
 from meanfi.density.problem import DensityProblem
@@ -41,7 +40,12 @@ def evaluate_density(
             "max_charge_evaluations must be a positive integer when provided"
         )
     try:
-        return _evaluate(
+        evaluate = (
+            solve_simplex
+            if isinstance(problem.integration, AdaptiveSimplex)
+            else solve_periodic
+        )
+        return evaluate(
             problem,
             mu=mu,
             filling=filling,
@@ -53,23 +57,3 @@ def evaluate_density(
         raise
     except (RuntimeError, np.linalg.LinAlgError, FloatingPointError) as exc:
         raise ConvergenceError(str(exc)) from exc
-
-
-def _evaluate(problem, **charge_settings):
-    if isinstance(problem.integration, AdaptiveSimplex):
-        return evaluate_simplex(problem, **charge_settings)
-    ndof = problem.electron_ndof
-    return solve_periodic(
-        problem.hamiltonian,
-        kT=problem.kT,
-        keys=list(problem.density_coordinates.keys),
-        integration=problem.integration,
-        density_coordinates=problem.density_coordinates,
-        tolerances=problem.tolerances,
-        filling_tol=problem.tolerances.filling_residual,
-        q_diag=None if ndof is None else charge_diagonal(ndof),
-        trace_weights_diag=None
-        if ndof is None
-        else np.r_[np.ones(ndof), np.zeros(ndof)],
-        **charge_settings,
-    )

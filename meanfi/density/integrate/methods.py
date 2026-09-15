@@ -27,14 +27,17 @@ class IntegrationMethod:
     """Base class for Brillouin-zone integration strategies."""
 
 
-def _validate_mesh_settings(method):
+def _validate_mesh_settings(method, *, thermal=False):
     _positive_integer("nk", method.nk, allow_none=True)
-    for name in ("density_matrix_tol", "charge_tol"):
+    targets = ("density_matrix_tol", "charge_tol")
+    if thermal:
+        targets += ("energy_tol", "entropy_tol")
+    for name in targets:
         value = getattr(method, name)
         if value is not None and (not math.isfinite(value) or value <= 0):
             raise ValueError(f"{name} must be positive and finite when provided")
-    if method.nk is not None and (
-        method.density_matrix_tol is not None or method.charge_tol is not None
+    if method.nk is not None and any(
+        getattr(method, name) is not None for name in targets
     ):
         raise ValueError(
             "nk cannot be combined with explicit integration accuracy targets"
@@ -74,11 +77,15 @@ class PeriodicGrid(IntegrationMethod):
     ``nk``, finite-temperature integration doubles each axis and validates
     convergence with a shifted grid. ``batch_size`` bounds transient matrix
     storage; ``max_spectrum_bytes`` bounds retained normal-state eigenvalues.
+    ``energy_tol`` controls band energy in Hamiltonian energy units per orbital;
+    ``entropy_tol`` controls entropy in k_B per orbital.
     """
 
     nk: int | None = None
     density_matrix_tol: float | None = None
     charge_tol: float | None = None
+    energy_tol: float | None = None
+    entropy_tol: float | None = None
     max_points: int = 1_048_576
     max_refinements: int | None = 12
     batch_size: int = 128
@@ -87,7 +94,7 @@ class PeriodicGrid(IntegrationMethod):
     dtype: str | np.dtype = "complex128"
 
     def __post_init__(self):
-        _validate_mesh_settings(self)
+        _validate_mesh_settings(self, thermal=True)
         _positive_integer("batch_size", self.batch_size)
         _positive_integer("max_spectrum_bytes", self.max_spectrum_bytes)
         dtype = np.dtype(self.dtype)

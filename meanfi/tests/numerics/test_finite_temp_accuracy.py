@@ -17,6 +17,7 @@ from meanfi import (
 )
 import meanfi.density.kpoint.matrix_functions.rational.scheme as rational_matrix_functions
 from meanfi.density.kpoint.matrix_functions.rational import PreparedMumpsRationalNode
+from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationalLayout
 from meanfi.tests.fixtures.models import (
     max_density_error,
     spinful_chain,
@@ -391,9 +392,12 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
         q_diag=np.ones(2, dtype=float),
         options=RationalFOE(initial_poles=4, max_poles=128),
         charge_tolerance=1e-2,
-        density_coordinates=space.required_coordinates,
+        layout=SparseRationalLayout.build(
+            density_coordinates=space.required_coordinates,
+            trace_weights_diag=np.ones(2, dtype=float),
+            include_all_diagonal=False,
+        ),
         density_tolerance=1e-2,
-        trace_weights_diag=np.ones(2, dtype=float),
         shared_aaa_interval_cache=shared_cache,
     )
 

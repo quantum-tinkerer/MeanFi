@@ -1,154 +1,96 @@
-# `MeanFi`
+# MeanFi
 
-## What is `MeanFi`?
-
-`MeanFi` is a Python package for self-consistent mean-field calculations on tight-binding models with density-density interactions.
-It starts from a Hamiltonian
-
-$$
-\hat{H} = \hat{H_0} + \hat{V}
-$$
-
-and computes a self-consistent mean-field correction that approximates the interaction term.
-
-For more details, see the [theory section](https://meanfi.readthedocs.io/en/latest/documentation/theory/index.html) and the [algorithm section](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/index.html).
-
-## How to use `MeanFi`
-
-The basic workflow has three steps:
-
-1. **Define** the non-interacting Hamiltonian, interaction, and filling.
-2. **Guess** a starting mean-field correction.
-3. **Solve** for the self-consistent correction.
+MeanFi solves self-consistent tight-binding models with density-density
+interactions, at zero or finite temperature, including superconducting BdG
+models. Define the Hamiltonian and interaction, supply an initial mean field,
+and solve:
 
 ```python
+import numpy as np
 import meanfi
 
-# Define
-h_0 = {(0,): onsite, (1,): hopping, (-1,): hopping.T.conj()}
-h_int = {(0,): onsite_interaction}
-model = meanfi.Model(h_0, h_int, filling=2)
+# A spinful chain: nearest-neighbor hopping and on-site repulsion.
+hopping = -np.eye(2)
+h_0 = {(0,): np.zeros((2, 2)), (1,): hopping, (-1,): hopping.T.conj()}
+h_int = {(0,): np.array([[0., 1.], [1., 0.]])}
+model = meanfi.Model(h_0, h_int, filling=1, kT=0.2)
 
-# Guess
 guess = model.random_meanfield(rng=0, scale=0.1)
-
-# Solve
 result = meanfi.solver(model, guess)
+assert result.converged
 h_mf = model.hamiltonian_from_meanfield(result.mean_field)
 print(result.internal_energy, result.entropy, result.free_energy)
 ```
 
-`EnergyDIIS()` is the default SCF method for normal and BdG calculations.
-It uses free energy at finite temperature and switches to bounded Anderson
-mixing to finish convergence or recover from stagnation. All iterations share
-one budget. Results report internal energy, entropy in units of Boltzmann's
-constant, and Helmholtz free energy per cell per physical orbital:
-`result.free_energy = result.internal_energy - model.kT * result.entropy`.
-An N-orbital model divides these quantities by N, including BdG models whose
-Hamiltonians have size 2N. Filling remains electrons per cell.
+Dictionary keys are lattice displacements; each value is an orbital matrix.
+`EnergyDIIS()` is the default solver. Results report energies and entropy per
+cell per physical orbital, with entropy in units of Boltzmann's constant:
+`free_energy = internal_energy - kT * entropy`. Filling counts electrons per
+cell. A BdG Hamiltonian of size 2N still has N physical orbitals.
 
-For examples, see the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html).
-
-## Why `MeanFi`?
-
-- **Simple**
-
-  The workflow is compact and close to the physics problem.
-
-- **Extensible**
-
-  The code is structured to be easy to read, debug, and extend.
-
-- **Numerically focused**
-
-  The package provides adaptive and fixed-grid Brillouin-zone integration methods for self-consistent calculations.
-
-## Current scope
-
-`MeanFi` currently supports:
-
-- density-density interactions,
-- zero- and finite-temperature mean-field calculations,
-- superconducting BdG mean-field calculations,
-- tight-binding dictionary workflows,
-- optional `kwant` conversion helpers.
-
-Zero-temperature BdG calculations require an explicit `PeriodicGrid(nk=...)`.
+See the [tutorials](https://meanfi.readthedocs.io/en/latest/tutorial/hubbard_1d.html)
+and [API walkthrough](https://gitlab.kwant-project.org/qt/meanfi/-/blob/main/examples/api_walkthrough.py) for densities, observables,
+reference subtraction, restarts, BdG, sparse calculations, and Kwant conversion.
+The [theory](https://meanfi.readthedocs.io/en/latest/documentation/theory/index.html)
+and [algorithms](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/index.html)
+explain the physics and numerical methods.
 
 ## Integration
 
-MeanFi has two integration families. Normal zero-temperature calculations default
-to `AdaptiveSimplex()` backed by FermiSimplex. Dense finite-temperature normal
-and BdG calculations default to `PeriodicGrid()` with direct diagonalization,
-global refinement and mandatory shifted-grid validation.
+Normal zero-temperature calculations default to `AdaptiveSimplex()`, backed by
+FermiSimplex. Dense finite-temperature calculations default to `PeriodicGrid()` with
+direct diagonalization, automatic refinement, and shifted-grid validation.
 
 ```python
-# Prescribed final mesh size (total points, with documented rounding).
+# Choose a total point count or request accuracy-controlled integration.
 integration = meanfi.PeriodicGrid(nk=4096)
-integration = meanfi.AdaptiveSimplex(nk=4096)
-
-# Accuracy control; omit nk.
 integration = meanfi.PeriodicGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
 ```
 
-Do not combine `nk` with integration targets. The top-level `tol` still controls
-root finding and SCF on a prescribed mesh; integration errors then remain
-unavailable. `nk=4096` means 64² periodic points in 2D or 16³ in 3D, with simplex
-rounding explained in the [integration guide](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html).
+An explicit `nk` fixes the mesh and cannot be combined with integration targets.
+For example, `nk=4096` gives 64² periodic points in 2D. Prescribed meshes do not
+estimate integration error. The solver's `tol` still controls filling and SCF
+convergence. Zero-temperature BdG calculations require an explicit mesh.
 
-`UniformGrid`, `PeriodicQuadrature` and `AdaptiveQuadrature` have been removed.
-To preserve an old `UniformGrid(nk=n)` mesh in dimension `d`, use
-`PeriodicGrid(nk=n**d)`. Prescribed positive-temperature sparse `RationalFOE` uses AAA, sharing poles
-and sparse factorizations between density and entropy. Automatic sparse
-integration requires an explicit grid and never silently selects dense evaluation. See [migration notes](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html#migration).
+Sparse finite-temperature calculations use
+`PeriodicGrid(nk=..., matrix_function=RationalFOE())`. AAA shares poles and sparse
+factorizations between density and entropy; MUMPS supplies selected inverse
+entries. See the [integration guide and migration notes](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html)
+for supported combinations, mesh rounding, and changes from previous APIs.
 
 ## Installation
 
-For a fresh development checkout, use [Pixi](https://pixi.sh/). Pixi creates
-the Python environment and installs the native build tools that MeanFi needs:
+This development revision supports Python 3.11–3.13. Use [Pixi](https://pixi.sh/)
+to install the pinned dependencies and native compiler:
 
 ```bash
-curl -fsSL https://pixi.sh/install.sh | sh
 git clone https://gitlab.kwant-project.org/qt/meanfi.git
 cd meanfi
-pixi install
+pixi install --locked
 pixi run python -c "import meanfi; print(meanfi.__version__)"
 ```
 
-The zero-temperature `AdaptiveSimplex` backend now lives in the separate
-`FermiSimplex` package, which uses `adaptivesimplex` as its generic C++
-mesh engine. MeanFi keeps the public `meanfi.AdaptiveSimplex` API, but the
-native extension is no longer built from this repository. The current
-`FermiSimplex` package vendors `adaptivesimplex`, so a normal Pixi install
-does not require a separate AdaptiveSimplex checkout or CMake install.
+FermiSimplex currently builds from a pinned Git revision; its required API is
+newer than its PyPI release. It includes its own AdaptiveSimplex mesh engine.
+Installing this checkout with `pip install .` also works when Git and a suitable
+C++ compiler are available. See the [development guide](https://meanfi.readthedocs.io/en/latest/development.html)
+for native requirements and the remaining PyPI release prerequisite.
 
-Common development tasks can then be run through Pixi:
+Optional extras are `pip install ".[sparse]"` for MUMPS and
+`pip install ".[kwant]"` for conversion helpers. The `test-sparse` Pixi environment
+supplies both packages and their native libraries. The default dense and
+FermiSimplex paths do not require MUMPS.
 
 ```bash
 pixi run -e test-py312 tests
+pixi run -e test-py312 check-install  # Fresh Python environment and dependencies.
 pixi run -e docs docs-build
 ```
 
-Optional sparse rational evaluation requires MUMPS:
+The [design document](https://gitlab.kwant-project.org/qt/meanfi/-/blob/main/DESIGN.md) describes the code's structure and contracts;
+[AGENTS.md](https://gitlab.kwant-project.org/qt/meanfi/-/blob/main/AGENTS.md) records the coding guidelines.
 
-```bash
-pip install "meanfi[sparse]"
-```
-
-The optional `kwant` conversion helpers use `pip install "meanfi[kwant]"`.
-MUMPS is not required for the default dense periodic or FermiSimplex paths.
-A system MUMPS installation may be needed when installing the sparse extra with
-pip; the `test-sparse` Pixi environment supplies the native dependency.
-
-The test environments pin distinct Python versions: `test-py311`, `test-py312`
-and `test-py313`. `test-sparse` adds MUMPS and Kwant on Python 3.12. Verify built
-and installed distributions with `pixi run -e test-py312 check-wheel` and
-`pixi run -e test-sparse check-wheel-sparse`. These checks run outside the checkout;
-the core check requires both MUMPS and stateful-quadrature to be absent.
-
-## Citing `MeanFi`
-
-If you use `MeanFi` in scientific work, please cite:
+## Citing MeanFi
 
 ```bibtex
 @misc{meanfi,
@@ -159,8 +101,3 @@ If you use `MeanFi` in scientific work, please cite:
   year = {2024}
 }
 ```
-
-See `examples/api_walkthrough.py` for model-based densities,
-reference subtraction, restarts, observables, BdG and sparse calculations.
-Fourier helpers use explicit grid shapes, for example `tb_to_kgrid(h, (32, 64))`;
-SCF integration's `nk` continues to mean a total point request.

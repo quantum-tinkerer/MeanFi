@@ -31,12 +31,6 @@ def charge_diagonal(ndof: int) -> np.ndarray:
     return np.concatenate([np.ones(ndof), -np.ones(ndof)])
 
 
-def mu_bracket_for_bdg(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
-    bound = _conservative_spectral_bound(hamiltonian)
-    padding = max(1.0, 10.0 * kT)
-    return -float(bound + padding), float(bound + padding)
-
-
 def mu_bracket(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
     """Return a conservative chemical-potential bracket."""
 

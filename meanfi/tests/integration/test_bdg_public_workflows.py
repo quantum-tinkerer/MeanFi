@@ -8,14 +8,9 @@ from meanfi import (
     PeriodicGrid,
     solver,
 )
-from meanfi.density.integrate.simplex import _ZERO_TEMP_EXT_AVAILABLE
 from meanfi.tests.fixtures.models import spinful_chain
 
 pytestmark = pytest.mark.integration
-requires_ext = pytest.mark.skipif(
-    not _ZERO_TEMP_EXT_AVAILABLE,
-    reason="compiled zero-temperature extension is unavailable",
-)
 
 
 def test_superconducting_model_uses_electron_first_bdg_embedding():
