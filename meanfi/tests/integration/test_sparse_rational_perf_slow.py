@@ -6,7 +6,7 @@ import scipy.sparse as sp
 from meanfi import (
     DirectDiagonalization,
     RationalFOE,
-    PeriodicGrid,
+    UniformGrid,
     density_matrix,
     density_matrix_at_mu,
 )
@@ -25,7 +25,7 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
         filling=1.0,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=DirectDiagonalization(),
         ),
@@ -38,7 +38,7 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
         filling=1.0,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=RationalFOE(initial_poles=4, max_poles=64),
         ),
@@ -67,7 +67,7 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
         mu=0.05,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=DirectDiagonalization(),
         ),
@@ -78,7 +78,7 @@ def test_sparse_rational_fixed_mu_matches_dense_reference():
         mu=0.05,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=RationalFOE(initial_poles=4, max_poles=64),
         ),

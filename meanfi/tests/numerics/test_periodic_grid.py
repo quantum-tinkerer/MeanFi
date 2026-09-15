@@ -6,7 +6,7 @@ from numpy.testing import assert_allclose
 from scipy.optimize import brentq
 from scipy.special import expit
 
-from meanfi import DirectDiagonalization, PeriodicGrid, RationalFOE
+from meanfi import DirectDiagonalization, UniformGrid, RationalFOE
 from meanfi.density.kpoint.matrix_functions import resolve_periodic_matrix_function
 from meanfi.density.problem import build_density_problem
 from meanfi.density.density import evaluate_density
@@ -37,7 +37,7 @@ def evaluate(hamiltonian=None, *, integration=None, **kwargs):
         kT=kwargs.pop("kT", 0.2),
         keys=kwargs.pop("keys", [(0,), (1,)]),
         density_coordinates=kwargs.pop("density_coordinates", None),
-        integration=PeriodicGrid() if integration is None else integration,
+        integration=UniformGrid() if integration is None else integration,
         tolerances=tolerances,
         electron_ndof=electron_ndof,
     )
@@ -51,7 +51,7 @@ def evaluate(hamiltonian=None, *, integration=None, **kwargs):
 def test_nk_is_total_and_fixed_has_no_validation(dimension, nk, shape):
     key = (0,) * dimension
     result = evaluate(
-        {key: np.array([[0.3]])}, keys=[key], integration=PeriodicGrid(nk=nk), mu=0.1
+        {key: np.array([[0.3]])}, keys=[key], integration=UniformGrid(nk=nk), mu=0.1
     )
     info = result.statistics
     assert info.requested_nk == nk
@@ -67,7 +67,7 @@ def test_nk_is_total_and_fixed_has_no_validation(dimension, nk, shape):
 
 def test_fixed_grid_matches_independent_fourier_sum():
     n, mu, temperature = 29, 0.31, 0.17
-    result = evaluate(integration=PeriodicGrid(nk=n), kT=temperature, mu=mu)
+    result = evaluate(integration=UniformGrid(nk=n), kT=temperature, mu=mu)
     k = 2 * np.pi * np.arange(n) / n
     occupations = expit((mu - 2 * np.cos(k)) / temperature)
     assert_allclose(
@@ -90,7 +90,7 @@ def test_adaptive_fixed_filling_matches_dense_reference():
     result = evaluate(
         kT=temperature,
         filling=filling,
-        integration=PeriodicGrid(density_matrix_tol=1e-8, charge_tol=1e-8),
+        integration=UniformGrid(density_matrix_tol=1e-8, charge_tol=1e-8),
         filling_tol=1e-10,
     )
     assert_allclose(result.mu, expected_mu, atol=2e-9)
@@ -109,7 +109,7 @@ def test_shifted_grid_rejects_nested_alias(harmonic):
             wire(harmonic),
             keys=[(0,)],
             mu=0.3,
-            integration=PeriodicGrid(max_refinements=1),
+            integration=UniformGrid(max_refinements=1),
         )
     result = evaluate(wire(harmonic), keys=[(0,)], mu=0.3)
     k = 2 * np.pi * np.arange(32768) / 32768
@@ -144,7 +144,7 @@ def test_batches_bound_transient_eigensystems(monkeypatch):
         return original(matrices)
 
     monkeypatch.setattr(np.linalg, "eigh", record)
-    evaluate(integration=PeriodicGrid(nk=7, batch_size=3), mu=0.13)
+    evaluate(integration=UniformGrid(nk=7, batch_size=3), mu=0.13)
     assert sizes == [3, 3, 1]
 
 
@@ -152,7 +152,7 @@ def test_full_and_selected_entries_agree_with_direct_reference():
     onsite = np.array([[0.4, 0.3j], [-0.3j, -0.2]])
     hopping = np.array([[0.7, 0.1], [0.2, -0.4]])
     hamiltonian = {(0,): onsite, (1,): hopping, (-1,): hopping.T}
-    integration = PeriodicGrid(nk=31)
+    integration = UniformGrid(nk=31)
     coords = DensityCoordinates.from_entries(
         size=2,
         keys=[(0,), (1,)],
@@ -189,7 +189,7 @@ def test_bdg_recomputes_mu_dependent_spectrum_and_matches_reference(monkeypatch)
         hamiltonian,
         keys=[(0,)],
         filling=0.3,
-        integration=PeriodicGrid(nk=5),
+        integration=UniformGrid(nk=5),
         q_diag=np.array([1.0, -1.0]),
         trace_weights_diag=np.array([1.0, 0.0]),
         filling_tol=1e-10,
@@ -225,16 +225,16 @@ def test_adaptive_bdg_fixed_mu():
         mu=0.17,
     )
     adaptive = evaluate(hamiltonian, **kwargs)
-    reference = evaluate(hamiltonian, integration=PeriodicGrid(nk=16384), **kwargs)
+    reference = evaluate(hamiltonian, integration=UniformGrid(nk=16384), **kwargs)
     assert_allclose(adaptive.values, reference.values, atol=2e-6)
     assert adaptive.statistics.validation_evaluations > 0
 
 
 def test_zero_temperature_fixed_grid_and_unattainable_filling():
-    fixed = evaluate(kT=0, integration=PeriodicGrid(nk=16), mu=0.2)
+    fixed = evaluate(kT=0, integration=UniformGrid(nk=16), mu=0.2)
     assert fixed.errors.density_matrix_integration is None
     with pytest.raises(RuntimeError, match="Chemical-potential solve failed"):
-        evaluate(kT=0, integration=PeriodicGrid(nk=8), filling=0.37)
+        evaluate(kT=0, integration=UniformGrid(nk=8), filling=0.37)
     with pytest.raises(ValueError, match="requires explicit nk"):
         evaluate(kT=0, mu=0)
 
@@ -242,9 +242,9 @@ def test_zero_temperature_fixed_grid_and_unattainable_filling():
 @pytest.mark.parametrize(
     "integration,message",
     [
-        (PeriodicGrid(nk=17, max_points=16), "total-grid-size"),
-        (PeriodicGrid(nk=9, max_spectrum_bytes=64), "spectrum-storage"),
-        (PeriodicGrid(max_spectrum_bytes=80), "spectrum-storage"),
+        (UniformGrid(nk=17, max_points=16), "total-grid-size"),
+        (UniformGrid(nk=9, max_spectrum_bytes=64), "spectrum-storage"),
+        (UniformGrid(max_spectrum_bytes=80), "spectrum-storage"),
     ],
 )
 def test_grid_and_spectrum_limits(integration, message):
@@ -289,7 +289,7 @@ def test_charge_derivative_matches_finite_difference_on_retained_grid():
     evaluator = _Evaluator(
         wire(),
         kT=0.2,
-        integration=PeriodicGrid(nk=32, matrix_function=DirectDiagonalization()),
+        integration=UniformGrid(nk=32, matrix_function=DirectDiagonalization()),
         coordinates=full_density_coordinates([(0,)], size=1),
         q_diag=None,
         trace_weights=np.ones(1),
@@ -310,7 +310,7 @@ def test_normal_root_cost_does_not_grow_with_repeated_identical_points():
         result = evaluate(
             {(0,): np.array([[0.3]])},
             keys=[(0,)],
-            integration=PeriodicGrid(nk=n),
+            integration=UniformGrid(nk=n),
             filling=0.37,
             filling_tol=1e-10,
         )
@@ -332,7 +332,7 @@ def test_shifted_grid_rejects_diagonal_multidimensional_alias():
             hamiltonian,
             keys=[(0, 0)],
             mu=0.3,
-            integration=PeriodicGrid(max_refinements=1),
+            integration=UniformGrid(max_refinements=1),
         )
 
 
@@ -367,8 +367,8 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
 
     monkeypatch.setattr(prepared, "_aaa_terms_for_interval", fit)
     monkeypatch.setattr(periodic, "PreparedMumpsRationalNode", node)
-    sparse_method = PeriodicGrid(nk=8, matrix_function=RationalFOE())
-    dense_method = PeriodicGrid(nk=8, matrix_function=DirectDiagonalization())
+    sparse_method = UniformGrid(nk=8, matrix_function=RationalFOE())
+    dense_method = UniformGrid(nk=8, matrix_function=DirectDiagonalization())
     for mu in (0.1, 0.5):
         result = evaluate(hamiltonian, integration=sparse_method, mu=mu, **kwargs)
         reference = evaluate(hamiltonian, integration=dense_method, mu=mu, **kwargs)
@@ -396,7 +396,7 @@ def test_sparse_aaa_reuses_one_scalar_fit_and_preserves_mu_dependence(monkeypatc
 @pytest.mark.parametrize("temperature", [np.nan, np.inf, -0.1])
 def test_periodic_rejects_invalid_temperature(temperature):
     with pytest.raises(ValueError, match="finite non-negative temperatures"):
-        evaluate(kT=temperature, integration=PeriodicGrid(nk=4), mu=0.1)
+        evaluate(kT=temperature, integration=UniformGrid(nk=4), mu=0.1)
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -411,7 +411,7 @@ def test_explicit_filling_tolerance_controls_sparse_pointwise_accuracy():
         filling=1.0,
         filling_tol=1e-6,
         tolerances=default_solver_tolerances(1e-3),
-        integration=PeriodicGrid(nk=2),
+        integration=UniformGrid(nk=2),
         q_diag=np.array([1.0, 1.0, -1.0, -1.0]),
         trace_weights_diag=np.array([1.0, 1.0, 0.0, 0.0]),
     )

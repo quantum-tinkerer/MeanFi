@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    PeriodicGrid,
-    AdaptiveSimplex,
+    UniformGrid,
+    FermiSimplex,
     EnergyDIIS,
     ErrorTolerances,
     Model,
@@ -46,7 +46,7 @@ def test_default_zero_temperature_adaptive_solver_reports_energy():
     result = solver(
         _zero_dimensional_model(),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=AdaptiveSimplex(density_matrix_tol=1e-6),
+        integration=FermiSimplex(density_matrix_tol=1e-6),
         scf_tol=1e-7,
     )
 
@@ -60,7 +60,7 @@ def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
     result = solver(
         _zero_dimensional_model(),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=AdaptiveSimplex(density_matrix_tol=1e-6),
+        integration=FermiSimplex(density_matrix_tol=1e-6),
         scf=EnergyDIIS(),
         scf_tol=1e-7,
     )
@@ -107,7 +107,7 @@ def test_finite_temperature_default_reports_free_energy():
     result = solver(
         _zero_dimensional_model(kT=0.2),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=PeriodicGrid(density_matrix_tol=1e-8),
+        integration=UniformGrid(density_matrix_tol=1e-8),
         scf_tol=1e-7,
     )
 
@@ -122,7 +122,7 @@ def test_energy_diis_supports_periodic_integration():
     result = solver(
         _zero_dimensional_model(kT=0.2),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=PeriodicGrid(),
+        integration=UniformGrid(),
         scf=EnergyDIIS(),
     )
     assert result.converged
@@ -145,7 +145,7 @@ def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():
     result = solver(
         model,
         {(0,): np.diag([0.2, -0.2]).astype(complex)},
-        integration=AdaptiveSimplex(
+        integration=FermiSimplex(
             density_matrix_tol=2e-3,
             max_refinements=500,
         ),
@@ -198,7 +198,7 @@ def test_scf_interaction_functional_matches_exact_two_orbital_energy(kind):
             model.hamiltonian_from_meanfield(),
             kT=model.kT,
             keys=[()],
-            integration=PeriodicGrid(nk=1),
+            integration=UniformGrid(nk=1),
             tolerances=default_solver_tolerances(1e-10),
             density_coordinates=model.scf_space.required_coordinates,
             electron_ndof=2 if model.superconducting else None,

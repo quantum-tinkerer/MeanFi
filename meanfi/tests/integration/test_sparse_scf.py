@@ -11,7 +11,7 @@ from meanfi import (
     ErrorValues,
     LinearMixing,
     Model,
-    PeriodicGrid,
+    UniformGrid,
     expectation_value,
     density_matrix,
     add_tb,
@@ -96,7 +96,7 @@ def test_sparse_and_dense_scf_agree(superconducting):
         result = solver(
             model,
             model.random_meanfield(rng=12, scale=0.03),
-            integration=PeriodicGrid(nk=32, matrix_function=DirectDiagonalization()),
+            integration=UniformGrid(nk=32, matrix_function=DirectDiagonalization()),
             scf=LinearMixing(alpha=0.7, max_iterations=100),
             scf_tol=1e-8,
             filling_tol=1e-10,

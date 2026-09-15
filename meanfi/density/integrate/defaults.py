@@ -5,7 +5,7 @@ import math
 from meanfi.tb.ops import is_sparse_like, _tb_type
 
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization
-from .methods import PeriodicGrid, AdaptiveSimplex, IntegrationMethod
+from .methods import UniformGrid, FermiSimplex, IntegrationMethod
 
 
 DEFAULT_KT = 0.0
@@ -30,19 +30,19 @@ def select_default_integration(
         if superconducting:
             raise NotImplementedError(
                 "Zero-temperature superconducting calculations require an explicit "
-                "PeriodicGrid(nk=...) integration setting."
+                "UniformGrid(nk=...) integration setting."
             )
-        return AdaptiveSimplex()
+        return FermiSimplex()
 
     if uses_sparse_matrices(hamiltonian):
         raise ValueError(
             "Automatic finite-temperature sparse integration is no longer supported. "
-            "Use PeriodicGrid(nk=..., matrix_function=RationalFOE()) for a prescribed "
-            "sparse mesh, or explicitly select PeriodicGrid(matrix_function="
+            "Use UniformGrid(nk=..., matrix_function=RationalFOE()) for a prescribed "
+            "sparse mesh, or explicitly select UniformGrid(matrix_function="
             "DirectDiagonalization()) if dense diagonalization fits in memory."
         )
 
-    return PeriodicGrid(
+    return UniformGrid(
         matrix_function=DirectDiagonalization(),
     )
 

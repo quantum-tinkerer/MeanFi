@@ -20,8 +20,8 @@ except ImportError:
 from .results import DensityEntries, DensityResult, SCFIteration, SCFResult
 from .density.api import density_matrix, density_matrix_at_mu
 from .density.integrate.methods import (
-    AdaptiveSimplex,
-    PeriodicGrid,
+    FermiSimplex,
+    UniformGrid,
 )
 from .density.kpoint.matrix_functions import (
     DirectDiagonalization,
@@ -48,7 +48,7 @@ from .tb import (
 
 
 __all__ = [
-    "AdaptiveSimplex",
+    "FermiSimplex",
     "AndersonMixing",
     "EnergyDIIS",
     "ConvergenceError",
@@ -67,7 +67,7 @@ __all__ = [
     "SolverError",
     "SolverFailure",
     "SpatialSymmetry",
-    "PeriodicGrid",
+    "UniformGrid",
     "__version__",
     "__version_tuple__",
     "add_tb",

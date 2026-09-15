@@ -3,9 +3,9 @@
 import numpy as np
 
 from meanfi.density.integrate.methods import (
-    AdaptiveSimplex,
+    FermiSimplex,
     IntegrationMethod,
-    PeriodicGrid,
+    UniformGrid,
 )
 
 
@@ -14,12 +14,12 @@ def validate_integration_method(integration: IntegrationMethod, *, kT: float) ->
         raise ValueError(
             "meanfi supports only finite non-negative temperatures (kT >= 0)"
         )
-    if isinstance(integration, AdaptiveSimplex):
+    if isinstance(integration, FermiSimplex):
         if kT != 0:
-            raise ValueError("AdaptiveSimplex requires kT == 0")
+            raise ValueError("FermiSimplex requires kT == 0")
         return
-    if isinstance(integration, PeriodicGrid):
+    if isinstance(integration, UniformGrid):
         if kT == 0 and integration.nk is None:
-            raise ValueError("Zero-temperature PeriodicGrid requires explicit nk")
+            raise ValueError("Zero-temperature UniformGrid requires explicit nk")
         return
     raise TypeError("integration must be an IntegrationMethod instance")

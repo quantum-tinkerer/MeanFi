@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 from scipy.sparse import csr_array
 
-from meanfi import PeriodicGrid, DirectDiagonalization, Model, RationalFOE
+from meanfi import UniformGrid, DirectDiagonalization, Model, RationalFOE
 from meanfi import density_matrix
 from meanfi.tb.bdg import assemble_bdg_tb
 from performance._shared.fixtures import benchmark
@@ -58,7 +58,7 @@ def main() -> None:
         model,
         mean_field=meanfield,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=args.nk,
             matrix_function=DirectDiagonalization(),
         ),
@@ -81,7 +81,7 @@ def main() -> None:
 
     records = []
     for label, matrix_function in configurations:
-        integration = PeriodicGrid(
+        integration = UniformGrid(
             nk=args.nk,
             matrix_function=matrix_function,
         )

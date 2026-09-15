@@ -4,16 +4,16 @@ When `integration=None`, MeanFi uses:
 
 | System | Default |
 | --- | --- |
-| Dense normal, `kT=0` | `AdaptiveSimplex()` |
-| Dense normal or BdG, `kT>0` | `PeriodicGrid()` with direct diagonalization and global refinement |
-| BdG, `kT=0` | Explicit `PeriodicGrid(nk=...)` required |
+| Dense normal, `kT=0` | `FermiSimplex()` |
+| Dense normal or BdG, `kT>0` | `UniformGrid()` with direct diagonalization and global refinement |
+| BdG, `kT=0` | Explicit `UniformGrid(nk=...)` required |
 | Sparse, automatic finite-temperature selection | Error with migration guidance; choose an explicit supported method |
 
 | Family and mode | Normal, `kT=0` | BdG, `kT=0` | Normal/BdG, `kT>0` |
 | --- | --- | --- | --- |
-| `AdaptiveSimplex`, prescribed or accuracy-controlled | Yes | No | No |
-| `PeriodicGrid(nk=...)` | Yes | Yes | Yes |
-| `PeriodicGrid()` or explicit integration targets | No | No | Yes |
+| `FermiSimplex`, prescribed or accuracy-controlled | Yes | No | No |
+| `UniformGrid(nk=...)` | Yes | Yes | Yes |
+| `UniformGrid()` or explicit integration targets | No | No | Yes |
 
 Direct diagonalization is the main periodic path. Fixed periodic grids also
 support explicit `RationalFOE` for sparse matrices at positive temperature. No adaptive rational path

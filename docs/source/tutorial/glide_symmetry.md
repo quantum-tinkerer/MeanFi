@@ -149,7 +149,7 @@ It computes the required entries above, compresses them to reduced SCF parameter
 Now solve the same interacting problem twice: once with no symmetry constraint and once with the glide constraint.
 
 ```{code-cell} ipython3
-integration = meanfi.PeriodicGrid(nk=9)
+integration = meanfi.UniformGrid(nk=9)
 
 free_result = meanfi.solver(
     model_free,

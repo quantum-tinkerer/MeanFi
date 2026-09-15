@@ -42,7 +42,7 @@ They also affect which matrix-function strategies are practical:
 - sparse finite-temperature problems require an explicit supported configuration,
 - rational evaluation supports sparse inputs only.
 
-Explicit `RationalFOE` is supported for sparse matrices with `PeriodicGrid(nk=...)`
+Explicit `RationalFOE` is supported for sparse matrices with `UniformGrid(nk=...)`
 at positive temperature. Adaptive rational integration is not supported. Selecting an
 automatic sparse calculation raises migration guidance instead of silently
 allocating dense matrices.

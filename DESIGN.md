@@ -43,9 +43,9 @@ For each momentum, occupations are the Fermi function of `H(k) - mu Q`, with
 searches use a bracket and verify the charge residual; a small change in chemical
 potential alone does not establish convergence.
 
-Normal zero-temperature calculations use FermiSimplex. Periodic integration
-uses direct diagonalization or, for prescribed sparse positive-temperature
-calculations, AAA and MUMPS selected inversion. Adaptive periodic calculations
+Normal zero-temperature calculations use `FermiSimplex`. `UniformGrid`
+integration uses direct diagonalization or, for prescribed sparse calculations
+at positive temperature, AAA and MUMPS selected inversion. Adaptive periodic calculations
 compare nested and shifted grids. Prescribed meshes do not estimate integration
 error. Sampled rational and integration checks are empirical accuracy checks,
 not rigorous bounds between sample points.
@@ -74,6 +74,13 @@ are per cell per physical orbital; a 2N-dimensional BdG Hamiltonian has N
 physical orbitals. Entropy is in units of Boltzmann's constant. Free energy is
 `internal_energy - kT * entropy`. Generic observable contractions remain raw
 traces. Interaction double counting and BdG normal ordering are applied once.
+
+Normal reference subtraction uses `delta = rho - reference` in both the
+Hartree/Fock correction and quadratic interaction energy. The energy per orbital
+is `(Tr(h_0 rho) + Tr(W[delta] delta)/2)/N`; differentiating the total
+energy `N * U` gives the effective Hamiltonian. The reference's one-body energy is not removed, and entropy belongs
+to the actual state. This defines a modified model, not an energy difference
+from the reference. Superconducting references are not implemented.
 
 Density accuracy controls the calculation. Filling and SCF have their own
 residual checks. Energy and entropy are computed on the accepted density mesh;

@@ -1,6 +1,6 @@
-# `AdaptiveSimplex`
+# `FermiSimplex`
 
-`AdaptiveSimplex` is MeanFi's main integration method for normal systems at zero
+`FermiSimplex` is MeanFi's main integration method for normal systems at zero
 temperature. [FermiSimplex](https://gitlab.kwant-project.org/qt/lineartetrahedron)
 provides the native physics integration; its generic mesh engine is
 [adaptivesimplex](https://gitlab.kwant-project.org/qt/adaptivesimplex).
@@ -15,7 +15,7 @@ Density and charge tolerances are separate integration targets.
 
 ## Prescribed mesh
 
-`AdaptiveSimplex(nk=N)` uses the native `SpectralMesh(root_level=L)` constructor.
+`FermiSimplex(nk=N)` uses the native `SpectralMesh(root_level=L)` constructor.
 It chooses the smallest nonnegative `L` whose node count
 `(2**L + 1)**dimension` reaches `N`. Both reduced-coordinate boundary nodes `0`
 and `1` are counted, even though they are periodically equivalent. Native mesh

@@ -33,7 +33,7 @@ if __name__ == "__main__":
     solution = meanfi.solver(
         model,
         guess,
-        integration=meanfi.AdaptiveSimplex(density_matrix_tol=1e-6),
+        integration=meanfi.FermiSimplex(density_matrix_tol=1e-6),
         scf=meanfi.LinearMixing(max_iterations=80),
         scf_tol=1e-6,
     )

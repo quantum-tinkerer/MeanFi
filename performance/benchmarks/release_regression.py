@@ -119,7 +119,9 @@ def evaluate(model, mf):
         batch_size=128,
         matrix_function=meanfi.DirectDiagonalization(),
     )
-    if hasattr(meanfi, "PeriodicGrid"):
+    if hasattr(meanfi, "UniformGrid"):
+        integration = meanfi.UniformGrid(**settings)
+    elif hasattr(meanfi, "PeriodicGrid"):
         integration = meanfi.PeriodicGrid(**settings)
     else:
         integration = meanfi.PeriodicQuadrature(**settings)

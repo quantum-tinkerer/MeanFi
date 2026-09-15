@@ -38,14 +38,14 @@ explain the physics and numerical methods.
 
 ## Integration
 
-Normal zero-temperature calculations default to `AdaptiveSimplex()`, backed by
-FermiSimplex. Dense finite-temperature calculations default to `PeriodicGrid()` with
+Normal zero-temperature calculations default to `FermiSimplex()`, backed by
+FermiSimplex. Dense finite-temperature calculations default to `UniformGrid()` with
 direct diagonalization, automatic refinement, and shifted-grid validation.
 
 ```python
 # Choose a total point count or request accuracy-controlled integration.
-integration = meanfi.PeriodicGrid(nk=4096)
-integration = meanfi.PeriodicGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
+integration = meanfi.UniformGrid(nk=4096)
+integration = meanfi.UniformGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
 ```
 
 An explicit `nk` fixes the mesh and cannot be combined with integration targets.
@@ -54,7 +54,7 @@ estimate integration error. The solver's `tol` still controls filling and SCF
 convergence. Zero-temperature BdG calculations require an explicit mesh.
 
 Sparse finite-temperature calculations use
-`PeriodicGrid(nk=..., matrix_function=RationalFOE())`. AAA shares poles and sparse
+`UniformGrid(nk=..., matrix_function=RationalFOE())`. AAA shares poles and sparse
 factorizations between density and entropy; MUMPS supplies selected inverse
 entries. See the [integration guide and migration notes](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html)
 for supported combinations, mesh rounding, and changes from previous APIs.

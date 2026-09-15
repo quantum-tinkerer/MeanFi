@@ -3,7 +3,7 @@ import pytest
 import scipy.sparse as sp
 
 from meanfi import (
-    PeriodicGrid,
+    UniformGrid,
     density_matrix,
 )
 from meanfi.density.filling import mu_bracket, solve_mu
@@ -94,7 +94,7 @@ def test_explicit_density_tolerance_sets_charge_but_preserves_filling_residual()
     from meanfi.errors import resolve_integration_tolerances, default_solver_tolerances
 
     tolerances = resolve_integration_tolerances(
-        PeriodicGrid(density_matrix_tol=1e-8), default_solver_tolerances(1e-3)
+        UniformGrid(density_matrix_tol=1e-8), default_solver_tolerances(1e-3)
     )
     assert tolerances.charge_integration == pytest.approx(1e-8)
     assert tolerances.filling_residual == pytest.approx(1e-4)
@@ -106,7 +106,7 @@ def test_periodic_grid_accepts_finite_temperature_fixed_filling_controls():
         filling=1.0,
         kT=0.15,
         keys=[(0,)],
-        integration=PeriodicGrid(nk=8),
+        integration=UniformGrid(nk=8),
         filling_tol=1e-2,
         mu_tol=1e-8,
         max_charge_evaluations=80,
@@ -122,7 +122,7 @@ def test_periodic_grid_accepts_zero_temperature_fixed_filling_controls():
         filling=1.0,
         kT=0.0,
         keys=[(0,)],
-        integration=PeriodicGrid(nk=10),
+        integration=UniformGrid(nk=10),
     )
 
     assert np.isfinite(result.mu)
@@ -130,7 +130,7 @@ def test_periodic_grid_accepts_zero_temperature_fixed_filling_controls():
 
 
 def test_periodic_grid_default_filling_tol_matches_explicit_default():
-    integration = PeriodicGrid(
+    integration = UniformGrid(
         nk=8,
     )
     explicit_tol = 1e-4
@@ -165,5 +165,5 @@ def test_prescribed_zero_temperature_mesh_rejects_unrepresentable_filling():
             filling=1.0,
             kT=0.0,
             keys=[(0,)],
-            integration=PeriodicGrid(nk=9),
+            integration=UniformGrid(nk=9),
         )

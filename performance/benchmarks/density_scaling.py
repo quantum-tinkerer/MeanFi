@@ -4,7 +4,7 @@ import argparse
 from dataclasses import replace
 from typing import NamedTuple
 
-from meanfi import AdaptiveSimplex, PeriodicGrid, density_matrix_at_mu
+from meanfi import FermiSimplex, UniformGrid, density_matrix_at_mu
 from performance._shared.fixtures import (
     benchmark,
     converged_dense_reference,
@@ -34,8 +34,8 @@ QUICK_COMPARISON_NDOF_VALUES = (4, 8, 16, 32, 48)
 QUICK_FIXED_DENSITY_ERRORS = (1e-2, 5e-3)
 
 _METHOD_LABELS = {
-    "adaptive_simplex": "AdaptiveSimplex",
-    "periodic_grid": "PeriodicGrid",
+    "adaptive_simplex": "FermiSimplex",
+    "periodic_grid": "UniformGrid",
 }
 
 
@@ -67,15 +67,15 @@ def _bytes_to_mib(value: int | float) -> float:
     return float(value) / (1024.0**2)
 
 
-def _integration_expr(integration: AdaptiveSimplex | PeriodicGrid) -> str:
-    if isinstance(integration, AdaptiveSimplex):
+def _integration_expr(integration: FermiSimplex | UniformGrid) -> str:
+    if isinstance(integration, FermiSimplex):
         return (
-            "AdaptiveSimplex("
+            "FermiSimplex("
             f"density_matrix_tol={integration.density_matrix_tol!r}, "
             f"max_refinements={integration.max_refinements!r})"
         )
-    if isinstance(integration, PeriodicGrid):
-        return f"PeriodicGrid(nk={integration.nk!r})"
+    if isinstance(integration, UniformGrid):
+        return f"UniformGrid(nk={integration.nk!r})"
     raise TypeError(
         f"Unsupported integration method for RSS measurement: {type(integration)!r}"
     )
@@ -87,10 +87,10 @@ def _peak_density_rss_bytes(
     mu: float,
     kT: float,
     keys,
-    integration: AdaptiveSimplex | PeriodicGrid,
+    integration: FermiSimplex | UniformGrid,
 ) -> int | None:
     body = f"""
-from meanfi import AdaptiveSimplex, PeriodicGrid, density_matrix_at_mu
+from meanfi import FermiSimplex, UniformGrid, density_matrix_at_mu
 from performance._shared.scenarios import block_chain_model
 
 tb = block_chain_model({ndof!r})
@@ -113,7 +113,7 @@ def _density_measurement(
     mu: float,
     kT: float,
     keys,
-    integration: AdaptiveSimplex | PeriodicGrid,
+    integration: FermiSimplex | UniformGrid,
     repeat: int,
     warmup: int,
 ):
@@ -188,7 +188,7 @@ def _dense_reference_with_backoff(
 
 def _density_record(
     *,
-    integration: AdaptiveSimplex | PeriodicGrid,
+    integration: FermiSimplex | UniformGrid,
     ndof: int,
     control_name: str,
     control_value: float | int,
@@ -243,7 +243,7 @@ def _zero_temperature_records(
         )
 
         for density_matrix_tol in _adaptive_simplex_tolerances(ndof):
-            integration = AdaptiveSimplex(
+            integration = FermiSimplex(
                 density_matrix_tol=density_matrix_tol,
                 max_refinements=None,
             )
@@ -273,7 +273,7 @@ def _zero_temperature_records(
             )
 
         for nk in profile.periodic_grid_nks:
-            integration = PeriodicGrid(nk=nk)
+            integration = UniformGrid(nk=nk)
             measurement, result = _density_measurement(
                 tb,
                 mu=mu,

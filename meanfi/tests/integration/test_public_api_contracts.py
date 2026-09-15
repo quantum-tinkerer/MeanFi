@@ -7,11 +7,11 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveSimplex,
+    FermiSimplex,
     DensityResult,
     DirectDiagonalization,
     Model,
-    PeriodicGrid,
+    UniformGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
@@ -86,7 +86,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert list(internal_energy_params) == ["model", "density_matrix"]
     assert meanfi.internal_energy is internal_energy
 
-    for method in (AdaptiveSimplex, PeriodicGrid, PeriodicGrid):
+    for method in (FermiSimplex, UniformGrid):
         params = inspect.signature(method).parameters
         assert params["charge_tol"].default is None
         assert params["density_matrix_tol"].default is None
@@ -108,7 +108,7 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
 
     model = Model(**_base_model_kwargs())
     guess = {(0,): np.zeros((2, 2))}
-    integration = PeriodicGrid(density_matrix_tol=5.4e-4)
+    integration = UniformGrid(density_matrix_tol=5.4e-4)
 
     result = solver(model, guess, integration=integration)
 
@@ -144,7 +144,10 @@ def test_removed_shim_modules_are_no_longer_importable(module_name):
 def test_top_level_exports_only_supported_diagonalization_names():
     assert DirectDiagonalization.__name__ == "DirectDiagonalization"
     assert not hasattr(meanfi, "AdaptiveQuadrature")
-    assert not hasattr(meanfi, "UniformGrid")
+    assert meanfi.FermiSimplex is FermiSimplex
+    assert meanfi.UniformGrid is UniformGrid
+    assert not hasattr(meanfi, "AdaptiveSimplex")
+    assert not hasattr(meanfi, "PeriodicGrid")
     assert not hasattr(meanfi, "PeriodicQuadrature")
     assert not hasattr(meanfi, "ExactDiagonalization")
     assert not hasattr(meanfi, "ChebyshevFOE")
@@ -194,7 +197,7 @@ def test_density_result_exposes_physical_values_errors_and_mesh_statistics():
         filling=1.0,
         kT=0.2,
         keys=[()],
-        integration=PeriodicGrid(),
+        integration=UniformGrid(),
     )
 
     assert isinstance(result, DensityResult)
@@ -369,7 +372,7 @@ def test_model_density_api_matches_full_blocks_at_filling_and_mu(superconducting
 
 def test_initial_integration_failure_has_the_public_solver_exception():
     model = Model(spinful_chain(), {(0,): np.zeros((2, 2))}, filling=0.7)
-    integration = AdaptiveSimplex(max_refinements=0, density_matrix_tol=1e-9)
+    integration = FermiSimplex(max_refinements=0, density_matrix_tol=1e-9)
     with pytest.raises(meanfi.ConvergenceError):
         density_matrix(model, integration=integration)
     with pytest.raises(meanfi.SolverFailure) as caught:

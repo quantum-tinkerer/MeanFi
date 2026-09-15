@@ -82,9 +82,9 @@ print("Zero-temperature energy:", cold_solution.internal_energy)
 
 # Integration nk is a TOTAL point request. Explicit nk fixes the mesh;
 # omitting it refines to the requested accuracy at positive temperature.
-fixed = mf.density_matrix(model, integration=mf.PeriodicGrid(nk=64))
+fixed = mf.density_matrix(model, integration=mf.UniformGrid(nk=64))
 controlled = mf.density_matrix(
-    model, integration=mf.PeriodicGrid(dtype="complex128"), tol=1e-5
+    model, integration=mf.UniformGrid(dtype="complex128"), tol=1e-5
 )
 assert fixed.entry_errors is None
 assert controlled.entry_errors is not None
@@ -96,7 +96,7 @@ try:
     mf.solver(
         model,
         guess,
-        integration=mf.PeriodicGrid(nk=64),
+        integration=mf.UniformGrid(nk=64),
         scf=mf.LinearMixing(alpha=0.1, max_iterations=1),
         scf_tol=1e-14,
     )
@@ -147,7 +147,7 @@ pair_guess = {
 bdg = mf.solver(
     pwave,
     pair_guess,
-    integration=mf.PeriodicGrid(nk=256),
+    integration=mf.UniformGrid(nk=256),
     tol=1e-5,
     scf=mf.EnergyDIIS(max_iterations=200),
 )
@@ -155,7 +155,7 @@ bdg_density = mf.density_matrix(
     pwave,
     mean_field=bdg.mean_field,
     keys=[(0,), (1,), (-1,)],
-    integration=mf.PeriodicGrid(nk=256),
+    integration=mf.UniformGrid(nk=256),
     tol=1e-6,
 )
 bdg_h = pwave.hamiltonian_from_meanfield(bdg.mean_field)
@@ -185,7 +185,7 @@ if args.sparse:
         filling=0.8,
         kT=0.2,
     )
-    sparse_grid = mf.PeriodicGrid(nk=64, matrix_function=mf.RationalFOE())
+    sparse_grid = mf.UniformGrid(nk=64, matrix_function=mf.RationalFOE())
     sparse_density = mf.density_matrix(sparse_model, integration=sparse_grid, tol=1e-5)
     print(
         "Sparse AAA:", sparse_density.mu, sparse_density.filling, sparse_density.entropy

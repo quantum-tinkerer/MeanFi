@@ -6,10 +6,10 @@ import pytest
 from meanfi.density.problem import build_density_problem
 
 from meanfi import (
-    AdaptiveSimplex,
+    FermiSimplex,
     ErrorTolerances,
     ErrorValues,
-    PeriodicGrid,
+    UniformGrid,
     default_solver_tolerances,
     density_matrix,
 )
@@ -66,7 +66,7 @@ def test_explicit_integration_tolerances_are_effective_internal_requests(
         _two_level_hamiltonian(),
         kT=0.2,
         keys=[()],
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             density_matrix_tol=5e-7,
             charge_tol=charge_tolerance,
         ),
@@ -87,7 +87,7 @@ def test_unavailable_periodic_grid_estimators_are_none():
         filling=1.0,
         kT=0.2,
         keys=[()],
-        integration=PeriodicGrid(nk=8),
+        integration=UniformGrid(nk=8),
         tol=1e-3,
     )
 
@@ -113,7 +113,7 @@ def test_energy_units_do_not_control_density_refinement():
                 mu=scale * 0.27,
                 kT=scale * 0.037,
                 keys=[(0,)],
-                integration=PeriodicGrid(
+                integration=UniformGrid(
                     density_matrix_tol=tolerance, charge_tol=tolerance
                 ),
             )
@@ -150,7 +150,7 @@ def test_energy_units_do_not_control_density_refinement():
     np.testing.assert_allclose(scaled.entropy, base.entropy, atol=1e-12, rtol=0)
 
 
-@pytest.mark.parametrize("method,kT", [(AdaptiveSimplex, 0.0), (PeriodicGrid, 0.2)])
+@pytest.mark.parametrize("method,kT", [(FermiSimplex, 0.0), (UniformGrid, 0.2)])
 def test_explicit_density_target_supplies_omitted_charge_target(method, kT):
     problem = build_density_problem(
         _two_level_hamiltonian(),
@@ -169,7 +169,7 @@ def test_custom_charge_policy_is_retained_without_mesh_overrides():
         _two_level_hamiltonian(),
         kT=0.2,
         keys=[()],
-        integration=PeriodicGrid(),
+        integration=UniformGrid(),
         tolerances=tolerances,
     )
     assert problem.tolerances == tolerances

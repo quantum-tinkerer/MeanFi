@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 
 from meanfi import (
-    PeriodicGrid,
-    AdaptiveSimplex,
+    UniformGrid,
+    FermiSimplex,
     AndersonMixing,
     solver,
 )
@@ -46,7 +46,7 @@ def main() -> None:
             "hubbard_chain_ft_scf",
             ft_model,
             ft_guess,
-            PeriodicGrid(density_matrix_tol=1e-4),
+            UniformGrid(density_matrix_tol=1e-4),
             {
                 "problem_family": "hubbard_chain",
                 "held_constant": "U=2.0,filling=2.0,kT=0.1",
@@ -58,7 +58,7 @@ def main() -> None:
             "hubbard_chain_zt_scf",
             zt_model,
             zt_guess,
-            AdaptiveSimplex(density_matrix_tol=1e-3, max_refinements=600),
+            FermiSimplex(density_matrix_tol=1e-3, max_refinements=600),
             {
                 "problem_family": "hubbard_chain",
                 "held_constant": "U=2.0,filling=2.0,kT=0.0",
@@ -71,7 +71,7 @@ def main() -> None:
             "hubbard_chain_zt_scf",
             zt_model,
             zt_guess,
-            PeriodicGrid(nk=65),
+            UniformGrid(nk=65),
             {
                 "problem_family": "hubbard_chain",
                 "held_constant": "U=2.0,filling=2.0,kT=0.0",

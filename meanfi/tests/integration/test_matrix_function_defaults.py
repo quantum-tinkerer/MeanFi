@@ -1,7 +1,7 @@
 import pytest
 import scipy.sparse as sp
 
-from meanfi import AdaptiveSimplex, DirectDiagonalization, PeriodicGrid, RationalFOE
+from meanfi import FermiSimplex, DirectDiagonalization, UniformGrid, RationalFOE
 from meanfi.density.integrate.defaults import select_default_integration
 from meanfi.density.kpoint.matrix_functions import resolve_periodic_matrix_function
 from meanfi.tests.fixtures.models import spinful_chain
@@ -29,7 +29,7 @@ def test_dense_periodic_defaults_to_direct():
 
 def test_dense_finite_temperature_defaults_to_periodic():
     resolved = select_default_integration(spinful_chain(), kT=0.15)
-    assert isinstance(resolved, PeriodicGrid)
+    assert isinstance(resolved, UniformGrid)
     assert resolved.nk is None
     assert isinstance(resolved.matrix_function, DirectDiagonalization)
 
@@ -57,8 +57,6 @@ def test_adaptive_rational_is_explicitly_unsupported():
 
 
 def test_zero_temperature_defaults():
-    assert isinstance(
-        select_default_integration(spinful_chain(), kT=0), AdaptiveSimplex
-    )
-    with pytest.raises(NotImplementedError, match="PeriodicGrid"):
+    assert isinstance(select_default_integration(spinful_chain(), kT=0), FermiSimplex)
+    with pytest.raises(NotImplementedError, match="UniformGrid"):
         select_default_integration(spinful_chain(), kT=0, superconducting=True)

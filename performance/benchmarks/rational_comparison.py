@@ -608,7 +608,9 @@ def filling_case(case, scheme):
     )
     reference_charge, reference_values, _, _ = reference(mu_reference, True)
     options = rational_options(scheme)
-    integration = meanfi.PeriodicGrid(nk=case.nk, matrix_function=options)
+    # This harness also runs the earlier AAA/Ozaki checkouts.
+    grid = meanfi.UniformGrid if hasattr(meanfi, "UniformGrid") else meanfi.PeriodicGrid
+    integration = grid(nk=case.nk, matrix_function=options)
 
     def evaluate():
         result = meanfi.density_matrix(

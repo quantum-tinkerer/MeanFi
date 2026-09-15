@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveSimplex,
+    FermiSimplex,
     AndersonMixing,
     Model,
-    PeriodicGrid,
+    UniformGrid,
     add_tb,
     density_matrix,
     expectation_value,
@@ -66,7 +66,7 @@ def _sdw_measure(h0, mf, sz):
     rho = density_matrix(
         add_tb(h0, mf),
         filling=2,
-        integration=PeriodicGrid(nk=40**2),
+        integration=UniformGrid(nk=40**2),
         keys=[(0, 0)],
         filling_tol=1e-6,
     ).to_tb()
@@ -107,7 +107,7 @@ def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
                 result = solver(
                     model,
                     _broad_hermitian_correction(h_int, ndof, seed=seed),
-                    integration=AdaptiveSimplex(
+                    integration=FermiSimplex(
                         density_matrix_tol=1e-4,
                     ),
                     scf=AndersonMixing(

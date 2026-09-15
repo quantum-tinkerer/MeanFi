@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- The public integration methods are `FermiSimplex` and `UniformGrid`, replacing
+  the development names `AdaptiveSimplex` and `PeriodicGrid` without aliases.
+  Settings and numerical behavior are unchanged; `nk` still requests total points.
+
 - Integration results keep physical quantities on the result and error estimates
   in `errors`; removed physical values, errors and unused energy counters from
   backend statistics. `band_energy_integration` and `entropy_integration` in
@@ -67,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opposite displacements to retain Hermiticity. Sparse Fourier inputs work.
   `fermi_energy` uses `shape`; `fermi_dirac` uses `mu`.
 - Model construction validates physical inputs and owns read-only dense/CSR
-  copies. `PeriodicGrid.dtype` replaces `workspace_precision`. Explicit and
+  copies. `UniformGrid.dtype` replaces `workspace_precision`. Explicit and
   implicit prescribed sparse RationalFOE now both default to AAA.
 - Numerical density failures raise `ConvergenceError`. SCF exceptions extend it;
   `SolverFailure.result` is None when the initial density evaluation fails.
@@ -103,11 +107,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Density evaluation and SCF share one internal result path, with backend work
   diagnostics available through `DensityResult.statistics`. Redundant planning,
   result and compatibility wrappers were removed.
-- Two integration families: `AdaptiveSimplex` and `PeriodicGrid`. Removed
-  `UniformGrid`, `PeriodicQuadrature`, `AdaptiveQuadrature`, their adapters and
-  the `stateful-quadrature` runtime dependency.
-- `nk` requests the total final mesh size. Convert old per-axis
-  `UniformGrid(nk=n)` to `PeriodicGrid(nk=n**dimension)`. Periodic grids round up
+- Two integration families: `FermiSimplex` and `UniformGrid`. Removed
+  `PeriodicQuadrature`, `AdaptiveQuadrature`, their adapters and the
+  `stateful-quadrature` runtime dependency. The earlier per-axis `UniformGrid`
+  implementation is replaced by the shared periodic evaluator.
+- `nk` requests the total final mesh size. For code using the earlier per-axis
+  grid, replace `nk=n` with `nk=n**dimension`. Periodic grids round up
   to an isotropic tensor mesh; simplex meshes use native dyadic construction and
   count both periodically equivalent boundary nodes.
 - Explicit `nk` selects prescribed-size operation. Omitting it selects accuracy
@@ -115,9 +120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   never change the mode, and top-level `tol` remains valid for roots and SCF.
 - Dense finite-temperature calculations default to direct periodic integration
   with global refinement and mandatory shifted-grid validation. BdG at zero
-  temperature requires `PeriodicGrid(nk=...)`.
+  temperature requires `UniformGrid(nk=...)`.
 - Adaptive rational integration is unsupported. Use an explicit prescribed
-  `PeriodicGrid(nk=..., matrix_function=RationalFOE(...))` for sparse matrices at
+  `UniformGrid(nk=..., matrix_function=RationalFOE(...))` for sparse matrices at
   positive temperature.
   Automatic sparse selection raises migration guidance instead of densifying.
 

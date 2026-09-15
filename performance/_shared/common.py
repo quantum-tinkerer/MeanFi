@@ -8,8 +8,8 @@ from typing import Any
 def canonical_method_name(method: object) -> str:
     name = method.__class__.__name__
     return {
-        "AdaptiveSimplex": "adaptive_simplex",
-        "PeriodicGrid": "periodic_grid",
+        "FermiSimplex": "adaptive_simplex",
+        "UniformGrid": "periodic_grid",
         "LinearMixing": "linear_mixing",
         "AndersonMixing": "anderson_mixing",
     }.get(name, name.lower())

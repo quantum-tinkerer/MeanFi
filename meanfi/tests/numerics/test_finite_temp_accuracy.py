@@ -5,12 +5,12 @@ import pytest
 import scipy.sparse as sparse
 
 from meanfi import (
-    AdaptiveSimplex,
+    FermiSimplex,
     DirectDiagonalization,
     LinearMixing,
     Model,
     RationalFOE,
-    PeriodicGrid,
+    UniformGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
@@ -42,7 +42,7 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
             mu=0.1,
             kT=0.15,
             keys=keys,
-            integration=PeriodicGrid(
+            integration=UniformGrid(
                 nk=128,
                 matrix_function=matrix_function,
             ),
@@ -54,7 +54,7 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
             filling=0.9,
             kT=0.15,
             keys=keys,
-            integration=PeriodicGrid(
+            integration=UniformGrid(
                 nk=128,
                 matrix_function=matrix_function,
             ),
@@ -80,7 +80,7 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=DirectDiagonalization(),
         ),
@@ -90,7 +90,7 @@ def test_sparse_normal_rational_matches_direct_reference_at_mu(matrix_function, 
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=matrix_function,
         ),
@@ -111,7 +111,7 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=DirectDiagonalization(),
         ),
@@ -123,7 +123,7 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
         ),
         filling_tol=1e-2,
@@ -152,7 +152,7 @@ def test_sparse_periodic_grid_matches_dense_reference_at_mu(matrix_function, ato
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=31,
             matrix_function=DirectDiagonalization(),
         ),
@@ -162,7 +162,7 @@ def test_sparse_periodic_grid_matches_dense_reference_at_mu(matrix_function, ato
         mu=0.0,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=31,
             matrix_function=matrix_function,
         ),
@@ -181,7 +181,7 @@ def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=31,
             matrix_function=DirectDiagonalization(),
         ),
@@ -193,7 +193,7 @@ def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=31,
         ),
         filling_tol=1e-2,
@@ -213,7 +213,7 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
     sparse_h0 = _sparse_tb(dense_h0)
     sparse_hint = {(0,): sparse.csr_matrix(dense_hint[(0,)])}
 
-    integration = PeriodicGrid(
+    integration = UniformGrid(
         nk=128,
     )
     model_sparse = Model(sparse_h0, sparse_hint, filling=1.0, kT=0.15)
@@ -247,9 +247,9 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
 
 def test_dtype_controls_are_validated():
     with pytest.raises(ValueError, match="dtype must be complex64 or complex128"):
-        PeriodicGrid(nk=128, dtype="float32")
+        UniformGrid(nk=128, dtype="float32")
 
-    assert "dtype" not in AdaptiveSimplex.__dataclass_fields__
+    assert "dtype" not in FermiSimplex.__dataclass_fields__
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -261,7 +261,7 @@ def test_periodic_complex64_matches_complex128():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             dtype="complex128",
         ),
@@ -273,7 +273,7 @@ def test_periodic_complex64_matches_complex128():
         filling=0.7,
         kT=0.15,
         keys=keys,
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             dtype="complex64",
         ),
@@ -293,7 +293,7 @@ def test_sparse_solver_result_does_not_expose_reduced_density():
     result = solver(
         model,
         {(0,): sparse.csr_matrix(np.zeros((2, 2), dtype=complex))},
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
@@ -312,7 +312,7 @@ def test_density_postprocessing_returns_complete_dense_blocks():
     result = solver(
         model,
         {(0,): np.zeros((2, 2), dtype=complex)},
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
@@ -324,7 +324,7 @@ def test_density_postprocessing_returns_complete_dense_blocks():
         result.mu,
         kT=model.kT,
         keys=[(0,)],
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
         ),
     )
@@ -424,7 +424,7 @@ def test_strained_graphene_single_shot_sparse_aaa_is_stable():
         filling=filling,
         kT=0.2,
         keys=[(0, 0)],
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=4,  # Large sparse smoke test; accuracy is checked on small models.
             matrix_function=RationalFOE(initial_poles=4, max_poles=128),
         ),

@@ -4,7 +4,7 @@ import scipy.sparse as sp
 
 from meanfi import (
     RationalFOE,
-    PeriodicGrid,
+    UniformGrid,
     density_matrix_at_mu,
 )
 from meanfi.tests.fixtures.models import spinful_chain
@@ -19,7 +19,7 @@ def test_sparse_rational_dense_input_is_rejected():
             mu=0.0,
             kT=0.15,
             keys=[(0,), (1,), (-1,)],
-            integration=PeriodicGrid(
+            integration=UniformGrid(
                 nk=128,
                 matrix_function=RationalFOE(),
             ),
@@ -34,7 +34,7 @@ def test_sparse_rational_sparse_input_uses_required_mumps_path():
         mu=0.0,
         kT=0.15,
         keys=[(0,), (1,), (-1,)],
-        integration=PeriodicGrid(
+        integration=UniformGrid(
             nk=128,
             matrix_function=RationalFOE(),
         ),
@@ -51,7 +51,7 @@ def test_dense_rational_rejects_aaa_scheme():
             mu=0.0,
             kT=0.15,
             keys=[(0,), (1,), (-1,)],
-            integration=PeriodicGrid(
+            integration=UniformGrid(
                 nk=128,
                 matrix_function=RationalFOE(),
             ),

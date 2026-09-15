@@ -8,7 +8,7 @@ from meanfi.errors import ErrorTolerances, resolve_integration_tolerances
 from meanfi.density.kpoint.matrix_functions import resolve_periodic_matrix_function
 from meanfi.density.integrate.common import validate_integration_method
 from meanfi.density.integrate.defaults import select_default_integration
-from meanfi.density.integrate.methods import IntegrationMethod, PeriodicGrid
+from meanfi.density.integrate.methods import IntegrationMethod, UniformGrid
 from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.validate import (
@@ -46,7 +46,7 @@ def build_density_problem(
     )
     validate_integration_method(integration, kT=kT)
     tolerances = resolve_integration_tolerances(integration, tolerances)
-    if isinstance(integration, PeriodicGrid):
+    if isinstance(integration, UniformGrid):
         integration = replace(
             integration,
             matrix_function=resolve_periodic_matrix_function(
@@ -56,9 +56,9 @@ def build_density_problem(
                 prescribed=integration.nk is not None,
             ),
         )
-    if electron_ndof is not None and not isinstance(integration, PeriodicGrid):
+    if electron_ndof is not None and not isinstance(integration, UniformGrid):
         raise ValueError(
-            "Superconducting density requires PeriodicGrid; at kT == 0 specify nk"
+            "Superconducting density requires UniformGrid; at kT == 0 specify nk"
         )
     size = tb_orbital_count(hamiltonian)
     if density_coordinates is None:

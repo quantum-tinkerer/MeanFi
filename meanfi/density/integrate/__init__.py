@@ -1,13 +1,13 @@
 """Brillouin-zone integration layer for density evaluation."""
 
 from meanfi.density.integrate.methods import (
-    AdaptiveSimplex,
+    FermiSimplex,
     IntegrationMethod,
-    PeriodicGrid,
+    UniformGrid,
 )
 
 __all__ = [
-    "AdaptiveSimplex",
+    "FermiSimplex",
     "IntegrationMethod",
-    "PeriodicGrid",
+    "UniformGrid",
 ]

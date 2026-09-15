@@ -9,7 +9,7 @@ from fermisimplex import SpectralMesh
 from threadpoolctl import threadpool_limits
 
 from meanfi.density.problem import DensityProblem
-from meanfi.results import AdaptiveSimplexInfo, DensityEntries
+from meanfi.results import FermiSimplexInfo, DensityEntries
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type, to_dense
 
@@ -34,7 +34,7 @@ def _spectral_mesh(
     nodes = (2**level + 1) ** dimension
     if max_points is not None and nodes > max_points:
         raise RuntimeError(
-            f"AdaptiveSimplex mesh requires {nodes} nodes for nk={nk}, "
+            f"FermiSimplex mesh requires {nodes} nodes for nk={nk}, "
             f"exceeding max_points={max_points}; increase max_points or reduce nk"
         )
     dense_hamiltonian = {
@@ -66,7 +66,7 @@ def _bounded_refinements(
     initial += int(mesh.active_simplices) * (nodes_per_simplex - dimension - 1)
     if initial > max_points:
         raise RuntimeError(
-            f"AdaptiveSimplex needs a reserve of {initial} cached/preview nodes, "
+            f"FermiSimplex needs a reserve of {initial} cached/preview nodes, "
             f"exceeding max_points={max_points}; increase max_points or loosen tolerances"
         )
     per_refinement = 2**dimension * nodes_per_simplex
@@ -282,7 +282,7 @@ class SimplexEvaluator:
 
     def statistics(self, charge_evaluations: int):
         work, mesh = self.work, self.mesh
-        return AdaptiveSimplexInfo(
+        return FermiSimplexInfo(
             n_kernel_evals=int(work.evaluations),
             unique_evals=int(work.evaluations),
             n_evaluator_evals=int(work.evaluations),

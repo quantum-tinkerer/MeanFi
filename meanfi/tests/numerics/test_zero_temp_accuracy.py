@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from meanfi import AdaptiveSimplex, PeriodicGrid, density_matrix, density_matrix_at_mu
+from meanfi import FermiSimplex, UniformGrid, density_matrix, density_matrix_at_mu
 from meanfi.tests.fixtures.models import (
     assert_estimator_covers_actual,
     converged_dense_reference,
@@ -65,7 +65,7 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
             mu=0.0,
             kT=0.0,
             keys=case.keys,
-            integration=AdaptiveSimplex(
+            integration=FermiSimplex(
                 density_matrix_tol=density_atol,
                 max_refinements=None,
             ),
@@ -112,7 +112,7 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
             filling=filling,
             kT=0.0,
             keys=case.keys,
-            integration=AdaptiveSimplex(
+            integration=FermiSimplex(
                 density_matrix_tol=density_atol,
                 max_refinements=None,
             ),
@@ -151,7 +151,7 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
         mu=1.5,
         kT=0.0,
         keys=keys,
-        integration=AdaptiveSimplex(
+        integration=FermiSimplex(
             density_matrix_tol=3e-3,
             max_refinements=None,
         ),
@@ -186,7 +186,7 @@ def test_periodic_grid_density_at_mu_converges_against_dense_reference(case):
             mu=0.0,
             kT=0.0,
             keys=case.keys,
-            integration=PeriodicGrid(nk=nk ** len(next(iter(tb)))),
+            integration=UniformGrid(nk=nk ** len(next(iter(tb)))),
         )
         records.append(
             (
@@ -201,13 +201,13 @@ def test_periodic_grid_density_at_mu_converges_against_dense_reference(case):
 
 def test_adaptive_simplex_rejects_negative_max_refinements():
     with pytest.raises(ValueError, match="max_refinements must be an integer"):
-        AdaptiveSimplex(max_refinements=-1)
+        FermiSimplex(max_refinements=-1)
 
 
 def test_adaptive_simplex_defaults_to_one_thread():
-    assert AdaptiveSimplex().num_threads == 1
+    assert FermiSimplex().num_threads == 1
 
 
 def test_adaptive_simplex_rejects_nonpositive_num_threads():
     with pytest.raises(ValueError, match="num_threads must be an integer"):
-        AdaptiveSimplex(num_threads=0)
+        FermiSimplex(num_threads=0)

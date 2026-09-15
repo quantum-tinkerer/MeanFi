@@ -1,11 +1,11 @@
-# `PeriodicGrid`
+# `UniformGrid`
 
-`PeriodicGrid` has one fixed-grid evaluator and a global refinement loop.
+`UniformGrid` has one fixed-grid evaluator and a global refinement loop.
 It supports full density blocks and selected real-space entries.
 
 ## Prescribed mesh
 
-`PeriodicGrid(nk=N)` chooses the smallest integer `n` with `n**dimension >= N`,
+`UniformGrid(nk=N)` chooses the smallest integer `n` with `n**dimension >= N`,
 and samples the periodic tensor grid without duplicating the boundary. It
 performs no hidden refinement or error estimate. This mode supports finite
 and zero temperature, including the explicit zero-temperature BdG workflow.

@@ -6,7 +6,7 @@ from meanfi.density.filling import charge_diagonal, mu_bracket, solve_mu
 from meanfi.density.problem import DensityProblem
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization
 from meanfi.errors import ErrorValues
-from meanfi.results import DensityEntries, DensityResult, PeriodicGridInfo
+from meanfi.results import DensityEntries, DensityResult, UniformGridInfo
 from meanfi.tb.validate import tb_dimension
 from .periodic_grid import _Evaluator, _Grid, periodic_grid_resolution
 
@@ -63,7 +63,7 @@ def solve_periodic(
         count = n**dimension
         if count > integration.max_points:
             raise RuntimeError(
-                "PeriodicGrid total-grid-size limit reached: "
+                "UniformGrid total-grid-size limit reached: "
                 f"the next mesh needs {count} points, max_points={integration.max_points}. "
                 "Increase max_points or reduce nk / relax integration targets."
             )
@@ -79,7 +79,7 @@ def solve_periodic(
             )
             if remaining is not None and remaining <= 0:
                 raise RuntimeError(
-                    "PeriodicGrid chemical-potential solve reached max_charge_evaluations across refinement grids"
+                    "UniformGrid chemical-potential solve reached max_charge_evaluations across refinement grids"
                 )
             root = solve_mu(
                 evaluate_charge=lambda candidate: evaluator.charge(grid, candidate),
@@ -129,7 +129,7 @@ def solve_periodic(
             and refinements >= integration.max_refinements
         ):
             raise RuntimeError(
-                "PeriodicGrid did not converge before max_refinements="
+                "UniformGrid did not converge before max_refinements="
                 f"{integration.max_refinements}; mesh={grid.shape}, "
                 f"density_error={None if density_error is None else np.max(density_error, initial=0.0)}, "
                 f"charge_error={charge_error}, band_energy_error={energy_error}, "
@@ -141,12 +141,12 @@ def solve_periodic(
     values, charge = integral.values, integral.charge
     if filling is not None and abs(charge - filling) > filling_tol:
         raise RuntimeError(
-            "PeriodicGrid density recomputation did not satisfy the filling tolerance: "
+            "UniformGrid density recomputation did not satisfy the filling tolerance: "
             f"residual={abs(charge - filling)}, filling_tol={filling_tol}. "
             'Use dtype="complex128" or tighten the matrix-function accuracy.'
         )
     work = evaluator.work
-    info = PeriodicGridInfo(
+    info = UniformGridInfo(
         requested_nk=integration.nk,
         n_kpoints=grid.count,
         grid_shape=grid.shape,

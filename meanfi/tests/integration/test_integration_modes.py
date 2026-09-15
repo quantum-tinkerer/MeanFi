@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveSimplex,
+    FermiSimplex,
     LinearMixing,
     Model,
-    PeriodicGrid,
+    UniformGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
@@ -16,7 +16,7 @@ from meanfi.errors import default_solver_tolerances, resolve_integration_toleran
 from meanfi.space.coordinates import full_density_coordinates
 
 
-@pytest.mark.parametrize("method", [AdaptiveSimplex, PeriodicGrid])
+@pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
 def test_mode_is_resolved_before_policy_targets(method):
     policy = default_solver_tolerances(1e-5)
     fixed = method(nk=17, max_refinements=0)
@@ -28,14 +28,14 @@ def test_mode_is_resolved_before_policy_targets(method):
     assert adaptive.nk is adaptive.density_matrix_tol is adaptive.charge_tol is None
 
 
-@pytest.mark.parametrize("method", [AdaptiveSimplex, PeriodicGrid])
+@pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
 @pytest.mark.parametrize("target", ["density_matrix_tol", "charge_tol"])
 def test_explicit_size_conflicts_with_explicit_targets(method, target):
     with pytest.raises(ValueError, match="nk cannot be combined"):
         method(nk=17, **{target: 1e-5})
 
 
-@pytest.mark.parametrize("method", [AdaptiveSimplex, PeriodicGrid])
+@pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
 @pytest.mark.parametrize(
     "options",
     [
@@ -54,7 +54,7 @@ def test_invalid_mesh_controls_fail_early(method, options):
         method(**options)
 
 
-@pytest.mark.parametrize("method,kT", [(AdaptiveSimplex, 0.0), (PeriodicGrid, 0.2)])
+@pytest.mark.parametrize("method,kT", [(FermiSimplex, 0.0), (UniformGrid, 0.2)])
 def test_prescribed_result_statistics_and_selection(method, kT):
     h = {(0,): np.diag([-1.0, 1.0])}
     result = density_matrix(
@@ -70,7 +70,7 @@ def test_prescribed_result_statistics_and_selection(method, kT):
     assert selected.statistics == result.statistics
 
 
-@pytest.mark.parametrize("method,kT", [(AdaptiveSimplex, 0.0), (PeriodicGrid, 0.2)])
+@pytest.mark.parametrize("method,kT", [(FermiSimplex, 0.0), (UniformGrid, 0.2)])
 def test_interacting_scf_keeps_prescribed_mesh_and_tol(method, kT):
     model = Model(
         {(0,): np.diag([-1.0, 1.0])},
@@ -98,7 +98,7 @@ def test_prescribed_normal_zero_temperature_periodic_public_workflow():
         mu=0,
         kT=0,
         keys=[(0,)],
-        integration=PeriodicGrid(nk=11),
+        integration=UniformGrid(nk=11),
     )
     np.testing.assert_allclose(result.to_tb()[(0,)], np.diag([1.0, 0.0]))
     assert result.errors.density_matrix_integration is None
@@ -109,7 +109,7 @@ def test_zero_dimensional_prescribed_statistics_do_not_invent_integration_error(
         {(): np.diag([-1.0, 1.0])},
         filling=1,
         keys=[()],
-        integration=AdaptiveSimplex(nk=20),
+        integration=FermiSimplex(nk=20),
     )
     assert result.statistics.requested_nk == 20
     assert result.statistics.n_kpoints == 1
@@ -136,12 +136,12 @@ def test_sparse_shape_validation_never_materializes_a_dense_matrix(monkeypatch):
 def test_invalid_temperatures_cannot_produce_a_prescribed_density(kT):
     with pytest.raises(ValueError, match="finite non-negative"):
         density_matrix_at_mu(
-            {(): np.eye(2)}, 0.0, kT=kT, keys=[()], integration=PeriodicGrid(nk=1)
+            {(): np.eye(2)}, 0.0, kT=kT, keys=[()], integration=UniformGrid(nk=1)
         )
 
 
 def test_nonfinite_mu_rejected_for_a_finite_simplex_system():
     with pytest.raises(ValueError, match="mu must be finite"):
         density_matrix_at_mu(
-            {(): np.eye(2)}, float("nan"), keys=[()], integration=AdaptiveSimplex(nk=1)
+            {(): np.eye(2)}, float("nan"), keys=[()], integration=FermiSimplex(nk=1)
         )

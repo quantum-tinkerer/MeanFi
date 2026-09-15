@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    PeriodicGrid,
+    UniformGrid,
     DensityEntries,
     DensityResult,
     ErrorValues,
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.integration
 
 def test_density_selection_modes_preserve_the_explicit_layout():
     hamiltonian = {(): np.diag([-0.5, 0.5]).astype(complex)}
-    integration = PeriodicGrid(density_matrix_tol=1e-10)
+    integration = UniformGrid(density_matrix_tol=1e-10)
     coordinates = DensityCoordinates.from_entries(
         size=2,
         keys=[()],

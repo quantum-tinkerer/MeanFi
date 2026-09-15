@@ -5,7 +5,7 @@ from meanfi import (
     AndersonMixing,
     LinearMixing,
     Model,
-    PeriodicGrid,
+    UniformGrid,
     solver,
 )
 from meanfi.tests.fixtures.models import spinful_chain
@@ -42,7 +42,7 @@ def test_bdg_solver_validates_guess_shape_before_running_density():
         solver(
             model,
             {(0,): np.zeros((2, 2), dtype=complex)},
-            integration=PeriodicGrid(),
+            integration=UniformGrid(),
         )
 
 
@@ -63,7 +63,7 @@ def test_bdg_solver_rejects_guess_without_opposite_key():
         solver(
             model,
             {(1,): np.zeros((2, 2), dtype=complex)},
-            integration=PeriodicGrid(),
+            integration=UniformGrid(),
         )
 
 
@@ -83,7 +83,7 @@ def test_bdg_solver_rejects_guess_with_invalid_block_structure():
         solver(
             model,
             guess,
-            integration=PeriodicGrid(),
+            integration=UniformGrid(),
         )
 
 
@@ -99,7 +99,7 @@ def test_bdg_solver_supports_anderson_mixing():
     result = solver(
         model,
         {(0,): np.zeros((4, 4), dtype=complex)},
-        integration=PeriodicGrid(),
+        integration=UniformGrid(),
         scf=AndersonMixing(history_size=0, max_iterations=4),
     )
 
@@ -115,7 +115,7 @@ def test_zero_temperature_bdg_requires_explicit_periodic_grid_default_override()
         superconducting=True,
     )
 
-    with pytest.raises(NotImplementedError, match="PeriodicGrid"):
+    with pytest.raises(NotImplementedError, match="UniformGrid"):
         solver(
             model,
             {(0,): np.zeros((2, 2), dtype=complex)},
@@ -133,7 +133,7 @@ def test_zero_temperature_bdg_supports_explicit_periodic_grid():
     result = solver(
         model,
         {(0,): np.zeros((2, 2), dtype=complex)},
-        integration=PeriodicGrid(nk=1),
+        integration=UniformGrid(nk=1),
         scf=LinearMixing(max_iterations=2),
         scf_tol=1e-6,
     )
@@ -163,7 +163,7 @@ def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():
         result = solver(
             model,
             guess,
-            integration=PeriodicGrid(density_matrix_tol=1e-2),
+            integration=UniformGrid(density_matrix_tol=1e-2),
             scf=LinearMixing(max_iterations=1),
             scf_tol=1e-8,
         )

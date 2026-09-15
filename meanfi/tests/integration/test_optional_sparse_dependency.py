@@ -21,7 +21,7 @@ from scipy.sparse import csr_matrix
 import meanfi
 
 h = {(0,): np.diag([-0.4, 0.4]), (1,): np.eye(2) * 0.1, (-1,): np.eye(2) * 0.1}
-for method, temperature in ((meanfi.PeriodicGrid(nk=16), 0.2), (meanfi.AdaptiveSimplex(nk=16), 0.0)):
+for method, temperature in ((meanfi.UniformGrid(nk=16), 0.2), (meanfi.FermiSimplex(nk=16), 0.0)):
     result = meanfi.density_matrix_at_mu(h, mu=0.0, kT=temperature, keys=[(0,)], integration=method)
     assert abs(result.filling - 1.0) < 1e-8
 assert "mumps" not in sys.modules
@@ -29,7 +29,7 @@ assert "mumps" not in sys.modules
 try:
     meanfi.density_matrix_at_mu(
         {key: csr_matrix(value) for key, value in h.items()}, mu=0.0, kT=0.2,
-        keys=[(0,)], integration=meanfi.PeriodicGrid(nk=4, matrix_function=meanfi.RationalFOE()),
+        keys=[(0,)], integration=meanfi.UniformGrid(nk=4, matrix_function=meanfi.RationalFOE()),
     )
 except ImportError as exc:
     assert "meanfi[sparse]" in str(exc), str(exc)

@@ -1,25 +1,25 @@
 # Integration families
 
-MeanFi has two integration families: `AdaptiveSimplex` uses FermiSimplex for
-normal systems at zero temperature; `PeriodicGrid` samples an isotropic periodic
-grid for normal and superconducting systems.
+MeanFi has two integration families: `FermiSimplex` integrates normal systems at
+zero temperature using the native FermiSimplex library; `UniformGrid` samples an
+isotropic periodic grid for normal and superconducting systems.
 
 ```{toctree}
 :hidden:
 :maxdepth: 1
 
-method_notes/adaptive_simplex.md
-method_notes/periodic_grid.md
+method_notes/fermi_simplex.md
+method_notes/uniform_grid.md
 ```
 
 Both use the same input-driven contract:
 
 ```python
-meanfi.AdaptiveSimplex(nk=4096)
-meanfi.PeriodicGrid(nk=4096)
+meanfi.FermiSimplex(nk=4096)
+meanfi.UniformGrid(nk=4096)
 
-meanfi.AdaptiveSimplex(density_matrix_tol=1e-5, charge_tol=1e-6)
-meanfi.PeriodicGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
+meanfi.FermiSimplex(density_matrix_tol=1e-5, charge_tol=1e-6)
+meanfi.UniformGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
 ```
 
 An explicit `nk` requests a prescribed final mesh size. Omitting `nk` requests
@@ -76,14 +76,17 @@ Passing mesh integration targets with `nk` remains an error.
 
 ## Migration
 
-`PeriodicGrid` replaces `UniformGrid`, `PeriodicQuadrature` and
-`AdaptiveQuadrature`; the old names are removed. Convert an old
-`UniformGrid(nk=n)` in dimension `d` to `PeriodicGrid(nk=n**d)` to preserve its
-per-axis resolution. Replace adaptive quadrature with
-`PeriodicGrid(density_matrix_tol=..., charge_tol=...)`. Remove old quadrature
+The development names `AdaptiveSimplex` and `PeriodicGrid` are now
+`FermiSimplex` and `UniformGrid`; their settings are unchanged and no aliases
+remain. `PeriodicQuadrature` and `AdaptiveQuadrature` are removed.
+
+The earlier per-axis `UniformGrid` implementation used a different `nk`
+convention. For that API, replace `nk=n` with `nk=n**d` in dimension `d` to
+preserve the per-axis resolution. Replace adaptive quadrature with
+`UniformGrid(density_matrix_tol=..., charge_tol=...)`. Remove old quadrature
 rules, per-axis caps, derivative-accuracy and cache-policy options.
 
 Prescribed finite-temperature sparse `RationalFOE` remains available with
-`PeriodicGrid(nk=..., matrix_function=RationalFOE(...))`. Adaptive rational
+`UniformGrid(nk=..., matrix_function=RationalFOE(...))`. Adaptive rational
 integration is unsupported. Sparse calculations require an explicit supported
 method rather than silently switching to a dense adaptive calculation.

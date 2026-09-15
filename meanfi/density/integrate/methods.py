@@ -47,7 +47,7 @@ def _validate_mesh_settings(method):
 
 
 @dataclass(frozen=True)
-class AdaptiveSimplex(IntegrationMethod):
+class FermiSimplex(IntegrationMethod):
     """FermiSimplex integration of normal systems at zero temperature.
 
     ``nk`` requests a total number of native mesh vertices, including distinct
@@ -68,7 +68,7 @@ class AdaptiveSimplex(IntegrationMethod):
 
 
 @dataclass(frozen=True)
-class PeriodicGrid(IntegrationMethod):
+class UniformGrid(IntegrationMethod):
     """Isotropic periodic point sampling with optional global refinement.
 
     ``nk`` requests TOTAL mesh points, rounded up to ``n**dimension``. Without

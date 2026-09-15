@@ -17,8 +17,8 @@ def resolve_periodic_matrix_function(
             if prescribed and kT > 0:
                 return RationalFOE()
             raise ValueError(
-                "Automatic sparse PeriodicGrid evaluation requires kT > 0 and "
-                "prescribed nk. Use PeriodicGrid(nk=..., matrix_function=RationalFOE()) "
+                "Automatic sparse UniformGrid evaluation requires kT > 0 and "
+                "prescribed nk. Use UniformGrid(nk=..., matrix_function=RationalFOE()) "
                 "or explicitly choose DirectDiagonalization() to permit dense batches."
             )
         return DirectDiagonalization()
@@ -26,17 +26,17 @@ def resolve_periodic_matrix_function(
     if isinstance(resolved, RationalFOE):
         if not prescribed:
             raise ValueError(
-                "PeriodicGrid RationalFOE requires prescribed nk; adaptive RationalFOE is unsupported"
+                "UniformGrid RationalFOE requires prescribed nk; adaptive RationalFOE is unsupported"
             )
         if kT <= 0:
-            raise ValueError("PeriodicGrid RationalFOE requires kT > 0")
+            raise ValueError("UniformGrid RationalFOE requires kT > 0")
         if not sparse:
             raise ValueError(
-                "PeriodicGrid RationalFOE is supported only for sparse matrices"
+                "UniformGrid RationalFOE is supported only for sparse matrices"
             )
     elif not isinstance(resolved, DirectDiagonalization):
         raise TypeError(
-            "PeriodicGrid.matrix_function must be DirectDiagonalization or RationalFOE"
+            "UniformGrid.matrix_function must be DirectDiagonalization or RationalFOE"
         )
     return resolved
 

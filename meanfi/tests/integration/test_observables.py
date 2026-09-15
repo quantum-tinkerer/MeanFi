@@ -92,23 +92,36 @@ def test_internal_energy_half_counts_normal_mean_field_interaction():
 
 def test_internal_energy_uses_reference_subtracted_interaction_functional():
     h_0 = {(): np.diag([0.2, -0.3]).astype(complex)}
-    h_int = {(): np.array([[0.0, 1.7], [1.7, 0.0]], dtype=complex)}
-    reference = {(): np.diag([0.6, 0.4]).astype(complex)}
-    density = {(): np.diag([0.25, 0.75]).astype(complex)}
+    interaction = 1.7
+    h_int = {(): np.array([[0.0, interaction], [interaction, 0.0]])}
+    reference = {(): np.array([[0.6, 0.11 + 0.04j], [0.11 - 0.04j, 0.4]])}
+    density = {(): np.array([[0.25, 0.08 - 0.03j], [0.08 + 0.03j, 0.75]])}
     model = Model(
         h_0,
         h_int,
         filling=1.0,
         reference=density_result_from_tb(reference),
     )
-    difference = {(): density[()] - reference[()]}
-    correction = meanfield(difference, h_int)
-    expected = expectation_value(density, h_0)
-    expected += 0.5 * expectation_value(difference, correction)
+    # Wick's formula for two orbitals: V * (delta_n0 * delta_n1 - |delta_c|**2).
+    # Check the scalar expression independently of the mean-field implementation.
+    delta = density[()] - reference[()]
+    expected = 0.2 * 0.25 - 0.3 * 0.75
+    expected += interaction * (delta[0, 0] * delta[1, 1] - abs(delta[0, 1]) ** 2)
+    error = abs(internal_energy(model, density) - expected.real / 2)
+    assert error < 1e-14, f"Reference-subtracted energy error: {error}"
 
-    assert internal_energy(model, density) == pytest.approx(
-        float(np.real(expected)) / 2
-    )
+    # Its derivative must be the Hamiltonian used for the density calculation.
+    direction = np.array([[0.2, 0.13 - 0.09j], [0.13 + 0.09j, -0.2]])
+    step = 1e-5
+    numerical = (
+        internal_energy(model, {(): density[()] + step * direction})
+        - internal_energy(model, {(): density[()] - step * direction})
+    ) / (2 * step)
+    h = model.hamiltonian_from_density(density)[()]
+    analytic = np.trace(h @ direction).real / 2
+    error = abs(numerical - analytic)
+    # A centered difference is exact for this quadratic, up to roundoff / step.
+    assert error < 1e-10, f"Reference-subtracted energy derivative error: {error}"
 
 
 def test_internal_energy_rejects_missing_one_body_density_keys():

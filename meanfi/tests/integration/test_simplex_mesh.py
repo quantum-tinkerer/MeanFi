@@ -11,7 +11,7 @@ from math import factorial
 import numpy as np
 import pytest
 
-from meanfi import AdaptiveSimplex, density_matrix, density_matrix_at_mu
+from meanfi import FermiSimplex, density_matrix, density_matrix_at_mu
 from meanfi.density.integrate.simplex.mesh import _spectral_mesh
 from meanfi.space.coordinates import DensityCoordinates
 
@@ -66,7 +66,7 @@ def test_prescribed_density_uses_simplex_rule_without_refinement_or_previews():
             kT=0.0,
             keys=[(0,), (1,)],
             density_coordinates=None,
-            integration=AdaptiveSimplex(nk=100, max_refinements=0, max_points=129),
+            integration=FermiSimplex(nk=100, max_refinements=0, max_points=129),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=1e-20,
@@ -99,7 +99,7 @@ def test_prescribed_filling_reuses_native_spectra_and_preserves_band_energy():
             kT=0.0,
             keys=[(0,), (1,)],
             density_coordinates=None,
-            integration=AdaptiveSimplex(nk=100, max_refinements=0, max_points=129),
+            integration=FermiSimplex(nk=100, max_refinements=0, max_points=129),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=1e-20,
@@ -128,7 +128,7 @@ def test_prescribed_filling_reuses_native_spectra_and_preserves_band_energy():
 
 def test_prescribed_simplex_public_tolerance_keeps_fixed_mode_and_selected_layout():
     h = _chain()
-    integration = AdaptiveSimplex(nk=65, max_refinements=0)
+    integration = FermiSimplex(nk=65, max_refinements=0)
     coordinates = DensityCoordinates.from_entries(
         size=1,
         keys=[(1,)],
@@ -157,7 +157,7 @@ def test_adaptive_simplex_preview_storage_limit_is_checked():
             _chain(),
             mu=0.2,
             keys=[(0,), (1,)],
-            integration=AdaptiveSimplex(density_matrix_tol=1e-3, max_points=3),
+            integration=FermiSimplex(density_matrix_tol=1e-3, max_points=3),
         )
 
 
@@ -171,7 +171,7 @@ def test_selected_fixed_mu_simplex_reports_charge_without_diagonal_entries():
             kT=0.0,
             keys=[(1,)],
             density_coordinates=coordinates,
-            integration=AdaptiveSimplex(nk=129, max_points=129),
+            integration=FermiSimplex(nk=129, max_points=129),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=1e-05,
@@ -195,7 +195,7 @@ def test_empty_fixed_mu_simplex_still_evaluates_charge():
             kT=0.0,
             keys=[(1,)],
             density_coordinates=coordinates,
-            integration=AdaptiveSimplex(nk=129, max_points=129),
+            integration=FermiSimplex(nk=129, max_points=129),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=1e-05,
@@ -231,7 +231,7 @@ def test_adaptive_density_refinement_keeps_root_consistent_with_final_native_mes
             kT=0.0,
             keys=[(0,), (1,)],
             density_coordinates=None,
-            integration=AdaptiveSimplex(nk=None, max_points=10000),
+            integration=FermiSimplex(nk=None, max_points=10000),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=0.0001,
@@ -280,7 +280,7 @@ def test_adaptive_fixed_mu_enforces_charge_target_for_selected_layouts(
             kT=0.0,
             keys=[(1,)],
             density_coordinates=coordinates,
-            integration=AdaptiveSimplex(nk=None, max_points=10000),
+            integration=FermiSimplex(nk=None, max_points=10000),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=0.1,
@@ -308,7 +308,7 @@ def test_fixed_mu_simplex_charge_target_cannot_be_ignored_at_refinement_limit():
             _chain(),
             mu=0.2,
             keys=[(0,)],
-            integration=AdaptiveSimplex(
+            integration=FermiSimplex(
                 density_matrix_tol=1.0, charge_tol=1e-12, max_refinements=0
             ),
         )
@@ -319,7 +319,7 @@ def test_fixed_mu_simplex_reports_both_integration_errors_publicly():
         _chain(),
         mu=0.2,
         keys=[(1,)],
-        integration=AdaptiveSimplex(density_matrix_tol=1e-3, charge_tol=1e-7),
+        integration=FermiSimplex(density_matrix_tol=1e-3, charge_tol=1e-7),
     )
     assert result.errors.density_matrix_integration <= 1e-3
     assert result.errors.charge_integration <= 1e-7
@@ -335,7 +335,7 @@ def test_empty_fixed_mu_charge_target_respects_point_limit():
                 kT=0.0,
                 keys=[(1,)],
                 density_coordinates=coordinates,
-                integration=AdaptiveSimplex(nk=None, max_points=3),
+                integration=FermiSimplex(nk=None, max_points=3),
                 tolerances=replace(
                     default_solver_tolerances(1e-3),
                     density_matrix_integration=1.0,
@@ -354,7 +354,7 @@ def test_selected_simplex_density_does_not_assemble_unrequested_matrix_entries(
         (1,): -0.7 * np.eye(2),
         (-1,): -0.7 * np.eye(2),
     }
-    integration = AdaptiveSimplex(nk=65)
+    integration = FermiSimplex(nk=65)
     reference = density_matrix(h, filling=0.8, keys=[(1,)], integration=integration)
     coordinates = DensityCoordinates.from_entries(
         size=2, keys=[(1,)], entries=(((1,), 0, 1),)

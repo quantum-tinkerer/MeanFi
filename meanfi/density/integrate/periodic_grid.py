@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 
-from meanfi.density.integrate.methods import PeriodicGrid
+from meanfi.density.integrate.methods import UniformGrid
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
 from meanfi.density.kpoint.matrix_functions.direct import (
     selected_density_values_from_eigensystem,
@@ -100,7 +100,7 @@ class _Evaluator:
         hamiltonian: _tb_type,
         *,
         kT: float,
-        integration: PeriodicGrid,
+        integration: UniformGrid,
         coordinates: DensityCoordinates,
         q_diag: np.ndarray | None,
         trace_weights: np.ndarray,
@@ -170,7 +170,7 @@ class _Evaluator:
         )
         if required + previous_bytes > self.integration.max_spectrum_bytes:
             raise RuntimeError(
-                "PeriodicGrid spectrum-storage limit reached: refinement requires "
+                "UniformGrid spectrum-storage limit reached: refinement requires "
                 f"{required + previous_bytes} retained bytes, max_spectrum_bytes="
                 f"{self.integration.max_spectrum_bytes}. Increase max_spectrum_bytes "
                 "or reduce the prescribed nk / relax integration targets."

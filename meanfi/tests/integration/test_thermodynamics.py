@@ -68,7 +68,7 @@ def test_scf_selected_energy_agrees_with_full_density(superconducting):
     h0[(-1,)] = h0[(1,)].conj().T
     hint = {(0,): np.array([[0.0, 0.5], [0.5, 0.0]])}
     model = mf.Model(h0, hint, filling=0.8, kT=0.2, superconducting=superconducting)
-    grid = mf.PeriodicGrid(nk=32)
+    grid = mf.UniformGrid(nk=32)
     guess = model.random_meanfield(rng=np.random.default_rng(4), scale=0.05)
     if superconducting:
         # A user may supply zero corrections on the full hopping support.
@@ -158,7 +158,7 @@ def test_empty_density_selection_reports_thermal_errors_without_refining_them():
         h, mu=0.0, kT=0.1, coordinates=coordinates, tol=1e-5
     )
     reference = mf.density_matrix_at_mu(
-        h, mu=0.0, kT=0.1, coordinates=coordinates, integration=mf.PeriodicGrid(nk=8192)
+        h, mu=0.0, kT=0.1, coordinates=coordinates, integration=mf.UniformGrid(nk=8192)
     )
     assert result.values.size == 0
     assert result.errors.density_matrix_integration == 0.0
@@ -202,7 +202,7 @@ def test_bdg_shifted_grid_energy_uses_full_nambu_charge(use_sparse, request):
     evaluator = _Evaluator(
         h,
         kT=0.12,
-        integration=mf.PeriodicGrid(
+        integration=mf.UniformGrid(
             nk=3,
             matrix_function=mf.RationalFOE()
             if use_sparse
@@ -222,7 +222,7 @@ def test_bdg_interaction_support_does_not_depend_on_guess_keys():
     hint = {(1,): np.array([[0.3]]), (-1,): np.array([[0.3]])}
     model = mf.Model(h0, hint, filling=0.4, kT=0.2, superconducting=True)
     zero = np.zeros((2, 2))
-    grid = mf.PeriodicGrid(nk=32)
+    grid = mf.UniformGrid(nk=32)
     minimal = mf.solver(model, {(0,): zero}, integration=grid, tol=1e-8)
     complete = mf.solver(model, {key: zero for key in h0}, integration=grid, tol=1e-8)
     assert set(minimal.mean_field) == set(h0)
@@ -274,7 +274,7 @@ def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
         correction = repeat(normal)
         if superconducting:
             correction = assemble_bdg_tb(correction, repeat(pairing), ndof=2 * copies)
-        integration = mf.PeriodicGrid(nk=64) if kT > 0 else mf.AdaptiveSimplex()
+        integration = mf.UniformGrid(nk=64) if kT > 0 else mf.FermiSimplex()
         density = mf.density_matrix_at_mu(
             model,
             mu=0.12,

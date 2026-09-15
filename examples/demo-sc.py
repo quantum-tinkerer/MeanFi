@@ -6,7 +6,7 @@ import numpy as np
 # %%
 from matplotlib import pyplot as plt
 from meanfi import (
-    PeriodicGrid,
+    UniformGrid,
     LinearMixing,
     Model,
     solver,
@@ -52,7 +52,7 @@ def chiral_square_problem():
         kT=kT,
         superconducting=True,
     )
-    integration = PeriodicGrid(
+    integration = UniformGrid(
         density_matrix_tol=1e-3,
         max_refinements=200,
     )

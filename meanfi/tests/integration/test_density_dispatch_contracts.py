@@ -8,17 +8,17 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveSimplex,
+    FermiSimplex,
     LinearMixing,
     Model,
-    PeriodicGrid,
+    UniformGrid,
     density_matrix,
     density_matrix_at_mu,
     solver,
 )
 from meanfi.results import DensityEntries, DensityResult
 from meanfi.errors import ErrorValues
-from meanfi.results import AdaptiveSimplexInfo
+from meanfi.results import FermiSimplexInfo
 from meanfi.scf.problem import SCFProblem
 from meanfi.space.state import ActiveDensityState
 from meanfi.space.coordinates import DensityCoordinates
@@ -39,7 +39,7 @@ def test_normal_solver_warns_when_guess_is_projected_to_structural_selection():
         result = solver(
             model,
             {(0,): np.array([[0.0, 0.3], [0.3, 0.0]], dtype=complex)},
-            integration=PeriodicGrid(density_matrix_tol=1e-2),
+            integration=UniformGrid(density_matrix_tol=1e-2),
             scf=LinearMixing(max_iterations=1),
             scf_tol=1e-8,
         )
@@ -56,14 +56,14 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
             mu=0.0,
             kT=0.1,
             keys=[()],
-            integration=PeriodicGrid(),
+            integration=UniformGrid(),
         )
 
 
 @pytest.mark.parametrize("mode", ("at_mu", "fixed_filling"))
 def test_zero_temperature_backend_raises_when_refinement_cap_prevents_convergence(mode):
     tb = spinful_chain()
-    integration = AdaptiveSimplex(density_matrix_tol=1e-6, max_refinements=0)
+    integration = FermiSimplex(density_matrix_tol=1e-6, max_refinements=0)
     keys = [(0,), (1,), (-1,)]
 
     with pytest.raises(RuntimeError, match="Adaptive simplex loop did not converge"):
@@ -92,9 +92,7 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
     import meanfi.density.density as integration
 
     def fail(*args, **kwargs):  # pragma: no cover - executed only on regression
-        raise AssertionError(
-            "PeriodicGrid should not call the zero-temperature backend"
-        )
+        raise AssertionError("UniformGrid should not call the zero-temperature backend")
 
     monkeypatch.setattr(integration, "solve_simplex", fail)
     result = density_matrix(
@@ -102,7 +100,7 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
         filling=1.0,
         kT=0.1,
         keys=[(0,)],
-        integration=PeriodicGrid(density_matrix_tol=1e-4),
+        integration=UniformGrid(density_matrix_tol=1e-4),
     )
 
     assert np.isfinite(result.mu)
@@ -134,7 +132,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
                 charge_integration=0.0,
                 filling_residual=0.0,
             ),
-            statistics=AdaptiveSimplexInfo(
+            statistics=FermiSimplexInfo(
                 n_kernel_evals=1,
                 unique_evals=1,
                 n_evaluator_evals=1,
@@ -155,7 +153,7 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
         filling=1.0,
         kT=0.0,
         keys=[(0,)],
-        integration=AdaptiveSimplex(density_matrix_tol=1e-4, num_threads=3),
+        integration=FermiSimplex(density_matrix_tol=1e-4, num_threads=3),
         filling_tol=2e-3,
     )
 
@@ -212,7 +210,7 @@ def test_adaptive_simplex_scf_passes_required_coordinates_for_dense_hamiltonian(
             model.h_0,
             kT=model.kT,
             keys=model.scf_space.density_keys,
-            integration=AdaptiveSimplex(),
+            integration=FermiSimplex(),
             tolerances=default_solver_tolerances(1e-3),
             density_coordinates=required,
         ),
@@ -293,9 +291,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
             kT=0.0,
             keys=[(0,)],
             density_coordinates=coordinates,
-            integration=AdaptiveSimplex(
-                nk=None, max_refinements=None, num_threads=None
-            ),
+            integration=FermiSimplex(nk=None, max_refinements=None, num_threads=None),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=0.001,
@@ -414,7 +410,7 @@ def test_zero_temperature_backend_supports_higher_dimensions(ndim):
         mu=0.0,
         kT=0.0,
         keys=[key],
-        integration=AdaptiveSimplex(density_matrix_tol=1e-12, max_refinements=10),
+        integration=FermiSimplex(density_matrix_tol=1e-12, max_refinements=10),
     )
 
     assert np.allclose(

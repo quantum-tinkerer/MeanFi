@@ -177,7 +177,7 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
 
 
 def test_default_mixer_handles_reference_restart_and_spatial_symmetry():
-    from meanfi import NoConvergence, PeriodicGrid, SpatialSymmetry
+    from meanfi import NoConvergence, UniformGrid, SpatialSymmetry
 
     h = {
         (0,): np.array([[0.15, 0.08j], [-0.08j, -0.1]]),
@@ -200,7 +200,7 @@ def test_default_mixer_handles_reference_restart_and_spatial_symmetry():
         solver(
             model,
             model.random_meanfield(rng=12, scale=0.03),
-            integration=PeriodicGrid(nk=64),
+            integration=UniformGrid(nk=64),
             scf=LinearMixing(alpha=0.1, max_iterations=1),
             scf_tol=1e-14,
         )

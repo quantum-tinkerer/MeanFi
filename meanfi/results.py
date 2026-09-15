@@ -9,7 +9,7 @@ from meanfi.tb.ops import _tb_type
 
 
 @dataclass(frozen=True)
-class AdaptiveSimplexInfo:
+class FermiSimplexInfo:
     """Mesh size and cumulative work for FermiSimplex integration."""
 
     n_kernel_evals: int
@@ -31,7 +31,7 @@ class AdaptiveSimplexInfo:
 
 
 @dataclass(frozen=True)
-class PeriodicGridInfo:
+class UniformGridInfo:
     """Mesh size, retained storage, and cumulative work for periodic integration."""
 
     requested_nk: int | None
@@ -109,7 +109,7 @@ class DensityResult:
     mu: float
     filling: float
     errors: ErrorValues
-    statistics: AdaptiveSimplexInfo | PeriodicGridInfo | None = None
+    statistics: FermiSimplexInfo | UniformGridInfo | None = None
     band_energy: float | None = None
     entropy: float = 0.0
 

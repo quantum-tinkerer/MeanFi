@@ -40,10 +40,10 @@ assert "extra == 'sparse'" in mumps_requirement
 
 h = {(0,): np.zeros((1, 1)), (1,): np.array([[-1.]]), (-1,): np.array([[-1.]])}
 for integration, temperature in (
-    (meanfi.AdaptiveSimplex(nk=33), 0.),
-    (meanfi.AdaptiveSimplex(), 0.),
-    (meanfi.PeriodicGrid(nk=32), .2),
-    (meanfi.PeriodicGrid(), .2),
+    (meanfi.FermiSimplex(nk=33), 0.),
+    (meanfi.FermiSimplex(), 0.),
+    (meanfi.UniformGrid(nk=32), .2),
+    (meanfi.UniformGrid(), .2),
 ):
     result = meanfi.density_matrix(h, filling=.5, kT=temperature,
                                   keys=[(0,)], integration=integration)
@@ -54,12 +54,12 @@ for superconducting in (False, True):
     model = meanfi.Model(h, {(0,): np.zeros((1, 1))}, filling=.5,
                         kT=.2, superconducting=superconducting)
     result = meanfi.solver(model, model.random_meanfield(rng=0, scale=0),
-                          integration=meanfi.PeriodicGrid(nk=32))
+                          integration=meanfi.UniformGrid(nk=32))
     assert result.converged
     assert np.isfinite(result.internal_energy)
     assert abs(result.free_energy - (result.internal_energy - .2 * result.entropy)) < 1e-12
     density = meanfi.density_matrix(model, mean_field=result.mean_field, keys=[(0,)],
-                                   integration=meanfi.PeriodicGrid(nk=32))
+                                   integration=meanfi.UniformGrid(nk=32))
     assert density.to_tb()[(0,)].shape == ((2, 2) if superconducting else (1, 1))
 cold = meanfi.Model(h, {(0,): np.zeros((1, 1))}, filling=.5)
 assert meanfi.solver(cold, cold.random_meanfield(rng=0)).free_energy is not None
@@ -72,7 +72,7 @@ sparse_h[(0,)] = csr_array([[0., .2], [.2, 0.]])
 try:
     result = meanfi.density_matrix(
         sparse_h, filling=.86, kT=.2, keys=[(0,)], filling_tol=1e-7,
-        integration=meanfi.PeriodicGrid(nk=32, matrix_function=meanfi.RationalFOE()),
+        integration=meanfi.UniformGrid(nk=32, matrix_function=meanfi.RationalFOE()),
     )
 except ImportError as exc:
     assert not sparse_enabled and "meanfi[sparse]" in str(exc)

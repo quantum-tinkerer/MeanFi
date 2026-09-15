@@ -9,7 +9,7 @@ import numpy as np
 
 from meanfi.errors import ConvergenceError
 
-from meanfi.density.integrate.methods import AdaptiveSimplex
+from meanfi.density.integrate.methods import FermiSimplex
 from meanfi.density.integrate.simplex import solve_simplex
 from meanfi.density.integrate.periodic import solve_periodic
 from meanfi.results import DensityResult
@@ -42,7 +42,7 @@ def evaluate_density(
     try:
         evaluate = (
             solve_simplex
-            if isinstance(problem.integration, AdaptiveSimplex)
+            if isinstance(problem.integration, FermiSimplex)
             else solve_periodic
         )
         return evaluate(

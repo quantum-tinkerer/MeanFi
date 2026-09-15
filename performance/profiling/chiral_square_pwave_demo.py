@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from meanfi import (
-    PeriodicGrid,
+    UniformGrid,
     LinearMixing,
     Model,
     solver,
@@ -54,7 +54,7 @@ def chiral_square_problem():
         kT=kT,
         superconducting=True,
     )
-    integration = PeriodicGrid()
+    integration = UniformGrid()
     scf = LinearMixing(max_iterations=220, alpha=0.2)
     return model, guess, integration, scf, h_int
 

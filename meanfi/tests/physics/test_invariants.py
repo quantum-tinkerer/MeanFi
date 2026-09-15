@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from meanfi import (
-    AdaptiveSimplex,
-    PeriodicGrid,
+    FermiSimplex,
+    UniformGrid,
     add_tb,
     density_matrix,
     density_matrix_at_mu,
@@ -32,7 +32,7 @@ def test_zero_dimensional_density_matrix_at_mu_matches_exact_occupation():
         mu=mu,
         kT=kT,
         keys=[()],
-        integration=PeriodicGrid(),
+        integration=UniformGrid(),
     )
     expected = np.diag(fermi_dirac(np.array([-1.0, 2.0]), kT, mu))
 
@@ -49,7 +49,7 @@ def test_density_matrix_respects_hermiticity_and_charge_sum_rule():
         filling=2.0,
         kT=0.1,
         keys=[(0,), (1,), (-1,)],
-        integration=PeriodicGrid(density_matrix_tol=1e-8),
+        integration=UniformGrid(density_matrix_tol=1e-8),
         filling_tol=1e-8,
     )
 
@@ -73,7 +73,7 @@ def test_half_filling_keeps_particle_hole_symmetry():
         filling=1.0,
         kT=0.2,
         keys=[(0,)],
-        integration=PeriodicGrid(density_matrix_tol=1e-8),
+        integration=UniformGrid(density_matrix_tol=1e-8),
         filling_tol=1e-9,
     )
 
@@ -90,7 +90,7 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
             filling=filling,
             kT=0.0,
             keys=[(0,), (1,)],
-            integration=AdaptiveSimplex(
+            integration=FermiSimplex(
                 density_matrix_tol=1e-5,
                 max_refinements=2000,
             ),
@@ -114,7 +114,7 @@ def test_zero_temperature_fixed_filling_default_charge_evaluation_limit_matches_
         filling=0.1,
         kT=0.0,
         keys=[(0,), (1,)],
-        integration=AdaptiveSimplex(
+        integration=FermiSimplex(
             density_matrix_tol=1e-2,
             max_refinements=600,
         ),
@@ -125,7 +125,7 @@ def test_zero_temperature_fixed_filling_default_charge_evaluation_limit_matches_
         filling=0.1,
         kT=0.0,
         keys=[(0,), (1,)],
-        integration=AdaptiveSimplex(
+        integration=FermiSimplex(
             density_matrix_tol=1e-2,
             max_refinements=600,
         ),
@@ -145,7 +145,7 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
         filling=1.0,
         kT=0.0,
         keys=[(0,)],
-        integration=AdaptiveSimplex(
+        integration=FermiSimplex(
             density_matrix_tol=1e-12,
             max_refinements=4,
         ),
@@ -156,7 +156,7 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
         filling=2.0,
         kT=0.0,
         keys=[(0,)],
-        integration=AdaptiveSimplex(
+        integration=FermiSimplex(
             density_matrix_tol=1e-12,
             max_refinements=4,
         ),
@@ -189,7 +189,7 @@ def test_periodic_grid_reports_unique_eval_count():
         mu=0.0,
         kT=0.0,
         keys=[(0,)],
-        integration=PeriodicGrid(nk=7),
+        integration=UniformGrid(nk=7),
     )
 
     assert result.errors.density_matrix_integration is None

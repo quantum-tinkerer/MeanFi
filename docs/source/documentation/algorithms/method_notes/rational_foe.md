@@ -1,7 +1,7 @@
 # `RationalFOE`
 
 `RationalFOE()` evaluates sparse Hamiltonians at positive temperature on a
-prescribed `PeriodicGrid(nk=...)`. It uses AAA rational approximation and MUMPS
+prescribed `UniformGrid(nk=...)`. It uses AAA rational approximation and MUMPS
 selected inversion. The density and entropy calculation shares shifted sparse
 factorizations; it does not diagonalize the Hamiltonian or form its full inverse.
 
@@ -88,7 +88,7 @@ and selected-inversion cost. Sparsity pattern and fill-in determine that cost;
 small dense problems can be faster with direct diagonalization. `initial_poles`
 and `max_poles` control the approximation budget. There is no scheme selector.
 
-An explicit positive-temperature sparse `PeriodicGrid(nk=...)` selects
+An explicit positive-temperature sparse `UniformGrid(nk=...)` selects
 `RationalFOE()` when its matrix function is omitted. Accuracy-controlled rational
 integration is unsupported. Use `DirectDiagonalization()` explicitly when dense
 evaluation of sparse inputs is wanted.

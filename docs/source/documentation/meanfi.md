@@ -43,6 +43,40 @@ coordinates. Both normal and superconducting models use this API; optional
 `mean_field=correction` evaluates an interacting Hamiltonian. The same model
 support is available in `density_matrix_at_mu(model, mu)`.
 
+`DensityCoordinates` is an address list: each entry is a displacement, row and
+column. It contains no density values. `DensityResult` is the answer returned
+by a calculation: values at those addresses, plus chemical potential, filling,
+energies and numerical diagnostics. Most users can request full blocks with
+`keys` and never construct a coordinate object:
+
+```python
+import numpy as np
+import meanfi as mf
+
+full = mf.density_matrix_at_mu(
+    {(0,): np.diag([-1.0, 1.0])},
+    mu=0.0, kT=0.2, keys=[(0,)],
+)
+rho = full.to_tb()[(0,)]  # The usual 2-by-2 density matrix.
+```
+
+Coordinates are useful when only a few entries of a large matrix are needed:
+
+```python
+occupations = mf.DensityCoordinates.from_entries(
+    size=2, keys=[(0,)],
+    entries=(((0,), 0, 0), ((0,), 1, 1)),
+)
+selected = full.select(occupations)
+print(selected.values.real)  # [0.99330715, 0.00669285]
+```
+
+The selected result contains two values, not a complete matrix. Its missing
+entries are unknown, so `selected.to_tb()` raises. To compute only those values
+from the start, pass `coordinates=occupations` instead of `keys` to either
+density function. Model-based calls select the entries needed by the interaction
+by default; use `keys` explicitly for complete blocks.
+
 For a Hamiltonian dictionary, supply exactly one of `keys`, `coordinates` or
 `interaction`. `keys` requests complete blocks, while the other two options
 request selected entries. `result.to_tb()` returns a dictionary of complete
@@ -114,7 +148,7 @@ exhaustion. Users can explicitly restart with another method using
 Physical free energy need not fall on every iteration.
 
 Sparse `RationalFOE()` uses AAA at positive temperature on a prescribed
-`PeriodicGrid(nk=...)`. Density and entropy share poles and sparse factorizations.
+`UniformGrid(nk=...)`. Density and entropy share poles and sparse factorizations.
 
 SCF settings are keyword-only. To change the history or iteration budget, pass
 `scf=meanfi.EnergyDIIS(history_size=6, max_iterations=100)`. Explicit
@@ -222,6 +256,39 @@ uses the same normalization per physical orbital as the other energies.
 It is not the interacting internal energy: `internal_energy` accounts for the
 interaction's double counting. The SCF result computes both energies directly,
 including when its density contains only the entries required by the interaction.
+
+## Reference-subtracted energies
+
+A fixed normal reference defines $\delta\rho=\rho-\rho_{\rm ref}$ and the
+Hamiltonian $h[\rho]=h_0+W[\delta\rho]$, with the full Hartree/Fock map $W$.
+The matching internal energy per physical orbital is
+
+$$
+U[\rho]=\frac{1}{N}\left(\langle h_0,\rho\rangle
++\frac12\langle W[\delta\rho],\delta\rho\rangle\right),
+$$
+
+where $\langle A,B\rangle=\sum_R\operatorname{Tr}(A_R B_{-R})$ is the
+per-cell contraction. Differentiating $N U$ with respect to density gives
+$h_0+W[\delta\rho]$, so the Hamiltonian and energy use the same subtraction.
+`internal_energy`, `SCFResult.internal_energy` and EDIIS all use this functional.
+`free_energy` uses it with the entropy of the actual state: $F=U-kT\,S[\rho]$.
+Neither entropy nor filling is reference-subtracted.
+
+This is an energy functional for the reference-subtracted model, not the energy
+difference from the reference. At $\rho=\rho_{\rm ref}$, the interaction term
+vanishes but $U=\langle h_0,\rho_{\rm ref}\rangle/N$, which need not be zero.
+Changing the reference changes the effective model unless the one-body
+Hamiltonian is adjusted consistently. Compare solutions with the same model
+and reference; an energy difference from the reference requires explicitly
+subtracting its energy evaluated with that same model.
+
+Superconducting references are currently rejected by `Model`. This is an
+implementation restriction, not a physical prohibition. A BdG extension would
+specify both the normal reference density and anomalous pairing density, and
+subtract their corrections with the matching interaction functional. A normal
+reference would have zero anomalous density. The Nambu covariance itself must
+not be treated as a density difference with the usual identity offset.
 
 ## Tight-binding dictionary utilities
 

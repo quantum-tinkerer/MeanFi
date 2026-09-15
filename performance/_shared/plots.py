@@ -29,8 +29,8 @@ _LEGACY_DENSITY_SCALING_PLOTS = (
 )
 
 _METHOD_LABELS = {
-    "adaptive_simplex": "AdaptiveSimplex",
-    "periodic_grid": "PeriodicGrid",
+    "adaptive_simplex": "FermiSimplex",
+    "periodic_grid": "UniformGrid",
 }
 
 _METHOD_STYLES = {
