@@ -30,6 +30,8 @@ def measure(name, calculation, reference, repeat):
         "seconds": seconds,
         "median_seconds": median(seconds),
         "density_max_error": float(np.max(np.abs(density.values - reference))),
+        "mu": density.mu,
+        "filling": density.filling,
         "errors": asdict(density.errors),
         "density_work": asdict(density.statistics),
     }
@@ -82,27 +84,36 @@ def density_benchmarks(size, repeat, sparse, initial_nk):
                 thermal,
             )
         )
+    filling = float(thermal[:size].real.sum())
     records = []
     for name, hamiltonian, temperature, integration, expected in cases:
-        record = measure(
-            f"density/{name}/N={size}",
-            lambda: mf.density_matrix_at_mu(
-                hamiltonian,
-                mu,
-                kT=temperature,
-                coordinates=coordinates,
-                integration=integration,
-            ),
-            expected,
-            repeat,
-        )
-        record.update(
-            size=size,
-            temperature=temperature,
-            mu=mu,
-            reference_grid_difference=0.0 if temperature == 0 else reference_difference,
-        )
-        records.append(record)
+        kwargs = dict(kT=temperature, coordinates=coordinates, integration=integration)
+        calculations = [
+            ("fixed-mu", lambda: mf.density_matrix_at_mu(hamiltonian, mu, **kwargs))
+        ]
+        if temperature > 0:
+            # The converged thermal reference supplies both density and filling
+            # at a known mu. No reference root search enters the timing.
+            calculations.append(
+                (
+                    "fixed-filling",
+                    lambda: mf.density_matrix(hamiltonian, filling, **kwargs),
+                )
+            )
+        for constraint, calculate in calculations:
+            record = measure(
+                f"density/{name}/{constraint}/N={size}", calculate, expected, repeat
+            )
+            record.update(
+                size=size,
+                temperature=temperature,
+                reference_mu=mu,
+                mu_error=abs(record["mu"] - mu),
+                reference_grid_difference=0.0
+                if temperature == 0
+                else reference_difference,
+            )
+            records.append(record)
     return records
 
 
@@ -173,12 +184,15 @@ def main():
             "benchmarks": records,
         }
     print(
-        f"{'Calculation':38} {'Median (s)':>12} {'Density error':>15} {'SCF steps':>10}"
+        f"{'Calculation':46} {'Median (s)':>12} {'Density error':>15} "
+        f"{'Mu probes':>10} {'SCF steps':>10}"
     )
     for record in records:
         print(
-            f"{record['name']:38} {record['median_seconds']:12.4f} "
-            f"{record['density_max_error']:15.3g} {str(record.get('iterations', '-')):>10}"
+            f"{record['name']:46} {record['median_seconds']:12.4f} "
+            f"{record['density_max_error']:15.3g} "
+            f"{record['density_work']['charge_evaluations']:10} "
+            f"{str(record.get('iterations', '-')):>10}"
         )
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

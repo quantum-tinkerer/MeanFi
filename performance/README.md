@@ -3,6 +3,7 @@
 One script measures the core operations through the public API:
 
 - Selected density entries with FermiSimplex, dense UniformGrid and optional sparse RationalFOE.
+- Fixed-filling searches with dense and sparse UniformGrid, including all charge probes.
 - A complete EDIIS solve at zero and finite temperature.
 
 ```bash
@@ -12,15 +13,19 @@ pixi run -e test-sparse benchmark --sparse --sizes 100 200 --output build/benchm
 
 Each case has one warm-up and three timed repetitions, with one BLAS thread.
 Use `--repeat` to change the repetitions. The table reports median wall time,
-the largest density-entry error and SCF iteration count. JSON also records every
-timing, numerical estimates and the software environment. Density work counters
+the largest density-entry error, charge-probe count and SCF iteration count. JSON
+also records every timing, the chemical-potential error, numerical estimates and
+the software environment. Density work counters
 refer to the measured density call, or the final density evaluation in SCF.
 Reports belong in ignored `build/` or CI artifacts; no generated results are tracked.
 
 Density uses a coupled-orbital chain, `H(k) = A - 2 cos(k) I`. The reference
 diagonalizes `A` once: zero-temperature occupations are analytic; thermal
 occupations use 2048 points, checked against 1024 to within `1e-12`. These
-references are computed outside the timings. All backends request the same
+references are computed outside the timings. Fixed-filling cases use the reference
+filling at mu=0.17, away from the symmetric half-filled root. Comparing them with
+the matching fixed-mu cases exposes the cost of chemical-potential searches.
+All backends request the same
 onsite diagonal and neighboring off-diagonal entries. UniformGrid uses 64 points;
 FermiSimplex refines with the default tolerance policy. Use `--initial-nk 64` for
 a separate starting-mesh comparison; it does not change the tolerance policy.

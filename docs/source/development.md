@@ -41,8 +41,9 @@ pixi run -e test-sparse benchmark --sparse --sizes 100 200 --output build/benchm
 ```
 
 The benchmark compares density and EDIIS workloads with known numerical or
-analytic references. It reports timings, largest entry errors and iteration
-counts; optional JSON includes work counters and environment details. See
+analytic references, including full sparse fixed-filling searches. It reports
+timings, largest entry errors, charge probes and iteration counts; optional JSON
+includes chemical-potential errors, work counters and environment details. See
 `performance/README.md` in the checkout for the workloads. Generated results
 belong in ignored `build/` or CI artifacts, not in version control.
 
