@@ -112,8 +112,8 @@ html_theme_options = {
     "home_page_in_toc": True,
     "logo": {
         "alt_text": "MeanFi",
-        "image_light": "logo_imgs/MeanFi_logo_light.svg",
-        "image_dark": "logo_imgs/MeanFi_logo_dark.svg",
+        "image_light": "_static/MeanFi_logo_light.svg",
+        "image_dark": "_static/MeanFi_logo_dark.svg",
     },
 }
 

@@ -1,11 +1,11 @@
 image: ghcr.io/prefix-dev/pixi:0.70.2
 
 variables:
-  PIXI_LOCKED : "true"
-  OPENBLAS_NUM_THREADS : 1
-  OMP_NUM_THREADS : 1
-  MKL_DYNAMIC : FALSE
-  MKL_NUM_THREADS : 1
+  PIXI_LOCKED: "true"
+  OPENBLAS_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+  MKL_DYNAMIC: "FALSE"
+  MKL_NUM_THREADS: "1"
 
 before_script:
   - pixi global install git
@@ -96,8 +96,8 @@ pages:
   needs:
     - run docs
   script:
-    - mkdir public
-    - cp -r docs/build public/
+    - mkdir -p public
+    - cp -r docs/build/html/. public/
   artifacts:
     paths:
       - public
@@ -120,6 +120,7 @@ publish to test pypi:
     - run coverage
     - check installed wheel
     - run docs
+    - run pre-commit
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
   script:
@@ -138,6 +139,7 @@ publish to pypi:
     - run docs
     - run coverage
     - check installed wheel
+    - run pre-commit
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
   script:
