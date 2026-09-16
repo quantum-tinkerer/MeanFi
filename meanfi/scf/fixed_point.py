@@ -54,6 +54,7 @@ def iterate_anderson(
     scf: AndersonMixing,
     scf_tol: float,
     accept: Callable[[SCFEvaluation], None],
+    residual_norm: Callable[[np.ndarray], float] = max_norm,
 ) -> None:
     """Adapt SciPy's residual/callback interface to complete SCF evaluations."""
     trials: list[SCFEvaluation] = []
@@ -101,7 +102,7 @@ def iterate_anderson(
                 line_search=scf.line_search,
                 maxiter=scf.max_iterations,
                 f_tol=scf_tol,
-                tol_norm=max_norm,
+                tol_norm=residual_norm,
             )
     except ScipyNoConvergence as exc:
         raise NoConvergence(exc.args[0]) from exc

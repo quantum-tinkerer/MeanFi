@@ -1,49 +1,39 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from meanfi.errors import ErrorValues
 from meanfi.space.coordinates import DensityCoordinates, _assemble_blocks
 from meanfi.tb.ops import _tb_type
 
-
-@dataclass(frozen=True)
-class FermiSimplexInfo:
-    """Mesh size and cumulative work for FermiSimplex integration."""
-
-    n_kernel_evals: int
-    n_cached_nodes: int
-    n_leaves: int
-    refinements: int
-    error_estimate_available: bool
-    charge_evaluations: int | None = None
-    charge_integration_calls: int | None = None
-    density_integration_calls: int | None = None
-    num_threads: int | None = None
-
-    requested_nk: int | None = None
-    n_kpoints: int | None = None
-    n_diagonalizations: int | None = None
+if TYPE_CHECKING:
+    from meanfi.model import Model
 
 
-@dataclass(frozen=True)
-class UniformGridInfo:
-    """Mesh size, retained storage, and cumulative work for periodic integration."""
+@dataclass(frozen=True, kw_only=True)
+class IntegrationInfo:
+    """Common mesh and work counts, with optional method-specific details.
 
-    requested_nk: int | None
+    Refinements count local simplex subdivisions or global grid doublings.
+    error_estimate_available refers to momentum integration only.
+    """
+
     n_kpoints: int
-    grid_shape: tuple[int, ...]
     n_kernel_evals: int
-    unique_evals: int
-    n_evaluator_evals: int
-    n_diagonalizations: int | None = None
+    requested_nk: int | None = None
+    n_diagonalizations: int = 0
     refinements: int = 0
-    validation_evaluations: int = 0
     charge_evaluations: int = 0
     charge_integration_calls: int = 0
     density_integration_calls: int = 0
     error_estimate_available: bool = False
+    grid_shape: tuple[int, ...] | None = None
+    n_cached_nodes: int | None = None
+    n_leaves: int | None = None
+    num_threads: int | None = None
     spectrum_bytes: int = 0
 
 
@@ -98,7 +88,9 @@ class DensityResult:
     ``entropy`` and ``band_energy`` are per cell per physical orbital; entropy
     is in units of Boltzmann's constant. The band energy belongs to the input
     quadratic Hamiltonian (with BdG normal ordering),
-    before correcting for interaction double counting. Selection preserves
+    before correcting for interaction double counting. Model-based results
+    retain known ``internal_energy``; ``free_energy`` subtracts ``kT * entropy``.
+    Both are None when the model energy cannot be determined. Selection preserves
     these scalars; unknown real-space entries are never filled to obtain them.
     """
 
@@ -106,9 +98,19 @@ class DensityResult:
     mu: float
     filling: float
     errors: ErrorValues
-    statistics: FermiSimplexInfo | UniformGridInfo | None = None
+    statistics: IntegrationInfo | None = None
     band_energy: float | None = None
     entropy: float = 0.0
+    kT: float = 0.0
+    internal_energy: float | None = None
+    _model: Model | None = field(default=None, repr=False, compare=False)
+
+    @property
+    def free_energy(self) -> float | None:
+        """Model energy minus kT * entropy, when the model energy is known."""
+        if self.internal_energy is None:
+            return None
+        return self.internal_energy - self.kT * self.entropy
 
     @property
     def coordinates(self) -> DensityCoordinates:

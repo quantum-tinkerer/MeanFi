@@ -145,3 +145,27 @@ def test_nonfinite_mu_rejected_for_a_finite_simplex_system():
         density_matrix_at_mu(
             {(): np.eye(2)}, float("nan"), keys=[()], integration=FermiSimplex(nk=1)
         )
+
+
+@pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
+def test_starting_mesh_and_fixed_mesh_are_distinct(method):
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        method(nk=16, initial_nk=8)
+    with pytest.raises(ValueError, match="initial_nk"):
+        method(initial_nk=0)
+    with pytest.raises(TypeError):
+        method(16)
+
+
+def test_simplex_initial_mesh_matches_analytic_constant_density():
+    h = {(0,): np.diag([-1.0, 1.0])}
+    result = density_matrix_at_mu(
+        h,
+        0,
+        keys=[(0,)],
+        integration=FermiSimplex(initial_nk=17),
+    )
+    np.testing.assert_allclose(result.to_tb()[(0,)], np.diag([1.0, 0.0]), atol=1e-14)
+    assert result.statistics.n_kpoints >= 17
+    assert result.statistics.requested_nk is None
+    assert result.errors.density_matrix_integration is not None

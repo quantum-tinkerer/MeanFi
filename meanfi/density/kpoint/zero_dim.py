@@ -10,7 +10,7 @@ from meanfi.density.kpoint.matrix_functions.direct import (
 )
 from meanfi.density.kpoint.occupations import fermi_dirac, occupation_entropy
 from meanfi.errors import ErrorValues
-from meanfi.results import FermiSimplexInfo
+from meanfi.results import IntegrationInfo
 from meanfi.space.coordinates import DensityCoordinates
 
 
@@ -40,7 +40,7 @@ def evaluate_zero_dim(
     values = density_values_from_eigensystem(eigenvectors, occupation, coordinates)
     estimated = nk is None
     error = 0.0 if estimated else None
-    info = FermiSimplexInfo(
+    info = IntegrationInfo(
         n_kernel_evals=1,
         n_cached_nodes=1,
         n_leaves=1,

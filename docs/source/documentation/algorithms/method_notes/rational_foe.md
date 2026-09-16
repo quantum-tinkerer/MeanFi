@@ -38,11 +38,16 @@ For Hermitian $A$, the spectral theorem gives
 =\max_{\lambda\in\mathrm{spec}(A)} |r(\lambda)-f(\lambda)|.
 :::
 
-This controls off-diagonal as well as diagonal density entries. The scalar
-tolerance is the smaller of the density target and the charge budget divided
-by the sum of absolute charge weights. Filling searches reserve part of the
-filling-residual budget for approximation error. Positive uniform-grid weights
-preserve the matrix-entry bound; mesh error is checked separately when available.
+This controls off-diagonal as well as diagonal density entries. At fixed
+chemical potential, the scalar target is `matrix_function_tol`, defaulting to
+`tol/5` through the public tolerance policy. During filling searches it is the
+smaller of that target and one quarter of the filling-residual budget divided
+by the sum of absolute charge weights. Mesh-integration targets do not control
+the scalar fit. Positive uniform-grid weights
+preserve the matrix-entry bound. `errors.matrix_function_error` reports the
+largest achieved sampled Fermi-fit error over the density calculation's momenta,
+including revalidation of reused fits. Mesh error is a separate quantity and
+remains `None` on prescribed meshes.
 
 Fitting starts on a small grid and refines only when needed. Accepted Fermi fits
 pass a dense scalar validation grid resolving edges, the transition and tails.

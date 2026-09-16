@@ -167,6 +167,11 @@ class ActiveSCFSpace:
             sparse=self.sparse,
         )
 
+    def density_norm(self, params: np.ndarray) -> float:
+        """Largest complex entry in the reconstructed active density."""
+        values = self.parametrization.values_from_params(np.asarray(params))
+        return float(np.max(np.abs(values), initial=0.0))
+
     def project_correction(self, rho: _tb_type) -> _tb_type:
         # Corrections may omit known-zero blocks; sampled densities may not.
         from scipy.sparse import csr_matrix

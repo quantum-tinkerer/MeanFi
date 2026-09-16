@@ -195,3 +195,27 @@ def test_default_mixer_handles_reference_restart_and_spatial_symmetry():
             np.testing.assert_allclose(
                 default.mean_field[key], linear.mean_field[key], atol=1e-5
             )
+
+
+def test_scf_residual_uses_complex_density_entry_magnitudes():
+    import meanfi as mf
+    from meanfi.scf.problem import SCFEvaluation
+    from meanfi.space.state import ActiveDensityState
+
+    model = mf.Model(
+        {(): np.diag([-0.3, 0.4])},
+        {(): np.array([[0.0, 1.0], [1.0, 0.0]])},
+        1,
+        kT=0.2,
+    )
+    density = mf.density_matrix(model)
+    difference = {(): np.array([[0, 0.8e-6 * (1 + 1j)], [0.8e-6 * (1 - 1j), 0]])}
+    params = model._space.params_from_density(difference)
+    evaluation = SCFEvaluation(
+        density,
+        ActiveDensityState(model._space, params),
+        ActiveDensityState(model._space, np.zeros_like(params)),
+    )
+    assert np.max(abs(params)) == 0.8e-6
+    assert evaluation.residual_norm == pytest.approx(np.sqrt(2) * 0.8e-6)
+    assert evaluation.residual_norm > 1e-6

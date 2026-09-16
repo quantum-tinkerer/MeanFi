@@ -8,6 +8,7 @@ computed outside the timed region. Run comparisons sequentially.
 
 import argparse
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -42,6 +43,13 @@ def main():
         SparseRationalLayout,
     )
 
+    # This harness also runs archived revisions with the former parameter name.
+    matrix_target = (
+        "matrix_function_tol"
+        if "matrix_function_tol"
+        in inspect.signature(PreparedMumpsRationalNode).parameters
+        else "density_tolerance"
+    )
     cases = []
     with threadpool_limits(1):
         for size in (100, 200):
@@ -71,7 +79,7 @@ def main():
                         q_diag=np.ones(size),
                         options=mf.RationalFOE(),
                         charge_tolerance=1e-6,
-                        density_tolerance=1e-7,
+                        **{matrix_target: 1e-7},
                         compute_thermodynamics=thermal,
                         layout=SparseRationalLayout.build(
                             density_coordinates=coords,

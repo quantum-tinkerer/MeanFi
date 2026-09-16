@@ -468,9 +468,14 @@ def node_case(case, scheme):
             q_diag=q_diag,
             options=options,
             charge_tolerance=case.tolerance,
-            density_tolerance=case.tolerance,
             shared_aaa_interval_cache=interval_cache,
         )
+        matrix_target = (
+            "matrix_function_tol"
+            if "matrix_function_tol" in node_parameters
+            else "density_tolerance"
+        )
+        settings[matrix_target] = case.tolerance
         thermodynamics = args.thermodynamics or args.large_matrices
         if "layout" in node_parameters:
             settings["layout"] = prepared_sparse.SparseRationalLayout.build(

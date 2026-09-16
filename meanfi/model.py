@@ -11,7 +11,7 @@ from meanfi.space.coordinates import DensityCoordinates
 from meanfi.space.space import ActiveSCFSpace
 from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.space.symmetry import SpatialSymmetry
-from meanfi.tb.bdg import electron_to_bdg_tb, validate_bdg_tb
+from meanfi.tb.bdg import assemble_bdg_tb, electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import add_tb, _tb_type
 from meanfi.tb.storage import prefers_sparse_storage
 from meanfi.tb.validate import freeze_tb, tb_dimension, tb_orbital_count
@@ -184,6 +184,22 @@ class Model:
                 mean_field, ndof=self._ndof, ndim=self._ndim, name="BdG correction"
             )
         return add_tb(self._hamiltonian, mean_field or {})
+
+    def _project_mean_field(self, correction: _tb_type) -> _tb_type:
+        projected = self._space.project_correction(correction)
+        if not self.superconducting:
+            return projected
+        return assemble_bdg_tb(
+            {
+                key: block[: self._ndof, : self._ndof]
+                for key, block in projected.items()
+            },
+            {
+                key: block[: self._ndof, self._ndof :]
+                for key, block in projected.items()
+            },
+            ndof=self._ndof,
+        )
 
     def random_meanfield(self, rng=None, scale: float = 1.0) -> _tb_type:
         """Sample a solver-ready mean-field correction in this model's SCF space."""

@@ -23,13 +23,16 @@ def _positive_integer(name, value, *, allow_none=False, minimum=1):
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class IntegrationMethod:
     """Base class for Brillouin-zone integration strategies."""
 
 
 def _validate_mesh_settings(method):
     _positive_integer("nk", method.nk, allow_none=True)
+    _positive_integer("initial_nk", method.initial_nk, allow_none=True)
+    if method.nk is not None and method.initial_nk is not None:
+        raise ValueError("nk and initial_nk are mutually exclusive")
     targets = ("density_matrix_tol", "charge_tol")
     for name in targets:
         value = getattr(method, name)
@@ -47,13 +50,14 @@ def _validate_mesh_settings(method):
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class FermiSimplex(IntegrationMethod):
     """FermiSimplex integration of normal systems at zero temperature.
 
     ``nk`` requests a total number of native mesh vertices, including distinct
     boundary vertices. Native dyadic construction may overshoot this request.
-    Without ``nk``, use empirical integration targets and adaptive refinement.
+    Without ``nk``, use integration targets and adaptive refinement.
+    ``initial_nk`` sets the starting size; the default is 3**dimension vertices.
     """
 
     density_matrix_tol: float | None = None
@@ -61,6 +65,7 @@ class FermiSimplex(IntegrationMethod):
     num_threads: int | None = 1
     charge_tol: float | None = None
     nk: int | None = None
+    initial_nk: int | None = None
     max_points: int = 1_048_576
 
     def __post_init__(self):
@@ -68,17 +73,19 @@ class FermiSimplex(IntegrationMethod):
         _positive_integer("num_threads", self.num_threads, allow_none=True)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class UniformGrid(IntegrationMethod):
     """Isotropic periodic point sampling with optional global refinement.
 
     ``nk`` requests TOTAL mesh points, rounded up to ``n**dimension``. Without
     ``nk``, finite-temperature integration doubles each axis and validates
-    convergence with a shifted grid. ``batch_size`` bounds transient matrix
+    convergence by comparing coarse and fine integrals. ``initial_nk`` sets
+    the starting size; the default is 4**dimension points. ``batch_size`` bounds transient matrix
     storage; ``max_spectrum_bytes`` bounds retained normal-state eigenvalues.
     """
 
     nk: int | None = None
+    initial_nk: int | None = None
     density_matrix_tol: float | None = None
     charge_tol: float | None = None
     max_points: int = 1_048_576

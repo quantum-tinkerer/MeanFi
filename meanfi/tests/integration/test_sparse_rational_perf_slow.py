@@ -122,7 +122,7 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
             trace_weights_diag=trace_weights,
             include_all_diagonal=False,
         ),
-        density_tolerance=1e-9,
+        matrix_function_tol=1e-9,
     )
 
     for mu in (0.05, -0.3):

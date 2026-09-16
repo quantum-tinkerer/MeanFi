@@ -20,6 +20,7 @@ class ErrorTolerances:
     density_matrix_integration: float
     filling_residual: float
     charge_integration: float
+    matrix_function_tol: float
 
     def __post_init__(self) -> None:
         for name, value in self.__dict__.items():
@@ -40,6 +41,7 @@ class ErrorValues:
     band_energy_integration: float | None = None
     entropy_integration: float | None = None
     entropy_approximation: float | None = None
+    matrix_function_error: float | None = None
 
     def __post_init__(self) -> None:
         for name, value in self.__dict__.items():
@@ -65,6 +67,7 @@ def default_solver_tolerances(tol: float) -> ErrorTolerances:
         density_matrix_integration=tol / 5.0,
         filling_residual=tol / 10.0,
         charge_integration=tol / 5.0,
+        matrix_function_tol=tol / 5.0,
     )
 
 

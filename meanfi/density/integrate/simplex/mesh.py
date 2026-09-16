@@ -9,7 +9,7 @@ from fermisimplex import SpectralMesh
 from threadpoolctl import threadpool_limits
 
 from meanfi.density.problem import DensityProblem
-from meanfi.results import FermiSimplexInfo, _DensityEntries
+from meanfi.results import IntegrationInfo, _DensityEntries
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import _tb_type, to_dense
 
@@ -201,7 +201,9 @@ class SimplexEvaluator:
         self.settings = problem.integration
         self.mesh = _spectral_mesh(
             problem.hamiltonian,
-            nk=self.settings.nk,
+            nk=self.settings.nk
+            if self.settings.nk is not None
+            else self.settings.initial_nk,
             max_points=self.settings.max_points,
         )
         self.work = _Work()
@@ -282,7 +284,7 @@ class SimplexEvaluator:
 
     def statistics(self, charge_evaluations: int):
         work, mesh = self.work, self.mesh
-        return FermiSimplexInfo(
+        return IntegrationInfo(
             n_kernel_evals=int(work.evaluations),
             n_cached_nodes=int(mesh.cached_vertices),
             n_leaves=int(mesh.active_simplices),

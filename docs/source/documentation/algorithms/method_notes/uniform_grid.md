@@ -13,19 +13,23 @@ The requested and actual sizes are reported separately.
 
 ## Accuracy control
 
-At positive temperature, omit `nk` to start from a small deterministic grid:
+At positive temperature, omit `nk` to refine from four points per axis by
+default. Set `initial_nk=N` to choose a different starting total; it uses the
+same rounding as `nk`, but allows refinement. For example, in 2D,
+`UniformGrid(initial_nk=256)` starts at 16 × 16 and next evaluates 32 × 32.
+`nk` and `initial_nk` are mutually exclusive.
 
 1. Find the chemical potential for the requested filling on the current grid,
    or use the supplied fixed chemical potential.
 2. Integrate charge, requested density entries, band energy, and entropy.
 3. Compare with the previous grid at the **same chemical potential**.
-4. When density and charge changes meet their targets, validate with a deterministic shifted
-   grid at the same resolution and chemical potential.
-5. Accept only if validation passes; otherwise double every axis and repeat.
+4. Accept when the density and charge changes meet their targets; otherwise
+   double every axis and repeat.
 
-Validation offsets are deterministic and distinct by axis: `sqrt(p) % 1`
-for successive primes `p = 2, 3, 5, ...`. Shifted validation is mandatory:
-nested meshes alone can agree through aliasing.
+There are no shifted validation grids. Coarse/fine differences are empirical:
+both grids can miss the same oscillation and agree through aliasing. Choose an
+initial mesh that resolves known rapid momentum variation; tighter tolerances
+alone cannot detect agreement caused by aliasing.
 Band energy and entropy are computed on the accepted density mesh. Their error
 estimates are diagnostics and do not trigger refinement. They are available as `errors.band_energy_integration` and `errors.entropy_integration`.
 Both the quantities and their errors are per cell per physical orbital.
@@ -46,7 +50,7 @@ their spectra are recomputed when it changes.
 
 `max_points` bounds total points in a grid, not points per axis. Retained spectra,
 transient batch arrays, final mesh nodes and cumulative diagonalizations measure
-different quantities. Validation and density recomputation add work beyond the
+different quantities. Root searches and density recomputation add work beyond the
 final mesh size. None of these settings is a total-process RSS limit.
 
 Direct diagonalization is the default. Explicit `RationalFOE` is supported only
@@ -54,7 +58,7 @@ for sparse matrices on prescribed positive-temperature grids. See
 [matrix functions](../matrix_functions.md) for this capability boundary.
 
 `statistics.n_diagonalizations` counts direct spectral decompositions, including
-root preparation and validation. RationalFOE uses Gershgorin spectral bounds and
+root preparation and density integration. RationalFOE uses Gershgorin spectral bounds and
 shifted linear solves, so it performs zero Hamiltonian diagonalizations. Its
 `n_kernel_evals` counts point evaluations; zero diagonalizations does not imply
 zero work. Scalar coefficient construction is outside this Hamiltonian count.

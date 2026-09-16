@@ -37,6 +37,12 @@ selected = mf.density_matrix(model, mean_field=solution.mean_field, tol=1e-6)
 assert selected.covers(model.required_coordinates)
 assert not selected.is_complete
 print("Selected entries:", selected.coordinates.entries, selected.values)
+# Energy uses the evaluated band trace, with no extra selected density entries.
+np.testing.assert_allclose(
+    mf.internal_energy(model, selected), selected.internal_energy
+)
+np.testing.assert_allclose(mf.free_energy(model, selected), selected.free_energy)
+assert selected.kT == model.kT
 
 # Request full blocks for plotting, export, or observables with additional support.
 full = mf.density_matrix(model, mean_field=solution.mean_field, keys=list(h0), tol=1e-6)
@@ -90,7 +96,7 @@ print("Zero-temperature energy:", cold_solution.internal_energy)
 # omitting it refines to the requested accuracy at positive temperature.
 fixed = mf.density_matrix(model, integration=mf.UniformGrid(nk=64))
 controlled = mf.density_matrix(
-    model, integration=mf.UniformGrid(dtype="complex128"), tol=1e-5
+    model, integration=mf.UniformGrid(initial_nk=16, dtype="complex128"), tol=1e-5
 )
 assert fixed.entry_errors is None
 assert controlled.entry_errors is not None
@@ -217,7 +223,20 @@ if args.sparse:
         kT=0.2,
     )
     sparse_grid = mf.UniformGrid(nk=64, matrix_function=mf.RationalFOE())
-    sparse_density = mf.density_matrix(sparse_model, integration=sparse_grid, tol=1e-5)
+
+    # Customize the existing policy; the default matrix-function budget is tol/5.
+    def accuracy(tol):
+        return replace(mf.default_solver_tolerances(tol), matrix_function_tol=tol / 10)
+
+    sparse_density = mf.density_matrix(
+        sparse_model, integration=sparse_grid, tol=1e-5, tolerance_policy=accuracy
+    )
+    assert (
+        sparse_density.errors.matrix_function_error
+        <= accuracy(1e-5).matrix_function_tol
+    )
+    assert sparse_density.errors.density_matrix_integration is None
+    print("Sparse density approximation:", sparse_density.errors.matrix_function_error)
     print(
         "Sparse AAA:", sparse_density.mu, sparse_density.filling, sparse_density.entropy
     )

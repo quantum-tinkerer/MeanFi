@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from numbers import Integral
+from dataclasses import replace
 
 import numpy as np
 
@@ -45,7 +46,7 @@ def evaluate_density(
             if isinstance(problem.integration, FermiSimplex)
             else solve_periodic
         )
-        return evaluate(
+        result = evaluate(
             problem,
             mu=mu,
             filling=filling,
@@ -53,6 +54,7 @@ def evaluate_density(
             max_charge_evaluations=max_charge_evaluations,
             mu_guess=mu_guess,
         )
+        return replace(result, kT=problem.kT)
     except (ConvergenceError, NotImplementedError):
         raise
     except (RuntimeError, np.linalg.LinAlgError, FloatingPointError) as exc:

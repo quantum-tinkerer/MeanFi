@@ -30,6 +30,7 @@ def test_default_solver_tolerances_define_the_public_error_hierarchy():
         density_matrix_integration=2e-4,
         filling_residual=1e-4,
         charge_integration=2e-4,
+        matrix_function_tol=2e-4,
     )
     with pytest.raises(FrozenInstanceError):
         tolerances.scf_residual = 1e-2
@@ -78,6 +79,7 @@ def test_explicit_integration_tolerances_are_effective_internal_requests(
         density_matrix_integration=5e-7,
         filling_residual=1e-5,
         charge_integration=charge_tolerance,
+        matrix_function_tol=2e-5,
     )
 
 
@@ -173,3 +175,59 @@ def test_custom_charge_policy_is_retained_without_mesh_overrides():
         tolerances=tolerances,
     )
     assert problem.tolerances == tolerances
+
+
+@pytest.mark.parametrize("target", [1e-3, 1e-9])
+@pytest.mark.usefixtures("require_mumps")
+def test_matrix_function_budget_and_report_match_dense_reference(target):
+    from scipy import sparse
+    from scipy.special import expit
+    from meanfi import density_matrix_at_mu, RationalFOE
+
+    n = 24
+    matrix = sparse.diags(
+        [-np.ones(n - 1), np.linspace(-0.3, 0.4, n), -np.ones(n - 1)],
+        [-1, 0, 1],
+        format="csr",
+        dtype=complex,
+    )
+    requested = replace(
+        default_solver_tolerances(1e-3),
+        matrix_function_tol=target,
+        density_matrix_integration=1e-12,
+        charge_integration=1e-12,
+        filling_residual=1e-12,
+    )
+    result = density_matrix_at_mu(
+        {(): matrix},
+        mu=0.13,
+        kT=0.2,
+        keys=[()],
+        integration=UniformGrid(nk=1, matrix_function=RationalFOE()),
+        tolerance_policy=lambda _: requested,
+    )
+    energies, vectors = np.linalg.eigh(matrix.toarray())
+    exact = (vectors * expit((0.13 - energies) / 0.2)) @ vectors.conj().T
+    error = np.max(abs(result.to_tb()[()] - exact))
+    estimated = result.errors.matrix_function_error
+    assert 0 <= estimated <= target
+    assert error <= 1.01 * estimated + 1e-12, (error, estimated)
+    assert result.errors.density_matrix_integration is None
+    if target == 1e-3:
+        # Neither integration nor an unused filling-root target tightens this fit.
+        assert estimated > 1e-8
+
+
+@pytest.mark.parametrize("method,kT", [(FermiSimplex(), 0), (UniformGrid(), 0.2)])
+def test_direct_density_does_not_invent_a_matrix_function_estimate(method, kT):
+    from meanfi import density_matrix_at_mu, IntegrationInfo
+
+    result = density_matrix_at_mu(
+        _two_level_hamiltonian(),
+        0,
+        kT=kT,
+        keys=[()],
+        integration=method,
+    )
+    assert isinstance(result.statistics, IntegrationInfo)
+    assert result.errors.matrix_function_error is None

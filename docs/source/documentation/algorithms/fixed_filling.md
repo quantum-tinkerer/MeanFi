@@ -18,8 +18,8 @@ does not commute with the Hamiltonian. A changed `mu` therefore requires a new
 spectral evaluation.
 
 Accuracy-controlled periodic integration solves the filling on each new grid.
-Coarse/fine and shifted-grid comparisons are all evaluated at that grid's same
-returned chemical potential. Simplex integration reuses its native spectral mesh
+Coarse/fine comparisons are evaluated at that grid's same returned chemical
+potential, without additional shifted grids. Simplex integration reuses its native spectral mesh
 through charge and density refinement.
 
 ## Interpreting results
@@ -28,6 +28,7 @@ The public result separates:
 
 - the filling root residual on the evaluated mesh;
 - charge and density integration error estimates;
+- the matrix-function approximation estimate, when available;
 - the outer SCF residual.
 
 `density_matrix_integration` estimates integration error at the returned chemical

@@ -12,7 +12,7 @@ method_notes/fermi_simplex.md
 method_notes/uniform_grid.md
 ```
 
-Both use the same input-driven contract:
+All method settings are keyword-only. Both integrators use the same contract:
 
 ```python
 meanfi.FermiSimplex(nk=4096)
@@ -20,6 +20,9 @@ meanfi.UniformGrid(nk=4096)
 
 meanfi.FermiSimplex(density_matrix_tol=1e-5, charge_tol=1e-6)
 meanfi.UniformGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
+
+meanfi.FermiSimplex(initial_nk=256)  # Refine from at least 256 vertices.
+meanfi.UniformGrid(initial_nk=256)   # Refine from at least 256 points.
 ```
 
 An explicit `nk` requests a prescribed final mesh size. Omitting `nk` requests
@@ -35,6 +38,13 @@ continues to control filling roots and SCF convergence on a prescribed mesh.
 rounding. It is never a per-axis resolution or a cumulative work count.
 `result.statistics.requested_nk` and `result.statistics.n_kpoints` distinguish requested
 and actual mesh sizes; cumulative diagonalizations are reported separately.
+Both return the same `IntegrationInfo` record. Optional details such as
+`grid_shape` or `n_leaves` are `None` where inapplicable.
+
+`initial_nk` uses the same units and rounding as `nk`, but selects the initial
+mesh for adaptive refinement. It cannot be combined with `nk`. Without either,
+UniformGrid starts at 4 points per axis; FermiSimplex starts at 3 vertices per
+axis, including the periodic boundaries.
 
 | Request | Periodic grid | Simplex mesh |
 | --- | --- | --- |
@@ -43,7 +53,7 @@ and actual mesh sizes; cumulative diagonalizations are reported separately.
 | `nk=4096`, 3D | 16 × 16 × 16 = 4096 | 17 × 17 × 17 = 4913 |
 
 A prescribed calculation evaluates that discretization without hidden refinement
-or shifted validation. Integration errors are unavailable (`None`), and a
+or additional error-checking meshes. Integration errors are unavailable (`None`), and a
 converged filling root does not establish Brillouin-zone integration accuracy.
 In accuracy-controlled mode, failure to meet a target within a budget raises a
 convergence error. Reported error estimates are empirical, not certificates.
@@ -58,7 +68,9 @@ Density accuracy controls integration; energy and entropy are evaluated on the
 accepted mesh without separate targets. Their estimated errors are diagnostics,
 not convergence conditions. Band-energy errors scale with the Hamiltonian's
 energy units. The default tolerance policy sets density and charge integration
-targets to `tol/5`, the filling residual to `tol/10`, and the SCF residual to `tol`.
+targets and `matrix_function_tol` to `tol/5`, the filling residual to `tol/10`,
+and the SCF residual to `tol`. These are separate stage targets, not a certified
+bound on their sum or on chemical-potential error.
 
 Read estimates through `result.errors.band_energy_integration` and
 `result.errors.entropy_integration`, alongside the density and charge errors.
@@ -68,11 +80,26 @@ or entropy integration error; these fields remain `None` there, except for an
 exact finite-system evaluation. `result.statistics` contains work and mesh
 information, not physical quantities or their errors.
 
-For a prescribed sparse calculation, scalar occupation accuracy comes from the
-density target and the filling check. Entropy shares that scalar accuracy and
-the same poles; energy uses the occupation approximation directly. These are
-sampled matrix-function checks, not estimates of unsampled Brillouin-zone error.
-Passing mesh integration targets with `nk` remains an error.
+Matrix-function approximation has its own target and estimate on every result:
+`tolerance_policy(tol).matrix_function_tol` and
+`result.errors.matrix_function_error`. AAA reports the largest sampled scalar
+Fermi-function error across the evaluated momenta, which estimates an upper
+limit on every integrated density-entry error from that approximation. Positive
+integration weights preserve the pointwise bound. Direct diagonalization and
+FermiSimplex report `None` for this approximation estimate.
+
+For AAA, charge traces may require a tighter scalar fit because they sum many
+diagonal entries. Filling-search constraints apply only when finding filling.
+Entropy reuses the accepted poles but has no accuracy target; its sampled error
+remains a diagnostic. Neither estimate measures unsampled momentum variation.
+Passing mesh integration targets with `nk` remains an error; the policy's
+matrix-function target remains active on prescribed meshes.
+
+`entry_errors` describes momentum integration only. UniformGrid reports each
+entry's coarse/fine difference. FermiSimplex supplies its global worst-entry
+estimate for each entry, so those estimates are conservative within its error
+model. Both describe the integrated real-space density at the returned chemical
+potential, rather than an error at a single momentum.
 
 ## Migration
 

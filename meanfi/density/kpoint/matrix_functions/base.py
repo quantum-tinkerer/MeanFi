@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from numbers import Integral
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class DirectDiagonalization:
     """Evaluate normal or BdG density by direct diagonalization."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RationalFOE:
     """Evaluate sparse density and entropy with a shared AAA pole expansion."""
 

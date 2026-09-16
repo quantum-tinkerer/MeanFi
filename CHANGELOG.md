@@ -24,6 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- UniformGrid refinement now compares coarse and fine grids only, without shifted
+  validation. Both integrators accept `initial_nk` for the starting adaptive mesh;
+  `nk` continues to prescribe a final mesh with unavailable integration errors.
+- The existing tolerance policy adds `matrix_function_tol` (default `tol/5`).
+  AAA reports its measured density approximation as `matrix_function_error`;
+  methods without that approximation estimate report `None`. Entropy remains
+  diagnostic and has no accuracy target.
+- Integration and matrix-function settings are keyword-only. All integrations
+  return a common `IntegrationInfo`; redundant and shifted-grid counters are removed.
+  All SCF methods measure the largest reconstructed complex density-entry residual.
+- Models own temperature and filling; density calls reject separate overrides.
+  Density results retain evaluation temperature and known model internal/free
+  energies, so default selected results support energy helpers without extra
+  matrix entries. Selection preserves those physical scalars.
+
 - Superconducting models now accept normal or BdG reference densities. Normal
   references imply zero pairing; BdG references subtract both normal and pairing
   contributions. Hamiltonian corrections, internal/free energies and EDIIS use
@@ -107,11 +122,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `space.active_coordinates.entries` and `space.required_coordinates.entries`;
   removed the redundant entry-access helpers and optional mapping fields.
 
-- Density integration and SCF now share one `DensityEntries` payload in
-  `DensityResult.entries`; the private slice/evaluation wrappers are removed.
-  Manual result construction uses `DensityResult(entries=DensityEntries(...),
-  ...)`. Read-only `coordinates` and `values` remain available, and `entry_errors`
-  preserves the corresponding integration estimates through selection.
+- Density integration and SCF share one private immutable entries payload.
+  Read `DensityResult.coordinates`, `values` and `entry_errors` directly;
+  selection preserves the corresponding integration estimates. Manual reference
+  densities can use ordinary matrix dictionaries.
 - `density_matrix_at_mu` accepts the same mutually exclusive `keys`,
   `coordinates`, or `interaction` selection modes as `density_matrix`.
 - Removed the unused `BdGMatrixFunction` marker and
@@ -139,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   control. Combining `nk` with integration targets is rejected. Safety budgets
   never change the mode, and top-level `tol` remains valid for roots and SCF.
 - Dense finite-temperature calculations default to direct periodic integration
-  with global refinement and mandatory shifted-grid validation. BdG at zero
+  with global coarse/fine refinement. BdG at zero
   temperature requires `UniformGrid(nk=...)`.
 - Adaptive rational integration is unsupported. Use an explicit prescribed
   `UniformGrid(nk=..., matrix_function=RationalFOE(...))` for sparse matrices at

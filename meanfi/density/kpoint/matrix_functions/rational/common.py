@@ -125,6 +125,7 @@ class SparseRationalTerms:
     entropy_constant: complex | None = None
     entropy_residues: np.ndarray | None = None
     entropy_error: float | None = None
+    error: float | None = None
 
 
 def _sparse_shifted_matrix(matrix: Any, shift: complex):

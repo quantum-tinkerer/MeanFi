@@ -34,9 +34,9 @@ class PreparedMumpsRationalNode:
         kT: float,
         q_diag: np.ndarray,
         options: RationalFOE,
-        charge_tolerance: float,
+        charge_tolerance: float | None,
         layout: SparseRationalLayout,
-        density_tolerance: float,
+        matrix_function_tol: float,
         compute_thermodynamics: bool = False,
         workspace_dtype: np.dtype = np.dtype(complex),
         shared_aaa_interval_cache: list[_AAAIntervalCacheEntry] | None = None,
@@ -49,8 +49,10 @@ class PreparedMumpsRationalNode:
         self.kT = float(kT)
         self.q_diag = np.asarray(q_diag, dtype=float)
         self.options = options
-        self.charge_tolerance = float(charge_tolerance)
-        self.density_tolerance = float(density_tolerance)
+        self.charge_tolerance = (
+            None if charge_tolerance is None else float(charge_tolerance)
+        )
+        self.matrix_function_tol = float(matrix_function_tol)
         self.compute_thermodynamics = compute_thermodynamics
         self.layout = layout
         self.size = int(getattr(matrix, "shape")[0])
@@ -61,6 +63,7 @@ class PreparedMumpsRationalNode:
         self._aaa_interval_cache: list[_AAAIntervalCacheEntry] = (
             shared_aaa_interval_cache if shared_aaa_interval_cache is not None else []
         )
+        self.matrix_function_error: float | None = None
         self._last_mu: float | None = None
         self._last_charge: float | None = None
         self._last_terms: SparseRationalTerms | None = None
@@ -69,17 +72,11 @@ class PreparedMumpsRationalNode:
 
     def _charge_scalar_tolerance(self) -> float:
         weight_sum = float(np.sum(np.abs(self.layout.charge_weights)))
-        if weight_sum <= 0.0:
-            return self.density_tolerance
+        if self.charge_tolerance is None or weight_sum <= 0.0:
+            return self.matrix_function_tol
         # Charge is a weighted trace, so the scalar Fermi-operator error must
         # shrink with the total trace weight to keep the filling solve stable.
-        return max(
-            np.finfo(float).eps,
-            min(
-                self.density_tolerance,
-                float(self.charge_tolerance) / weight_sum,
-            ),
-        )
+        return min(self.matrix_function_tol, self.charge_tolerance / weight_sum)
 
     def _sparse_terms(self, mu: float) -> SparseRationalTerms:
         pole_count = self.options.max_poles
@@ -109,7 +106,9 @@ class PreparedMumpsRationalNode:
                 lower, upper, kT=self.kT, count=max(2048, 32 * pole_count)
             )
             targets = fermi_dirac(grid, self.kT, 0.0)[:, None]
-            if thermal_errors(entry.terms, grid, targets)[0] <= tolerance:
+            error = float(thermal_errors(entry.terms, grid, targets)[0])
+            if error <= tolerance:
+                self.matrix_function_error = error
                 terms = self._with_entropy(entry.terms, entry.lower, entry.upper)
                 self._aaa_interval_cache[:] = [
                     _AAAIntervalCacheEntry(entry.lower, entry.upper, self.kT, terms)
@@ -132,6 +131,7 @@ class PreparedMumpsRationalNode:
             except ValueError as exc:
                 if extra == 0.0:
                     raise ConvergenceError(str(exc)) from exc
+        self.matrix_function_error = terms.error
         terms = self._with_entropy(terms, fit_lower, fit_upper)
         # Keep one scalar fit shared across k-points, never their factorizations.
         self._aaa_interval_cache[:] = [

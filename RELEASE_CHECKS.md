@@ -18,7 +18,9 @@ Run these checks from the repository root before a release:
 - `pixi run -e precommit pre-commit run --all-files`: formatting and static checks.
 
 EDIIS uses internal energy and never switches methods automatically. Density
-accuracy controls integration and AAA pole selection. Sparse entropy is an
+accuracy controls integration; `matrix_function_tol` controls AAA pole selection.
+Adaptive UniformGrid compares coarse and fine grids only. Tests include aliasing
+limitations and independent dense checks of the matrix-function estimate. Sparse entropy is an
 estimate on those poles with a separately reported approximation error; it has
 no accuracy target and does not affect EDIIS. Prescribed meshes do not estimate
 Brillouin-zone integration error.

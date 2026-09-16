@@ -18,7 +18,7 @@ from meanfi import (
 )
 from meanfi.results import _DensityEntries, DensityResult
 from meanfi.errors import ErrorValues
-from meanfi.results import FermiSimplexInfo
+from meanfi.results import IntegrationInfo
 from meanfi.scf.problem import SCFProblem
 from meanfi.space.state import ActiveDensityState
 from meanfi.space.coordinates import DensityCoordinates
@@ -132,7 +132,8 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
                 charge_integration=0.0,
                 filling_residual=0.0,
             ),
-            statistics=FermiSimplexInfo(
+            statistics=IntegrationInfo(
+                n_kpoints=1,
                 n_kernel_evals=1,
                 n_cached_nodes=1,
                 n_leaves=1,

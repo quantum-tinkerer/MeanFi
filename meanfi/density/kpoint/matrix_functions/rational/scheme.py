@@ -127,12 +127,14 @@ def _aaa_terms_for_interval(
         x = _aaa_sample_grid(lower, upper, kT=kT, count=sample_count)
         targets = fermi_dirac(x, kT, 0.0)
         constant = float(np.mean(targets))
-        if np.max(np.abs(validation_targets - constant)) <= scalar_tolerance:
+        error = float(np.max(np.abs(validation_targets - constant)))
+        if error <= scalar_tolerance:
             return SparseRationalTerms(
                 constant=complex(constant),
                 shifts=np.empty(0, dtype=complex),
                 residues=np.empty(0, dtype=complex),
                 pole_count=0,
+                error=error,
             )
 
         center, radius = 0.5 * (lower + upper), 0.5 * (upper - lower)
@@ -184,7 +186,7 @@ def _aaa_terms_for_interval(
             error = thermal_errors(terms, validation, validation_targets[:, None])[0]
             best_error = min(best_error, float(error / scalar_tolerance))
             if error <= scalar_tolerance:
-                return terms
+                return replace(terms, error=float(error))
         if sample_count == max_samples:
             break
         sample_count = min(2 * sample_count, max_samples)

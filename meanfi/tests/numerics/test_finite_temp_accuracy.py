@@ -397,7 +397,7 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
             trace_weights_diag=np.ones(2, dtype=float),
             include_all_diagonal=False,
         ),
-        density_tolerance=1e-2,
+        matrix_function_tol=1e-2,
         shared_aaa_interval_cache=shared_cache,
     )
 

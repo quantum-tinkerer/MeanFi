@@ -90,7 +90,7 @@ def test_sparse_thermodynamics_reuses_density_factorizations(monkeypatch, bdg):
         q_diag=q_diag,
         options=RationalFOE(max_poles=128),
         charge_tolerance=1e-9,
-        density_tolerance=1e-9,
+        matrix_function_tol=1e-9,
         compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
@@ -141,7 +141,7 @@ def test_sparse_thermodynamics_handles_filled_empty_and_narrow_spectra(mu):
         q_diag=np.ones(3),
         options=RationalFOE(),
         charge_tolerance=1e-10,
-        density_tolerance=1e-10,
+        matrix_function_tol=1e-10,
         compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coords,
@@ -213,7 +213,7 @@ def test_sparse_band_energy_error_scales_with_hamiltonian_norm():
         q_diag=np.ones(4),
         options=RationalFOE(),
         charge_tolerance=1e-7,
-        density_tolerance=1e-7,
+        matrix_function_tol=1e-7,
         compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
@@ -275,7 +275,7 @@ def test_density_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
         q_diag=np.ones(size),
         options=RationalFOE(),
         charge_tolerance=tolerance,
-        density_tolerance=tolerance,
+        matrix_function_tol=tolerance,
         compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
@@ -322,7 +322,7 @@ def test_nearby_intervals_reuse_one_accurate_fit(bdg):
             q_diag=q,
             options=RationalFOE(),
             charge_tolerance=1e-8,
-            density_tolerance=1e-8,
+            matrix_function_tol=1e-8,
             compute_thermodynamics=True,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
@@ -364,7 +364,7 @@ def test_shared_fit_rechecks_accuracy_entropy_and_pole_budget():
             q_diag=np.ones(2),
             options=RationalFOE(),
             charge_tolerance=tolerance,
-            density_tolerance=tolerance,
+            matrix_function_tol=tolerance,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
                 trace_weights_diag=np.ones(coordinates.size),
@@ -402,7 +402,7 @@ def test_failed_interval_expansion_retries_actual_spectrum(monkeypatch):
         q_diag=np.ones(2),
         options=RationalFOE(),
         charge_tolerance=1e-10,
-        density_tolerance=1e-10,
+        matrix_function_tol=1e-10,
         compute_thermodynamics=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
@@ -498,7 +498,7 @@ def test_shared_sparse_layout_preserves_requested_complex_entries(include_all):
             q_diag=q_diag,
             options=RationalFOE(),
             charge_tolerance=1e-9,
-            density_tolerance=1e-9,
+            matrix_function_tol=1e-9,
             layout=layout,
         )
         assert node.layout is layout
@@ -527,7 +527,7 @@ def test_cached_entropy_fit_does_not_enable_unrequested_thermodynamics():
             q_diag=np.array([1.0, 1.0, -1.0, -1.0]),
             options=RationalFOE(),
             charge_tolerance=1e-8,
-            density_tolerance=1e-8,
+            matrix_function_tol=1e-8,
             compute_thermodynamics=compute_thermodynamics,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
@@ -568,7 +568,7 @@ def test_entropy_reporting_leaves_density_and_charge_unchanged():
             q_diag=np.ones(6),
             options=RationalFOE(),
             charge_tolerance=1e-9,
-            density_tolerance=1e-9,
+            matrix_function_tol=1e-9,
             layout=layout,
             compute_thermodynamics=thermal,
         )

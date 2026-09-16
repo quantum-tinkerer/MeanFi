@@ -10,10 +10,11 @@ import numpy as np
 from meanfi.density.density import evaluate_density
 from meanfi.density.problem import DensityProblem
 from meanfi.model import Model
-from meanfi.meanfield import correction_expectation, interaction_energy
+from meanfi.meanfield import interaction_energy
+from meanfi.observables import _internal_energy_from_band
 from meanfi.results import _DensityEntries, DensityResult
 from meanfi.space.state import ActiveDensityState
-from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
+from meanfi.tb.bdg import validate_bdg_tb
 from meanfi.tb.ops import _tb_type, add_tb
 from meanfi.tb.storage import tb_entries_changed
 
@@ -37,7 +38,7 @@ class SCFEvaluation:
     def residual_norm(self) -> float | None:
         residual = self.residual
         return (
-            None if residual is None else float(np.max(np.abs(residual), initial=0.0))
+            None if residual is None else self.output_state.space.density_norm(residual)
         )
 
 
@@ -54,19 +55,7 @@ class SCFProblem:
             validate_bdg_tb(
                 guess, ndof=model._ndof, ndim=model._ndim, name="BdG correction"
             )
-        projected = model._space.project_correction(guess)
-        if model.superconducting:
-            projected = assemble_bdg_tb(
-                {
-                    key: block[: model._ndof, : model._ndof]
-                    for key, block in projected.items()
-                },
-                {
-                    key: block[: model._ndof, model._ndof :]
-                    for key, block in projected.items()
-                },
-                ndof=model._ndof,
-            )
+        projected = model._project_mean_field(guess)
         if tb_entries_changed(guess, projected):
             warnings.warn(
                 "SCF guess contains values outside the active SCF density selection; "
@@ -113,14 +102,7 @@ class SCFProblem:
         correction = model._mean_field_from_state(input_state)
         density = self.evaluate_mean_field(correction, mu_guess)
         output_state = self.state_from_density(density.entries)
-        output = model._active_density_from_state(output_state)
-        one_body = density.band_energy - correction_expectation(
-            output, correction, electron_ndof=model._electron_ndof
-        )
-        difference = model._active_density_from_state(
-            model._reference_difference(output_state)
-        )
-        energy = one_body + interaction_energy(
-            difference, model.h_int, electron_ndof=model._electron_ndof
+        energy = _internal_energy_from_band(
+            model, output_state, density.band_energy, correction
         )
         return SCFEvaluation(density, output_state, input_state, energy)

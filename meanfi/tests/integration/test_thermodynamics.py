@@ -172,7 +172,7 @@ def test_empty_density_selection_reports_thermal_errors_without_refining_them():
 
 
 @pytest.mark.parametrize("use_sparse", [False, True])
-def test_bdg_shifted_grid_energy_uses_full_nambu_charge(use_sparse, request):
+def test_bdg_grid_energy_uses_full_nambu_charge(use_sparse, request):
     from scipy import sparse
     from meanfi.density.integrate.periodic_grid import _Evaluator, _Grid
     from meanfi.errors import default_solver_tolerances
@@ -185,7 +185,7 @@ def test_bdg_shifted_grid_energy_uses_full_nambu_charge(use_sparse, request):
     pairing = {(1,): np.array([[0.1]]), (-1,): np.array([[-0.1]])}
     h = assemble_bdg_tb(h0, pairing, ndof=1)
     coordinates = mf.DensityCoordinates.from_entries(size=2, keys=[(0,)], entries=())
-    grid = _Grid(3, 1, shifted=True)
+    grid = _Grid(3, 1)
     points = next(grid.batches(3))[2]
     matrices = mf.tb_to_kfunc(h)(points)
     q = np.array([1.0, -1.0])

@@ -51,35 +51,19 @@ class _Integral:
 class _Work:
     diagonalizations: int = 0
     kernels: int = 0
-    evaluations: int = 0
-    unique: int = 0
     charge_calls: int = 0
     density_calls: int = 0
-    validation_points: int = 0
     spectrum_bytes: int = 0
-
-
-def _validation_shift(dimension: int) -> np.ndarray:
-    # Distinct irrational offsets avoid the simple aliases shared by dyadic
-    # grids and half-cell shifts. They do not make the estimate rigorous.
-    primes = []
-    candidate = 2
-    while len(primes) < dimension:
-        if all(candidate % prime for prime in primes if prime * prime <= candidate):
-            primes.append(candidate)
-        candidate += 1
-    return np.sqrt(primes) % 1.0
 
 
 class _Grid:
     """One tensor grid, with an optional retained normal-state spectrum."""
 
-    def __init__(self, n: int, dimension: int, *, shifted: bool = False):
+    def __init__(self, n: int, dimension: int):
         self.n = n
         self.dimension = dimension
         self.shape = (n,) * dimension
         self.count = n**dimension
-        self.shift = _validation_shift(dimension) if shifted else 0.0
         self.spectra: np.ndarray | None = None
 
     def batches(self, batch_size: int):
@@ -90,7 +74,7 @@ class _Grid:
                 if self.dimension
                 else np.empty((len(flat), 0), dtype=int)
             )
-            points = 2 * np.pi * (indices + self.shift) / self.n
+            points = 2 * np.pi * indices / self.n
             yield flat, indices, points
 
 
@@ -106,6 +90,7 @@ class _Evaluator:
         trace_weights: np.ndarray,
         tolerances: ErrorTolerances,
         sparse_layout: SparseRationalLayout | None,
+        filling_tol: float | None = None,
     ):
         self.hamiltonian = hamiltonian
         self.kT = kT
@@ -118,6 +103,7 @@ class _Evaluator:
         self.dtype = integration.dtype
         self.batch_size = integration.batch_size
         self.tolerances = tolerances
+        self.charge_tolerance = None if filling_tol is None else filling_tol / 4
         self.method = integration.matrix_function
         self.sparse_layout = sparse_layout
         self.tb_keys = np.asarray(list(hamiltonian), dtype=float)
@@ -135,6 +121,7 @@ class _Evaluator:
         self.work = _Work()
         self._aaa_interval_cache = []
         self.entropy_approximation_error = None
+        self.matrix_function_error = None
 
     def matrices_at(self, points: np.ndarray):
         phases = np.exp(-1j * (points @ self.tb_keys.T))
@@ -195,11 +182,9 @@ class _Evaluator:
             kT=self.kT,
             q_diag=self.q_diag,
             options=self.method,
-            charge_tolerance=min(
-                self.tolerances.charge_integration, self.tolerances.filling_residual / 4
-            ),
+            charge_tolerance=self.charge_tolerance,
             layout=self.sparse_layout,
-            density_tolerance=self.tolerances.density_matrix_integration,
+            matrix_function_tol=self.tolerances.matrix_function_tol,
             workspace_dtype=self.dtype,
             shared_aaa_interval_cache=self._aaa_interval_cache,
             compute_thermodynamics=thermodynamics,
@@ -207,7 +192,6 @@ class _Evaluator:
 
     def charge(self, grid: _Grid, mu: float) -> tuple[float, float, float | None]:
         self.work.charge_calls += 1
-        self.work.evaluations += grid.count
         if grid.spectra is not None:
             total = derivative = 0.0
             for start in range(0, grid.count, self.batch_size):
@@ -222,13 +206,16 @@ class _Evaluator:
                 0.0,
                 derivative / grid.count if self.kT > 0 else None,
             )
-        total = 0.0
+        total = charge_error = 0.0
         for _flat, _indices, points in grid.batches(self.batch_size):
             matrices = self.matrices_at(points)
             if isinstance(self.method, RationalFOE):
                 for matrix in matrices:
                     node = self._rational_node(matrix)
                     total += node.charge(mu)
+                    charge_error += node.matrix_function_error * np.sum(
+                        np.abs(self.trace_weights)
+                    )
                     self.work.kernels += 1
                     del node
             else:
@@ -243,7 +230,7 @@ class _Evaluator:
                 total += float(np.sum(diagonal @ self.trace_weights))
                 self.work.diagonalizations += len(points)
                 self.work.kernels += len(points)
-        return total / grid.count, 0.0, None
+        return total / grid.count, charge_error / grid.count, None
 
     def density(self, grid: _Grid, mu: float, *, compare_previous: bool):
         """Evaluate requested entries and, optionally, the nested parent at this mu."""
@@ -252,7 +239,6 @@ class _Evaluator:
         charge = previous_charge = 0.0
         energy = previous_energy = entropy = previous_entropy = 0.0
         self.work.density_calls += 1
-        self.work.evaluations += grid.count
         for _flat, indices, points in grid.batches(self.batch_size):
             matrices = self.matrices_at(points)
             phases = np.exp(1j * (points @ self.density_keys.T))
@@ -278,6 +264,9 @@ class _Evaluator:
                     charges[index] = node.charge(mu)
                     packed[index] = node.density_values_from_charge_order(mu)
                     energies[index], entropies[index] = node.thermodynamics(mu)
+                    self.matrix_function_error = max(
+                        self.matrix_function_error or 0.0, node.matrix_function_error
+                    )
                     self.entropy_approximation_error = max(
                         self.entropy_approximation_error or 0.0,
                         node._last_terms.entropy_error,

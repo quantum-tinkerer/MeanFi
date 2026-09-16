@@ -22,18 +22,23 @@ is provided. Both explicit `RationalFOE()` and implicit prescribed sparse select
 `Model` defaults to `kT=0.0`. `solver` uses `EnergyDIIS()` for all supported
 normal and BdG calculations. EDIIS minimizes internal energy over its density history and never
 switches methods. An explicit `scf=` selects another method. All SCF settings are
-keyword-only.
+keyword-only, as are integration and matrix-function settings.
 The top-level `tol`
 provides a convenient shared accuracy policy, while `scf_tol`, `filling_tol`,
 `mu_tol`, `density_matrix_tol` and `charge_tol` separate individual budgets.
 An explicit `density_matrix_tol` also supplies an omitted `charge_tol`; users
-may override charge accuracy independently. Energy and entropy estimates in
+may override charge accuracy independently. The tolerance policy also sets
+`matrix_function_tol=tol/5` for approximating the Fermi matrix function; change
+this budget by returning a modified `ErrorTolerances` from that same policy.
+Energy and entropy estimates in
 `result.errors` are diagnostics, not targets.
 Integration targets are populated only after the prescribed/accuracy-controlled
 mode has been resolved. An explicit `nk` always retains prescribed-size semantics.
 
 Every density backend returns entropy and the expectation of the input
-quadratic Hamiltonian as `band_energy`. SCF results report interaction-corrected
+quadratic Hamiltonian as `band_energy`. Model-based density results also retain
+known interaction-corrected `internal_energy` and `free_energy`, including the
+default selected results. SCF results report interaction-corrected
 `internal_energy` and `free_energy`, with entropy in units of Boltzmann's
 constant. All these quantities are per cell per physical orbital. Dense periodic evaluation reuses eigenvalues; sparse AAA evaluation
 shares poles and matrix factorizations between density and entropy.

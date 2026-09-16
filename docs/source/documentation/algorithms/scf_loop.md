@@ -114,7 +114,9 @@ does not trigger a second full-matrix integration. It can be passed directly as
 `Model(..., reference=result.density)` when the new model has a compatible
 interaction layout.
 
-`result.history` contains one `SCFIteration` per accepted residual evaluation. Each record contains its step, chemical potential, filling, internal energy, and unified `ErrorValues`. The SCF residual is the maximum absolute residual component. Passing `verbose=True` prints internal energy and residuals while the solve runs, then entropy and free energy once at convergence.
+`result.history` contains one `SCFIteration` per accepted residual evaluation. Each record contains its step, chemical potential, filling, internal energy, and unified `ErrorValues`. The SCF residual is the maximum absolute complex density-entry difference after
+reconstruction from reduced coordinates, including spatial symmetry. Every SCF
+method uses this same norm. Passing `verbose=True` prints internal energy and residuals while the solve runs, then entropy and free energy once at convergence.
 
 `NoConvergence` and `SolverFailure` are exceptions rather than alternate result shapes. When at least one physical density evaluation succeeded, the exception carries the last valid state as `exception.result` with `converged=False`.
 

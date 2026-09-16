@@ -319,3 +319,87 @@ def test_free_energy_rejects_dictionary_without_entropy():
     model = Model({(): np.eye(1)}, {(): np.zeros((1, 1))}, filling=0.5, kT=0.2)
     with pytest.raises(TypeError, match="DensityResult with computed entropy"):
         free_energy(model, {(): np.array([[0.5]])})
+
+
+@pytest.mark.parametrize("bdg", [False, True])
+@pytest.mark.parametrize("use_sparse", [False, True])
+def test_model_selected_density_keeps_physical_energy_without_one_body_entries(
+    bdg,
+    use_sparse,
+    request,
+):
+    import meanfi as mf
+    from scipy import sparse
+    from scipy.special import expit
+
+    h0 = np.array([[-0.4, 0.15j], [-0.15j, 0.3]])
+    interaction = np.array([[0, 0.25], [0.25, 0]])
+    if use_sparse:
+        request.getfixturevalue("require_mumps")
+        h0, interaction = sparse.csr_matrix(h0), sparse.csr_matrix(interaction)
+    model = mf.Model({(): h0}, {(): interaction}, 1, kT=0.2, superconducting=bdg)
+    integration = mf.UniformGrid(nk=1)
+    correction = model.random_meanfield(rng=17, scale=0.1)
+    result = mf.density_matrix_at_mu(
+        model,
+        mu=0.07,
+        mean_field=correction,
+        integration=integration,
+        tol=1e-9,
+    )
+    h = model.hamiltonian_from_meanfield(correction)[()]
+    h = h.toarray() if use_sparse else h
+    q = np.r_[np.ones(2), -np.ones(2)] if bdg else np.ones(2)
+    energies, vectors = np.linalg.eigh(h - 0.07 * np.diag(q))
+    exact = (vectors * expit(-energies / model.kT)) @ vectors.conj().T
+    reference = mf.internal_energy(model, {(): exact})
+    assert result.internal_energy == pytest.approx(reference, abs=2e-9)
+    assert mf.internal_energy(model, result) == result.internal_energy
+    assert result.free_energy == mf.free_energy(model, result)
+    assert result.kT == model.kT
+    assert result.coordinates is model.required_coordinates
+
+    # Observable scalars describe the evaluated state, even after selection.
+    empty = result.select(
+        mf.DensityCoordinates.from_entries(
+            size=len(exact),
+            keys=[()],
+            entries=(),
+        )
+    )
+    assert mf.internal_energy(model, empty) == result.internal_energy
+    assert mf.free_energy(model, empty) == result.free_energy
+
+
+def test_default_selected_density_energy_does_not_require_hopping_entries():
+    import meanfi as mf
+
+    model = mf.Model(
+        {(): np.array([[0.0, 0.2], [0.2, 0.0]])},
+        {(): np.eye(2)},
+        1,
+        kT=0.2,
+    )
+    result = mf.density_matrix(model)
+    assert result.coordinates.value_count == 2
+    expected = -0.1 * np.tanh(0.5)
+    assert mf.internal_energy(model, result) == pytest.approx(expected, abs=1e-14)
+    assert result.internal_energy == pytest.approx(expected, abs=1e-14)
+
+
+def test_model_physical_inputs_have_one_owner():
+    import meanfi as mf
+    from dataclasses import replace
+
+    model = mf.Model({(): np.diag([-0.4, 0.3])}, {(): np.zeros((2, 2))}, 1, kT=0.2)
+    with pytest.raises(ValueError, match="set kT on the Model"):
+        mf.density_matrix_at_mu(model, 0, kT=0.4)
+    with pytest.raises(ValueError, match="set filling on the Model"):
+        mf.density_matrix(model, filling=0.7)
+    updated = replace(model, kT=0.4, filling=0.7)
+    result = mf.density_matrix(updated)
+    assert result.kT == 0.4
+    assert result.filling == pytest.approx(0.7, abs=1e-4)
+    assert (
+        mf.free_energy(updated, result) == result.internal_energy - 0.4 * result.entropy
+    )

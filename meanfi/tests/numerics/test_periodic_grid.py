@@ -58,7 +58,7 @@ def test_nk_is_total_and_fixed_has_no_validation(dimension, nk, shape):
     assert info.grid_shape == shape
     assert info.n_kpoints == np.prod(shape)
     assert info.n_diagonalizations == np.prod(shape)
-    assert info.refinements == info.validation_evaluations == 0
+    assert info.refinements == 0
     assert info.density_integration_calls == 1
     assert result.errors.charge_integration is None
     assert result.errors.density_matrix_integration is None
@@ -95,25 +95,34 @@ def test_adaptive_fixed_filling_matches_dense_reference():
     )
     assert_allclose(result.mu, expected_mu, atol=2e-9)
     assert_allclose(result.values, [filling, expected_density], atol=2e-9)
-    assert result.statistics.validation_evaluations > 0
+    assert (
+        result.statistics.density_integration_calls == result.statistics.refinements + 1
+    )
     assert result.errors.filling_residual <= 1e-10
     assert result.errors.charge_integration <= 1e-8
 
 
 @pytest.mark.parametrize("harmonic", [8, 16])
-def test_shifted_grid_rejects_nested_alias(harmonic):
-    # Initial 4- and 8-point grids miss both oscillations. A half-cell shift
-    # would also miss harmonic 16, so validation needs an irrational offset.
-    with pytest.raises(RuntimeError, match="max_refinements=1"):
-        evaluate(
-            wire(harmonic),
-            keys=[(0,)],
-            mu=0.3,
-            integration=UniformGrid(max_refinements=1),
-        )
-    result = evaluate(wire(harmonic), keys=[(0,)], mu=0.3)
+def test_initial_grid_can_resolve_nested_alias(harmonic):
+    # Coarse/fine comparisons alone can miss a Fourier mode shared by both grids.
+    # Keep that limitation explicit; a user can choose a resolved initial mesh.
+    unresolved = evaluate(
+        wire(harmonic),
+        keys=[(0,)],
+        mu=0.3,
+        integration=UniformGrid(max_refinements=1),
+    )
+    assert unresolved.statistics.n_kpoints == 8
+    assert unresolved.statistics.density_integration_calls == 2
+    result = evaluate(
+        wire(harmonic),
+        keys=[(0,)],
+        mu=0.3,
+        integration=UniformGrid(initial_nk=8 * harmonic, density_matrix_tol=1e-8),
+    )
     k = 2 * np.pi * np.arange(32768) / 32768
     reference = expit((0.3 - 2 * np.cos(harmonic * k)) / 0.2).mean()
+    assert abs(unresolved.filling - reference) > 0.1
     assert_allclose(result.filling, reference, atol=2e-6)
     assert result.statistics.n_kpoints > 8
 
@@ -227,7 +236,10 @@ def test_adaptive_bdg_fixed_mu():
     adaptive = evaluate(hamiltonian, **kwargs)
     reference = evaluate(hamiltonian, integration=UniformGrid(nk=16384), **kwargs)
     assert_allclose(adaptive.values, reference.values, atol=2e-6)
-    assert adaptive.statistics.validation_evaluations > 0
+    assert (
+        adaptive.statistics.density_integration_calls
+        == adaptive.statistics.refinements + 1
+    )
 
 
 def test_zero_temperature_fixed_grid_and_unattainable_filling():
@@ -337,20 +349,19 @@ def test_normal_root_cost_does_not_grow_with_repeated_identical_points():
     assert max(calls) - min(calls) <= 1
 
 
-def test_shifted_grid_rejects_diagonal_multidimensional_alias():
-    hamiltonian = {
-        (0, 0): np.zeros((1, 1)),
-        (8, -8): np.ones((1, 1)),
-        (-8, 8): np.ones((1, 1)),
-    }
-    # Equal shifts in both axes leave this entire oscillation invisible.
-    with pytest.raises(RuntimeError, match="max_refinements=1"):
-        evaluate(
-            hamiltonian,
-            keys=[(0, 0)],
-            mu=0.3,
-            integration=UniformGrid(max_refinements=1),
-        )
+def test_initial_grid_size_is_total_and_only_coarse_fine_are_evaluated():
+    result = evaluate(
+        {(0, 0): np.array([[0.3]])},
+        keys=[(0, 0)],
+        mu=0.1,
+        integration=UniformGrid(initial_nk=17),
+    )
+    # 17 rounds to 5**2 points, followed by exactly one 10**2-point fine grid.
+    assert result.statistics.grid_shape == (10, 10)
+    assert result.statistics.refinements == 1
+    assert result.statistics.n_diagonalizations == 25 + 100
+    assert result.statistics.density_integration_calls == 2
+    assert_allclose(result.values, [expit(-1.0)], atol=1e-14)
 
 
 @pytest.mark.parametrize("bdg", [False, True])
@@ -479,7 +490,7 @@ def test_sparse_constant_spectrum_reuses_empty_aaa_fit_without_eigensolves(
                 ),
                 include_all_diagonal=False,
             ),
-            density_tolerance=1e-8,
+            matrix_function_tol=1e-8,
             shared_aaa_interval_cache=cache,
         )
         assert node.charge(0.0) == pytest.approx(2 * occupation)

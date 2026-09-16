@@ -11,6 +11,7 @@ from meanfi.density.density import evaluate_density
 from meanfi.density.problem import build_density_problem
 from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.model import Model
+from meanfi.observables import _with_model_energy
 from meanfi.results import DensityResult
 from meanfi.space.coordinates import DensityCoordinates
 from meanfi.space.space import ActiveSCFSpace
@@ -36,7 +37,11 @@ def _density_problem(
             raise ValueError("set interaction and spatial_symmetries on the Model")
         if keys is None and coordinates is None:
             coordinates = model.required_coordinates
-        kT = model.kT if kT is None else kT
+        if kT is not None:
+            raise ValueError(
+                "set kT on the Model; use dataclasses.replace to change it"
+            )
+        kT = model.kT
         electron_ndof = model._ndof if model.superconducting else None
         h = model.hamiltonian_from_meanfield(mean_field)
     elif mean_field is not None:
@@ -101,7 +106,8 @@ def density_matrix_at_mu(
         integration=integration,
         tolerances=resolve_error_tolerances(tol, tolerance_policy),
     )
-    return evaluate_density(problem, mu=mu)
+    result = evaluate_density(problem, mu=mu)
+    return _with_model_energy(h, result, mean_field) if isinstance(h, Model) else result
 
 
 def density_matrix(
@@ -128,6 +134,10 @@ def density_matrix(
     For a Hamiltonian dictionary, supply filling and exactly one selection mode:
     ``keys``, ``coordinates`` or ``interaction``. See ``density_matrix_at_mu``.
     """
+    if isinstance(h, Model) and filling is not None:
+        raise ValueError(
+            "set filling on the Model; use dataclasses.replace to change it"
+        )
     if filling is None:
         if not isinstance(h, Model):
             raise ValueError("filling is required for a Hamiltonian dictionary")
@@ -146,9 +156,10 @@ def density_matrix(
         integration=integration,
         tolerances=tolerances,
     )
-    return evaluate_density(
+    result = evaluate_density(
         problem,
         filling=filling,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
     )
+    return _with_model_energy(h, result, mean_field) if isinstance(h, Model) else result

@@ -35,8 +35,10 @@ def _format_scf_progress(iteration: SCFIteration) -> str:
 
 def _build_result(problem, evaluation, history, *, converged):
     errors = replace(evaluation.density.errors, scf_residual=evaluation.residual_norm)
-    density = replace(evaluation.density, errors=errors)
     energy = evaluation.internal_energy
+    density = replace(
+        evaluation.density, errors=errors, internal_energy=energy, _model=problem.model
+    )
     return SCFResult(
         density=density,
         mean_field=problem.model._mean_field_from_state(evaluation.output_state),
@@ -84,7 +86,12 @@ def run_scf_loop(
     try:
         if isinstance(scf, AndersonMixing):
             iterate_anderson(
-                evaluate, params, scf=scf, scf_tol=tolerance, accept=accept
+                evaluate,
+                params,
+                scf=scf,
+                scf_tol=tolerance,
+                accept=accept,
+                residual_norm=problem.model._space.density_norm,
             )
         else:
             points: list[EDIISPoint] = []

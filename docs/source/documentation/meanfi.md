@@ -41,7 +41,10 @@ model = meanfi.Model(
 `density_matrix(model)` uses the model's filling, temperature and required
 coordinates. Both normal and superconducting models use this API; optional
 `mean_field=correction` evaluates an interacting Hamiltonian. The same model
-support is available in `density_matrix_at_mu(model, mu)`.
+support is available in `density_matrix_at_mu(model, mu)`. A Model owns its
+physical parameters: passing a separate `kT` or `filling` with a Model raises.
+Use `dataclasses.replace(model, kT=..., filling=...)` to change them. Every
+`DensityResult` records the evaluation temperature as `kT`.
 
 `DensityCoordinates` is an address list: each entry is a displacement, row and
 column. It contains no density values. `DensityResult` is the answer returned
@@ -85,7 +88,8 @@ Selected results expose their read-only `coordinates`, `values`, and optional
 per-entry `entry_errors`; converting
 one to complete matrix blocks raises instead of filling uncomputed entries with
 zeros. `result.select(coordinates)` selects both values and entry errors while
-preserving the chemical potential, filling, entropy, band energy, and integration statistics.
+preserving temperature, chemical potential, filling, all computed energies, entropy,
+and integration statistics.
 
 `DensityResult` is returned by the density functions. Read its `coordinates`,
 `values`, `entry_errors`, and physical quantities directly. The shared storage
@@ -130,6 +134,34 @@ required = model.required_coordinates
 .. autoclass:: meanfi.ErrorValues
    :show-inheritance:
 ```
+
+```{eval-rst}
+.. autoclass:: meanfi.IntegrationInfo
+   :show-inheritance:
+```
+
+All methods return the same error and statistics records. An unavailable or
+inapplicable estimate is `None`; a prescribed `nk` does not trigger extra grids
+for error estimation. For density integration, inspect
+`errors.density_matrix_integration`; for AAA's matrix-function approximation,
+inspect `errors.matrix_function_error`. The existing tolerance policy controls
+both independently:
+
+```python
+from dataclasses import replace
+
+
+def accuracy(tol):
+    return replace(
+        meanfi.default_solver_tolerances(tol), matrix_function_tol=tol / 10
+    )
+
+
+density = meanfi.density_matrix(model, tol=1e-5, tolerance_policy=accuracy)
+```
+
+The default `matrix_function_tol` is `tol/5`. For all stage targets and their
+meaning, see [integration families](algorithms/integration_families.md).
 
 `Model` validates finite filling and temperature, matching matrix sizes and
 lattice dimensions, and Hermiticity. It owns read-only copies of dense or sparse
@@ -230,19 +262,28 @@ print(solution.internal_energy, solution.entropy, solution.free_energy)
 ```
 
 `expectation_value` and `internal_energy` accept complete tight-binding
-matrix dictionaries or `DensityResult` objects. Selected results must cover
-every coordinate used by the observable, or the operation raises with the
-missing coordinates. For a separate energy evaluation, request full blocks
-covering the bare Hamiltonian and interaction:
+matrix dictionaries or `DensityResult` objects. Default model-based results
+retain internal energy from the evaluated band energy and interaction correction,
+so energy evaluation needs no additional density entries:
 
 ```python
-energy_keys = sorted(set(model.h_0) | set(model.required_coordinates.keys))
-density = meanfi.density_matrix(
-    model, mean_field=solution.mean_field, keys=energy_keys
-)
-print(meanfi.internal_energy(model, density))
+density = meanfi.density_matrix(model, mean_field=solution.mean_field)
+print(density.internal_energy, density.free_energy)
+print(meanfi.internal_energy(model, density))  # Same retained model energy.
 print(meanfi.free_energy(model, density))
 ```
+
+Retained energies belong to the evaluated state and model; selecting fewer
+entries preserves them. A Hamiltonian-only result has no interaction model and
+therefore reports `internal_energy=None` and `free_energy=None`. Explicit model
+selections omitting required interaction entries may also leave these fields
+unknown. An arbitrary external correction outside the interaction space needs
+sufficient additional entries to recover the model's energy.
+
+For another observable or a different model, selected results must cover every
+coordinate used by the contraction; missing entries raise. Request full blocks
+with `keys=sorted(set(model.h_0) | set(model.required_coordinates.keys))` when
+those entries are needed.
 
 `free_energy` requires a `DensityResult`, because a dictionary of a few
 real-space density blocks does not contain the full state's entropy.

@@ -77,6 +77,7 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
             density_matrix_integration=tol / 20,
             filling_residual=tol / 5,
             charge_integration=tol / 50,
+            matrix_function_tol=tol / 5,
         )
 
     result = solver(
@@ -92,6 +93,7 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
         density_matrix_integration=5e-8,
         filling_residual=2e-7,
         charge_integration=2e-8,
+        matrix_function_tol=2e-7,
     )
     assert calls == [1e-6]
     assert result.errors.scf_residual <= requested.scf_residual
