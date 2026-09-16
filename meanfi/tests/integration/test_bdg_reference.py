@@ -86,9 +86,9 @@ def test_bdg_reference_energy_and_hamiltonian(
             patch.setattr(sparse.csr_matrix, "toarray", forbid_dense)
         model = replace(bare, reference=reference)
         h = model.hamiltonian_from_density(density)[()]
-        error = abs(mf.trial_internal_energy(model, density) - expected_energy)
+        error = abs(mf.evaluate_internal_energy(model, density) - expected_energy)
         assert error < 1e-14, f"BdG reference energy error: {error}"
-        assert mf.trial_free_energy(model, density) == pytest.approx(
+        assert mf.evaluate_free_energy(model, density) == pytest.approx(
             expected_energy - model.kT * entropy, abs=1e-14
         )
 
@@ -101,8 +101,8 @@ def test_bdg_reference_energy_and_hamiltonian(
     direction = np.block([[dnormal, dpairing], [dpairing.conj().T, -dnormal.T]])
     step = 1e-5
     derivative = (
-        mf.trial_internal_energy(model, tb(raw + step * direction))
-        - mf.trial_internal_energy(model, tb(raw - step * direction))
+        mf.evaluate_internal_energy(model, tb(raw + step * direction))
+        - mf.evaluate_internal_energy(model, tb(raw - step * direction))
     ) / (2 * step)
     expected_derivative = np.trace(expected_h @ direction).real / 4
     error = abs(derivative - expected_derivative)
@@ -116,7 +116,7 @@ def test_bdg_reference_energy_and_hamiltonian(
         else density_result_from_tb({(): covariance(ref_normal, phase * ref_pairing)})
     )
     rotated_model = replace(model, reference=rotated_reference)
-    assert mf.trial_internal_energy(
+    assert mf.evaluate_internal_energy(
         rotated_model, tb(covariance(normal, phase * pairing))
     ) == pytest.approx(expected_energy, abs=1e-14)
 
@@ -183,7 +183,7 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(
         abs(result.free_energy - (expected_energy - temperature * expected_entropy))
         < temperature * entropy_error + 2e-8
     )
-    assert mf.trial_internal_energy(model, result.density) == pytest.approx(
+    assert mf.evaluate_internal_energy(model, result.density) == pytest.approx(
         result.internal_energy, abs=2e-8
     )
 

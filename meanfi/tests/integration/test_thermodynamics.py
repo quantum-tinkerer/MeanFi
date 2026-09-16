@@ -88,11 +88,11 @@ def test_scf_selected_energy_agrees_with_full_density(superconducting):
     )
     assert result.converged
     assert result.internal_energy == pytest.approx(
-        mf.trial_internal_energy(model, full), abs=1e-8
+        mf.evaluate_internal_energy(model, full), abs=1e-8
     )
     assert result.entropy == pytest.approx(full.entropy, abs=1e-8)
     assert result.free_energy == pytest.approx(
-        mf.trial_free_energy(model, full), abs=1e-8
+        mf.evaluate_free_energy(model, full), abs=1e-8
     )
     assert all(np.isfinite(point.internal_energy) for point in result.history)
     assert result.history[-1].internal_energy == result.internal_energy
@@ -323,8 +323,8 @@ def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
         assert selected.entropy == density.entropy
         return (
             density,
-            mf.trial_internal_energy(model, density),
-            mf.trial_free_energy(model, density),
+            mf.evaluate_internal_energy(model, density),
+            mf.evaluate_free_energy(model, density),
         )
 
     base, base_energy, base_free_energy = evaluate(1)

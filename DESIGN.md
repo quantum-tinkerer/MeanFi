@@ -21,9 +21,9 @@ an energy difference from the reference.
 `DensityCoordinates` lists requested real-space entries. `DensityResult` stores
 those values and available observables/diagnostics. Missing entries are unknown;
 missing metadata is `None`. No calculation is performed solely to fill a result
-field. Read energies from result properties; `trial_internal_energy` and
-`trial_free_energy` independently evaluate a trial density against a supplied
-model and require all entries used by that contraction. `SCFResult` adds the input
+field. Read energies from result properties; `evaluate_internal_energy` and
+`evaluate_free_energy` calculate energies from a model and density, requiring all
+entries used by that contraction. `SCFResult` adds the input
 correction, convergence status and iteration history. Its correction reproduces its density; applying `model.mean_field` to
 that density gives the next correction, equal only at self-consistency.
 

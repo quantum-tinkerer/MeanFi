@@ -22,8 +22,8 @@ preserving the previous interfaces.
   automatically. Results retain the evaluated mean field, density and history,
   including the last valid state on nonconvergence.
 - Read calculated energies from result properties. The standalone functions
-  are named `trial_internal_energy` and `trial_free_energy` to distinguish
-  independent trial-density evaluation from stored results.
+  `evaluate_internal_energy` and `evaluate_free_energy` calculate energies from
+  the supplied model and density.
 - Charge root searches accept any sample meeting the filling target, including
   bracket endpoints and expansion steps, without spending further evaluations.
 - Energies and entropy are per cell per physical orbital. Entropy/free energy are

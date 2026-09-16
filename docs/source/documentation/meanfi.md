@@ -251,7 +251,7 @@ SCF settings are keyword-only. To change the history or iteration budget, pass
 
 ```{eval-rst}
 .. automodule:: meanfi.observables
-   :members: expectation_value, trial_internal_energy, trial_free_energy
+   :members: expectation_value, evaluate_internal_energy, evaluate_free_energy
    :show-inheritance:
 ```
 
@@ -288,7 +288,7 @@ solution = meanfi.solver(
 print(solution.internal_energy, solution.entropy, solution.free_energy)
 ```
 
-`expectation_value` and `trial_internal_energy` accept complete tight-binding
+`expectation_value` and `evaluate_internal_energy` accept complete tight-binding
 matrix dictionaries or `DensityResult` objects. Default model-based results
 retain internal energy from the evaluated band energy and interaction correction,
 so energy evaluation needs no additional density entries:
@@ -305,19 +305,19 @@ selections omitting required interaction entries may also leave these fields
 unknown. An arbitrary external correction outside the interaction space needs
 sufficient additional entries to recover the model's energy.
 
-Use `trial_internal_energy(model, density)` or `trial_free_energy(model, density)`
-to independently evaluate a trial state under a supplied model. These functions
+Use `evaluate_internal_energy(model, density)` or `evaluate_free_energy(model, density)`
+to calculate energies from a model and density. These functions
 require all entries used by the contraction; they do not use stored energy or
 calculate missing entries. For a selected result, use its energy properties.
 For an independent evaluation, request the required blocks explicitly:
 
 ```python
-trial = meanfi.density_matrix(
+density = meanfi.density_matrix(
     model, keys=sorted(set(model.h_0) | set(model.required_coordinates.keys)),
     compute_free_energy=True,
 )
-print(meanfi.trial_internal_energy(model, trial))
-print(meanfi.trial_free_energy(model, trial))
+print(meanfi.evaluate_internal_energy(model, density))
+print(meanfi.evaluate_free_energy(model, density))
 ```
 
 Entropy and free energy are omitted by default. Set `compute_free_energy=True`
@@ -338,7 +338,7 @@ require extra work beyond the requested density. Fixed-filling calculations
 retain the energy needed by SCF. Explicit `compute_free_energy=True` requests
 the additional thermodynamic work.
 
-`trial_free_energy(model, density)` requires a `DensityResult` with computed entropy:
+`evaluate_free_energy(model, density)` requires a `DensityResult` with computed entropy:
 a few real-space density blocks alone do not determine full-state entropy.
 Selecting fewer entries preserves computed entropy. Every backend exposes
 `errors.entropy`, a diagnostic total-error estimate where available. Finite dense
@@ -374,8 +374,8 @@ $$
 where $\langle A,B\rangle=\sum_R\operatorname{Tr}(A_R B_{-R})$ is the
 per-cell contraction. Differentiating $N U$ with respect to density gives
 $h_0+W[\delta\rho]$, so the Hamiltonian and energy use the same subtraction.
-`trial_internal_energy`, result energy properties and EDIIS use this functional.
-`trial_free_energy` uses it with the entropy of the actual state: $F=U-kT\,S[\rho]$.
+`evaluate_internal_energy`, result energy properties and EDIIS use this functional.
+`evaluate_free_energy` uses it with the entropy of the actual state: $F=U-kT\,S[\rho]$.
 Neither entropy nor filling is reference-subtracted.
 
 This is an energy functional for the reference-subtracted model, not the energy

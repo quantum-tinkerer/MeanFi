@@ -56,9 +56,11 @@ np.testing.assert_allclose(
     full.free_energy, full.internal_energy - model.kT * full.entropy
 )
 
-# Trial helpers independently evaluate entries against the supplied model.
-np.testing.assert_allclose(mf.trial_internal_energy(model, full), full.internal_energy)
-np.testing.assert_allclose(mf.trial_free_energy(model, full), full.free_energy)
+# Energy helpers independently evaluate entries against the supplied model.
+np.testing.assert_allclose(
+    mf.evaluate_internal_energy(model, full), full.internal_energy
+)
+np.testing.assert_allclose(mf.evaluate_free_energy(model, full), full.free_energy)
 
 # Raw dictionaries and explicit entry selections also work.
 h = model.hamiltonian_from_meanfield(solution.mean_field)
