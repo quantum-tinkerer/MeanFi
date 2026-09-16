@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, replace
 
 import numpy as np
 
 from meanfi.errors import ErrorValues
 from meanfi.space.coordinates import DensityCoordinates, _assemble_blocks
 from meanfi.tb.ops import _tb_type
-
-if TYPE_CHECKING:
-    from meanfi.model import Model
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -90,6 +86,7 @@ class DensityResult:
     quadratic Hamiltonian (with BdG normal ordering),
     before correcting for interaction double counting. Model-based results
     retain known ``internal_energy``; ``free_energy`` subtracts ``kT * entropy``.
+    Free energy is also None when entropy was not requested.
     Both are None when the model energy cannot be determined. Selection preserves
     these scalars; unknown real-space entries are never filled to obtain them.
     """
@@ -100,15 +97,14 @@ class DensityResult:
     errors: ErrorValues
     statistics: IntegrationInfo | None = None
     band_energy: float | None = None
-    entropy: float = 0.0
+    entropy: float | None = None
     kT: float = 0.0
     internal_energy: float | None = None
-    _model: Model | None = field(default=None, repr=False, compare=False)
 
     @property
     def free_energy(self) -> float | None:
         """Model energy minus kT * entropy, when the model energy is known."""
-        if self.internal_energy is None:
+        if self.internal_energy is None or self.entropy is None:
             return None
         return self.internal_energy - self.kT * self.entropy
 
@@ -192,14 +188,23 @@ class SCFResult:
 
     density: DensityResult
     mean_field: _tb_type
-    internal_energy: float | None
-    free_energy: float | None
-    errors: ErrorValues
     history: tuple[SCFIteration, ...]
     converged: bool
 
     @property
-    def entropy(self) -> float:
+    def internal_energy(self) -> float | None:
+        return self.density.internal_energy
+
+    @property
+    def free_energy(self) -> float | None:
+        return self.density.free_energy
+
+    @property
+    def errors(self) -> ErrorValues:
+        return self.density.errors
+
+    @property
+    def entropy(self) -> float | None:
         """Entropy per cell per physical orbital, in units of Boltzmann's constant."""
         return self.density.entropy
 

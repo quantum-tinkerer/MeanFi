@@ -73,7 +73,7 @@ and the SCF residual to `tol`. These are separate stage targets, not a certified
 bound on their sum or on chemical-potential error.
 
 Read estimates through `result.errors.band_energy_integration` and
-`result.errors.entropy_integration`, alongside the density and charge errors.
+`result.errors.entropy`, alongside the density and charge errors.
 All four integration estimates are `None` on prescribed meshes. FermiSimplex
 currently supplies density and charge estimates but does not estimate band-energy
 or entropy integration error; these fields remain `None` there, except for an
@@ -117,3 +117,8 @@ Prescribed finite-temperature sparse `RationalFOE` remains available with
 `UniformGrid(nk=..., matrix_function=RationalFOE(...))`. Adaptive rational
 integration is unsupported. Sparse calculations require an explicit supported
 method rather than silently switching to a dense adaptive calculation.
+
+The shared `errors.entropy` is populated only when entropy is computed and its
+total error can be estimated; otherwise it is `None`. Entropy does not control
+refinement. Finite systems ignore mesh sizes with a warning and have zero
+integration error.

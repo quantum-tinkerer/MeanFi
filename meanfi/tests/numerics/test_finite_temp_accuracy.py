@@ -43,7 +43,6 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
             kT=0.15,
             keys=keys,
             integration=UniformGrid(
-                nk=128,
                 matrix_function=matrix_function,
             ),
         )
@@ -55,7 +54,6 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
             kT=0.15,
             keys=keys,
             integration=UniformGrid(
-                nk=128,
                 matrix_function=matrix_function,
             ),
             filling_tol=1e-2,

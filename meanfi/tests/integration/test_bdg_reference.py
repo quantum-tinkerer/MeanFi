@@ -156,7 +156,6 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(
         )
     }
     grid = mf.UniformGrid(
-        nk=1,
         matrix_function=mf.RationalFOE() if use_sparse else mf.DirectDiagonalization(),
     )
     result = mf.solver(model, guess, integration=grid, tol=1e-9)
@@ -176,7 +175,7 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(
     assert abs(result.mu - onsite) < 2e-8
     assert abs(result.mean_field[()][0, 3] + gap * phase) < 2e-8
     assert abs(result.internal_energy - expected_energy) < 2e-8
-    entropy_error = result.errors.entropy_approximation or 0.0
+    entropy_error = result.errors.entropy or 0.0
     assert abs(result.entropy - expected_entropy) < entropy_error + 2e-8
     assert (
         abs(result.free_energy - (expected_energy - temperature * expected_entropy))

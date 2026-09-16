@@ -88,9 +88,6 @@ def test_public_result_objects_report_physics_errors_and_density_statistics():
     assert [field.name for field in fields(SCFResult)] == [
         "density",
         "mean_field",
-        "internal_energy",
-        "free_energy",
-        "errors",
         "history",
         "converged",
     ]
@@ -103,11 +100,8 @@ def test_public_result_objects_report_physics_errors_and_density_statistics():
         errors=ErrorValues(),
     )
     result = SCFResult(
-        density=density,
+        density=replace(density, errors=ErrorValues(scf_residual=0.0)),
         mean_field={(0,): np.zeros((2, 2))},
-        internal_energy=None,
-        free_energy=None,
-        errors=ErrorValues(scf_residual=0.0),
         history=(),
         converged=True,
     )

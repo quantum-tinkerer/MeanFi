@@ -33,8 +33,14 @@ def solver(
     mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
     verbose: bool = False,
+    compute_free_energy: bool = True,
 ) -> SCFResult:
-    """Run mean-field update -> density update -> SCF mixing."""
+    """Run mean-field update -> density update -> SCF mixing.
+
+    Entropy is computed once at termination by default, including valid partial
+    results on failure. Set ``compute_free_energy=False`` to skip that final
+    evaluation; entropy and free energy remain None. SCF uses internal energy.
+    """
 
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
     if scf_tol is not None:
@@ -66,6 +72,7 @@ def solver(
         scf=resolved_scf,
         problem=problem,
         verbose=verbose,
+        compute_free_energy=compute_free_energy,
     )
 
 

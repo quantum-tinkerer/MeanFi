@@ -198,7 +198,7 @@ def test_scf_interaction_functional_matches_exact_two_orbital_energy(kind):
             model.hamiltonian_from_meanfield(),
             kT=model.kT,
             keys=[()],
-            integration=UniformGrid(nk=1),
+            integration=UniformGrid(),
             tolerances=default_solver_tolerances(1e-10),
             density_coordinates=model.required_coordinates,
             electron_ndof=2 if model.superconducting else None,

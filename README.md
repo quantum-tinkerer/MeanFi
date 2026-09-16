@@ -24,6 +24,10 @@ print(result.internal_energy, result.entropy, result.free_energy)
 
 Dictionary keys are lattice displacements; each value is an orbital matrix.
 `EnergyDIIS()` is the default solver and mixes densities using internal energy.
+By default, SCF computes entropy once at termination, including valid partial
+results on failure. Use `compute_free_energy=False` to skip this final work.
+SCF iterations and EDIIS use internal energy only.
+
 Final results report energies and entropy per
 cell per physical orbital, with entropy in units of Boltzmann's constant:
 `free_energy = internal_energy - kT * entropy`. Filling counts electrons per

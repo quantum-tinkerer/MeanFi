@@ -36,14 +36,14 @@ class _Integral:
     values: np.ndarray
     charge: float
     band_energy: float
-    entropy: float
+    entropy: float | None
 
     def errors(self, other: _Integral):
         return (
             np.abs(self.values - other.values),
             abs(self.charge - other.charge),
             abs(self.band_energy - other.band_energy),
-            abs(self.entropy - other.entropy),
+            None if self.entropy is None else abs(self.entropy - other.entropy),
         )
 
 
@@ -91,7 +91,9 @@ class _Evaluator:
         tolerances: ErrorTolerances,
         sparse_layout: SparseRationalLayout | None,
         filling_tol: float | None = None,
+        compute_entropy: bool = False,
     ):
+        self.compute_entropy = compute_entropy
         self.hamiltonian = hamiltonian
         self.kT = kT
         self.integration = integration
@@ -176,7 +178,7 @@ class _Evaluator:
         if previous is not None:
             previous.spectra = None
 
-    def _rational_node(self, matrix, *, thermodynamics=False):
+    def _rational_node(self, matrix, *, compute_entropy=False):
         return PreparedMumpsRationalNode(
             matrix,
             kT=self.kT,
@@ -187,7 +189,7 @@ class _Evaluator:
             matrix_function_tol=self.tolerances.matrix_function_tol,
             workspace_dtype=self.dtype,
             shared_aaa_interval_cache=self._aaa_interval_cache,
-            compute_thermodynamics=thermodynamics,
+            compute_entropy=compute_entropy,
         )
 
     def charge(self, grid: _Grid, mu: float) -> tuple[float, float, float | None]:
@@ -260,17 +262,21 @@ class _Evaluator:
                 energies = np.empty(len(points))
                 entropies = np.empty(len(points))
                 for index, matrix in enumerate(matrices):
-                    node = self._rational_node(matrix, thermodynamics=True)
+                    node = self._rational_node(
+                        matrix, compute_entropy=self.compute_entropy
+                    )
                     charges[index] = node.charge(mu)
                     packed[index] = node.density_values_from_charge_order(mu)
-                    energies[index], entropies[index] = node.thermodynamics(mu)
+                    energies[index], point_entropy = node.thermodynamics(mu)
+                    entropies[index] = point_entropy if self.compute_entropy else 0.0
                     self.matrix_function_error = max(
                         self.matrix_function_error or 0.0, node.matrix_function_error
                     )
-                    self.entropy_approximation_error = max(
-                        self.entropy_approximation_error or 0.0,
-                        node._last_terms.entropy_error,
-                    )
+                    if self.compute_entropy:
+                        self.entropy_approximation_error = max(
+                            self.entropy_approximation_error or 0.0,
+                            node._last_terms.entropy_error,
+                        )
                     for group, (_key, _rows, _cols, value_slice) in enumerate(
                         self.coordinates.iter_key_coordinates()
                     ):
@@ -294,7 +300,11 @@ class _Evaluator:
                 ).real
                 charges = diagonal @ self.trace_weights
                 energies = np.sum(eigenvalues * occupation, axis=1)
-                entropies = occupation_entropy(occupation).sum(axis=1)
+                entropies = (
+                    occupation_entropy(occupation).sum(axis=1)
+                    if self.compute_entropy
+                    else np.zeros(len(points))
+                )
                 if not self.normal:
                     energies += mu * (diagonal @ self.q_diag)
                 self.work.diagonalizations += len(points)
@@ -321,12 +331,12 @@ class _Evaluator:
                 values / grid.count,
                 charge / grid.count,
                 energy / grid.count,
-                entropy / grid.count,
+                entropy / grid.count if self.compute_entropy else None,
             ),
             _Integral(
                 previous_values / previous_count,
                 previous_charge / previous_count,
                 previous_energy / previous_count,
-                previous_entropy / previous_count,
+                previous_entropy / previous_count if self.compute_entropy else None,
             ),
         )

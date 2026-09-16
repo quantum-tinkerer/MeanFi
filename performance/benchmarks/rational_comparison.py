@@ -489,7 +489,9 @@ def node_case(case, scheme):
             )
         if thermodynamics:
             tolerance = normalization * case.tolerance
-            if "compute_thermodynamics" in node_parameters:
+            if "compute_entropy" in node_parameters:
+                settings["compute_entropy"] = True
+            elif "compute_thermodynamics" in node_parameters:
                 settings["compute_thermodynamics"] = True
             elif "band_energy_tolerance" in node_parameters:
                 settings.update(

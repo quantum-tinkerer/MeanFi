@@ -338,7 +338,7 @@ def test_model_selected_density_keeps_physical_energy_without_one_body_entries(
         request.getfixturevalue("require_mumps")
         h0, interaction = sparse.csr_matrix(h0), sparse.csr_matrix(interaction)
     model = mf.Model({(): h0}, {(): interaction}, 1, kT=0.2, superconducting=bdg)
-    integration = mf.UniformGrid(nk=1)
+    integration = mf.UniformGrid()
     correction = model.random_meanfield(rng=17, scale=0.1)
     result = mf.density_matrix_at_mu(
         model,
@@ -354,8 +354,7 @@ def test_model_selected_density_keeps_physical_energy_without_one_body_entries(
     exact = (vectors * expit(-energies / model.kT)) @ vectors.conj().T
     reference = mf.internal_energy(model, {(): exact})
     assert result.internal_energy == pytest.approx(reference, abs=2e-9)
-    assert mf.internal_energy(model, result) == result.internal_energy
-    assert result.free_energy == mf.free_energy(model, result)
+    assert result.free_energy == result.internal_energy - model.kT * result.entropy
     assert result.kT == model.kT
     assert result.coordinates is model.required_coordinates
 
@@ -367,8 +366,8 @@ def test_model_selected_density_keeps_physical_energy_without_one_body_entries(
             entries=(),
         )
     )
-    assert mf.internal_energy(model, empty) == result.internal_energy
-    assert mf.free_energy(model, empty) == result.free_energy
+    assert empty.internal_energy == result.internal_energy
+    assert empty.free_energy == result.free_energy
 
 
 def test_default_selected_density_energy_does_not_require_hopping_entries():
@@ -383,7 +382,9 @@ def test_default_selected_density_energy_does_not_require_hopping_entries():
     result = mf.density_matrix(model)
     assert result.coordinates.value_count == 2
     expected = -0.1 * np.tanh(0.5)
-    assert mf.internal_energy(model, result) == pytest.approx(expected, abs=1e-14)
+    for equivalent_model in (model, replace(model)):
+        with pytest.raises(ValueError, match="missing"):
+            mf.internal_energy(equivalent_model, result)
     assert result.internal_energy == pytest.approx(expected, abs=1e-14)
 
 
@@ -400,6 +401,4 @@ def test_model_physical_inputs_have_one_owner():
     result = mf.density_matrix(updated)
     assert result.kT == 0.4
     assert result.filling == pytest.approx(0.7, abs=1e-4)
-    assert (
-        mf.free_energy(updated, result) == result.internal_energy - 0.4 * result.entropy
-    )
+    assert result.free_energy == result.internal_energy - 0.4 * result.entropy

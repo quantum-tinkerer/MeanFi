@@ -7,8 +7,8 @@ computed outside the timed region. Run comparisons sequentially.
 """
 
 import argparse
-import hashlib
 import inspect
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -80,7 +80,16 @@ def main():
                         options=mf.RationalFOE(),
                         charge_tolerance=1e-6,
                         **{matrix_target: 1e-7},
-                        compute_thermodynamics=thermal,
+                        **{
+                            (
+                                "compute_entropy"
+                                if "compute_entropy"
+                                in inspect.signature(
+                                    PreparedMumpsRationalNode
+                                ).parameters
+                                else "compute_thermodynamics"
+                            ): thermal
+                        },
                         layout=SparseRationalLayout.build(
                             density_coordinates=coords,
                             trace_weights_diag=np.ones(size),

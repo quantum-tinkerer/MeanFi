@@ -19,25 +19,27 @@ review; the remaining items are a backlog, not new API promises.
   final points, cached nodes and cumulative evaluations.
 - SCF convergence uses reconstructed complex density-entry errors for every method.
 - Models own temperature and filling. Density results retain evaluation temperature
-  and known internal/free energies. Default selected model results support energy
-  helpers without extra matrix entries; arbitrary observable support remains explicit.
+  and known internal/free energies. Selected results expose stored energies as properties; observable helpers evaluate
+  trial densities and require all contraction entries.
 - Entry errors consistently describe integrated real-space density. FermiSimplex
   applies its global worst-entry estimate to each entry; UniformGrid has separate
   coarse/fine entry estimates. These remain empirical estimates, not certificates.
+
+- Entropy defaults to one final SCF evaluation, even on failure with a valid state;
+  `compute_free_energy=False` skips it. All methods expose `errors.entropy`.
+- Finite systems share integrators, warn and ignore mesh sizes, and have zero
+  integration error. Sparse-to-dense evaluation requires an explicit method.
+- Result records retain no hidden Model; SCF scalars delegate to the density.
+  Invalid filling and noninteger coordinates are rejected before numerical work.
 
 ## Still open
 
 - Adaptive AAA integration: currently requires a prescribed mesh. Its matrix-function
   estimate does not establish Brillouin-zone integration accuracy.
-- Finite-system selection: momentum-method compatibility is still resolved before
-  finite-system evaluation; prescribed finite calculations retain prescribed error
-  semantics. A dedicated finite-system contract could simplify this later.
-- Sparse backend defaults: automatic finite-temperature sparse selection requires
-  an explicit supported method. Choosing dense evaluation must remain explicit.
 - Further consolidation of physical-input validation and unsupported-configuration
   errors, and of public-call versus integration-setting tolerance overrides.
-- Entropy approximation remains a diagnostic available for AAA only. A universal
-  thermodynamic-error bound would need further analysis; no such target is implied.
+- Entropy accuracy beyond the density-selected approximation: the shared diagnostic
+  remains `None` where total error cannot be estimated. There is no entropy target.
 
 EDIIS remains an internal-energy optimizer with no automatic switching. Entropy
 introduces no accuracy target or stopping criterion.

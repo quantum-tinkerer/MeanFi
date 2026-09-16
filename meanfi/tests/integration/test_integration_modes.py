@@ -104,18 +104,19 @@ def test_prescribed_normal_zero_temperature_periodic_public_workflow():
     assert result.errors.density_matrix_integration is None
 
 
-def test_zero_dimensional_prescribed_statistics_do_not_invent_integration_error():
-    result = density_matrix(
-        {(): np.diag([-1.0, 1.0])},
-        filling=1,
-        keys=[()],
-        integration=FermiSimplex(nk=20),
-    )
-    assert result.statistics.requested_nk == 20
-    assert result.statistics.n_kpoints == 1
-    assert result.statistics.n_diagonalizations == 1
-    assert result.errors.charge_integration is None
-    assert result.errors.charge_integration is None
+def test_finite_grid_size_is_ignored_with_a_warning():
+    with pytest.warns(UserWarning, match="Finite systems do not use nk"):
+        result = density_matrix(
+            {(): np.diag([-1.0, 1.0])},
+            filling=1,
+            keys=[()],
+            integration=FermiSimplex(nk=20),
+        )
+    assert result.statistics.requested_nk is None
+    assert result.statistics.n_kpoints == result.statistics.n_diagonalizations == 1
+    assert result.errors.charge_integration == 0.0
+    assert result.errors.density_matrix_integration == 0.0
+    assert result.errors.entropy == 0.0
 
 
 def test_sparse_shape_validation_never_materializes_a_dense_matrix(monkeypatch):
@@ -143,7 +144,7 @@ def test_invalid_temperatures_cannot_produce_a_prescribed_density(kT):
 def test_nonfinite_mu_rejected_for_a_finite_simplex_system():
     with pytest.raises(ValueError, match="mu must be finite"):
         density_matrix_at_mu(
-            {(): np.eye(2)}, float("nan"), keys=[()], integration=FermiSimplex(nk=1)
+            {(): np.eye(2)}, float("nan"), keys=[()], integration=FermiSimplex()
         )
 
 

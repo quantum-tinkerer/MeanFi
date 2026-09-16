@@ -32,15 +32,18 @@ class ErrorTolerances:
 
 @dataclass(frozen=True)
 class ErrorValues:
-    """Achieved scalar errors; ``None`` means unavailable or inapplicable."""
+    """Achieved scalar errors; ``None`` means unavailable or inapplicable.
+
+    Entropy combines integration and matrix-function estimates, per physical
+    orbital, when both are available. It has no accuracy target.
+    """
 
     scf_residual: float | None = None
     density_matrix_integration: float | None = None
     filling_residual: float | None = None
     charge_integration: float | None = None
     band_energy_integration: float | None = None
-    entropy_integration: float | None = None
-    entropy_approximation: float | None = None
+    entropy: float | None = None
     matrix_function_error: float | None = None
 
     def __post_init__(self) -> None:

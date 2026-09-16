@@ -19,6 +19,7 @@ def solve_periodic(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
+    compute_entropy: bool = False,
 ) -> DensityResult:
     """Evaluate one prescribed grid, or refine until coarse/fine tests pass."""
     integration, tolerances = problem.integration, problem.tolerances
@@ -44,6 +45,7 @@ def solve_periodic(
         tolerances=tolerances,
         sparse_layout=problem.sparse_layout,
         filling_tol=None if filling is None else filling_tol,
+        compute_entropy=compute_entropy,
     )
     starting_nk = integration.nk if prescribed else integration.initial_nk
     n = (
@@ -99,7 +101,8 @@ def solve_periodic(
             break
         if dimension == 0:
             density_error = np.zeros(integral.values.size)
-            charge_error = energy_error = entropy_error = 0.0
+            charge_error = energy_error = 0.0
+            entropy_error = 0.0 if compute_entropy else None
             break
         if previous is not None:
             density_error, charge_error, energy_error, entropy_error = integral.errors(
@@ -156,8 +159,9 @@ def solve_periodic(
             else float(np.max(density_error, initial=0.0)),
             charge_integration=charge_error,
             band_energy_integration=energy_error,
-            entropy_integration=entropy_error,
-            entropy_approximation=evaluator.entropy_approximation_error,
+            entropy=None
+            if entropy_error is None
+            else entropy_error + (evaluator.entropy_approximation_error or 0.0),
             matrix_function_error=evaluator.matrix_function_error,
             filling_residual=None if filling is None else abs(charge - filling),
         ),

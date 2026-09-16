@@ -38,10 +38,13 @@ assert selected.covers(model.required_coordinates)
 assert not selected.is_complete
 print("Selected entries:", selected.coordinates.entries, selected.values)
 # Energy uses the evaluated band trace, with no extra selected density entries.
-np.testing.assert_allclose(
-    mf.internal_energy(model, selected), selected.internal_energy
+print("Selected-state energies:", selected.internal_energy, selected.free_energy)
+lean = mf.density_matrix(
+    model, mean_field=solution.mean_field, tol=1e-6, compute_free_energy=False
 )
-np.testing.assert_allclose(mf.free_energy(model, selected), selected.free_energy)
+assert lean.entropy is lean.free_energy is lean.errors.entropy is None
+np.testing.assert_array_equal(lean.values, selected.values)
+np.testing.assert_allclose(lean.internal_energy, selected.internal_energy)
 assert selected.kT == model.kT
 
 # Request full blocks for plotting, export, or observables with additional support.
@@ -241,9 +244,9 @@ if args.sparse:
         "Sparse AAA:", sparse_density.mu, sparse_density.filling, sparse_density.entropy
     )
     print(
-        "Sparse entropy estimate / approximation error:",
+        "Sparse entropy / total error estimate:",
         sparse_density.entropy,
-        sparse_density.errors.entropy_approximation,
+        sparse_density.errors.entropy,
     )
     sparse_solution = mf.solver(
         sparse_model,

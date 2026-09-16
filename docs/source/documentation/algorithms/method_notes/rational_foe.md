@@ -1,7 +1,7 @@
 # `RationalFOE`
 
 `RationalFOE()` evaluates sparse Hamiltonians at positive temperature on a
-prescribed `UniformGrid(nk=...)`. It uses AAA rational approximation and MUMPS
+prescribed `UniformGrid(nk=...)`, or `UniformGrid()` for a finite system. It uses AAA rational approximation and MUMPS
 selected inversion. The density and entropy calculation shares shifted sparse
 factorizations; it does not diagonalize the Hamiltonian or form its full inverse.
 
@@ -51,9 +51,18 @@ remains `None` on prescribed meshes.
 
 Fitting starts on a small grid and refines only when needed. Accepted Fermi fits
 pass a dense scalar validation grid resolving edges, the transition and tails.
-Entropy is fitted afterward and reports a sampled approximation error in
-`errors.entropy_approximation`. It has no acceptance target and may be much less
-accurate than density. Charge-only evaluations skip the entropy fit.
+Entropy is fitted only when requested, without an acceptance target; it may be
+much less accurate than density. All SCF iterations skip this fit. By default,
+SCF makes one final fixed-mu evaluation with entropy enabled, using the input
+Hamiltonian of the returned density, even on nonconvergence. This rebuilds the
+Fermi fit under the existing density accuracy policy and fits entropy on those
+poles. No factorization history is retained between SCF evaluations, and the
+rebuilt pole set need not match a fit reused during an earlier filling search.
+`compute_free_energy=False` skips the final evaluation entirely.
+
+The common `errors.entropy` combines entropy integration and approximation
+estimates when both are known. Finite AAA systems report the sampled fit error;
+prescribed periodic grids report `None` because their integration error is unknown.
 
 AAA finds denominator weights by minimizing $\|Lw\|$ with $\|w\|=1$,
 where $L$ is the Loewner matrix for the Fermi function. We first compute $L=QR$, then take the
@@ -88,7 +97,8 @@ Band energy uses the same resolvent traces through
 A(A-zI)^{-1}=I+z(A-zI)^{-1}.
 :::
 
-Thus entropy and band energy require no extra matrix factorizations. The sparse
+Within an entropy-enabled evaluation, entropy and band energy require no extra
+matrix factorizations. The final SCF evaluation is a separate matrix pass. The sparse
 node restores the chemical-potential shift. The integrator includes the BdG
 normal-ordering constant, removes Nambu doubling where applicable, and divides
 physical energy and entropy by the number of physical orbitals per cell.
@@ -97,8 +107,8 @@ then returns `free_energy = internal_energy - kT * entropy`.
 
 The density fit accounts for charge trace weights and matrix size. Band-energy
 error scales with Hamiltonian energy units. Sparse free-energy comparisons must
-also account for `kT * errors.entropy_approximation`; this diagnostic does not
-control convergence. A Fermi fit that cannot meet its target within `max_poles`
+also account for entropy error, estimated by `kT * errors.entropy` when
+available. This diagnostic does not control convergence. A Fermi fit that cannot meet its target within `max_poles`
 raises `ConvergenceError`. A prescribed grid has no Brillouin-zone integration
 error estimate.
 

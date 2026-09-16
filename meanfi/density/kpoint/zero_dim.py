@@ -22,7 +22,7 @@ def evaluate_zero_dim(
     filling: float | None = None,
     mu_guess: float = 0.0,
     filling_tol: float = 1e-6,
-    nk: int | None = None,
+    compute_entropy: bool = False,
 ) -> DensityResult:
     """Diagonalize once, select occupations, and return the requested entries."""
 
@@ -38,18 +38,15 @@ def evaluate_zero_dim(
     occupation = fermi_dirac(eigenvalues, 0.0, mu)
     charge = float(np.sum(occupation))
     values = density_values_from_eigensystem(eigenvectors, occupation, coordinates)
-    estimated = nk is None
-    error = 0.0 if estimated else None
     info = IntegrationInfo(
         n_kernel_evals=1,
         n_cached_nodes=1,
         n_leaves=1,
         refinements=0,
-        error_estimate_available=estimated,
+        error_estimate_available=True,
         charge_evaluations=0 if filling is None else 1,
         charge_integration_calls=0,
         density_integration_calls=1,
-        requested_nk=nk,
         n_kpoints=1,
         n_diagonalizations=1,
     )
@@ -57,20 +54,22 @@ def evaluate_zero_dim(
         entries=_DensityEntries(
             coordinates,
             values,
-            np.zeros(coordinates.value_count) if estimated else None,
+            np.zeros(coordinates.value_count),
         ),
         mu=float(mu),
         filling=charge,
         errors=ErrorValues(
-            density_matrix_integration=error,
-            charge_integration=error,
-            band_energy_integration=error,
-            entropy_integration=error,
+            density_matrix_integration=0.0,
+            charge_integration=0.0,
+            band_energy_integration=0.0,
+            entropy=0.0 if compute_entropy else None,
             filling_residual=None if filling is None else abs(charge - filling),
         ),
         statistics=info,
         band_energy=float(eigenvalues @ occupation) / eigenvalues.size,
-        entropy=float(occupation_entropy(occupation).mean()),
+        entropy=float(occupation_entropy(occupation).mean())
+        if compute_entropy
+        else None,
     )
 
 

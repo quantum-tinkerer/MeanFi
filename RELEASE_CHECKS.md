@@ -20,9 +20,10 @@ Run these checks from the repository root before a release:
 EDIIS uses internal energy and never switches methods automatically. Density
 accuracy controls integration; `matrix_function_tol` controls AAA pole selection.
 Adaptive UniformGrid compares coarse and fine grids only. Tests include aliasing
-limitations and independent dense checks of the matrix-function estimate. Sparse entropy is an
-estimate on those poles with a separately reported approximation error; it has
-no accuracy target and does not affect EDIIS. Prescribed meshes do not estimate
+limitations and independent dense checks of the matrix-function estimate. Entropy is final postprocessing, skipped by all SCF iterations. Tests check success,
+failure, disabling it, and the final input Hamiltonian against dense references.
+AAA uses density-selected poles without an entropy target. The common `errors.entropy`
+reports total error when estimable and `None` otherwise. Prescribed meshes do not estimate
 Brillouin-zone integration error.
 
 Benchmark reports record the tested revision, numerical errors, hardware/thread

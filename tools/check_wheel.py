@@ -82,9 +82,19 @@ else:
     assert abs(np.mean(np.sum(expit((result.mu - energies) / .2), axis=1)) - .86) < 1e-7
     occupations = expit((result.mu - energies) / .2)
     assert abs(result.band_energy - np.mean(energies * occupations)) < 5e-5
-    entropy_error = result.errors.entropy_approximation
-    assert entropy_error is not None and np.isfinite(entropy_error)
-    assert abs(result.entropy - np.mean(entr(occupations) + entr(1-occupations))) <= entropy_error + 5e-5
+    assert result.errors.entropy is None  # A prescribed periodic mesh has no total estimate.
+    assert np.isfinite(result.entropy)
+    finite = meanfi.density_matrix_at_mu(
+        {(): sparse_h[(0,)]}, mu=.13, kT=.2, keys=[()], integration=meanfi.UniformGrid(), tol=1e-9,
+    )
+    p = expit((.13 - np.linalg.eigvalsh(sparse_h[(0,)].toarray())) / .2)
+    assert abs(finite.entropy - np.mean(entr(p) + entr(1-p))) <= finite.errors.entropy + 1e-12
+    lean = meanfi.density_matrix_at_mu(
+        {(): sparse_h[(0,)]}, mu=.13, kT=.2, keys=[()], integration=meanfi.UniformGrid(),
+        compute_free_energy=False,
+    )
+    assert lean.entropy is lean.errors.entropy is None
+
 print("Installed wheel passed:", "sparse extra" if sparse_enabled else "core without MUMPS")
 """
 

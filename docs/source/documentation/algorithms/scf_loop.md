@@ -151,3 +151,12 @@ def my_solver(model, guess):
 Each call has its own iteration budget and history. Numerical evaluation errors
 still propagate; the function catches only iteration exhaustion. This policy
 belongs to the user function, not either SCF method.
+
+Entropy is final postprocessing, enabled by `compute_free_energy=True` by default.
+No initial, trial or accepted SCF evaluation computes it. On success or failure
+with a valid state, one fixed-mu evaluation uses the input Hamiltonian that
+produced the returned density. Its entropy completes the result's free energy.
+This adds one matrix pass and retains no factors across iterations. Set
+`compute_free_energy=False` to skip it; the trajectory and internal energies
+are unchanged. If final entropy evaluation fails, `SolverFailure.result` retains
+the valid density and internal energy, with entropy and free energy unknown.

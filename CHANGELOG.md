@@ -9,8 +9,8 @@
 - Density settings resolve in one place. SCF reuses static inverse patterns and
   the bare BdG embedding. Dense density reconstruction is shared across evaluators.
 - AAA chooses poles solely for worst density-entry accuracy, tightened for charge
-  traces. Entropy uses those poles afterward; `errors.entropy_approximation` reports
-  its independent diagnostic error. Entropy has no tolerance and never controls
+  traces. Entropy uses those poles afterward; `errors.entropy` reports
+  the total entropy error when estimable. Entropy has no tolerance and never controls
   EDIIS, AAA acceptance, or integration refinement.
 
 # Changelog
@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Entropy is computed once after SCF termination by default, including valid partial
+  results on failure; iterations perform no entropy work. `compute_free_energy=False`
+  on `solver` or density calls leaves entropy and free energy unknown. All methods
+  expose `errors.entropy`, combining integration and approximation estimates when
+  available; unavailable totals remain `None`. No separate entropy tolerance.
+- Results no longer retain hidden models or duplicate SCF energies/errors. Finite
+  systems warn and ignore mesh sizes, with consistent zero integration errors;
+  finite zero-temperature BdG no longer requires `nk`. Automatic sparse-to-dense
+  selection is disallowed. Invalid filling and fractional coordinates fail early.
+
 - UniformGrid refinement now compares coarse and fine grids only, without shifted
   validation. Both integrators accept `initial_nk` for the starting adaptive mesh;
   `nk` continues to prescribe a final mesh with unavailable integration errors.
@@ -36,8 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   All SCF methods measure the largest reconstructed complex density-entry residual.
 - Models own temperature and filling; density calls reject separate overrides.
   Density results retain evaluation temperature and known model internal/free
-  energies, so default selected results support energy helpers without extra
-  matrix entries. Selection preserves those physical scalars.
+  energies, accessible as result properties without extra matrix entries.
+  Observable helpers evaluate trial densities and require their contraction entries. Selection preserves those physical scalars.
 
 - Superconducting models now accept normal or BdG reference densities. Normal
   references imply zero pairing; BdG references subtract both normal and pairing
@@ -50,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Integration results keep physical quantities on the result and error estimates
   in `errors`; removed physical values, errors and unused energy counters from
-  backend statistics. `band_energy_integration` and `entropy_integration` in
+  backend statistics. `band_energy_integration` and `entropy` in
   `ErrorValues` are diagnostics only. Density accuracy controls integration;
   energy and entropy have no separate targets and do not trigger refinement.
   Sparse thermodynamics uses the density fit without extra energy-driven accuracy.

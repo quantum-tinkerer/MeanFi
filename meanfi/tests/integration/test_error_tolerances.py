@@ -85,10 +85,10 @@ def test_explicit_integration_tolerances_are_effective_internal_requests(
 
 def test_unavailable_periodic_grid_estimators_are_none():
     result = density_matrix(
-        _two_level_hamiltonian(),
+        {(0,): np.diag([-0.5, 0.5])},
         filling=1.0,
         kT=0.2,
-        keys=[()],
+        keys=[(0,)],
         integration=UniformGrid(nk=8),
         tol=1e-3,
     )
@@ -203,7 +203,7 @@ def test_matrix_function_budget_and_report_match_dense_reference(target):
         mu=0.13,
         kT=0.2,
         keys=[()],
-        integration=UniformGrid(nk=1, matrix_function=RationalFOE()),
+        integration=UniformGrid(matrix_function=RationalFOE()),
         tolerance_policy=lambda _: requested,
     )
     energies, vectors = np.linalg.eigh(matrix.toarray())
@@ -212,7 +212,7 @@ def test_matrix_function_budget_and_report_match_dense_reference(target):
     estimated = result.errors.matrix_function_error
     assert 0 <= estimated <= target
     assert error <= 1.01 * estimated + 1e-12, (error, estimated)
-    assert result.errors.density_matrix_integration is None
+    assert result.errors.density_matrix_integration == 0.0
     if target == 1e-3:
         # Neither integration nor an unused filling-root target tightens this fit.
         assert estimated > 1e-8

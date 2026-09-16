@@ -41,7 +41,7 @@ def test_dense_finite_temperature_defaults_to_periodic():
 
 def test_sparse_automatic_integration_requires_explicit_choice():
     sparse_tb = {key: sp.csr_matrix(value) for key, value in spinful_chain().items()}
-    with pytest.raises(ValueError, match="Automatic finite-temperature sparse"):
+    with pytest.raises(ValueError, match="Automatic sparse"):
         resolve_integration(sparse_tb, kT=0.15)
     with pytest.raises(ValueError, match="Automatic sparse"):
         resolve_integration(
@@ -75,5 +75,5 @@ def test_adaptive_rational_is_explicitly_unsupported():
 
 def test_zero_temperature_defaults():
     assert isinstance(resolve_integration(spinful_chain(), kT=0), FermiSimplex)
-    with pytest.raises(NotImplementedError, match="UniformGrid"):
+    with pytest.raises(ValueError, match="UniformGrid"):
         resolve_integration(spinful_chain(), kT=0, superconducting=True)

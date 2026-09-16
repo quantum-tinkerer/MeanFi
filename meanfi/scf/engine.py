@@ -5,6 +5,7 @@ import numpy as np
 
 from meanfi.errors import ConvergenceError
 from meanfi.results import SCFIteration, SCFResult
+from meanfi.observables import _internal_energy_from_band
 from meanfi.scf.ediis import EDIISPoint, ediis_coefficients
 from meanfi.scf.fixed_point import (
     NoConvergence,
@@ -33,34 +34,58 @@ def _format_scf_progress(iteration: SCFIteration) -> str:
     return " ".join(parts)
 
 
-def _build_result(problem, evaluation, history, *, converged):
+def _build_result(problem, evaluation, history, *, converged, compute_free_energy):
     errors = replace(evaluation.density.errors, scf_residual=evaluation.residual_norm)
-    energy = evaluation.internal_energy
     density = replace(
-        evaluation.density, errors=errors, internal_energy=energy, _model=problem.model
+        evaluation.density, errors=errors, internal_energy=evaluation.internal_energy
     )
-    return SCFResult(
+    result = SCFResult(
         density=density,
         mean_field=problem.model._mean_field_from_state(evaluation.output_state),
-        internal_energy=energy,
-        free_energy=None
-        if energy is None
-        else energy - problem.model.kT * density.entropy,
-        errors=errors,
         history=tuple(history),
         converged=converged,
     )
+    if compute_free_energy:
+        try:
+            thermal = problem.evaluate_mean_field(
+                evaluation.mean_field,
+                mu_guess=density.mu,
+                mu=density.mu,
+                compute_entropy=True,
+            )
+        except (ConvergenceError, np.linalg.LinAlgError, FloatingPointError) as exc:
+            raise SolverFailure(
+                "Final entropy calculation failed", result=result
+            ) from exc
+        density = replace(
+            density,
+            entropy=thermal.entropy,
+            errors=replace(errors, entropy=thermal.errors.entropy),
+        )
+        result = replace(result, density=density)
+    return result
 
 
 def run_scf_loop(
-    guess: _tb_type, *, scf: SCFMethod, problem: SCFProblem, verbose: bool = False
+    guess: _tb_type,
+    *,
+    scf: SCFMethod,
+    problem: SCFProblem,
+    verbose: bool = False,
+    compute_free_energy: bool = True,
 ) -> SCFResult:
     projected_guess = problem.project_guess(guess)
     try:
         density = problem.evaluate_mean_field(projected_guess, mu_guess=0.0)
     except (ConvergenceError, np.linalg.LinAlgError, FloatingPointError) as exc:
         raise SolverFailure("Initial SCF density evaluation failed") from exc
-    last = SCFEvaluation(density, problem.state_from_density(density.entries))
+    state = problem.state_from_density(density.entries)
+    energy = _internal_energy_from_band(
+        problem.model, state, density.band_energy, projected_guess
+    )
+    last = SCFEvaluation(
+        density, state, internal_energy=energy, mean_field=projected_guess
+    )
     history: list[SCFIteration] = []
     tolerance = problem.density_problem.tolerances.scf_residual
 
@@ -120,20 +145,34 @@ def run_scf_loop(
             else:
                 raise NoConvergence(params)
     except NoConvergence as exc:
-        partial = _build_result(problem, last, history, converged=False)
+        partial = _build_result(
+            problem,
+            last,
+            history,
+            converged=False,
+            compute_free_energy=compute_free_energy,
+        )
         raise NoConvergence(exc.last_iterate, result=partial) from exc
     except SolverError:
         raise
     except Exception as exc:
-        partial = _build_result(problem, last, history, converged=False)
+        partial = _build_result(
+            problem,
+            last,
+            history,
+            converged=False,
+            compute_free_energy=compute_free_energy,
+        )
         raise SolverFailure("SCF evaluation failed", result=partial) from exc
 
-    result = _build_result(problem, last, history, converged=True)
+    result = _build_result(
+        problem, last, history, converged=True, compute_free_energy=compute_free_energy
+    )
     if result.errors.scf_residual is None or result.errors.scf_residual > tolerance:
         raise NoConvergence(
             last.output_state.values, result=replace(result, converged=False)
         )
-    if verbose:
+    if verbose and result.entropy is not None:
         print(
             f"scf converged: entropy={result.entropy:.12g} free_energy={result.free_energy:.12g}"
         )

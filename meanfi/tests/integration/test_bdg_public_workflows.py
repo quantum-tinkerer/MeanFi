@@ -115,7 +115,7 @@ def test_zero_temperature_bdg_requires_explicit_periodic_grid_default_override()
         superconducting=True,
     )
 
-    with pytest.raises(NotImplementedError, match="UniformGrid"):
+    with pytest.raises(ValueError, match="UniformGrid"):
         solver(
             model,
             {(0,): np.zeros((2, 2), dtype=complex)},

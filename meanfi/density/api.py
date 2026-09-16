@@ -85,6 +85,7 @@ def density_matrix_at_mu(
     spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
     tol: float = 1e-3,
+    compute_free_energy: bool = True,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
 ) -> DensityResult:
     """Compute density at fixed chemical potential.
@@ -93,7 +94,8 @@ def density_matrix_at_mu(
     ``mean_field`` optionally adds a correction to its bare Hamiltonian.
     For a Hamiltonian dictionary, supply exactly one of ``keys`` (full blocks),
     ``coordinates`` (explicit entries) or ``interaction`` (required entries).
-    Temperature defaults to zero for dictionaries.
+    Temperature defaults to zero for dictionaries. Set ``compute_free_energy=False``
+    to skip entropy; entropy and free energy then remain None.
     """
     problem = _density_problem(
         h,
@@ -106,7 +108,7 @@ def density_matrix_at_mu(
         integration=integration,
         tolerances=resolve_error_tolerances(tol, tolerance_policy),
     )
-    result = evaluate_density(problem, mu=mu)
+    result = evaluate_density(problem, mu=mu, compute_entropy=compute_free_energy)
     return _with_model_energy(h, result, mean_field) if isinstance(h, Model) else result
 
 
@@ -122,6 +124,7 @@ def density_matrix(
     spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
     tol: float = 1e-3,
+    compute_free_energy: bool = True,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
     filling_tol: float | None = None,
     mu_tol: float = 1e-10,
@@ -133,6 +136,7 @@ def density_matrix(
     Override ``keys`` to request complete blocks for analysis or ``to_tb()``.
     For a Hamiltonian dictionary, supply filling and exactly one selection mode:
     ``keys``, ``coordinates`` or ``interaction``. See ``density_matrix_at_mu``.
+    Set ``compute_free_energy=False`` to skip entropy and leave free energy unknown.
     """
     if isinstance(h, Model) and filling is not None:
         raise ValueError(
@@ -161,5 +165,6 @@ def density_matrix(
         filling=filling,
         mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
+        compute_entropy=compute_free_energy,
     )
     return _with_model_energy(h, result, mean_field) if isinstance(h, Model) else result

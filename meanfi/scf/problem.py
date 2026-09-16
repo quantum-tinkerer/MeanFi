@@ -21,12 +21,13 @@ from meanfi.tb.storage import tb_entries_changed
 
 @dataclass(frozen=True)
 class SCFEvaluation:
-    """One density evaluation; the initial guess has no input density or energy."""
+    """One density evaluation and its input correction; initial input density is unknown."""
 
     density: DensityResult
     output_state: ActiveDensityState
     input_state: ActiveDensityState | None = None
     internal_energy: float | None = None
+    mean_field: _tb_type | None = None
 
     @property
     def residual(self) -> np.ndarray | None:
@@ -66,14 +67,21 @@ class SCFProblem:
         return projected
 
     def evaluate_mean_field(
-        self, mean_field: _tb_type, mu_guess: float
+        self,
+        mean_field: _tb_type,
+        mu_guess: float,
+        *,
+        mu: float | None = None,
+        compute_entropy: bool = False,
     ) -> DensityResult:
         return evaluate_density(
             replace(
                 self.density_problem,
                 hamiltonian=add_tb(self.model._hamiltonian, mean_field),
             ),
-            filling=self.model.filling,
+            filling=self.model.filling if mu is None else None,
+            mu=mu,
+            compute_entropy=compute_entropy,
             mu_tol=self.mu_tol,
             max_charge_evaluations=self.max_charge_evaluations,
             mu_guess=mu_guess,
@@ -105,4 +113,4 @@ class SCFProblem:
         energy = _internal_energy_from_band(
             model, output_state, density.band_energy, correction
         )
-        return SCFEvaluation(density, output_state, input_state, energy)
+        return SCFEvaluation(density, output_state, input_state, energy, correction)

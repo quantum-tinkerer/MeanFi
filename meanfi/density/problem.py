@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import math
+import warnings
 
 from meanfi.errors import ErrorTolerances, resolve_integration_tolerances
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
@@ -96,41 +97,51 @@ def resolve_integration(hamiltonian, *, kT, integration=None, superconducting=Fa
         raise ValueError(
             "meanfi supports only finite non-negative temperatures (kT >= 0)"
         )
+    if integration is not None and not isinstance(integration, IntegrationMethod):
+        raise TypeError("integration must be an IntegrationMethod instance")
     sparse = prefers_sparse_storage(hamiltonian)
+    finite = tb_dimension(hamiltonian) == 0
+    if finite and integration is not None:
+        if integration.nk is not None or integration.initial_nk is not None:
+            warnings.warn(
+                "Finite systems do not use nk or initial_nk; these settings are ignored.",
+                UserWarning,
+                stacklevel=3,
+            )
+            integration = replace(integration, nk=None, initial_nk=None)
     if integration is None:
+        if sparse:
+            raise ValueError(
+                "Automatic sparse integration requires an explicit method; choose FermiSimplex() for dense zero-temperature evaluation, or UniformGrid with an appropriate matrix function."
+            )
+
         if kT == 0:
-            if superconducting:
-                raise NotImplementedError(
+            if superconducting and not finite:
+                raise ValueError(
                     "Zero-temperature superconducting calculations require an explicit UniformGrid(nk=...) integration setting."
                 )
-            integration = FermiSimplex()
-        elif sparse:
-            raise ValueError(
-                "Automatic finite-temperature sparse integration requires explicit UniformGrid(nk=...) or DirectDiagonalization()."
-            )
+            integration = UniformGrid() if superconducting else FermiSimplex()
         else:
             integration = UniformGrid()
     if isinstance(integration, FermiSimplex):
         if superconducting:
-            raise ValueError(
-                "Superconducting density requires UniformGrid; at kT == 0 specify nk"
-            )
+            raise ValueError("Superconducting density requires UniformGrid")
         if kT != 0:
             raise ValueError("FermiSimplex requires kT == 0")
         return integration
     if not isinstance(integration, UniformGrid):
         raise TypeError("integration must be an IntegrationMethod instance")
-    if kT == 0 and integration.nk is None:
+    if kT == 0 and integration.nk is None and not finite:
         raise ValueError("Zero-temperature UniformGrid requires explicit nk")
     method = integration.matrix_function
     if method is None:
-        if sparse and (integration.nk is None or kT <= 0):
+        if sparse and ((integration.nk is None and not finite) or kT <= 0):
             raise ValueError(
                 "Automatic sparse UniformGrid evaluation requires kT > 0 and prescribed nk; explicitly choose DirectDiagonalization() to permit dense batches."
             )
         method = RationalFOE() if sparse else DirectDiagonalization()
     if isinstance(method, RationalFOE):
-        if integration.nk is None:
+        if integration.nk is None and not finite:
             raise ValueError(
                 "UniformGrid RationalFOE requires prescribed nk; adaptive RationalFOE is unsupported"
             )

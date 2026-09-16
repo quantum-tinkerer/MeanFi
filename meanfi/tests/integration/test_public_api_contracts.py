@@ -96,7 +96,9 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
 
     captured = {}
 
-    def fake_run_scf_loop(guess, *, scf, problem, verbose=False):
+    def fake_run_scf_loop(
+        guess, *, scf, problem, verbose=False, compute_free_energy=True
+    ):
         captured["guess"] = guess
         captured["scf"] = scf
         captured["problem"] = problem
@@ -337,3 +339,38 @@ def test_initial_integration_failure_has_the_public_solver_exception():
         solver(model, model.random_meanfield(rng=1), integration=integration)
     assert caught.value.result is None
     assert isinstance(caught.value.__cause__, meanfi.ConvergenceError)
+
+
+@pytest.mark.parametrize("kT", [0.0, 0.2])
+@pytest.mark.parametrize("filling", [-1e-7, 2.0000001, np.nan, np.inf])
+def test_raw_filling_is_validated_before_numerical_work(monkeypatch, kT, filling):
+    def unexpected(*args, **kwargs):
+        pytest.fail("Invalid filling reached a matrix solver")
+
+    monkeypatch.setattr(np.linalg, "eigh", unexpected)
+    with pytest.raises(ValueError, match="filling must be finite"):
+        density_matrix({(): np.diag([-1.0, 1.0])}, filling=filling, kT=kT, keys=[()])
+
+
+@pytest.mark.parametrize("index", [0.8, 1.0, True, np.nan])
+@pytest.mark.parametrize("constructor", ["entries", "pairs", "direct"])
+def test_coordinate_indices_are_never_truncated(index, constructor):
+    from meanfi import DensityCoordinates
+
+    with pytest.raises(ValueError, match="integers"):
+        if constructor == "entries":
+            DensityCoordinates.from_entries(size=2, keys=[()], entries=[((), index, 0)])
+        elif constructor == "pairs":
+            DensityCoordinates.from_pairs(
+                size=2, keys=[()], pairs_by_key={(): ([index], [0])}
+            )
+        else:
+            DensityCoordinates(
+                size=2, keys=((),), rows_by_key=([index],), cols_by_key=([0],)
+            )
+
+
+@pytest.mark.parametrize("size", [True, 2.5, 0, -1])
+def test_coordinate_size_is_a_positive_integer(size):
+    with pytest.raises(ValueError, match="positive integer"):
+        meanfi.DensityCoordinates.from_entries(size=size, keys=[()], entries=[])

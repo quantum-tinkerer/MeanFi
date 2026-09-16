@@ -6,8 +6,9 @@ When `integration=None`, MeanFi uses:
 | --- | --- |
 | Dense normal, `kT=0` | `FermiSimplex()` |
 | Dense normal or BdG, `kT>0` | `UniformGrid()` with direct diagonalization and global refinement |
-| BdG, `kT=0` | Explicit `UniformGrid(nk=...)` required |
-| Sparse, automatic finite-temperature selection | Error with migration guidance; choose an explicit supported method |
+| Periodic BdG, `kT=0` | Explicit `UniformGrid(nk=...)` required |
+| Dense finite BdG, `kT=0` | `UniformGrid()` with direct diagonalization |
+| Sparse, automatic selection | Error with migration guidance; choose an explicit supported method |
 
 | Family and mode | Normal, `kT=0` | BdG, `kT=0` | Normal/BdG, `kT>0` |
 | --- | --- | --- | --- |
@@ -33,12 +34,22 @@ this budget by returning a modified `ErrorTolerances` from that same policy.
 Energy and entropy estimates in
 `result.errors` are diagnostics, not targets.
 Integration targets are populated only after the prescribed/accuracy-controlled
-mode has been resolved. An explicit `nk` always retains prescribed-size semantics.
+mode has been resolved. For periodic systems, explicit `nk` retains prescribed-size semantics. Finite
+systems use the same methods, ignore `nk` and `initial_nk` with a warning, and
+have zero integration error. Finite BdG calculations do not require `nk`.
+At positive temperature, explicit sparse `UniformGrid()` chooses AAA for finite
+systems; periodic AAA still requires `nk`.
 
-Every density backend returns entropy and the expectation of the input
+Every density backend returns optional entropy and the expectation of the input
 quadratic Hamiltonian as `band_energy`. Model-based density results also retain
 known interaction-corrected `internal_energy` and `free_energy`, including the
 default selected results. SCF results report interaction-corrected
 `internal_energy` and `free_energy`, with entropy in units of Boltzmann's
 constant. All these quantities are per cell per physical orbital. Dense periodic evaluation reuses eigenvalues; sparse AAA evaluation
 shares poles and matrix factorizations between density and entropy.
+
+`compute_free_energy=True` defaults to computing entropy in standalone density
+calls and once after SCF termination. SCF iterations skip entropy. Disabling it
+leaves entropy, free energy and `errors.entropy` as `None`. There is no entropy
+tolerance; the common error field is also `None` if its total error cannot be
+estimated, including prescribed periodic meshes.

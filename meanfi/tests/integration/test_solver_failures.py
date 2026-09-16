@@ -48,7 +48,8 @@ def test_numerical_failure_attaches_last_valid_physical_result(monkeypatch):
             scf=LinearMixing(max_iterations=3),
         )
 
-    assert calls == 2
+    assert calls == 3
+    assert exc_info.value.result.entropy is not None
     assert isinstance(exc_info.value.result, SCFResult)
     assert exc_info.value.result.converged is False
     assert np.isfinite(exc_info.value.result.mu)

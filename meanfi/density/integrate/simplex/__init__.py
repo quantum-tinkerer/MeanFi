@@ -20,6 +20,7 @@ def solve_simplex(
     mu_tol: float,
     max_charge_evaluations: int | None,
     mu_guess: float,
+    compute_entropy: bool = False,
 ) -> DensityResult:
     """Find a common mesh satisfying density and, when requested, filling."""
     if tb_dimension(problem.hamiltonian) == 0:
@@ -30,7 +31,7 @@ def solve_simplex(
             filling=filling,
             mu_guess=mu_guess,
             filling_tol=problem.tolerances.filling_residual,
-            nk=problem.integration.nk,
+            compute_entropy=compute_entropy,
         )
     evaluator = SimplexEvaluator(problem)
     adaptive = problem.integration.nk is None
@@ -100,5 +101,7 @@ def solve_simplex(
         ),
         statistics=evaluator.statistics(charge_evaluations),
         band_energy=_occupied_band_energy(evaluator.mesh, mu=mu),
-        entropy=_zero_temperature_entropy(evaluator.mesh, mu),
+        entropy=_zero_temperature_entropy(evaluator.mesh, mu)
+        if compute_entropy
+        else None,
     )

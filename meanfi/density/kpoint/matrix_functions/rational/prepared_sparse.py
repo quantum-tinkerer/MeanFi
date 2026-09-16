@@ -37,7 +37,7 @@ class PreparedMumpsRationalNode:
         charge_tolerance: float | None,
         layout: SparseRationalLayout,
         matrix_function_tol: float,
-        compute_thermodynamics: bool = False,
+        compute_entropy: bool = False,
         workspace_dtype: np.dtype = np.dtype(complex),
         shared_aaa_interval_cache: list[_AAAIntervalCacheEntry] | None = None,
     ) -> None:
@@ -53,12 +53,12 @@ class PreparedMumpsRationalNode:
             None if charge_tolerance is None else float(charge_tolerance)
         )
         self.matrix_function_tol = float(matrix_function_tol)
-        self.compute_thermodynamics = compute_thermodynamics
+        self.compute_entropy = compute_entropy
         self.layout = layout
         self.size = int(getattr(matrix, "shape")[0])
         if layout.charge.size != self.size:
             raise ValueError("Sparse layout must match the Hamiltonian size")
-        if compute_thermodynamics and layout.charge.nnz != self.size:
+        if compute_entropy and layout.charge.nnz != self.size:
             raise ValueError("Thermodynamics requires all inverse diagonal entries")
         self._aaa_interval_cache: list[_AAAIntervalCacheEntry] = (
             shared_aaa_interval_cache if shared_aaa_interval_cache is not None else []
@@ -140,7 +140,7 @@ class PreparedMumpsRationalNode:
         return terms
 
     def _with_entropy(self, terms, lower, upper):
-        if self.compute_thermodynamics and terms.entropy_residues is None:
+        if self.compute_entropy and terms.entropy_residues is None:
             return fit_entropy(terms, lower=lower, upper=upper, kT=self.kT)
         return terms
 
@@ -196,7 +196,7 @@ class PreparedMumpsRationalNode:
             residues=terms.residues,
         )
 
-    def thermodynamics(self, mu: float) -> tuple[float, float]:
+    def thermodynamics(self, mu: float) -> tuple[float, float | None]:
         """Return Tr[H f(H-mu Q)] and entropy from the retained inverse diagonals.
 
         BdG particle/hole normalization belongs to the caller. The identity
@@ -208,12 +208,16 @@ class PreparedMumpsRationalNode:
                 "Evaluate charge at the requested mu before thermodynamics"
             )
         terms = self._last_terms
-        if not self.compute_thermodynamics:
-            raise ValueError("Prepare the node with compute_thermodynamics=True first")
+        if self.layout.charge.nnz != self.size:
+            raise ValueError("Band energy requires all inverse diagonal entries")
         energy = float(np.real(terms.constant * np.sum(self.matrix.diagonal())))
-        entropy = float(np.real(terms.entropy_constant * self.size))
-        for shift, residue, entropy_residue in zip(
-            terms.shifts, terms.residues, terms.entropy_residues, strict=True
+        entropy = (
+            float(np.real(terms.entropy_constant * self.size))
+            if self.compute_entropy
+            else None
+        )
+        for index, (shift, residue) in enumerate(
+            zip(terms.shifts, terms.residues, strict=True)
         ):
             diagonal = self._last_charge_entries[complex(shift)]
             trace_inverse = np.sum(diagonal)
@@ -228,5 +232,8 @@ class PreparedMumpsRationalNode:
                     )
                 )
             )
-            entropy += float(2.0 * np.real(entropy_residue * trace_inverse))
+            if self.compute_entropy:
+                entropy += float(
+                    2.0 * np.real(terms.entropy_residues[index] * trace_inverse)
+                )
         return energy, entropy

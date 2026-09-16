@@ -168,7 +168,7 @@ def test_empty_density_selection_reports_thermal_errors_without_refining_them():
     assert abs(result.band_energy - reference.band_energy) > 1e-3
     assert abs(result.entropy - reference.entropy) > 1e-3
     assert result.errors.band_energy_integration > 1e-3
-    assert result.errors.entropy_integration > 1e-3
+    assert result.errors.entropy > 1e-3
 
 
 @pytest.mark.parametrize("use_sparse", [False, True])
@@ -288,7 +288,11 @@ def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
         correction = repeat(normal)
         if superconducting:
             correction = assemble_bdg_tb(correction, repeat(pairing), ndof=2 * copies)
-        integration = mf.UniformGrid(nk=64) if kT > 0 else mf.FermiSimplex()
+        integration = (
+            mf.UniformGrid(nk=64 if dimension else None)
+            if kT > 0
+            else mf.FermiSimplex()
+        )
         density = mf.density_matrix_at_mu(
             model,
             mu=0.12,
@@ -309,9 +313,7 @@ def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
     repeated, energy, free_energy = evaluate(3)
     assert repeated.filling == pytest.approx(3 * base.filling, abs=1e-7)
     assert repeated.band_energy == pytest.approx(base.band_energy, abs=1e-7)
-    entropy_error = (base.errors.entropy_approximation or 0.0) + (
-        repeated.errors.entropy_approximation or 0.0
-    )
+    entropy_error = (base.errors.entropy or 0.0) + (repeated.errors.entropy or 0.0)
     assert repeated.entropy == pytest.approx(base.entropy, abs=entropy_error + 1e-7)
     assert energy == pytest.approx(base_energy, abs=1e-7)
     assert free_energy == pytest.approx(base_free_energy, abs=kT * entropy_error + 1e-7)

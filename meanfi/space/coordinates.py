@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Iterator
+from numbers import Integral
 
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -102,8 +103,12 @@ class DensityCoordinates:
     value_slices: tuple[slice, ...] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if self.size <= 0:
-            raise ValueError("density coordinate size must be positive")
+        if (
+            isinstance(self.size, bool)
+            or not isinstance(self.size, Integral)
+            or self.size <= 0
+        ):
+            raise ValueError("density coordinate size must be a positive integer")
         count = len(self.keys)
         if len(set(self.keys)) != count:
             raise ValueError("density coordinate keys must be unique")
@@ -114,6 +119,10 @@ class DensityCoordinates:
         value_slices = []
         offset = 0
         for rows, cols in zip(self.rows_by_key, self.cols_by_key, strict=True):
+            for values in (rows, cols):
+                array = np.asarray(values)
+                if array.size and array.dtype.kind not in "iu":
+                    raise ValueError("density row/column coordinates must be integers")
             rows = np.array(rows, dtype=int, copy=True)
             cols = np.array(cols, dtype=int, copy=True)
             if rows.ndim != 1 or cols.ndim != 1 or rows.size != cols.size:
@@ -194,7 +203,7 @@ class DensityCoordinates:
         for candidate, rows, cols, value_slice in self.iter_key_coordinates():
             if candidate != key:
                 continue
-            matches = np.flatnonzero((rows == int(row)) & (cols == int(col)))
+            matches = np.flatnonzero((rows == row) & (cols == col))
             if matches.size:
                 return int((value_slice.start or 0) + matches[0])
         raise KeyError((key, row, col))
@@ -252,12 +261,10 @@ class DensityCoordinates:
                 key,
                 (np.empty(0, dtype=int), np.empty(0, dtype=int)),
             )
-            rows = np.asarray(rows, dtype=int)
-            cols = np.asarray(cols, dtype=int)
             rows_by_key.append(rows)
             cols_by_key.append(cols)
         return cls(
-            size=int(size),
+            size=size,
             keys=tuple(keys),
             rows_by_key=tuple(rows_by_key),
             cols_by_key=tuple(cols_by_key),
@@ -275,7 +282,12 @@ class DensityCoordinates:
         for key, row, col in entries:
             if key not in pairs:
                 raise ValueError("density entry key is absent from the coordinate keys")
-            pairs[key].append((int(row), int(col)))
+            if any(
+                isinstance(index, bool) or not isinstance(index, Integral)
+                for index in (row, col)
+            ):
+                raise ValueError("density row/column coordinates must be integers")
+            pairs[key].append((row, col))
         return cls.from_pairs(
             size=size,
             keys=keys,

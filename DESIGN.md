@@ -16,7 +16,7 @@ filling -> SCF update.
 - `DensityCoordinates` describes entry addresses; slices are derived from them.
   `DensityResult` exposes computed values, optional entry errors, and physical
   metadata, including evaluation temperature. Model-based results retain known
-  internal energy, shared by selected views and energy helpers. Its immutable
+  internal energy, preserved by selected views. Its immutable
   payload is private. Missing entries are unknown.
   Only internal constrained reconstruction assembles incomplete blocks with zeros.
 - `space/` builds one compact representation of Hermiticity and pairing
@@ -66,11 +66,25 @@ denominator solve to a small SVD. Its acceptance depends only on the Fermi funct
 Scalar checks and mesh estimates are empirical, not rigorous bounds between sampled
 points. Independent dense references also check matrix errors.
 
-Entropy is diagnostic. Charge searches skip its fit; density evaluation fits entropy
-residues on the accepted density poles without changing those poles.
-`errors.entropy_approximation` reports the sampled scalar entropy error per orbital. This error can be much larger than the density target and must be
-considered when comparing sparse free energies. It never controls acceptance, mesh
-refinement, or EDIIS. Band energy uses the density resolvents.
+Entropy is optional postprocessing. Public calculations default to
+`compute_free_energy=True`; `False` leaves entropy, its error and free energy
+unknown (`None`). Internal SCF evaluations never compute entropy. At termination,
+including a failure with a valid state, one fixed-mu evaluation of the exact
+input Hamiltonian supplies final entropy using the existing density accuracy
+policy. There is no new entropy target. This may repeat matrix work once, but
+retains no history of factors or eigenvectors. AAA regenerates density-accepted
+poles and fits entropy on those poles; entropy never changes pole selection.
+
+Every backend exposes `errors.entropy`, an estimate of the total entropy error
+per orbital when available. It combines integration and matrix-function estimates;
+prescribed periodic meshes and simplex cases lacking an entropy integration
+estimate report None. Finite systems have zero integration error. An unavailable
+estimate never becomes a fabricated zero. Numerical estimates remain empirical.
+Computed energies belong to results, with no hidden Model reference. Observable
+helpers evaluate trial densities using the supplied model and require the relevant
+entries. SCFResult delegates its scalar quantities and errors to DensityResult.
+Finite systems use the same integration methods; supplied nk/initial_nk are warned
+about and ignored. Sparse-to-dense evaluation requires an explicit method.
 
 One bounded scalar fit can be shared across k-points and chemical potentials.
 Numeric factors belong to one Hamiltonian and chemical potential. Density, energy
@@ -105,8 +119,7 @@ The existing tolerance policy assigns `tol/5` to density integration, charge
 integration and matrix-function approximation, `tol/10` to filling residual, and
 `tol` to SCF residual. An explicit density target also supplies an omitted charge
 target; users can override charge independently. Energy and entropy have no accuracy
-targets. Unavailable error estimates are `None`. Sparse entropy approximation error
-is distinct from mesh error.
+targets. Unavailable error estimates are `None`. The entropy estimate is diagnostic and never controls convergence.
 
 Numerical changes are checked against exact finite systems or independently
 converged dense references, including complex pairing phases, reference subtraction,

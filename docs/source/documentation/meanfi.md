@@ -242,7 +242,7 @@ removing Nambu doubling. Spin components count as separate orbitals.
 | --- | --- |
 | `internal_energy`, `free_energy`, `band_energy` | Energy per cell per physical orbital |
 | `entropy` | Entropy / k_B per cell per physical orbital |
-| `errors.band_energy_integration`, `errors.entropy_integration` | Same normalized units as the corresponding quantity |
+| `errors.band_energy_integration`, `errors.entropy` | Same normalized units as the corresponding quantity |
 | `filling` | Electrons per cell, from 0 to N |
 | `mu`, `kT` | Single-particle energy units |
 | Density entries | Occupations and coherences, without normalization by N |
@@ -269,8 +269,6 @@ so energy evaluation needs no additional density entries:
 ```python
 density = meanfi.density_matrix(model, mean_field=solution.mean_field)
 print(density.internal_energy, density.free_energy)
-print(meanfi.internal_energy(model, density))  # Same retained model energy.
-print(meanfi.free_energy(model, density))
 ```
 
 Retained energies belong to the evaluated state and model; selecting fewer
@@ -280,21 +278,38 @@ selections omitting required interaction entries may also leave these fields
 unknown. An arbitrary external correction outside the interaction space needs
 sufficient additional entries to recover the model's energy.
 
-For another observable or a different model, selected results must cover every
-coordinate used by the contraction; missing entries raise. Request full blocks
-with `keys=sorted(set(model.h_0) | set(model.required_coordinates.keys))` when
-those entries are needed.
+The observable helpers evaluate a trial density against the supplied model;
+they require all entries used by that contraction. This rule also applies to
+`internal_energy(model, density)` and `free_energy(model, density)`. Read stored
+energies from the result properties above when using a selected result. Request
+full blocks with `keys=sorted(set(model.h_0) | set(model.required_coordinates.keys))`
+when the helpers need additional entries.
 
-`free_energy` requires a `DensityResult`, because a dictionary of a few
-real-space density blocks does not contain the full state's entropy.
-`density.entropy` is computed during density evaluation and remains available
-when selecting fewer entries. For sparse AAA, inspect
-`density.errors.entropy_approximation`: density-selected poles can give a much
-larger entropy error than the density tolerance. The corresponding free-energy
-uncertainty is `kT` times that entropy error, in addition to energy and mesh errors.
-This is an empirical scalar-fit estimate, not a rigorous bound. Reference subtraction affects the
-interaction energy, not entropy. BdG entropy includes the factor of one half
-that removes Nambu doubling.
+`compute_free_energy=True` is the default on both density functions and `solver`.
+SCF computes entropy once after termination, including a failure with a valid
+partial state. Intermediate evaluations and EDIIS never compute entropy. Set
+`compute_free_energy=False` to skip this work; entropy, `errors.entropy`, and free
+energy then remain `None`, while internal energy is still available.
+
+```python
+solution = meanfi.solver(model, model.random_meanfield(rng=0), compute_free_energy=False)
+assert solution.entropy is None and solution.free_energy is None
+```
+
+`free_energy(model, density)` requires a `DensityResult` with computed entropy:
+a few real-space density blocks alone do not determine full-state entropy.
+Selecting fewer entries preserves computed entropy. Every backend exposes
+`errors.entropy`, a diagnostic total-error estimate where available. Finite dense
+systems report zero; adaptive UniformGrid compares coarse and fine entropy;
+AAA adds its sampled scalar-fit error. Prescribed periodic grids and simplex
+calculations without an entropy integration estimate report `None`.
+
+AAA fits entropy on density-selected poles without a separate tolerance. Its
+entropy error can be much larger than the density tolerance. When available,
+`kT * errors.entropy` estimates the entropy contribution to free-energy error;
+energy error must also be considered. These are empirical estimates, not rigorous
+bounds. Reference subtraction affects interaction energy, not entropy. BdG
+entropy includes the factor of one half that removes Nambu doubling.
 
 `density.band_energy` is the expectation of the **input quadratic Hamiltonian**.
 It includes the BdG normal-ordering constant, excludes chemical potential, and

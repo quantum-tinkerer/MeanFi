@@ -31,7 +31,7 @@ both grids can miss the same oscillation and agree through aliasing. Choose an
 initial mesh that resolves known rapid momentum variation; tighter tolerances
 alone cannot detect agreement caused by aliasing.
 Band energy and entropy are computed on the accepted density mesh. Their error
-estimates are diagnostics and do not trigger refinement. They are available as `errors.band_energy_integration` and `errors.entropy_integration`.
+estimates are diagnostics and do not trigger refinement. They are available as `errors.band_energy_integration` and `errors.entropy`.
 Both the quantities and their errors are per cell per physical orbital.
 The estimates remain empirical. Exhausting `max_points` or `max_refinements`
 raises an actionable convergence error rather than returning an unconverged
