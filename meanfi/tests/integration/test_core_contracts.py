@@ -208,3 +208,61 @@ def test_global_phase_does_not_constrain_normal_density():
         atol=1e-14,
         rtol=0,
     )
+
+
+@pytest.mark.parametrize("superconducting", [False, True])
+@pytest.mark.parametrize("storage", [sparse.csr_matrix, sparse.csr_array])
+def test_sparse_structural_mutations_cannot_change_model_or_cached_state(
+    superconducting, storage
+):
+    # setdiag can replace a sparse matrix's arrays even when they are read-only.
+    model = mf.Model(
+        {(): storage((2, 2))},
+        {(): storage(np.array([[0.0, 0.7], [0.7, 0.0]]))},
+        filling=1,
+        kT=0.2,
+        superconducting=superconducting,
+        reference={(): storage((2, 2))},
+    )
+    method = mf.UniformGrid(matrix_function=mf.DirectDiagonalization())
+    before = mf.density_matrix(model, keys=[()], integration=method)
+    correction = model.mean_field(before)
+    for name in ("h_0", "h_int", "reference"):
+        blocks = getattr(model, name)
+        expected = blocks[()].toarray()
+        exposed = blocks[()]
+        # Public reads share storage; they do not copy large matrix arrays.
+        assert exposed.data is blocks[()].data
+        exposed.setdiag([1.0, 2.0])
+        np.testing.assert_array_equal(blocks[()].toarray(), expected)
+    after = mf.density_matrix(model, keys=[()], integration=method)
+    np.testing.assert_array_equal(after.values, before.values)
+    np.testing.assert_array_equal(
+        model.mean_field(after)[()].toarray(), correction[()].toarray()
+    )
+    assert after.internal_energy == pytest.approx(
+        mf.evaluate_internal_energy(model, after), abs=1e-14
+    )
+
+
+@pytest.mark.parametrize(
+    "left_sparse,right_sparse", [(False, False), (True, True), (True, False)]
+)
+@pytest.mark.parametrize("overlap", [False, True])
+def test_add_tb_rejects_incompatible_matrix_sizes(left_sparse, right_sparse, overlap):
+    left, right = np.eye(2), np.ones((1, 1))
+    if left_sparse:
+        left = sparse.csr_matrix(left)
+    if right_sparse:
+        right = sparse.csr_matrix(right)
+    with pytest.raises(ValueError, match="matching matrix sizes"):
+        mf.add_tb({(0,): left}, {(0,) if overlap else (1,): right})
+
+
+def test_add_tb_requires_matching_lattice_dimensions_and_accepts_empty_corrections():
+    h = {(): np.eye(2)}
+    with pytest.raises(ValueError, match="lattice dimensions"):
+        mf.add_tb(h, {(0,): np.eye(2)})
+    for left, right in ((h, {}), ({}, h)):
+        np.testing.assert_array_equal(mf.add_tb(left, right)[()], h[()])
+    assert mf.add_tb({}, {}) == {}

@@ -33,14 +33,14 @@ def evaluate_internal_energy(
     if model.superconducting:
         # Embedding the observable preserves selected density entries.
         zero = sparse.csr_matrix((model._ndof, model._ndof), dtype=complex)
-        observable = {key: block_diag(block, zero) for key, block in model.h_0.items()}
+        observable = {key: block_diag(block, zero) for key, block in model._h_0.items()}
     else:
-        observable = model.h_0
+        observable = model._h_0
     one_body = (
         float(np.real(expectation_value(density_matrix, observable))) / model._ndof
     )
     return one_body + interaction_energy(
-        active, model.h_int, electron_ndof=model._electron_ndof
+        active, model._h_int, electron_ndof=model._electron_ndof
     )
 
 
@@ -74,7 +74,7 @@ def _internal_energy_from_band(model, state, band_energy, correction):
     difference = model._active_density_from_state(model._reference_difference(state))
     return one_body + interaction_energy(
         difference,
-        model.h_int,
+        model._h_int,
         electron_ndof=model._electron_ndof,
     )
 
@@ -94,7 +94,7 @@ def _with_model_energy(model, density, correction):
     # A direct contraction needs only actual one-body nonzeros. For BdG these
     # are already addressed in the electron block of the selected density.
     available = set(density.coordinates.entries)
-    for key, block in model.h_0.items():
+    for key, block in model._h_0.items():
         rows, cols = block.nonzero()
         if any(
             (opposite_key(key), int(col), int(row)) not in available

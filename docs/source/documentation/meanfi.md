@@ -196,8 +196,9 @@ depends only on `tol`; backends use its targets unchanged. See
 
 `Model` validates finite filling and temperature, matching matrix sizes and
 lattice dimensions, Hermiticity, and real density-density interaction coefficients. It owns read-only copies of dense or sparse
-input matrices and symmetry data. Use a new model (or `dataclasses.replace`) to
-change model parameters.
+input matrices and symmetry data. Public matrix containers share those read-only
+arrays; replacing arrays on a sparse container does not change the model. Use a
+new model (or `dataclasses.replace`) to change model parameters.
 
 ## Solvers
 

@@ -24,13 +24,7 @@ class SolverError(ConvergenceError):
 class NoConvergence(SolverError):
     """Raised when the SCF iteration budget is exhausted."""
 
-    def __init__(
-        self,
-        last_iterate: np.ndarray,
-        *,
-        result: SCFResult | None = None,
-    ):
-        self.last_iterate = np.array(last_iterate, dtype=float, copy=True)
+    def __init__(self, *, result: SCFResult | None = None):
         super().__init__(
             "self-consistent field iteration did not converge", result=result
         )
@@ -68,7 +62,7 @@ def iterate_anderson(
         trials.clear()
         accepted += 1
         if accepted >= scf.max_iterations and trial.residual_norm > scf_tol:
-            raise NoConvergence(trial.input_state.values)
+            raise NoConvergence()
 
     def residual(x):
         trial = evaluate(x)
@@ -105,6 +99,6 @@ def iterate_anderson(
                 tol_norm=residual_norm,
             )
     except ScipyNoConvergence as exc:
-        raise NoConvergence(exc.args[0]) from exc
+        raise NoConvergence() from exc
     if last is None or not np.array_equal(result, last.input_state.values):
         commit(evaluate(result))

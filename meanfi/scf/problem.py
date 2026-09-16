@@ -93,7 +93,7 @@ class SCFProblem:
         """Quadratic energy of a direction; the reference cancels in EDIIS differences."""
         return interaction_energy(
             self.model._space.density_from_params(difference),
-            self.model.h_int,
+            self.model._h_int,
             electron_ndof=self.model._electron_ndof,
         )
 

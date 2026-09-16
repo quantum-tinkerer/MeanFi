@@ -39,7 +39,6 @@ def test_solver_raises_no_convergence_when_scf_budget_is_exhausted():
             ),
         )
 
-    assert exc_info.value.last_iterate.size > 0
     partial = exc_info.value.result
     assert isinstance(partial, SCFResult)
     assert partial.converged is False

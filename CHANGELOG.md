@@ -6,7 +6,8 @@ This major revision simplifies the density, integration and SCF APIs without
 preserving the previous interfaces.
 
 - `Model` owns filling, temperature, interaction, symmetries and an optional
-  reference density. Normal and superconducting models share the same density
+  reference density. Sparse structural mutations on exposed matrix containers
+  cannot change the model or invalidate its caches. Normal and superconducting models share the same density
   and reference-subtracted energy conventions.
 - `density_matrix` solves for filling; `density_matrix_at_mu` evaluates a supplied
   chemical potential. Both return `DensityResult` with explicit selected entries,
@@ -24,7 +25,8 @@ preserving the previous interfaces.
   a separate charge integration to populate diagnostics.
 - EDIIS is the default SCF method, uses internal energy and never switches methods
   automatically. Results retain the evaluated mean field, density and history,
-  including the last valid state on nonconvergence.
+  including the last valid state on nonconvergence through `exception.result`.
+  No mixing update is computed after the iteration limit.
 - Read calculated energies from result properties. The standalone functions
   `evaluate_internal_energy` and `evaluate_free_energy` calculate energies from
   the supplied model and density.
@@ -33,7 +35,9 @@ preserving the previous interfaces.
 - Energies and entropy are per cell per physical orbital. Entropy/free energy are
   opt-in through `compute_free_energy=True`, evaluated only after SCF terminates.
 - Dense and sparse density layouts share coordinate selection. Fourier grids use
-  explicit shapes; Kwant conversion supports sparse and finite systems.
+  explicit shapes; Kwant conversion supports sparse and finite systems, including
+  bound methods and callable objects. `add_tb` rejects incompatible matrix sizes
+  and lattice dimensions instead of broadcasting dense inputs.
 - Python 3.11–3.13 are supported. MUMPS and Kwant are optional extras. FermiSimplex
   is currently pinned to a source revision; see the development guide for the
   remaining PyPI release prerequisite.

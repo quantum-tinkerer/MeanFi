@@ -46,7 +46,7 @@ def builder_to_tb(
 
     def value_at(value, *sites):
         if callable(value):
-            names = inspect.getfullargspec(value).args[len(sites) :]
+            names = tuple(inspect.signature(value).parameters)[len(sites) :]
             value = value(*sites, *[params[name] for name in names])
         return value
 

@@ -10,7 +10,9 @@ calculation, with explicit accuracy targets and no hidden convergence stages.
 ## Physical objects
 
 `Model` owns validated, immutable Hamiltonian/interaction dictionaries, temperature,
-filling, an optional reference density and symmetry constraints. `meanfield.py`
+filling, an optional reference density and symmetry constraints. Public matrix
+containers share read-only arrays but cannot replace the privately owned storage.
+Internal calculations use that storage directly. `meanfield.py`
 contains the canonical interaction correction and energy contraction. For a
 reference, write `delta = rho - reference`: the correction is `W[delta]` and the
 normal interaction energy is `Tr(W[delta] delta)/(2N)`. The one-body energy always
@@ -19,7 +21,8 @@ with Nambu counting once. Reference subtraction defines an interaction model, no
 an energy difference from the reference.
 
 `DensityCoordinates` lists requested real-space entries. `DensityResult` stores
-those values and available observables/diagnostics. Missing entries are unknown;
+those values and available observables/diagnostics. The density convention is `rho_ij = <c_j† c_i>`, so observables contract as
+`Tr(O rho)`. Missing entries are unknown;
 missing metadata is `None`. No calculation is performed solely to fill a result
 field. Read energies from result properties; `evaluate_internal_energy` and
 `evaluate_free_energy` calculate energies from a model and density, requiring all
@@ -104,7 +107,8 @@ Energy and entropy have no stopping targets. Unavailable estimates remain None.
 EDIIS minimizes internal energy over a convex density history. Its small quadratic
 objective is prepared once per update. Convergence uses the largest reconstructed
 complex density-entry residual. EDIIS never switches algorithms; users explicitly
-compose solver calls. Failures retain the last accepted result when available.
+compose solver calls. No update is prepared after the last allowed evaluation.
+Failures expose the last accepted state through `exception.result` when available.
 
 Entropy and free energy are omitted by default. `compute_free_energy=True` requests
 entropy with a density call or once at SCF termination, including a valid failed
@@ -117,7 +121,8 @@ Tests compare against analytic finite/chain models and converged dense reference
 including selected entries, reference subtraction, pairing, units and work counts.
 Coverage is used to find unexercised paths, not as a reason to remove failure checks.
 The small `performance/` runner reports time and reference errors for density and
-SCF workloads. Generated reports, plots and distributions belong under ignored
+SCF workloads, including full sparse fixed-filling searches. Generated reports,
+plots and distributions belong under ignored
 build directories or CI artifacts. Tutorials execute fresh calculations and use
 the default policy/EDIIS; the graphene scan and strained-graphene tutorial
 explicitly choose tol=1e-2 for speed. Sparse CI runs the complete suite, including the heavier numerical

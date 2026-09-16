@@ -329,3 +329,38 @@ def test_ediis_trajectory_is_independent_of_reported_entropy(monkeypatch):
     assert altered.free_energy == pytest.approx(
         altered.internal_energy - model.kT * altered.entropy
     )
+
+
+@pytest.mark.parametrize("max_iterations", [1, 2])
+def test_ediis_does_not_prepare_an_update_after_the_iteration_limit(
+    monkeypatch, max_iterations
+):
+    import meanfi as mf
+    import meanfi.scf.engine as engine
+
+    model = Model(
+        {(): np.diag([0.2, -0.2])},
+        {(): np.array([[0.0, 4.0], [4.0, 0.0]])},
+        filling=1,
+        kT=0.2,
+    )
+    calls = []
+    original = engine.ediis_coefficients
+
+    def coefficients(points, **kwargs):
+        calls.append(len(points))
+        return original(points, **kwargs)
+
+    monkeypatch.setattr(engine, "ediis_coefficients", coefficients)
+    with pytest.raises(mf.NoConvergence) as failure:
+        solver(
+            model,
+            model.random_meanfield(rng=4),
+            scf=EnergyDIIS(max_iterations=max_iterations),
+            tol=1e-9,
+        )
+    result = failure.value.result
+    assert len(result.history) == max_iterations
+    assert calls == list(range(1, max_iterations))
+    reproduced = mf.density_matrix(model, mean_field=result.mean_field, tol=1e-9)
+    np.testing.assert_allclose(result.density.values, reproduced.values, atol=1e-12)

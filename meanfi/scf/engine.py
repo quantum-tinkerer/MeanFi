@@ -123,11 +123,13 @@ def run_scf_loop(
             )
         else:
             points: list[EDIISPoint] = []
-            for _ in range(scf.max_iterations):
+            for step in range(scf.max_iterations):
                 evaluation = evaluate(params)
                 accept(evaluation)
                 if evaluation.residual_norm <= tolerance:
                     break
+                if step + 1 == scf.max_iterations:
+                    raise NoConvergence()
                 if isinstance(scf, LinearMixing):
                     params = params + scf.alpha * evaluation.residual
                 else:
@@ -141,8 +143,6 @@ def run_scf_loop(
                         points, interaction_curvature=problem.interaction_curvature
                     )
                     params = weights @ np.stack([point.params for point in points])
-            else:
-                raise NoConvergence(params)
     except NoConvergence as exc:
         partial = _build_result(
             problem,
@@ -151,7 +151,7 @@ def run_scf_loop(
             converged=False,
             compute_free_energy=compute_free_energy,
         )
-        raise NoConvergence(exc.last_iterate, result=partial) from exc
+        raise NoConvergence(result=partial) from exc
     except SolverError:
         raise
     except Exception as exc:
@@ -168,9 +168,7 @@ def run_scf_loop(
         problem, last, history, converged=True, compute_free_energy=compute_free_energy
     )
     if result.errors.scf_residual is None or result.errors.scf_residual > tolerance:
-        raise NoConvergence(
-            last.output_state.values, result=replace(result, converged=False)
-        )
+        raise NoConvergence(result=replace(result, converged=False))
     if verbose and result.entropy is not None:
         print(
             f"scf converged: entropy={result.entropy:.12g} free_energy={result.free_energy:.12g}"

@@ -163,3 +163,34 @@ def test_sparse_kwant_roundtrip_and_scalar_orbitals(periodic, monkeypatch):
     np.testing.assert_allclose(
         tb[(0,) if periodic else ()][:2, :2].toarray(), np.eye(2)
     )
+
+
+@pytest.mark.parametrize("bound_method", [False, True])
+@pytest.mark.parametrize("sparse", [False, True])
+def test_kwant_bound_methods_and_callable_objects_match_finalized_builder(
+    bound_method, sparse
+):
+    class Onsite:
+        def evaluate(self, site, amplitude):
+            return amplitude * (1 + site.tag[0])
+
+        __call__ = evaluate
+
+    class Hopping:
+        def evaluate(self, left, right, hopping):
+            return hopping
+
+        __call__ = evaluate
+
+    onsite, hopping = Onsite(), Hopping()
+    lattice = kwant.lattice.chain(norbs=1)
+    builder = kwant.Builder()
+    for index in range(2):
+        builder[lattice(index)] = onsite.evaluate if bound_method else onsite
+    builder[lattice(0), lattice(1)] = hopping.evaluate if bound_method else hopping
+    params = {"amplitude": 0.7, "hopping": 0.2j}
+    expected = builder.finalized().hamiltonian_submatrix(params=params)
+    actual = builder_to_tb(builder, params=params, sparse=sparse)[()]
+    if sparse:
+        actual = actual.toarray()
+    np.testing.assert_allclose(actual, expected, atol=1e-14, rtol=0)

@@ -61,6 +61,21 @@ def matrix_bound(matrix: Any) -> float:
 
 
 def add_tb(tb1: _tb_type, tb2: _tb_type) -> _tb_type:
+    """Add compatible tight-binding blocks without broadcasting matrix sizes."""
+    shape = None
+    dimension = None
+    for tb in (tb1, tb2):
+        for key, block in tb.items():
+            if shape is None:
+                shape, dimension = matrix_shape(block), len(key)
+                if shape[0] != shape[1] or shape[0] == 0:
+                    raise ValueError(
+                        "Tight-binding values must be nonempty square matrices"
+                    )
+            if matrix_shape(block) != shape or len(key) != dimension:
+                raise ValueError(
+                    "Tight-binding inputs must have matching matrix sizes and lattice dimensions"
+                )
     return {
         key: tb1.get(key, 0) + tb2.get(key, 0)
         for key in frozenset(tb1) | frozenset(tb2)

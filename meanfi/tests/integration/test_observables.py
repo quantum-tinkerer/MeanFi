@@ -479,3 +479,24 @@ def test_fixed_mu_selected_energy_uses_only_available_entries(
         assert result.internal_energy is None
         with pytest.raises(ValueError, match="missing"):
             mf.evaluate_internal_energy(model, result)
+
+
+@pytest.mark.parametrize("use_sparse", [False, True])
+def test_complex_density_has_creation_index_second_and_trace_observables(use_sparse):
+    import meanfi as mf
+
+    # The occupied state is (1, i)/sqrt(2); <c_1^dagger c_0> = -i/2.
+    h = np.array([[0, 1j], [-1j, 0]])
+    occupied = np.array([1, 1j]) / np.sqrt(2)
+    expected = np.outer(occupied, occupied.conj())
+    block = sparse.csr_matrix(h) if use_sparse else h
+    density = mf.density_matrix_at_mu(
+        {(): block},
+        0,
+        keys=[()],
+        integration=mf.UniformGrid(matrix_function=mf.DirectDiagonalization()),
+    )
+    error = np.max(abs(density.to_tb()[()] - expected))
+    assert error < 1e-14, f"Complex density convention error: {error}"
+    assert density.to_tb()[()][0, 1] == pytest.approx(-0.5j)
+    assert expectation_value(density, {(): block}) == pytest.approx(-1.0, abs=1e-14)

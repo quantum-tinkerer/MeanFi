@@ -13,7 +13,7 @@ from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.space.symmetry import SpatialSymmetry
 from meanfi.tb.bdg import assemble_bdg_tb, electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import add_tb, _tb_type
-from meanfi.tb.storage import prefers_sparse_storage
+from meanfi.tb.storage import _MatrixView, prefers_sparse_storage
 from meanfi.tb.validate import (
     freeze_tb,
     tb_dimension,
@@ -26,6 +26,9 @@ from meanfi.tb.validate import (
 @dataclass(frozen=True, eq=False)
 class Model:
     """Owned, read-only tight-binding inputs and their reduced SCF space.
+
+    Public matrix containers share read-only arrays with owned storage; replacing
+    their arrays cannot change the model. Use ``dataclasses.replace`` for changes.
 
     ``reference`` subtracts the normal and pairing reference densities from
     the mean-field correction. A normal reference has zero pairing in a BdG
@@ -40,6 +43,8 @@ class Model:
     superconducting: bool = False
     spatial_symmetries: tuple[SpatialSymmetry, ...] = ()
     reference: _tb_type | DensityResult | None = None
+    _h_0: _tb_type = field(init=False, repr=False)
+    _h_int: _tb_type = field(init=False, repr=False)
     _space: ActiveSCFSpace = field(init=False, repr=False)
     _reference_state: ActiveDensityState | None = field(init=False, repr=False)
     _ndim: int = field(init=False, repr=False)
@@ -70,8 +75,10 @@ class Model:
                     "Spatial symmetry must match the model dimension and orbital count"
                 )
         for name, value in dict(
-            h_0=h_0,
-            h_int=h_int,
+            h_0=_MatrixView(h_0),
+            h_int=_MatrixView(h_int),
+            _h_0=h_0,
+            _h_int=h_int,
             filling=filling,
             kT=kT,
             spatial_symmetries=symmetries,
@@ -103,7 +110,7 @@ class Model:
                 def read_values(coordinates):
                     return coordinates.values_from_tb(reference)
 
-                object.__setattr__(self, "reference", reference)
+                object.__setattr__(self, "reference", _MatrixView(reference))
             coordinates = space.required_coordinates
             if size not in ((ndof, 2 * ndof) if self.superconducting else (ndof,)):
                 raise ValueError("density coordinate matrix sizes do not match")
@@ -163,7 +170,7 @@ class Model:
     def _mean_field_from_state(self, state: ActiveDensityState) -> _tb_type:
         active = self._active_density_from_state(self._reference_difference(state))
         return interaction_correction(
-            active, self.h_int, electron_ndof=self._electron_ndof
+            active, self._h_int, electron_ndof=self._electron_ndof
         )
 
     def mean_field(self, density: _tb_type | DensityResult) -> _tb_type:
@@ -236,5 +243,5 @@ class Model:
         params = float(scale) * generator.standard_normal(self._space.num_params)
         meanfield_input = self._space.density_from_params(params)
         return interaction_correction(
-            meanfield_input, self.h_int, electron_ndof=self._electron_ndof
+            meanfield_input, self._h_int, electron_ndof=self._electron_ndof
         )
