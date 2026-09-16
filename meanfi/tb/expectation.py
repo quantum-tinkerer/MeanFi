@@ -3,7 +3,8 @@
 import numpy as np
 from meanfi.results import DensityResult
 from meanfi.space.coordinates import opposite_key
-from meanfi.tb.ops import _tb_type, elementwise_product, is_sparse_like
+from meanfi.tb.ops import _tb_type, elementwise_product, is_sparse_like, matrix_shape
+from meanfi.tb.validate import tb_orbital_count
 
 
 def expectation_value(
@@ -18,7 +19,7 @@ def expectation_value(
         Layout-aware density result or complete density-matrix tight-binding
         dictionary.
     observable :
-        Observable tight-binding dictionary.
+        Observable tight-binding dictionary, with the same matrix size as the density.
 
     Returns
     -------
@@ -26,6 +27,18 @@ def expectation_value(
         Unnormalized trace per cell. Unlike the thermodynamic energy helpers,
         this general observable contraction is not divided by orbital count.
     """
+    if isinstance(density_matrix, DensityResult):
+        size = density_matrix.coordinates.size
+        inputs = (observable,)
+    else:
+        size = tb_orbital_count(density_matrix)
+        inputs = (density_matrix, observable)
+    for tb in inputs:
+        if any(matrix_shape(block) != (size, size) for block in tb.values()):
+            raise ValueError(
+                f"Density and observable matrices must all have shape {(size, size)}"
+            )
+
     if isinstance(density_matrix, DensityResult):
         available = dict(
             zip(

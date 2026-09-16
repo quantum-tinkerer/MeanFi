@@ -23,9 +23,11 @@ those values and available observables/diagnostics. Missing entries are unknown;
 missing metadata is `None`. No calculation is performed solely to fill a result
 field. Read energies from result properties; `evaluate_internal_energy` and
 `evaluate_free_energy` calculate energies from a model and density, requiring all
-entries used by that contraction. `SCFResult` adds the input
-correction, convergence status and iteration history. Its correction reproduces its density; applying `model.mean_field` to
-that density gives the next correction, equal only at self-consistency.
+entries used by that contraction. Observable contractions require matching matrix
+sizes for every block, whether densities are complete or selected. `SCFResult` adds
+the input correction, convergence status and iteration history. Its correction
+reproduces its density; applying `model.mean_field` to that density gives the next
+correction, equal only at self-consistency.
 
 `space/` compresses Hermiticity and pairing antisymmetry into real variables.
 Ordinary models use entry mappings with linear storage. Spatial constraints use

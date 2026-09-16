@@ -69,6 +69,37 @@ def test_selected_density_rejects_uncovered_observable_coordinate():
         expectation_value(density, {(): np.eye(2, dtype=complex)})
 
 
+@pytest.mark.parametrize("density_format", ["result", "dense", "sparse"])
+@pytest.mark.parametrize("sparse_observable", [False, True])
+def test_expectation_value_requires_matching_matrix_sizes(
+    density_format, sparse_observable
+):
+    matrix = np.array([[0.6, 0.1j], [-0.1j, 0.4]])
+    density = density_result_from_tb({(): matrix})
+    if density_format != "result":
+        density = density.to_tb(sparse=density_format == "sparse")
+
+    def observable(block):
+        return {(): sparse.csr_matrix(block) if sparse_observable else block}
+
+    operator = np.array([[2.0, 0.3j], [-0.3j, -1.0]])
+    error = abs(expectation_value(density, observable(operator)) - 0.86)
+    assert error < 1e-14, f"Observable contraction error: {error}"
+
+    for block in (np.ones((1, 1)), np.ones((1, 2)), np.zeros((3, 3))):
+        with pytest.raises(ValueError, match="must all have shape"):
+            expectation_value(density, observable(block))
+
+
+@pytest.mark.parametrize("use_sparse", [False, True])
+def test_expectation_value_rejects_inconsistent_density_block_sizes(use_sparse):
+    density = {(0,): np.eye(2), (1,): np.ones((1, 1))}
+    if use_sparse:
+        density = {key: sparse.csr_matrix(block) for key, block in density.items()}
+    with pytest.raises(ValueError, match="must all have shape"):
+        expectation_value(density, {(-1,): np.eye(2)})
+
+
 def test_internal_energy_half_counts_normal_mean_field_interaction():
     model = Model(
         {(): np.diag([1.0, 3.0])},
