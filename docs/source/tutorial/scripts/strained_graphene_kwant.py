@@ -1,101 +1,64 @@
+"""Strained honeycomb supercell and a Gamma-K-M-K'-Gamma band plot."""
+
 import kwant
 import numpy as np
-from . import pauli
-from kwant.linalg import lll
-import scipy
-import matplotlib.pyplot as plt
-
-# Create a 10 x 10 supercell of strained graphene following Antonio L R
-# Manesco and Jose L Lado 2021 2D Matter 8 035057
-
-
-def high_symmetry_line(bz_vertices, nk=12):
-    GammaK = np.linspace([0, 0], bz_vertices[0], nk, endpoint=False)
-    KKprime = np.linspace(bz_vertices[0], bz_vertices[1], nk, endpoint=False)
-    KprimeGamma = np.linspace(bz_vertices[1], [0, 0], nk, endpoint=True)
-    return np.concatenate((GammaK, KKprime, KprimeGamma))
 
 
 def create_system(n=16, nk=15):
-    # Hopping constant
-    t = 1
-    # hbar * v_F
-    vF_times_hbar = 3 / 2
-
-    # Create honeycomb lattice and define supercell translational symmetry
-    lat = kwant.lattice.honeycomb(a=1, norbs=2)
-    sym_2d = kwant.TranslationalSymmetry(lat.vec((n, 0)), lat.vec((0, n)))
-    # Create kwant.Builder
-    bulk = kwant.Builder(sym_2d)
-
-    # Defining supercell hopping modulation
-    # Extract lattice vectors
-    B = np.array(bulk.symmetry.periods).T
-    L_M = np.linalg.norm(B.T[0])
-    # Compute reciprocal lattice vectors
-    A = np.linalg.pinv(B).T
-
-    bs = 2 * np.pi * np.array([A[:, 0], A[:, 1], -(A[:, 0] + A[:, 1])])
-
-    # Generate hoppig modulation
-    def dt(r, b):
-        return np.sin(np.dot(b, r)) / np.linalg.norm(bs[0])
-
-    # Set hopping landscape
-    def hopping(site1, site2, xi):
-        r1 = site1.pos
-        r2 = site2.pos
-        r_med = (r1 + r2) / 2
-        dr = r1 - r2
-        prefactor = vF_times_hbar * xi**2 / (L_M) ** 2 / np.sqrt(3)
-        _b = bs[np.argmin(np.abs(np.cross(dr, bs)))]
-        # print(np.cross(dr, _b))
-        return (t + prefactor * dt(r_med, _b)) * pauli.s0
-
-    # Define onsite and hopping energies
-    bulk[lat.shape(lambda pos: True, (0, 0))] = 0 * pauli.s0
-    bulk[lat.neighbors()] = hopping
-
-    # Get lattice points that neighbor the origin, in basis of lattice vectors
-    reduced_vecs, transf = lll.lll(A.T)
-    neighbors = np.dot(lll.voronoi(reduced_vecs), transf)
-    # Add the origin to these points.
-    klat_points = np.concatenate(([[0] * len(B)], neighbors))
-    # Transform to cartesian coordinates and rescale.
-    # Will be used in 'outside_bz' function, later on.
-    klat_points = 2 * np.pi * np.dot(klat_points, A.T)
-    # Calculate the Voronoi cell vertices
-    voronoi_cell = scipy.spatial.Voronoi(klat_points)
-    around_origin = voronoi_cell.point_region[0]
-    bz_vertices = voronoi_cell.vertices[voronoi_cell.regions[around_origin]]
-
-    def momentum_to_lattice(k):
-        k, _ = scipy.linalg.lstsq(A, k)[:2]
-        return k
-
-    k_path = np.array([momentum_to_lattice(k) for k in high_symmetry_line(bz_vertices)])
-
-    return bulk, lat, k_path
-
-
-def plot_bands(hk, k_path):
-    energies = []
-    for k in k_path:
-        energies.append(np.linalg.eigvalsh(np.asarray(hk(k), dtype=complex)))
-    eks = np.asarray(energies, dtype=float)
-
-    nk = len(k_path)
-    plt.plot(eks, c="k", lw=1)
-    plt.ylabel(r"$E-E_F\ [eV]$")
-    plt.ylim(-0.1, 0.1)
-    plt.xlim(0, nk)
-    plt.xticks(
-        [0, nk // 3, nk // 2, int(2 * nk // 3), nk],
-        [r"$\Gamma$", r"$K$", r"$M$", r"$K^{\prime}$", r"$\Gamma$"],
+    """Build the modulation of Manesco and Lado, 2D Materials 8, 035057 (2021)."""
+    lattice = kwant.lattice.honeycomb(a=1, norbs=2)
+    symmetry = kwant.TranslationalSymmetry(lattice.vec((n, 0)), lattice.vec((0, n)))
+    bulk = kwant.Builder(symmetry)
+    periods = np.asarray(symmetry.periods)
+    reciprocal = np.linalg.inv(periods).T
+    wavevectors = (
+        2 * np.pi * np.array([reciprocal[0], reciprocal[1], -reciprocal.sum(axis=0)])
     )
-    plt.axvline(x=nk // 3, c="k", ls="--")
-    plt.axvline(x=nk // 2, c="k", ls="--")
-    plt.axvline(x=2 * nk // 3, c="k", ls="--")
-    plt.axhline(y=0, c="k", ls="--")
+    period = np.linalg.norm(periods[0])
+
+    def hopping(site1, site2, xi):
+        midpoint = (site1.pos + site2.pos) / 2
+        displacement = site1.pos - site2.pos
+        cross = (
+            displacement[0] * wavevectors[:, 1] - displacement[1] * wavevectors[:, 0]
+        )
+        wavevector = wavevectors[np.argmin(abs(cross))]
+        modulation = np.sin(wavevector @ midpoint) / np.linalg.norm(wavevectors[0])
+        strength = (3 / 2) * xi**2 / (period**2 * np.sqrt(3))
+        return (1 + strength * modulation) * np.eye(2)
+
+    bulk[lattice.shape(lambda pos: True, (0, 0))] = np.zeros((2, 2))
+    bulk[lattice.neighbors()] = hopping
+
+    # Momentum coordinates are phases along the two supercell translations.
+    gamma = np.zeros(2)
+    corner = 2 * np.pi * np.array([2 / 3, 1 / 3])
+    next_corner = corner[::-1]
+    path = np.concatenate(
+        [
+            np.linspace(gamma, corner, nk, endpoint=False),
+            np.linspace(corner, next_corner, nk, endpoint=False),
+            np.linspace(next_corner, gamma, nk + 1),
+        ]
+    )
+    return bulk, lattice, path
+
+
+def plot_bands(h_of_k, k_path, *, mu=0.0):
+    """Plot dense band eigenvalues relative to the specified chemical potential."""
+    import matplotlib.pyplot as plt
+
+    energies = np.array([np.linalg.eigvalsh(h_of_k(k)) for k in k_path]) - mu
+    intervals = len(k_path) - 1
+    plt.figure(figsize=(6, 4))
+    plt.plot(energies, color="black", linewidth=1)
+    ticks = np.array([0, 1 / 3, 1 / 2, 2 / 3, 1]) * intervals
+    plt.xticks(ticks, [r"$\Gamma$", "$K$", "$M$", "$K'$", r"$\Gamma$"])
+    for tick in ticks[1:-1]:
+        plt.axvline(tick, color="black", linestyle="--", linewidth=0.8)
+    plt.axhline(0, color="black", linestyle="--", linewidth=0.8)
+    plt.xlim(0, intervals)
+    plt.ylim(-0.1, 0.1)
+    plt.ylabel(r"$(E-\mu)/t$")
     plt.tight_layout()
     plt.show()

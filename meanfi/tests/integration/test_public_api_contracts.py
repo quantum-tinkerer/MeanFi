@@ -96,7 +96,7 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
     captured = {}
 
     def fake_run_scf_loop(
-        guess, *, scf, problem, verbose=False, compute_free_energy=True
+        guess, *, scf, problem, verbose=False, compute_free_energy=False
     ):
         captured["guess"] = guess
         captured["scf"] = scf

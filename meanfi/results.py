@@ -78,11 +78,25 @@ class _DensityEntries:
             )
         return _assemble_blocks(self.coordinates, self.values, sparse=sparse)
 
+    def trace(self, size: int | None = None) -> float | None:
+        """Local trace, or None when any required diagonal entry is missing."""
+        size = self.coordinates.size if size is None else size
+        for key, rows, cols, value_slice in self.coordinates.iter_key_coordinates():
+            if any(key):
+                continue
+            diagonal = (rows == cols) & (rows < size)
+            if np.count_nonzero(diagonal) == size:
+                return float(self.values[value_slice][diagonal].real.sum())
+        return None
+
 
 @dataclass(frozen=True)
 class DensityResult:
     """Density entries and metadata of the complete evaluated state.
 
+    Fixed-filling results retain the charge-stage filling and root residual.
+    At fixed mu, filling is derived from available density data or is None.
+    The independent charge-integration estimate is unavailable at fixed mu.
     ``entropy`` and ``band_energy`` are per cell per physical orbital; entropy
     is in units of Boltzmann's constant. The band energy belongs to the input
     quadratic Hamiltonian (with BdG normal ordering),
@@ -95,7 +109,7 @@ class DensityResult:
 
     entries: _DensityEntries
     mu: float
-    filling: float
+    filling: float | None
     errors: ErrorValues
     statistics: IntegrationInfo | None = None
     band_energy: float | None = None
@@ -222,7 +236,7 @@ class SCFResult:
         return self.density.mu
 
     @property
-    def filling(self) -> float:
+    def filling(self) -> float | None:
         """Filling of the final density evaluation."""
 
         return self.density.filling

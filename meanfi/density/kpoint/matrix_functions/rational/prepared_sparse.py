@@ -11,7 +11,7 @@ from meanfi.tb.ops import as_sparse, is_sparse_like
 from ..base import RationalFOE
 from meanfi.density.kpoint.occupations import fermi_dirac
 from ..common import spectral_interval, shift_by_mu
-from ..mumps_backend import SelectedInverseFactorization
+from ..mumps_backend import SelectedInverseFactorization, build_selected_inverse_pattern
 from .common import (
     SparseRationalLayout,
     SparseRationalTerms,
@@ -34,7 +34,6 @@ class PreparedMumpsRationalNode:
         kT: float,
         q_diag: np.ndarray,
         options: RationalFOE,
-        charge_tolerance: float | None,
         layout: SparseRationalLayout,
         matrix_function_tol: float,
         compute_entropy: bool = False,
@@ -49,34 +48,21 @@ class PreparedMumpsRationalNode:
         self.kT = float(kT)
         self.q_diag = np.asarray(q_diag, dtype=float)
         self.options = options
-        self.charge_tolerance = (
-            None if charge_tolerance is None else float(charge_tolerance)
-        )
         self.matrix_function_tol = float(matrix_function_tol)
         self.compute_entropy = compute_entropy
         self.layout = layout
         self.size = int(getattr(matrix, "shape")[0])
         if layout.charge.size != self.size:
             raise ValueError("Sparse layout must match the Hamiltonian size")
-        if compute_entropy and layout.charge.nnz != self.size:
-            raise ValueError("Thermodynamics requires all inverse diagonal entries")
         self._aaa_interval_cache: list[_AAAIntervalCacheEntry] = (
             shared_aaa_interval_cache if shared_aaa_interval_cache is not None else []
         )
         self.matrix_function_error: float | None = None
         self._last_mu: float | None = None
-        self._last_charge: float | None = None
         self._last_terms: SparseRationalTerms | None = None
         self._last_factorizations: dict[complex, SelectedInverseFactorization] = {}
-        self._last_charge_entries: dict[complex, np.ndarray] = {}
-
-    def _charge_scalar_tolerance(self) -> float:
-        weight_sum = float(np.sum(np.abs(self.layout.charge_weights)))
-        if self.charge_tolerance is None or weight_sum <= 0.0:
-            return self.matrix_function_tol
-        # Charge is a weighted trace, so the scalar Fermi-operator error must
-        # shrink with the total trace weight to keep the filling solve stable.
-        return min(self.matrix_function_tol, self.charge_tolerance / weight_sum)
+        self._last_inverse_entries: dict[complex, np.ndarray] = {}
+        self._entry_positions: dict[int, int] = {}
 
     def _sparse_terms(self, mu: float) -> SparseRationalTerms:
         pole_count = self.options.max_poles
@@ -84,7 +70,7 @@ class PreparedMumpsRationalNode:
         lower, upper = spectral_interval(shifted)
         padding = 1e-12 * max(1.0, float(upper - lower))
         lower, upper = lower - padding, upper + padding
-        tolerance = self._charge_scalar_tolerance()
+        tolerance = self.matrix_function_tol
         margin = 0.0
         for entry in self._aaa_interval_cache:
             contained = entry.lower <= lower and upper <= entry.upper
@@ -144,52 +130,69 @@ class PreparedMumpsRationalNode:
             return fit_entropy(terms, lower=lower, upper=upper, kT=self.kT)
         return terms
 
-    def charge(self, mu: float) -> float:
-        """Evaluate charge, retaining this point's factors for density and energy."""
+    def _prepare(self, mu: float) -> None:
         if self._last_mu == float(mu):
-            return self._last_charge
+            return
         terms = self._sparse_terms(mu)
         shifted = shift_by_mu(self.matrix, mu, self.q_diag, dtype=self.workspace_dtype)
-        factorizations = {}
-        entries = {}
+        self._last_factorizations = {}
+        self._last_inverse_entries = {}
+        self._entry_positions.clear()
         for shift in terms.shifts:
             key = complex(shift)
             factorization = SelectedInverseFactorization()
             factorization.factor(_sparse_shifted_matrix(shifted, key))
-            factorizations[key] = factorization
-            entries[key] = factorization.selected_inverse(self.layout.charge)
-        charge = self.layout.charge_from_inverse_entries(
+            self._last_factorizations[key] = factorization
+            self._last_inverse_entries[key] = np.empty(0, dtype=complex)
+        self._last_terms = terms
+        self._last_mu = float(mu)
+
+    def _select(self, mu, pattern):
+        """Evaluate only missing inverse entries; store only evaluated entries."""
+        self._prepare(mu)
+        keys = self.size * pattern.cols + pattern.rows
+        positions = np.array([self._entry_positions.get(int(key), -1) for key in keys])
+        missing = positions < 0
+        if np.any(missing):
+            if not np.all(missing):
+                pattern = build_selected_inverse_pattern(
+                    size=self.size,
+                    rows=pattern.rows[missing],
+                    cols=pattern.cols[missing],
+                )
+            start = len(self._entry_positions)
+            positions[missing] = np.arange(start, start + np.count_nonzero(missing))
+            self._entry_positions.update(
+                zip(keys[missing], positions[missing], strict=True)
+            )
+            for shift, factorization in self._last_factorizations.items():
+                self._last_inverse_entries[shift] = np.r_[
+                    self._last_inverse_entries[shift],
+                    factorization.selected_inverse(pattern),
+                ]
+        return {
+            shift: values[positions]
+            for shift, values in self._last_inverse_entries.items()
+        }
+
+    def charge(self, mu: float) -> float:
+        """Evaluate the physical charge diagonal without energy-only entries."""
+        entries = self._select(mu, self.layout.charge)
+        terms = self._last_terms
+        return self.layout.charge_from_inverse_entries(
             entries,
             constant=terms.constant,
             shifts=terms.shifts,
             residues=terms.residues,
         )
-        self._last_charge = charge
-        self._last_terms = terms
-        self._last_factorizations = factorizations
-        self._last_charge_entries = entries
-        self._last_mu = float(mu)
-        return self._last_charge
 
-    def density_values_from_charge_order(self, mu: float) -> np.ndarray:
-        """Use only the factors from charge evaluation at this same mu."""
-        if self._last_mu != float(mu) or self._last_terms is None:
-            raise ValueError("Evaluate charge at the requested mu before density")
+    def density_values(self, mu: float) -> np.ndarray:
+        """Evaluate requested density entries, without requiring a charge probe."""
+        if self.layout.value_positions.size == 0:
+            return np.empty(0, dtype=complex)
+        entries = self._select(mu, self.layout.density)
         terms = self._last_terms
-        layout = self.layout
-        entries = {}
-        for shift in terms.shifts:
-            key = complex(shift)
-            values = np.empty(layout.density.nnz, dtype=np.complex128)
-            values[layout.density_charge_positions] = self._last_charge_entries[key][
-                layout.charge_positions
-            ]
-            if layout.extra.nnz:
-                values[layout.density_extra_positions] = self._last_factorizations[
-                    key
-                ].selected_inverse(layout.extra)
-            entries[key] = values
-        return layout.density_values_from_inverse_entries(
+        return self.layout.density_values_from_inverse_entries(
             entries,
             constant=terms.constant,
             shifts=terms.shifts,
@@ -197,19 +200,14 @@ class PreparedMumpsRationalNode:
         )
 
     def thermodynamics(self, mu: float) -> tuple[float, float | None]:
-        """Return Tr[H f(H-mu Q)] and entropy from the retained inverse diagonals.
+        """Return Tr[H f(H-mu Q)] and entropy, obtaining missing diagonals if needed.
 
         BdG particle/hole normalization belongs to the caller. The identity
         H(A-zI)^-1 = I + (zI + mu Q)(A-zI)^-1 supplies the energy without
         additional factorizations; entropy uses the same poles with fitted residues.
         """
-        if self._last_mu != float(mu) or self._last_terms is None:
-            raise ValueError(
-                "Evaluate charge at the requested mu before thermodynamics"
-            )
+        entries = self._select(mu, self.layout.diagonal)
         terms = self._last_terms
-        if self.layout.charge.nnz != self.size:
-            raise ValueError("Band energy requires all inverse diagonal entries")
         energy = float(np.real(terms.constant * np.sum(self.matrix.diagonal())))
         entropy = (
             float(np.real(terms.entropy_constant * self.size))
@@ -219,7 +217,7 @@ class PreparedMumpsRationalNode:
         for index, (shift, residue) in enumerate(
             zip(terms.shifts, terms.residues, strict=True)
         ):
-            diagonal = self._last_charge_entries[complex(shift)]
+            diagonal = entries[complex(shift)]
             trace_inverse = np.sum(diagonal)
             energy += float(
                 2.0

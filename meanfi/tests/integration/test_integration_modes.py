@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 
 from meanfi import (
+    DensityCoordinates,
+    RationalFOE,
     FermiSimplex,
     LinearMixing,
     Model,
@@ -111,7 +113,7 @@ def test_finite_grid_size_is_ignored_with_a_warning():
     assert result.statistics.n_kpoints == result.statistics.n_diagonalizations == 1
     assert result.errors.charge_integration == 0.0
     assert result.errors.density_matrix_integration == 0.0
-    assert result.errors.entropy == 0.0
+    assert result.errors.entropy is None
 
 
 def test_sparse_shape_validation_never_materializes_a_dense_matrix(monkeypatch):
@@ -165,3 +167,40 @@ def test_simplex_initial_mesh_matches_analytic_constant_density():
     assert result.statistics.n_kpoints >= 17
     assert result.statistics.requested_nk is None
     assert result.errors.density_matrix_integration is not None
+
+
+@pytest.mark.parametrize("finite", [False, True])
+@pytest.mark.parametrize("backend", ["simplex", "dense", "sparse"])
+def test_empty_fixed_mu_request_does_no_matrix_work(monkeypatch, finite, backend):
+    from scipy import sparse
+    import meanfi.density.density as evaluation
+
+    def unexpected_evaluation(*args, **kwargs):
+        pytest.fail("an empty density request must not run a numerical backend")
+
+    monkeypatch.setattr(evaluation, "solve_simplex", unexpected_evaluation)
+    monkeypatch.setattr(evaluation, "solve_periodic", unexpected_evaluation)
+    key = () if finite else (0,)
+    matrix = np.diag([-1.0, 1.0])
+    integration = FermiSimplex() if backend == "simplex" else UniformGrid()
+    temperature = 0.0 if backend == "simplex" else 0.2
+    if backend == "sparse":
+        matrix = sparse.csr_matrix(matrix)
+        integration = UniformGrid(
+            nk=None if finite else 4, matrix_function=RationalFOE()
+        )
+    coordinates = DensityCoordinates.from_entries(size=2, keys=[key], entries=())
+    result = density_matrix_at_mu(
+        {key: matrix},
+        0.3,
+        kT=temperature,
+        coordinates=coordinates,
+        integration=integration,
+    )
+    assert result.mu == 0.3 and result.kT == temperature
+    assert result.values.size == 0
+    assert result.filling is result.band_energy is result.entropy is None
+    assert result.errors.charge_integration is None
+    assert result.errors.matrix_function_error is None
+    assert result.statistics.n_kpoints == result.statistics.n_diagonalizations == 0
+    assert result.statistics.n_kernel_evals == 0

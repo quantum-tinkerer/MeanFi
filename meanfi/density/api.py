@@ -84,7 +84,7 @@ def density_matrix_at_mu(
     spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
     tol: float | ErrorTolerances = 1e-3,
-    compute_free_energy: bool = True,
+    compute_free_energy: bool = False,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
 ) -> DensityResult:
     """Compute density at fixed chemical potential.
@@ -95,8 +95,8 @@ def density_matrix_at_mu(
     ``mean_field`` optionally adds a correction to its bare Hamiltonian.
     For a Hamiltonian dictionary, supply exactly one of ``keys`` (full blocks),
     ``coordinates`` (explicit entries) or ``interaction`` (required entries).
-    Temperature defaults to zero for dictionaries. Set ``compute_free_energy=False``
-    to skip entropy; entropy and free energy then remain None.
+    Temperature defaults to zero for dictionaries. Entropy and free energy are
+    omitted unless ``compute_free_energy=True`` is requested.
     """
     problem = _density_problem(
         h,
@@ -125,7 +125,7 @@ def density_matrix(
     spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
     tol: float | ErrorTolerances = 1e-3,
-    compute_free_energy: bool = True,
+    compute_free_energy: bool = False,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
     max_charge_evaluations: int | None = None,
 ) -> DensityResult:
@@ -137,7 +137,7 @@ def density_matrix(
     Override ``keys`` to request complete blocks for analysis or ``to_tb()``.
     For a Hamiltonian dictionary, supply filling and exactly one selection mode:
     ``keys``, ``coordinates`` or ``interaction``. See ``density_matrix_at_mu``.
-    Set ``compute_free_energy=False`` to skip entropy and leave free energy unknown.
+    Set ``compute_free_energy=True`` to also compute entropy and free energy.
     """
     if isinstance(h, Model) and filling is not None:
         raise ValueError(

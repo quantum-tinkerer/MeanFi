@@ -8,12 +8,12 @@ from dataclasses import replace
 
 import numpy as np
 
-from meanfi.errors import ConvergenceError
+from meanfi.errors import ConvergenceError, ErrorValues
 
 from meanfi.density.integrate.methods import FermiSimplex
 from meanfi.density.integrate.simplex import solve_simplex
 from meanfi.density.integrate.periodic import solve_periodic
-from meanfi.results import DensityResult
+from meanfi.results import DensityResult, IntegrationInfo, _DensityEntries
 from meanfi.density.problem import DensityProblem
 from meanfi.tb.validate import tb_orbital_count
 
@@ -43,6 +43,21 @@ def evaluate_density(
     ):
         raise ValueError(
             "max_charge_evaluations must be a positive integer when provided"
+        )
+    if (
+        filling is None
+        and not problem.density_coordinates.value_count
+        and not compute_entropy
+    ):
+        return DensityResult(
+            entries=_DensityEntries(problem.density_coordinates, np.empty(0, complex)),
+            mu=float(mu),
+            filling=None,
+            errors=ErrorValues(),
+            statistics=IntegrationInfo(
+                n_kpoints=0, n_kernel_evals=0, requested_nk=problem.integration.nk
+            ),
+            kT=problem.kT,
         )
     try:
         evaluate = (

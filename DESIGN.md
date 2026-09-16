@@ -1,145 +1,113 @@
 # MeanFi design
 
-MeanFi solves self-consistent tight-binding models with density-density
-interactions. The calculation is:
+MeanFi solves tight-binding models with density-density interactions by repeating
 
-trial density -> interaction correction -> Hamiltonian -> density at the requested
-filling -> SCF update.
+`density -> interaction correction -> Hamiltonian -> density at fixed filling -> EDIIS`.
 
-## Concepts and ownership
+The goal is to compute only the density entries and matrix work needed by that
+calculation, with explicit accuracy targets and no hidden convergence stages.
 
-- `Model` owns immutable physical inputs, the reference density, the bare
-  normal/BdG Hamiltonian, and a private reduced density space. Its public
-  `required_coordinates` describes the entries needed by the interaction.
-- Physical inputs are validated once at public boundaries: interaction coefficients
-  are real, and corrections match the model shape, lattice and Hermiticity.
-  `Model.mean_field(density)` is the public correction operation for normal/BdG
-  and reference-subtracted models. SCF uses the same interaction map internally.
-- `meanfield.py` implements the linear interaction correction and its quadratic
-  energy contraction. Observables and SCF use these same operations.
-- `DensityCoordinates` describes entry addresses; slices are derived from them.
-  `DensityResult` exposes computed values, optional entry errors, and physical
-  metadata, including evaluation temperature. Model-based results retain known
-  internal energy, preserved by selected views. Its immutable
-  payload is private. Missing entries are unknown.
-  Only internal constrained reconstruction assembles incomplete blocks with zeros.
-- `space/` builds one compact representation of Hermiticity and pairing
-  antisymmetry. General spatial constraints materialize that same representation
-  as a basis and reduce it further. The common path has linear storage.
-  Spatial transformations have an invertible integer lattice map and a unitary
-  combined Fourier symbol. Rank decisions use the unit scale of these constraints
-  so roundoff in an identity action cannot remove physical density directions.
-- A Model owns temperature and filling; calls with a Model cannot override
-  them. Use a replaced Model to change physical inputs. All method settings
-  are keyword-only and all integration methods return `IntegrationInfo`.
-- `density/problem.py` resolves integration defaults and compatibility once.
-  Its prepared sparse coordinate pattern survives Hamiltonian updates in SCF.
-- `scf/problem.py` evaluates the physical self-consistency map. One evaluation
-  record carries the density, input/output states, residual and internal energy.
-  The driver records accepted evaluations; the Anderson adapter owns trial
-  callbacks. Mixing methods retain their own update and iteration limit.
-- `tb/` owns tight-binding operations and contractions. `observables.py` combines
-  those with interaction energy to expose physical observables.
+## Physical objects
 
-## Numerical methods
+`Model` owns validated, immutable Hamiltonian/interaction dictionaries, temperature,
+filling, an optional reference density and symmetry constraints. `meanfield.py`
+contains the canonical interaction correction and energy contraction. For a
+reference, write `delta = rho - reference`: the correction is `W[delta]` and the
+normal interaction energy is `Tr(W[delta] delta)/(2N)`. The one-body energy always
+uses the actual density. BdG applies the corresponding normal/pairing contractions
+with Nambu counting once. Reference subtraction defines an interaction model, not
+an energy difference from the reference.
 
-For each momentum, the density is the Fermi function of `A = H(k) - mu Q`. `Q = I`
-normally; BdG uses the electron/hole charge diagonal. Filling searches use a bracket
-and verify the charge residual. A supplied chemical-potential guess is checked
-before constructing a bracket; an accepted guess needs only one charge evaluation.
-A small chemical-potential step alone does not establish convergence.
+`DensityCoordinates` lists requested real-space entries. `DensityResult` stores
+those values and available observables/diagnostics. Missing entries are unknown;
+missing metadata is `None`. No calculation is performed solely to fill a result
+field. `SCFResult` adds the input correction, convergence status and iteration
+history. Its correction reproduces its density; applying `model.mean_field` to
+that density gives the next correction, equal only at self-consistency.
 
-Normal zero-temperature calculations use `FermiSimplex`. `UniformGrid` supports
-normal and BdG models, with direct diagonalization or positive-temperature sparse
-AAA/MUMPS evaluation on a prescribed mesh. Adaptive grids compare coarse and fine
-integrals on nested meshes. `initial_nk` selects the starting mesh; otherwise
-UniformGrid starts with four points per axis and FermiSimplex with three vertices
-per axis. Prescribed meshes provide no integration error estimate.
-
-For Hermitian `A`, a scalar Fermi-function error bounds every density entry:
-
-`max_ij |[r(A)-f(A)]_ij| <= ||r(A)-f(A)||_2 = max_spectrum |r-f|`.
-
-AAA controls the worst density-matrix element through the scalar Fermi function,
-using the policy's `matrix_function_tol` independently of the momentum-integration
-target. `matrix_function_error` reports the sampled achieved scalar error for the
-returned density; direct diagonalization and FermiSimplex report None for this
-approximation estimate. A weighted charge trace can accumulate errors, so filling
-searches also constrain the fit to one quarter of the filling-residual budget
-divided by the absolute trace-weight sum. Fixed-mu fits use only the matrix-function
-target. Mesh-integration and SCF residual checks remain separate.
-
-AAA uses a small adaptive fitting grid and a dense validation grid; QR reduces its
-denominator solve to a small SVD. Its acceptance depends only on the Fermi function.
-Scalar checks and mesh estimates are empirical, not rigorous bounds between sampled
-points. Independent dense references also check matrix errors.
-
-Entropy is optional postprocessing. Public calculations default to
-`compute_free_energy=True`; `False` leaves entropy, its error and free energy
-unknown (`None`). Internal SCF evaluations never compute entropy. At termination,
-including a failure with a valid state, one fixed-mu evaluation of the exact
-input Hamiltonian supplies final entropy using the existing density accuracy
-policy. There is no new entropy target. This may repeat matrix work once, but
-retains no history of factors or eigenvectors. AAA regenerates density-accepted
-poles and fits entropy on those poles; entropy never changes pole selection.
-
-Every backend exposes `errors.entropy`, an estimate of the total entropy error
-per orbital when available. It combines integration and matrix-function estimates;
-prescribed periodic meshes and simplex cases lacking an entropy integration
-estimate report None. Finite systems have zero integration error. An unavailable
-estimate never becomes a fabricated zero. Numerical estimates remain empirical.
-Computed energies belong to results, with no hidden Model reference. Observable
-helpers evaluate trial densities using the supplied model and require the relevant
-entries. SCFResult delegates its scalar quantities and errors to DensityResult.
-Finite systems use the same integration methods; supplied nk/initial_nk are warned
-about and ignored. Sparse-to-dense evaluation requires an explicit method.
-
-One bounded scalar fit can be shared across k-points and chemical potentials.
-Numeric factors belong to one Hamiltonian and chemical potential. Density, energy
-and entropy reuse those factors; retained storage remains bounded.
-
-## Interaction and SCF
-
-Write `delta = rho - reference`. The correction is `W[delta]` and the interaction
-energy is `Tr(W[delta] delta)/(2N)` normally. BdG uses the normal and conjugate
-pairing contraction with Nambu counting applied once. The one-body term always uses
-the actual density. References define a modified interaction model, not an energy
-difference from the reference. Both complete density dictionaries and selected
-results are accepted; every required entry is checked. A normal N-orbital reference
-in a BdG model specifies zero reference pairing.
-
-EDIIS is the default and minimizes internal energy over convex density history. The
-interaction energy of pairwise density differences supplies its exact quadratic
-curvature; reference offsets cancel. A small history objective is prepared once per
-update. Entropy and free energy do not enter the optimization. SCF stops on the
-largest reconstructed complex density-entry residual, or raises at its iteration
-limit. Users explicitly compose solver calls to change methods. Failures retain the
-last accepted result when available. An SCF result retains the exact input
-correction that produced its density; `model.mean_field(result.density)` computes
-the next correction. These coincide only at a fixed point.
-
-## Units, accuracy, and verification
+`space/` compresses Hermiticity and pairing antisymmetry into real variables.
+Ordinary models use entry mappings with linear storage. Spatial constraints use
+a nullspace basis of the same representation. With the Fourier convention
+`H(k) = sum_R H_R exp(-ik.R)`, shifted symmetries map displacements to
+`A R + s_left - s_right`. The Hamiltonian and interaction must respect the symmetry.
 
 Filling counts electrons per cell. Energy and entropy are per cell per physical
-orbital: a 2N-dimensional BdG Hamiltonian has N physical orbitals. Entropy is in
-units of Boltzmann's constant; free energy is `internal_energy - kT * entropy`.
-Generic observable contractions remain raw traces per cell.
+orbital: N for a normal Hamiltonian and N for a 2N-dimensional BdG Hamiltonian.
+`free_energy = internal_energy - kT * entropy` with entropy in units of k_B.
 
-All numerical targets belong to `ErrorTolerances`, including the chemical-potential
-step tolerance. Public calls accept either a numeric `tol` through the existing
-policy, or a complete `ErrorTolerances` record as `tol`. An explicit record cannot
-be combined with a custom policy. Integration methods configure mesh, backend and
-resource limits only. Prescribed meshes do not apply integration targets.
+## Density and integration
 
-The existing tolerance policy assigns `tol/5` to density integration, charge
-integration and matrix-function approximation, `tol/10` to filling residual, and
-`tol` to SCF residual. An omitted charge target in an explicitly constructed
-tolerance record follows its density target; both remain independently adjustable.
-Energy and entropy have no accuracy targets. Unavailable error estimates are
-`None`. The entropy estimate is diagnostic and never controls convergence.
+`density/problem.py` resolves backend compatibility, coordinate selection and
+sparse patterns once. `density/filling.py` solves `N(mu) = filling` using the
+requested filling residual and chemical-potential step tolerance. It checks the
+previous mu before constructing a bracket; numerical samples are cached within
+the root solve. Integration and matrix-function errors do not add root tests.
 
-Numerical changes are checked against exact finite systems or independently
-converged dense references, including complex pairing phases, reference subtraction,
-units, coordinate selection and resource limits. See `RELEASE_CHECKS.md` for
-repeatable checks. Historical benchmarks remain under `performance/`, outside
-distributions.
+- `FermiSimplex` integrates normal zero-temperature density on an adaptive mesh.
+  At fixed filling, charge/mu refinement finishes before one density stage at
+  that mu. Density never restarts charge refinement. At fixed mu, only density is
+  integrated; filling comes from a complete requested local diagonal or is None.
+  The default seed has five vertices per axis: three vertices and their midpoint
+  preview alias the first cosine harmonic and can falsely report zero error.
+- `UniformGrid` streams points with dense diagonalization or positive-temperature
+  sparse AAA. Normal dense charge is the sum of occupations. Adaptive grids use
+  coarse/fine differences only, starting with four points per axis. `nk` specifies
+  a prescribed total point count; `initial_nk` specifies the adaptive starting
+  count. Prescribed grids have no integration-error estimate. Sparse AAA currently
+  requires a prescribed grid for periodic systems.
+
+Fixed-mu calls have no root search or independent charge-integration estimate.
+Empty requests skip the numerical backend unless entropy is requested.
+They never refine to obtain such a diagnostic. Filling is derived from density
+information already available, or left None. Band energy is returned when it is
+available without extra matrix work, needed by a filling calculation, or requested
+through free-energy evaluation. Finite systems share these contracts and warn if
+irrelevant grid sizes are supplied.
+
+## Sparse matrix functions
+
+AAA approximates the Fermi function on a spectral interval. For Hermitian A,
+`max_ij |[r(A)-f(A)]_ij| <= max_spectrum |r-f|`. The implementation checks sampled
+scalar errors against `matrix_function_tol`; it does not tighten that target.
+A small fitting grid and QR followed by a small SVD find the poles. One scalar fit
+can be reused across nearby intervals; matrix factors belong to one H(k) and mu.
+
+A sparse node factors each pole once, then obtains only requested inverse entries.
+Charge probes request the physical charge diagonal, excluding BdG hole entries.
+Density has no prerequisite charge evaluation. Energy/entropy can request missing
+diagonals from the same factors. Buffers grow only with computed entries. The
+periodic driver discards each node after use; retaining final-mu factors across
+passes is deliberately outside this change.
+
+## Accuracy and SCF
+
+All tolerance dependencies live in `errors.py`. A numeric tol resolves once via
+`policy(tol)`. The default assigns tol to SCF, tol/5 to density and charge
+integration, tol/10 to filling residual, and tol/40 to matrix-function approximation.
+The policy is independent of matrix size and whether filling or mu is fixed.
+Backends use these fields directly. Explicit `ErrorTolerances` bypass the policy
+unchanged.
+
+Filling residual, charge-integration error and the final density trace are distinct.
+Mesh/scalar estimates are empirical indicators, not rigorous accuracy guarantees.
+Energy and entropy have no stopping targets. Unavailable estimates remain None.
+
+EDIIS minimizes internal energy over a convex density history. Its small quadratic
+objective is prepared once per update. Convergence uses the largest reconstructed
+complex density-entry residual. EDIIS never switches algorithms; users explicitly
+compose solver calls. Failures retain the last accepted result when available.
+
+Entropy and free energy are omitted by default. `compute_free_energy=True` requests
+entropy with a density call or once at SCF termination, including a valid failed
+result. It may repeat matrix work in that final pass. AAA fits entropy on the
+accepted density poles without changing them or their acceptance criterion.
+
+## Verification and repository boundaries
+
+Tests compare against analytic finite/chain models and converged dense references,
+including selected entries, reference subtraction, pairing, units and work counts.
+Coverage is used to find unexercised paths, not as a reason to remove failure checks.
+The small `performance/` runner reports time and reference errors for density and
+SCF workloads. Generated reports, plots and distributions belong under ignored
+build directories or CI artifacts. Tutorials execute fresh calculations and use
+the default policy/EDIIS; the graphene scan explicitly chooses tol=1e-2 for speed.

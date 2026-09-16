@@ -22,7 +22,7 @@ def solve_simplex(
     mu_guess: float,
     compute_entropy: bool = False,
 ) -> DensityResult:
-    """Find a common mesh satisfying density and, when requested, filling."""
+    """Finish the charge solve, then refine density at its chemical potential."""
     if tb_dimension(problem.hamiltonian) == 0:
         return evaluate_zero_dim(
             to_dense(problem.hamiltonian[()]),
@@ -42,11 +42,11 @@ def solve_simplex(
         result = evaluator.charge(candidate, adaptive=False)
         # Root finding uses a frozen discretization; its integration error is
         # checked separately before accepting the result.
-        return float(result.value), 0.0, float(result.dcharge_dmu)
+        return float(result.value), float(result.dcharge_dmu)
 
-    while True:
-        charge = None
-        if filling is not None:
+    charge = None
+    if filling is not None:
+        while True:
             remaining = (
                 None
                 if max_charge_evaluations is None
@@ -61,32 +61,42 @@ def solve_simplex(
                 initial_bracket=lambda: mu_bracket(problem.hamiltonian, 0.0),
                 filling=filling,
                 mu_guess=mu_guess,
-                filling_tol=min(
-                    tolerances.filling_residual, tolerances.charge_integration
-                )
-                if adaptive
-                else tolerances.filling_residual,
+                filling_tol=tolerances.filling_residual,
                 mu_tol=mu_tol,
                 max_charge_evaluations=remaining,
                 use_derivative=True,
             )
             charge_evaluations += root.charge_evaluations
             mu = mu_guess = root.mu
-            if adaptive:
-                charge = evaluator.charge(mu, adaptive=True)
-                if abs(charge.value - filling) > tolerances.filling_residual:
-                    continue
+            if not adaptive:
+                break
+            charge = evaluator.charge(mu, adaptive=True)
+            if abs(charge.value - filling) <= tolerances.filling_residual:
+                break
 
-        density, refined = evaluator.density(mu)
-        if filling is None or (adaptive and refined):
-            charge = evaluator.charge(mu, adaptive=adaptive)
-            # Charge refinement invalidates the density estimate on the old mesh.
-            if adaptive and charge.stats.refinements and density.values.size:
-                continue
-        value = float(root.charge if charge is None else charge.value)
-        if filling is not None and abs(value - filling) > tolerances.filling_residual:
-            continue
-        break
+    density = evaluator.density(mu)
+    value = (
+        density.trace()
+        if filling is None
+        else float(root.charge if charge is None else charge.value)
+    )
+
+    entropy = None
+    if compute_entropy:
+        if filling is None and not density.values.size:
+            # No density/charge call populated the native cache. Entropy only
+            # needs eigenvalues on this mesh, without refinement or eigenvectors.
+            eigenvalues = np.array(
+                [
+                    np.linalg.eigvalsh(evaluator.mesh.evaluate(*point))
+                    for point in evaluator.mesh.points
+                ]
+            )
+            evaluator.work.evaluations += len(eigenvalues)
+            evaluator.work.diagonalizations += len(eigenvalues)
+            entropy = _zero_temperature_entropy(evaluator.mesh, mu, eigenvalues)
+        else:
+            entropy = _zero_temperature_entropy(evaluator.mesh, mu)
 
     return DensityResult(
         entries=density,
@@ -96,12 +106,14 @@ def solve_simplex(
             density_matrix_integration=None
             if density.errors is None
             else float(np.max(density.errors, initial=0.0)),
-            charge_integration=float(charge.stopping_error) if adaptive else None,
+            charge_integration=float(charge.stopping_error)
+            if charge is not None
+            else None,
             filling_residual=None if filling is None else abs(value - filling),
         ),
         statistics=evaluator.statistics(charge_evaluations),
-        band_energy=_occupied_band_energy(evaluator.mesh, mu=mu),
-        entropy=_zero_temperature_entropy(evaluator.mesh, mu)
-        if compute_entropy
+        band_energy=_occupied_band_energy(evaluator.mesh, mu=mu)
+        if filling is not None or (compute_entropy and density.values.size)
         else None,
+        entropy=entropy,
     )

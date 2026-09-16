@@ -157,16 +157,16 @@ def test_adaptive_simplex_preview_storage_limit_is_checked():
             _chain(),
             mu=0.2,
             keys=[(0,), (1,)],
-            integration=FermiSimplex(max_points=3),
+            integration=FermiSimplex(initial_nk=3, max_points=3),
             tol=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=1e-3,
-                charge_integration=1e-3,
+                charge_integration=1.0,
             ),
         )
 
 
-def test_selected_fixed_mu_simplex_reports_charge_without_diagonal_entries():
+def test_selected_fixed_mu_simplex_leaves_filling_unknown_without_diagonal_entries():
     coordinates = DensityCoordinates.from_entries(
         size=1, keys=[(1,)], entries=(((1,), 0, 0),)
     )
@@ -187,60 +187,36 @@ def test_selected_fixed_mu_simplex_reports_charge_without_diagonal_entries():
     )
     info = result.statistics
     error = result.entry_errors
-    assert abs(result.filling - (1 - np.arccos(0.1) / np.pi)) < 2e-5
+    assert result.filling is None
     assert info.n_diagonalizations == 129
     assert error is None
 
 
-def test_empty_fixed_mu_simplex_still_evaluates_charge():
-    coordinates = DensityCoordinates.from_entries(size=1, keys=[(1,)], entries=())
-    result = evaluate_density(
-        build_density_problem(
-            _chain(),
-            kT=0.0,
-            keys=[(1,)],
-            density_coordinates=coordinates,
-            integration=FermiSimplex(nk=129, max_points=129),
-            tolerances=replace(
-                default_solver_tolerances(1e-3),
-                density_matrix_integration=1e-05,
-                charge_integration=1e-05,
-            ),
-        ),
-        mu=0.2,
-    )
-    info = result.statistics
-    error = result.entry_errors
-    assert abs(result.filling - (1 - np.arccos(0.1) / np.pi)) < 2e-5
-    assert info.n_diagonalizations == info.n_cached_nodes == 129
-    assert error is None
+def test_density_refinement_preserves_charge_stage_without_rechecking(monkeypatch):
+    from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
 
+    charge_samples = []
+    charge = SimplexEvaluator.charge
 
-def test_adaptive_density_refinement_keeps_root_consistent_with_final_native_mesh(
-    monkeypatch,
-):
-    import meanfi.density.integrate.simplex.mesh as simplex
+    def record_charge(self, mu, *, adaptive):
+        assert self.work.density_calls == 0, "charge must finish before density"
+        sample = charge(self, mu, adaptive=adaptive)
+        if adaptive:
+            charge_samples.append((mu, sample.value, sample.stopping_error))
+        return sample
 
-    meshes = []
-    construct = simplex._spectral_mesh
-
-    def record_mesh(*args, **kwargs):
-        mesh = construct(*args, **kwargs)
-        meshes.append(mesh)
-        return mesh
-
-    monkeypatch.setattr(simplex, "_spectral_mesh", record_mesh)
+    monkeypatch.setattr(SimplexEvaluator, "charge", record_charge)
     result = evaluate_density(
         build_density_problem(
             _chain(),
             kT=0.0,
             keys=[(0,), (1,)],
             density_coordinates=None,
-            integration=FermiSimplex(nk=None, max_points=10000),
+            integration=FermiSimplex(max_points=10000),
             tolerances=replace(
                 default_solver_tolerances(1e-3),
-                density_matrix_integration=0.0001,
-                charge_integration=0.0001,
+                density_matrix_integration=1e-4,
+                charge_integration=1e-4,
                 filling_residual=1e-10,
                 mu_tol=1e-12,
             ),
@@ -249,114 +225,61 @@ def test_adaptive_density_refinement_keeps_root_consistent_with_final_native_mes
         mu_guess=0.0,
         max_charge_evaluations=100,
     )
-    info = result.statistics
+    mu, filling, charge_error = charge_samples[-1]
+    assert result.mu == mu
+    assert result.filling == filling
+    assert result.errors.filling_residual == abs(filling - 0.4)
+    assert result.errors.filling_residual <= 1e-10
+    assert result.errors.charge_integration == charge_error
+    assert result.statistics.density_integration_calls == 1
+
     rho = result.to_tb()
-    error = result.entry_errors
-    mu = result.mu
-    final_charge = meshes[0].estimate_charge_on_current_mesh(mu=mu).value
-    assert abs(final_charge - 0.4) <= 1e-10
-    assert result.filling == final_charge
-    assert abs(rho[(0,)][0, 0] - final_charge) <= error[0]
-    assert result.errors.charge_integration <= 1e-4
-    assert info.density_integration_calls >= 2
+    # Exact chain integrals at the returned mu, with 2e-4 absolute accuracy.
+    np.testing.assert_allclose(
+        [rho[(0,)][0, 0], rho[(1,)][0, 0]],
+        [1 - np.arccos(mu / 2) / np.pi, -np.sqrt(1 - (mu / 2) ** 2) / np.pi],
+        atol=2e-4,
+        rtol=0,
+    )
+    # The independent density integral need not meet the root residual target.
+    assert abs(rho[(0,)][0, 0] - 0.4) > result.errors.filling_residual
 
 
 @pytest.mark.parametrize("empty", [False, True])
-def test_adaptive_fixed_mu_enforces_charge_target_for_selected_layouts(
-    monkeypatch, empty
-):
-    import meanfi.density.integrate.simplex.mesh as simplex
+def test_fixed_mu_only_computes_requested_density(monkeypatch, empty):
+    from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
 
-    meshes = []
-    construct = simplex._spectral_mesh
+    def unexpected_charge(*args, **kwargs):
+        pytest.fail("fixed mu must not evaluate charge")
 
-    def record_mesh(*args, **kwargs):
-        mesh = construct(*args, **kwargs)
-        meshes.append(mesh)
-        return mesh
-
-    monkeypatch.setattr(simplex, "_spectral_mesh", record_mesh)
+    monkeypatch.setattr(SimplexEvaluator, "charge", unexpected_charge)
     coordinates = DensityCoordinates.from_entries(
         size=1, keys=[(1,)], entries=() if empty else (((1,), 0, 0),)
     )
-    result = evaluate_density(
-        build_density_problem(
-            _chain(),
-            kT=0.0,
-            keys=[(1,)],
-            density_coordinates=coordinates,
-            integration=FermiSimplex(nk=None, max_points=10000),
-            tolerances=replace(
-                default_solver_tolerances(1e-3),
-                density_matrix_integration=0.1,
-                charge_integration=1e-07,
-            ),
-        ),
-        mu=0.2,
-    )
-    info = result.statistics
-    check = meshes[0].integrate_charge(mu=0.2, target_error=1e-7, max_refinements=0)
-    assert check.stats.refinements == 0
-    assert check.stopping_error == pytest.approx(
-        result.errors.charge_integration, rel=1e-8
-    )
-    assert result.errors.charge_integration <= 1e-7
-    assert result.filling == pytest.approx(check.value, abs=1e-14)
-    assert abs(result.filling - (1 - np.arccos(0.1) / np.pi)) < 2e-7
-    assert info.n_diagonalizations > info.n_kpoints
-    assert info.refinements > 0
-
-
-def test_fixed_mu_simplex_charge_target_cannot_be_ignored_at_refinement_limit():
-    with pytest.raises(RuntimeError, match="did not converge"):
-        density_matrix_at_mu(
-            _chain(),
-            mu=0.2,
-            keys=[(0,)],
-            integration=FermiSimplex(max_refinements=0),
-            tol=replace(
-                default_solver_tolerances(1e-3),
-                density_matrix_integration=1.0,
-                charge_integration=1e-12,
-            ),
-        )
-
-
-def test_fixed_mu_simplex_reports_both_integration_errors_publicly():
     result = density_matrix_at_mu(
         _chain(),
         mu=0.2,
-        keys=[(1,)],
-        integration=FermiSimplex(),
-        tol=replace(
-            default_solver_tolerances(1e-3),
-            density_matrix_integration=1e-3,
-            charge_integration=1e-7,
-        ),
+        coordinates=coordinates,
+        integration=FermiSimplex(max_points=10000),
+        tol=replace(default_solver_tolerances(1e-3), charge_integration=1e-15),
     )
-    assert result.errors.density_matrix_integration <= 1e-3
-    assert result.errors.charge_integration <= 1e-7
+    assert result.filling is None
+    assert result.errors.charge_integration is None
     assert result.errors.filling_residual is None
+    assert result.statistics.charge_integration_calls == 0
+    assert result.statistics.density_integration_calls == (0 if empty else 1)
+    if empty:
+        assert result.statistics.n_diagonalizations == 0
+    else:
+        assert abs(result.values[0] + np.sqrt(0.99) / np.pi) < 2e-4
 
 
-def test_empty_fixed_mu_charge_target_respects_point_limit():
-    coordinates = DensityCoordinates.from_entries(size=1, keys=[(1,)], entries=())
-    with pytest.raises(RuntimeError, match="did not converge.*max_points"):
-        evaluate_density(
-            build_density_problem(
-                _chain(),
-                kT=0.0,
-                keys=[(1,)],
-                density_coordinates=coordinates,
-                integration=FermiSimplex(nk=None, max_points=3),
-                tolerances=replace(
-                    default_solver_tolerances(1e-3),
-                    density_matrix_integration=1.0,
-                    charge_integration=1e-07,
-                ),
-            ),
-            mu=0.2,
-        )
+def test_fixed_mu_filling_uses_available_density_trace():
+    result = density_matrix_at_mu(_chain(), mu=0.2, keys=[(0,)])
+    assert result.filling == result.to_tb()[(0,)][0, 0].real
+    assert result.errors.charge_integration is None
+    assert result.statistics.charge_integration_calls == 0
+    assert abs(result.filling - (1 - np.arccos(0.1) / np.pi)) < 2e-4
 
 
 def test_selected_simplex_density_does_not_assemble_unrequested_matrix_entries(

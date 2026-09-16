@@ -1,6 +1,5 @@
 from dataclasses import replace
 from meanfi import default_solver_tolerances
-import warnings
 
 import numpy as np
 import pytest
@@ -400,11 +399,9 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
         kT=0.15,
         q_diag=np.ones(2, dtype=float),
         options=RationalFOE(initial_poles=4, max_poles=128),
-        charge_tolerance=1e-2,
         layout=SparseRationalLayout.build(
             density_coordinates=space.required_coordinates,
             trace_weights_diag=np.ones(2, dtype=float),
-            include_all_diagonal=False,
         ),
         matrix_function_tol=1e-2,
         shared_aaa_interval_cache=shared_cache,
@@ -421,13 +418,12 @@ def test_sparse_aaa_interval_cache_reuses_nested_interval_fit():
 @pytest.mark.usefixtures("require_mumps")
 def test_strained_graphene_single_shot_sparse_aaa_is_stable():
     pytest.importorskip("kwant")
-    from docs.source.tutorial.scripts.zero_temp_validation import (
-        _build_strained_graphene_inputs,
-    )
+    from docs.source.tutorial.scripts.strained_graphene_kwant import create_system
+    from meanfi.interop.kwant import builder_to_tb
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=Warning)
-        h0, _h_int, guess, filling, _data, _k_path = _build_strained_graphene_inputs()
+    builder, _, _ = create_system(n=16)
+    h0 = builder_to_tb(builder, params={"xi": 7}, sparse=True)
+    filling = h0[(0, 0)].shape[0] // 2
     result = density_matrix(
         {key: value for key, value in h0.items()},
         filling=filling,

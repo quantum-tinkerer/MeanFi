@@ -4,232 +4,119 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
 
-# Symmetry-reduced mean-field variables
+# Symmetry-constrained mean fields
 
-`meanfi` can reduce the active SCF variables using any linear symmetry that can be written as a real-space action on the tight-binding basis: point symmetries, spin/orbital symmetries, and shifted spatial symmetries.
-This tutorial uses a glide because it is the smallest example where the shifted representation is essential.
+A symmetry constraint reduces the density entries used by SCF. Here we compare
+unconstrained and glide-constrained solutions of the same two-orbital model.
 
-The SCF space is built in three steps:
+## Define the glide and model
 
-1. `h_int` selects the density entries that can affect the mean-field Hamiltonian.
-2. Hermiticity and user symmetries impose linear constraints on those entries.
-3. `ActiveSCFSpace` chooses only the real-space density entries needed to recover the reduced SCF parameters.
-
-There is no BdG doubling or anomalous density in this example.
+The glide reflects $y$ and exchanges the orbitals:
+$g|R,A\rangle=|M_yR,B\rangle$ and
+$g|R,B\rangle=|M_yR+\hat x,A\rangle$. Applying it twice translates by one cell.
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
-import numpy as np
-import warnings
-
 import meanfi
-```
+import numpy as np
+from scipy.special import expit
 
-```{code-cell} ipython3
-:tags: [hide-input]
-
-warnings.filterwarnings("ignore", message="Normal SCF guess contains values")
-```
-
-## A shifted glide symmetry
-
-We use two orbitals on a 2D lattice and the glide
-
-:::{math}
-g = \{M_y \mid \hat x/2\},
-\qquad
-g^2 = T_{\hat x}.
-:::
-
-In the tight-binding basis this is encoded as
-
-:::{math}
-g|R,a\rangle
-=
-\sum_{s,b}U_s[b,a]|AR+s,b\rangle,
-\qquad
-A =
-\begin{pmatrix}
-1 & 0\\
-0 & -1
-\end{pmatrix}.
-:::
-
-The two shifted matrices below mean
-`g |R,A> = |AR,B>` and `g |R,B> = |AR + x,A>`.
-
-```{code-cell} ipython3
 U0 = np.array([[0, 0], [1, 0]], dtype=complex)
-U1 = np.array([[0, 1], [0, 0]], dtype=complex)
+U1 = U0.T
 
 glide = meanfi.SpatialSymmetry(
-    lattice_matrix=np.array([[1, 0], [0, -1]]),
+    lattice_matrix=np.diag([1, -1]),
     unitaries_by_shift={(0, 0): U0, (1, 0): U1},
 )
-```
 
-## Model and interaction
-
-The interaction is sparse on purpose.
-Its nonzero structure defines the active density entries used by the SCF loop.
-
-```{code-cell} ipython3
-eye = np.eye(2, dtype=complex)
-sigma_x = np.array([[0, 1], [1, 0]], dtype=complex)
-sigma_z = np.diag([1, -1]).astype(complex)
-
+identity = np.eye(2)
+sigma_x = U0 + U1
+sigma_z = np.diag([1, -1])
 h_0 = {
     (0, 0): sigma_x,
-    (1, 0): np.array([[0, 1], [0, 0]], dtype=complex),
-    (-1, 0): np.array([[0, 0], [1, 0]], dtype=complex),
-    (0, 1): -0.25 * eye + 0.45j * sigma_z,
-    (0, -1): -0.25 * eye - 0.45j * sigma_z,
+    (1, 0): U1,
+    (-1, 0): U0,
+    (0, 1): -0.25 * identity + 0.45j * sigma_z,
+    (0, -1): -0.25 * identity - 0.45j * sigma_z,
 }
 
-
-def interaction_block(entries, strength):
-    block = np.zeros((2, 2), dtype=complex)
-    for row, col in entries:
-        block[row, col] = strength
-    return block
-
-
-h_int = {
-    (0, 0): interaction_block([(0, 0), (1, 1)], 1.8),
-    (1, 0): interaction_block([(0, 1)], 1.0),
-    (-1, 0): interaction_block([(1, 0)], 1.0),
-    (2, 0): interaction_block([(1, 0)], 0.6),
-    (-2, 0): interaction_block([(0, 1)], 0.6),
-    (0, 1): interaction_block([(0, 1)], 0.7),
-    (0, -1): interaction_block([(1, 0)], 0.7),
-    (1, -1): interaction_block([(1, 0)], 0.5),
-    (-1, 1): interaction_block([(0, 1)], 0.5),
-}
-
-model_free = meanfi.Model(h_0, h_int, filling=1.0, kT=0.3)
+V = 3.0
+h_int = {(0, 0): V * sigma_x, (1, 0): V * U1, (-1, 0): V * U0}
+model_free = meanfi.Model(h_0, h_int, filling=1, kT=0.3)
 model_glide = meanfi.Model(
-    h_0,
-    h_int,
-    filling=1.0,
-    kT=0.3,
-    spatial_symmetries=(glide,),
+    h_0, h_int, filling=1, kT=0.3, spatial_symmetries=(glide,)
 )
 ```
 
-## What the symmetry removes
+The glide exchanges the two interacting bonds, so their strengths are equal.
+Both the bare Hamiltonian and the interaction respect the symmetry.
 
-The raw active entries come from `h_int`.
-Hermiticity removes conjugate redundancy; the glide then removes additional SCF variables.
+## Solve with and without the constraint
 
-```{code-cell} ipython3
-print(f"entries after Hermiticity: {model_free.required_coordinates.value_count}")
-print(f"entries after glide:       {model_glide.required_coordinates.value_count}")
-```
+Both calculations use the default EDIIS method and tolerances. At this coupling,
+the unconstrained solution spontaneously breaks the glide.
 
 ```{code-cell} ipython3
-model_glide.required_coordinates.entries
-```
+free_result = meanfi.solver(model_free, model_free.random_meanfield(rng=10, scale=0.05))
+glide_result = meanfi.solver(model_glide, model_glide.random_meanfield(rng=10, scale=0.05))
 
-The backend does not need all active density entries.
-It computes the required entries above, compresses them to reduced SCF parameters, and reconstructs the constrained active mean-field input when needed.
-
-## Converged SCF comparison
-
-Now solve the same interacting problem twice: once with no symmetry constraint and once with the glide constraint.
-
-```{code-cell} ipython3
-integration = meanfi.UniformGrid(nk=9)
-
-free_result = meanfi.solver(
-    model_free,
-    model_free.random_meanfield(rng=10, scale=0.05),
-    integration=integration,
-    tol=1e-6,
-)
-glide_result = meanfi.solver(
-    model_glide,
-    model_glide.random_meanfield(rng=10, scale=0.05),
-    integration=integration,
-    tol=1e-6,
-)
-
-print(f"unconstrained required entries: {model_free.required_coordinates.value_count}")
-print(f"glide-constrained required entries: {model_glide.required_coordinates.value_count}")
-print(f"unconstrained residual:      {free_result.errors.scf_residual:.2e}")
-print(f"glide residual:              {glide_result.errors.scf_residual:.2e}")
-print(f"unconstrained free energy:   {free_result.free_energy:.8f}")
-print(f"glide free energy:           {glide_result.free_energy:.8f}")
-```
-
-The plot below measures the glide mismatch of the converged mean-field Hamiltonian:
-
-:::{math}
-\|H(k_x,k_y) - U_g(k_x) H(k_x,-k_y) U_g(k_x)^\dagger\|_F,
-\qquad
-U_g(k_x)=U_0+e^{-ik_x}U_1.
-:::
-
-The unconstrained solution is allowed to break the glide.
-The constrained solution stays in the glide-preserving SCF subspace.
-
-```{code-cell} ipython3
-:tags: [hide-input]
-
-def glide_matrix(kx):
-    return U0 + np.exp(-1j * kx) * U1
-
-
-def glide_mismatch(model, meanfield):
-    h_of_k = meanfi.tb_to_kfunc(model.hamiltonian_from_meanfield(meanfield))
-    grid = np.linspace(-np.pi, np.pi, 81)
-    mismatch = np.empty((grid.size, grid.size))
-    for y_index, ky in enumerate(grid):
-        for x_index, kx in enumerate(grid):
-            h_here = h_of_k(np.array([[kx, ky]]))[0]
-            h_reflected = h_of_k(np.array([[kx, -ky]]))[0]
-            unitary = glide_matrix(kx)
-            mismatch[y_index, x_index] = np.linalg.norm(
-                h_here - unitary @ h_reflected @ unitary.conj().T
-            )
-    return grid, mismatch
-
-
-grid, free_mismatch = glide_mismatch(model_free, free_result.mean_field)
-_, glide_mismatch_values = glide_mismatch(model_glide, glide_result.mean_field)
-vmax = float(free_mismatch.max())
-
-fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.3), constrained_layout=True)
-for ax, values, title in [
-    (axes[0], free_mismatch, "unconstrained SCF"),
-    (axes[1], glide_mismatch_values, "glide-constrained SCF"),
+for label, model, result in [
+    ("unconstrained", model_free, free_result),
+    ("glide-constrained", model_glide, glide_result),
 ]:
-    image = ax.imshow(
-        values,
-        extent=(-np.pi, np.pi, -np.pi, np.pi),
-        origin="lower",
-        cmap="magma",
-        vmin=0,
-        vmax=vmax,
-        aspect="equal",
-    )
-    ax.axhline(0.0, color="white", lw=1.0, alpha=0.75)
-    ax.set_title(title)
-    ax.set_xlabel(r"$k_x$")
-    ax.set_xticks([-np.pi, 0, np.pi])
-    ax.set_xticklabels([r"$-\pi$", "0", r"$\pi$"])
-    ax.set_yticks([-np.pi, 0, np.pi])
-    ax.set_yticklabels([r"$-\pi$", "0", r"$\pi$"])
-axes[0].set_ylabel(r"$k_y$")
-fig.colorbar(image, ax=axes, label="glide mismatch")
+    print(f"{label}: {model.required_coordinates.value_count} density entries, "
+          f"residual {result.errors.scf_residual:.2e}, energy {result.internal_energy:.6f}")
+```
+
+## See the symmetry in the occupations
+
+Let $p(k)=n_A(k)-n_B(k)$ be the sublattice occupation difference. A glide-symmetric
+state satisfies $p(k_x,k_y)=-p(k_x,-k_y)$. Its even component
+
+$$p_{\rm even}(k)=\tfrac12[p(k_x,k_y)+p(k_x,-k_y)]$$
+
+therefore vanishes. We plot this quantity to locate the symmetry breaking in
+momentum space. Unlike a Hamiltonian norm, it resolves how an onsite imbalance
+affects the occupations of dispersing bands.
+
+```{code-cell} ipython3
+axis = np.linspace(-np.pi, np.pi, 81)
+kx, ky = np.meshgrid(axis, axis)
+points = np.stack([kx, ky], axis=-1)
+
+
+def even_polarization(model, result):
+    h = model.hamiltonian_from_meanfield(result.mean_field)
+    energies, states = np.linalg.eigh(meanfi.tb_to_kfunc(h)(points))
+    occupations = expit((result.mu - energies) / model.kT)
+    weights = abs(states[..., 0, :])**2 - abs(states[..., 1, :])**2
+    polarization = np.sum(weights * occupations, axis=-1)
+    return (polarization + polarization[::-1]) / 2
+
+
+free_even = even_polarization(model_free, free_result)
+glide_even = even_polarization(model_glide, glide_result)
+print(f"maximum constrained even component: {abs(glide_even).max():.2e}")
+assert abs(glide_even).max() < 1e-12
+assert abs(free_even).max() > 1e-2
+
+fig, axes = plt.subplots(1, 2, figsize=(8, 3.4), constrained_layout=True)
+limit = abs(free_even).max()
+for ax, values, title in zip(
+    axes, [free_even, glide_even], ["Unconstrained", "Glide-constrained"]
+):
+    image = ax.imshow(values, origin="lower", extent=(-np.pi, np.pi, -np.pi, np.pi),
+                      cmap="coolwarm", vmin=-limit, vmax=limit)
+    ax.set(title=title, xlabel=r"$k_x$", ylabel=r"$k_y$")
+fig.colorbar(image, ax=axes, label=r"$p_{\rm even}(k)$")
 plt.show()
 ```
 
-The white line is the glide-invariant line.
-The important part is not that the symmetry changes a band plot; it changes which mean-field density variables the SCF loop is allowed to use.
+The constraint removes the symmetry-breaking density variables from SCF.
+At weaker coupling, both calculations can reach the same symmetric state.

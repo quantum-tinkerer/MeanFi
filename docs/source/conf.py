@@ -26,6 +26,9 @@ import meanfi  # noqa: E402, F401
 # Suppress superfluous frozen modules warning.
 os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
 
+# Capture notebook figures even when the build environment selects a headless backend.
+os.environ["MPLBACKEND"] = "module://matplotlib_inline.backend_inline"
+
 
 # -- Project information -----------------------------------------------------
 
@@ -62,6 +65,7 @@ myst_enable_extensions = [
     "substitution",
     "colon_fence",
 ]
+nb_execution_mode = "force"
 nb_execution_timeout = 1800
 nb_execution_raise_on_error = True
 nb_execution_excludepatterns = []

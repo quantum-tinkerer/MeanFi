@@ -1,185 +1,119 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
 # Algorithm overview
 
-This page connects the theoretical objects introduced in the [Theory](../theory/index.md) section to the numerical steps used to compute them.
-It is intentionally organized by physical task rather than by backend taxonomy.
-The reference pages linked below give the method-by-method details.
+A `Model` supplies the bare Hamiltonian, interaction, filling, temperature and
+optional reference density. Start from a mean-field guess:
 
-At a high level, the computation is the repeated evaluation of the sequence
-
-:::{math}
-p_n
-\;\longrightarrow\;
-\hat H_{\mathrm{MF}}[p_n]
-\;\longrightarrow\;
-\mu_n,
-\qquad
-\rho_n(k,\mu_n),
-\qquad
-p_\ast
-=
-\int_{\mathrm{BZ}} \rho_n(k,\mu_n)\, dk,
-:::
-
-until the self-consistency condition
-
-:::{math}
-p_{n+1} = p_n
-:::
-
-is satisfied.
-
-Here $p_n$ denotes the current SCF state, $p_\ast$ the raw updated state returned by the density evaluation, and $p_{n+1}$ the next iterate after the SCF update step.
-
-Equivalently, the algorithm is organized into five nested numerical tasks:
-
-:::{math}
-\begin{gathered}
-p_n
-\;\xrightarrow{\text{mean-field update}}\;
-\hat H_{\mathrm{MF}}[p_n]
-\;\xrightarrow{\text{fixed filling}}\;
-\mu_n
-\;\xrightarrow{\text{single-$k$ evaluation}}\;
-\rho_n(k,\mu_n)
-\;\xrightarrow{\text{BZ integration}}\;
-p_\ast
-\\[0.6em]
-p_\ast
-\;\xrightarrow{\text{SCF loop}}\;
-p_{n+1}
-\end{gathered}
-:::
-
-```{toctree}
-:hidden:
-:maxdepth: 1
-
-scf_loop.md
-parametrization.md
-fixed_filling.md
-integration_families.md
-matrix_functions.md
-defaults_and_capabilities.md
+```python
+solution = meanfi.solver(model, model.random_meanfield(rng=0))
 ```
 
-(algo-build)=
-## Mean-Field Update
+(one-solve)=
+## MeanFi calculation loop
 
-The first numerical task is to turn the current density state into the quadratic Hamiltonian that will be solved next.
-In `MeanFi`, that is the outer self-consistent map together with the reduced state representation used by the solver.
+After evaluating the initial guess, SCF repeats this density update:
 
-The object being built is
+$$
+\begin{array}{ccccc}
+\rho_n & \xrightarrow{\text{1. Build Hamiltonian}} & H_n
+       & \xrightarrow{\text{2. Find }\mu} & (H_n,\mu_n) \\
+\uparrow\,\text{repeat} &&&& \downarrow\,\text{3. Density at }k \\
+\rho_{n+1} & \xleftarrow{\text{5. SCF update}} & \rho_n^{\mathrm{out}}
+       & \xleftarrow{\text{4. Integrate}} & \rho_n(k)
+\end{array}
+$$
 
-:::{math}
-\hat H_{\mathrm{MF}}[\rho] = \hat H_0 + \hat V_{\mathrm{MF}}[\rho].
-:::
+Here $\rho_n$ is the trial density and $\rho_n^{\mathrm{out}}$ its calculated
+update. Step 5 stops when their difference meets the SCF target; otherwise EDIIS
+chooses the next trial density and the loop repeats.
 
-**Reference pages**
+## 1. Build the Hamiltonian
 
-- [Parametrization and symmetry reduction](./parametrization.md)
+The interaction acts on the density relative to the optional reference:
 
-(algo-filling)=
-## Fixed-Filling Solve
+$$H_n=h_0+W[\rho_n-\rho_{\mathrm{ref}}].$$
 
-In the default fixed-filling workflow, density evaluation is not complete until the chemical potential has been chosen so that the target filling is satisfied.
-This solve sits inside every density update rather than outside the mean-field loop.
+Only the interaction's required density entries are needed. MeanFi represents
+these with independent real variables, respecting Hermiticity, pairing and
+any imposed [spatial symmetries](parametrization.md).
 
-The equation being solved is
+## 2. Find the chemical potential
 
-:::{math}
-N(\mu) = \nu.
-:::
+At fixed filling, solve $N(\mu)=\mathrm{filling}$ using `filling_residual`.
+Charge probes compute the occupations or physical diagonal entries needed for
+this search. FermiSimplex finishes charge refinement before its density stage;
+density refinement does not restart the charge solve.
 
-**Reference pages**
+`density_matrix(model)` performs steps 2–4. `density_matrix_at_mu(model, mu)`
+skips step 2 and uses the supplied chemical potential. Its filling comes from
+already available occupations or density entries, or is `None`. The filling
+residual and charge-integration estimate are [separate quantities](accuracy.md).
 
-- [Fixed-filling solve](./fixed_filling.md)
+## 3. Evaluate density at each momentum
 
-(algo-single-k)=
-## Single-$k$ Density Evaluation
+For a sampled momentum,
 
-Once a momentum point is selected, the remaining task is to evaluate the density contribution of the effective quadratic Hamiltonian at that point.
-This is where direct diagonalization and matrix-function approximations enter.
+$$\rho_n(k)=f\!\left(H_n(k)-\mu_n Q\right),$$
 
-At a fixed sampled momentum, the object being computed is
+where $Q=I$ for normal models and $Q=\operatorname{diag}(I,-I)$ for BdG models.
+Dense diagonalization supplies occupied eigenstates; sparse AAA approximates
+the Fermi matrix function and extracts selected inverse entries. Both compute
+the requested density entries. See [matrix functions](matrix_functions.md).
 
-:::{math}
-\rho(k,\mu)
-=
-f\!\left(H_{\mathrm{MF}}(k)-\mu Q\right),
-:::
+## 4. Integrate over momentum
 
-with the normal-state case recovered by replacing $Q$ with the identity and, at zero temperature, replacing $f$ by the occupied-state projector.
+Real-space density entries are Fourier integrals over the Brillouin zone:
 
-**Reference pages**
+$$
+(\rho_n^{\mathrm{out}})_R=\frac{1}{|\mathrm{BZ}|}\int_{\mathrm{BZ}}
+e^{ik\cdot R}\rho_n(k)\,dk.
+$$
 
-- [Matrix-function backends](./matrix_functions.md)
+| Calculation | Integration |
+| --- | --- |
+| Dense, normal, zero temperature | `FermiSimplex()` by default |
+| Dense, positive temperature, normal or BdG | `UniformGrid()` by default |
+| Periodic BdG at zero temperature | Explicit `UniformGrid(nk=...)` |
+| Sparse at positive temperature | Explicit `UniformGrid(nk=...)`, using AAA |
 
-(algo-bz)=
-## Brillouin-Zone Integration
+`FermiSimplex` integrates interpolated spectra and density contributions on an
+adaptive simplex mesh. Adaptive `UniformGrid` doubles each axis and compares
+coarse and fine integrals; it requires positive temperature and dense
+diagonalization. There is no shifted validation grid.
 
-For translationally invariant systems, the density is assembled from momentum-space information across the Brillouin zone.
-The main algorithmic choice here is how the sampled region is traversed and refined.
+`nk` prescribes a **total point count** and disables refinement and integration
+error estimation. For example, `UniformGrid(nk=4)` uses $2\times2$ points in two
+dimensions; other requests round up to an isotropic $n^d$ grid. FermiSimplex
+counts boundary vertices and its mesh construction can overshoot `nk`.
 
-The object being evaluated is
+Without `nk`, `initial_nk` sets the starting mesh: defaults are $5^d$ simplex
+vertices or $4^d$ grid points. These are starting sizes, not accuracy guarantees.
+Finite systems have no momentum integral and ignore grid settings with a warning.
 
-:::{math}
-\rho(\mu) = \int_{\mathrm{BZ}} \rho(k,\mu)\, dk
-:::
+## 5. Check convergence and update the density
 
-or the corresponding discrete or adaptive approximation to that integral.
+SCF stops when the largest active-density residual meets `tol` (default `1e-3`).
+Otherwise, `EnergyDIIS()` chooses a convex combination of previous densities by
+minimizing **internal energy**, then returns to step 1. It never switches methods.
+`LinearMixing` and `AndersonMixing` are explicit alternatives through `scf=`.
 
-**Reference pages**
+Iteration exhaustion raises `NoConvergence`; `exception.result` contains the
+last evaluated state. Restarting with another method is a user decision.
 
-- [Integration families](./integration_families.md)
+## Result and optional free energy
 
-## SCF Loop
+`solution.mean_field` is the input correction that produced `solution.density`.
+Applying the interaction to that density gives the next correction; the two
+agree to SCF accuracy at convergence.
 
-Once the raw update $p_\ast$ has been computed, the outer SCF method turns it into the next iterate $p_{n+1}$.
-This is the step that closes the loop and determines how aggressively the self-consistent state is updated from one iteration to the next.
+Entropy is omitted by default. `compute_free_energy=True` evaluates it after
+SCF terminates, also for a valid partial result. Then $F=U-kT\,S$, with energies
+and entropy per cell per physical orbital. Entropy never participates in EDIIS
+or the convergence tests.
 
-The object being updated is
+```{toctree}
+:maxdepth: 1
 
-:::{math}
-p_{n+1} = \mathcal{S}_n(p_\ast, p_n, p_{n-1}, \dots, p_0),
-:::
-
-where $\mathcal{S}_n$ denotes the chosen SCF update rule, possibly with memory of earlier iterates.
-
-**Reference pages**
-
-- [SCF loop](./scf_loop.md)
-- [Parametrization and symmetry reduction](./parametrization.md)
-
-## Choose defaults and supported combinations
-
-Once the theoretical task is clear, the remaining question is which numerical combinations are available and which ones are chosen by default.
-
-At this stage, the practical question is not a new theoretical equation but which numerical realization is used for the chain
-
-:::{math}
-\rho
-\to
-\hat H_{\mathrm{MF}}[\rho]
-\to
-\mu
-\to
-\rho(k,\mu)
-\to
-\rho(\mu).
-:::
-
-**Reference pages**
-
-- [Defaults and capabilities](./defaults_and_capabilities.md)
+accuracy.md
+matrix_functions.md
+parametrization.md
+```

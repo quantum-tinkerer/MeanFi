@@ -41,16 +41,23 @@ run coverage:
 
 
 check installed wheel:
-  parallel:
-    matrix:
-      - PIXI_ENV: test-py312
-        WHEEL_TASK: check-wheel
-      - PIXI_ENV: test-sparse
-        WHEEL_TASK: check-wheel-sparse
-      - PIXI_ENV: test-py312
-        WHEEL_TASK: check-install
   script:
-    - pixi run -e $PIXI_ENV $WHEEL_TASK
+    - pixi run -e test-py312 build
+    - pixi run -e test-py312 python -m venv --system-site-packages build/wheel-env
+    - build/wheel-env/bin/python -m pip install --no-deps --ignore-installed dist/*.whl
+    - |
+      build/wheel-env/bin/python -I - <<'PY'
+      from pathlib import Path
+      import sys
+      import numpy as np
+      import meanfi
+
+      assert Path(meanfi.__file__).is_relative_to(Path(sys.prefix))
+      density = meanfi.density_matrix_at_mu(
+          {(): np.diag([-1., 1.])}, mu=0., keys=[()]
+      )
+      np.testing.assert_allclose(density.to_tb()[()], np.diag([1., 0.]))
+      PY
   artifacts:
     paths:
       - dist/
@@ -59,31 +66,13 @@ check installed wheel:
     paths:
       - .pixi
 
-run performance benchmarks:
+run benchmarks:
   when: manual
   script:
-    - pixi run -e performance performance-density-scaling
-    - pixi run -e performance performance-scf-scaling
+    - pixi run -e test-sparse benchmark --sparse --output build/benchmarks.json
   artifacts:
     paths:
-      - performance/results/density_scaling.json
-      - performance/results/scf_scaling.json
-  cache:
-    key: "$CI_JOB_NAME"
-    paths:
-      - .pixi
-
-run performance profiles:
-  when: manual
-  script:
-    - pixi run -e performance performance-profile-density
-    - pixi run -e performance performance-profile-scf
-  artifacts:
-    paths:
-      - performance/results/hubbard_1d_density_profile.bin
-      - performance/results/hubbard_1d_density_profile.json
-      - performance/results/hubbard_1d_scf_profile.bin
-      - performance/results/hubbard_1d_scf_profile.json
+      - build/benchmarks.json
   cache:
     key: "$CI_JOB_NAME"
     paths:

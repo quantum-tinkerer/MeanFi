@@ -115,7 +115,7 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
     assert result.errors.filling_residual <= requested.filling_residual
 
 
-def test_finite_temperature_default_reports_free_energy():
+def test_finite_temperature_default_uses_internal_energy_only():
     result = solver(
         _zero_dimensional_model(kT=0.2),
         {(): np.zeros((2, 2), dtype=complex)},
@@ -130,9 +130,8 @@ def test_finite_temperature_default_reports_free_energy():
 
     assert result.history
     assert np.isfinite(result.internal_energy)
-    assert result.free_energy == pytest.approx(
-        result.internal_energy - 0.2 * result.entropy
-    )
+    assert result.entropy is None
+    assert result.free_energy is None
 
 
 def test_energy_diis_supports_periodic_integration():
@@ -143,7 +142,7 @@ def test_energy_diis_supports_periodic_integration():
         scf=EnergyDIIS(),
     )
     assert result.converged
-    assert np.isfinite(result.free_energy)
+    assert np.isfinite(result.internal_energy)
 
 
 def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():

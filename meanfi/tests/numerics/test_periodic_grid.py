@@ -77,6 +77,26 @@ def test_fixed_grid_matches_independent_fourier_sum():
     )
 
 
+def test_density_roundoff_does_not_replace_or_reject_filling_residual():
+    h = {(0,): np.array([[0.4, 0.2 + 0.3j], [0.2 - 0.3j, -0.4]])}
+    result = evaluate(
+        h,
+        keys=[(0,)],
+        filling=1.0,
+        kT=0.2,
+        integration=UniformGrid(nk=4, dtype="complex64"),
+        filling_tol=1e-12,
+    )
+    # Symmetric eigenvalues give filling 1 at mu=0; reconstructing the density
+    # in single precision introduces a separate rounding error.
+    assert abs(result.mu) < 1e-12
+    assert abs(result.filling - 1.0) <= 1e-12
+    assert result.errors.filling_residual <= 1e-12
+    assert abs(np.trace(result.to_tb()[(0,)]).real - 1.0) > 1e-12
+    reference = evaluate(h, keys=[(0,)], mu=0.0, integration=UniformGrid(nk=4))
+    assert_allclose(result.values, reference.values, atol=2e-7, rtol=0)
+
+
 def test_adaptive_fixed_filling_matches_dense_reference():
     filling, temperature = 0.37, 0.19
     k = 2 * np.pi * np.arange(16384) / 16384
@@ -332,13 +352,12 @@ def test_charge_derivative_matches_finite_difference_on_retained_grid():
         integration=UniformGrid(nk=32, matrix_function=DirectDiagonalization()),
         coordinates=full_density_coordinates([(0,)], size=1),
         q_diag=None,
-        trace_weights=np.ones(1),
         tolerances=default_solver_tolerances(1e-4),
         sparse_layout=None,
     )
     grid = _Grid(32, 1)
     evaluator.retain_spectra(grid, None)
-    derivative = evaluator.charge(grid, 0.31)[2]
+    derivative = evaluator.charge(grid, 0.31)[1]
     finite_difference = (
         evaluator.charge(grid, 0.310001)[0] - evaluator.charge(grid, 0.309999)[0]
     ) / 2e-6
@@ -493,20 +512,18 @@ def test_sparse_constant_spectrum_reuses_empty_aaa_fit_without_eigensolves(
             kT=0.2,
             q_diag=np.ones(2),
             options=RationalFOE(),
-            charge_tolerance=1e-8,
             layout=SparseRationalLayout.build(
                 density_coordinates=full_density_coordinates([(0,)], size=2),
                 trace_weights_diag=np.ones(
                     full_density_coordinates([(0,)], size=2).size
                 ),
-                include_all_diagonal=False,
             ),
             matrix_function_tol=1e-8,
             shared_aaa_interval_cache=cache,
         )
         assert node.charge(0.0) == pytest.approx(2 * occupation)
         assert_allclose(
-            node.density_values_from_charge_order(0.0),
+            node.density_values(0.0),
             (np.eye(2) * occupation).ravel(),
             atol=1e-8,
         )

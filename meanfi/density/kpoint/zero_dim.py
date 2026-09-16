@@ -60,7 +60,7 @@ def evaluate_zero_dim(
         filling=charge,
         errors=ErrorValues(
             density_matrix_integration=0.0,
-            charge_integration=0.0,
+            charge_integration=0.0 if filling is not None else None,
             band_energy_integration=0.0,
             entropy=0.0 if compute_entropy else None,
             filling_residual=None if filling is None else abs(charge - filling),

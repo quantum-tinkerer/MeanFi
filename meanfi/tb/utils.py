@@ -5,22 +5,9 @@ from meanfi.tb.ops import _tb_type
 from meanfi.tb.transforms import tb_to_kgrid
 
 
-def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[None] | tuple[int, ...]]:
-    """Generate tight-binding dictionary keys up to a cutoff.
-
-    Parameters
-    ----------
-    cutoff :
-        Maximum distance along each dimension to generate tight-bindign dictionary keys for.
-    dim :
-        Dimension of the tight-binding dictionary.
-
-    Returns
-    -------
-    :
-        List of generated tight-binding dictionary keys up to a cutoff.
-    """
-    return [*product(*([[*range(-cutoff, cutoff + 1)]] * dim))]
+def generate_tb_keys(cutoff: int, dim: int) -> list[tuple[int, ...]]:
+    """Generate integer displacement keys within ``[-cutoff, cutoff]`` per axis."""
+    return list(product(range(-cutoff, cutoff + 1), repeat=dim))
 
 
 def fermi_energy(tb: _tb_type, filling: float, *, shape: tuple[int, ...] | None = None):

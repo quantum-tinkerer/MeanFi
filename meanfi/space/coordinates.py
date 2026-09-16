@@ -208,24 +208,9 @@ class DensityCoordinates:
                 return int((value_slice.start or 0) + matches[0])
         raise KeyError((key, row, col))
 
-    def values_from_assembled_matrix(
-        self,
-        matrix: np.ndarray,
-        *,
-        phases: np.ndarray | None = None,
-    ) -> np.ndarray:
+    def values_from_assembled_matrix(self, matrix: np.ndarray) -> np.ndarray:
         """Sample selected entries from one assembled k-space density matrix."""
-
-        matrix = np.asarray(matrix)
-        values = np.empty(self.value_count, dtype=matrix.dtype)
-        for index, (_key, rows, cols, value_slice) in enumerate(
-            self.iter_key_coordinates()
-        ):
-            selected = matrix[rows, cols]
-            if phases is not None:
-                selected = selected * phases[index]
-            values[value_slice] = selected
-        return values
+        return np.asarray(matrix)[self.all_rows, self.all_cols]
 
     def values_from_tb(self, tb: _tb_type) -> np.ndarray:
         """Pack TB dictionary entries into this coordinate order."""

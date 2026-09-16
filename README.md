@@ -19,14 +19,13 @@ guess = model.random_meanfield(rng=0, scale=0.1)
 result = meanfi.solver(model, guess)
 assert result.converged
 h_mf = model.hamiltonian_from_meanfield(result.mean_field)
-print(result.internal_energy, result.entropy, result.free_energy)
+print(result.internal_energy)
 ```
 
 Dictionary keys are lattice displacements; each value is an orbital matrix.
 `EnergyDIIS()` is the default solver and mixes densities using internal energy.
-By default, SCF computes entropy once at termination, including valid partial
-results on failure. Use `compute_free_energy=False` to skip this final work.
-SCF iterations and EDIIS use internal energy only.
+SCF iterations and EDIIS use internal energy only. Entropy and free energy are
+optional: pass `compute_free_energy=True` to evaluate them after SCF terminates.
 
 Final results report energies and entropy per
 cell per physical orbital, with entropy in units of Boltzmann's constant:
@@ -62,11 +61,11 @@ For individual targets, pass an `ErrorTolerances` record as `tol`; method object
 contain mesh, backend and resource settings only.
 
 Sparse finite-temperature calculations use
-`UniformGrid(nk=..., matrix_function=RationalFOE())`. AAA shares poles and sparse
-factorizations between density and entropy; MUMPS supplies selected inverse
-entries. The existing tolerance policy sets `matrix_function_tol=tol/5`;
+`UniformGrid(nk=..., matrix_function=RationalFOE())`. AAA approximates the Fermi
+function using selected inverse entries from MUMPS. The default tolerance policy
+accounts for the number of orbitals when resolving fixed-filling accuracy.
 `result.errors.matrix_function_error` reports the achieved approximation estimate
-(or `None` for methods without this estimate). See the [integration guide and migration notes](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/integration_families.html)
+(or `None` for methods without this estimate). See the [accuracy and integration guide](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/accuracy.html)
 for supported combinations, mesh rounding, and changes from previous APIs.
 
 ## Installation
@@ -81,8 +80,8 @@ pixi install --locked
 pixi run python -c "import meanfi; print(meanfi.__version__)"
 ```
 
-FermiSimplex currently builds from a pinned Git revision; its required API is
-newer than its PyPI release. It includes its own AdaptiveSimplex mesh engine.
+FermiSimplex builds from a pinned Git revision and includes its own
+AdaptiveSimplex mesh engine.
 Installing this checkout with `pip install .` also works when Git and a suitable
 C++ compiler are available. See the [development guide](https://meanfi.readthedocs.io/en/latest/development.html)
 for native requirements and the remaining PyPI release prerequisite.
@@ -94,7 +93,7 @@ FermiSimplex paths do not require MUMPS.
 
 ```bash
 pixi run -e test-py312 tests
-pixi run -e test-py312 check-install  # Fresh Python environment and dependencies.
+pixi run benchmark
 pixi run -e docs docs-build
 ```
 

@@ -12,8 +12,7 @@ from scipy.optimize import brentq
 from meanfi.tb.ops import _tb_type, matrix_bound
 
 
-ChargeEvaluation = Callable[[float], tuple[float, float, float | None]]
-_CHARGE_ERROR_ACCEPTANCE_FRACTION = 0.5
+ChargeEvaluation = Callable[[float], tuple[float, float | None]]
 _MAX_BRACKET_EXPANSIONS = 64
 _BRENT_MAXITER = 10_000
 
@@ -46,7 +45,6 @@ def mu_bracket(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
 class FixedFillingSolve:
     mu: float
     charge: float
-    charge_error: float
     residual: float
     derivative: float | None
     charge_evaluations: int
@@ -56,7 +54,6 @@ class FixedFillingSolve:
 class _ChargeSample:
     mu: float
     charge: float
-    charge_error: float
     residual: float
     derivative: float | None
 
@@ -67,17 +64,12 @@ def _evaluate_charge_sample(
     filling: float,
     mu: float,
 ) -> _ChargeSample:
-    charge, charge_error, derivative = evaluate_charge(float(mu))
+    charge, derivative = evaluate_charge(float(mu))
     charge_value = float(charge)
-    charge_error_value = float(charge_error)
     derivative_value = None if derivative is None else float(derivative)
     if not np.isfinite(charge_value):
         raise ConvergenceError(
             f"Charge evaluation returned non-finite charge at mu={mu}"
-        )
-    if not np.isfinite(charge_error_value) or charge_error_value < 0.0:
-        raise ConvergenceError(
-            f"Charge evaluation returned invalid charge error at mu={mu}: {charge_error}"
         )
     if derivative_value is not None and not np.isfinite(derivative_value):
         raise ConvergenceError(
@@ -86,7 +78,6 @@ def _evaluate_charge_sample(
     return _ChargeSample(
         mu=float(mu),
         charge=charge_value,
-        charge_error=charge_error_value,
         residual=charge_value - float(filling),
         derivative=derivative_value,
     )
@@ -128,7 +119,6 @@ class _ChargeRootSolver:
         filling_tol: float,
         mu_xtol: float,
         max_charge_evaluations: int | None,
-        charge_error_tol: float | None,
         use_derivative: bool,
     ) -> None:
         self.evaluate_charge = evaluate_charge
@@ -136,9 +126,6 @@ class _ChargeRootSolver:
         self.filling_tol = float(filling_tol)
         self.mu_xtol = float(mu_xtol)
         self.max_charge_evaluations = max_charge_evaluations
-        self.charge_error_tol = (
-            None if charge_error_tol is None else float(charge_error_tol)
-        )
         self.use_derivative = bool(use_derivative)
         self.charge_evaluations = 0
         self.cache: dict[float, _ChargeSample] = {}
@@ -180,15 +167,7 @@ class _ChargeRootSolver:
         return self._result(final)
 
     def accepted(self, sample: _ChargeSample) -> bool:
-        charge_error_tol = (
-            self.filling_tol * _CHARGE_ERROR_ACCEPTANCE_FRACTION
-            if self.charge_error_tol is None
-            else self.charge_error_tol
-        )
-        return (
-            abs(sample.residual) <= self.filling_tol
-            and sample.charge_error <= charge_error_tol
-        )
+        return abs(sample.residual) <= self.filling_tol
 
     def sample(self, mu: float) -> _ChargeSample:
         mu_value = float(mu)
@@ -313,7 +292,6 @@ class _ChargeRootSolver:
         return FixedFillingSolve(
             mu=sample.mu,
             charge=sample.charge,
-            charge_error=sample.charge_error,
             residual=sample.residual,
             derivative=sample.derivative if self.use_derivative else None,
             charge_evaluations=self.charge_evaluations,
@@ -327,8 +305,7 @@ class _ChargeRootSolver:
         raise RuntimeError(
             "Chemical-potential solve failed: "
             f"{reason}; mu={sample.mu}, residual={sample.residual}, "
-            f"charge_error={sample.charge_error}, filling_tol={self.filling_tol}, "
-            f"charge_error_tol={self.charge_error_tol}, "
+            f"filling_tol={self.filling_tol}, "
             f"charge_evaluations={self.charge_evaluations}"
         )
 
@@ -340,7 +317,6 @@ def _validate_root_inputs(
     filling_tol: float,
     mu_xtol: float,
     max_charge_evaluations: int | None,
-    charge_error_tol: float | None = None,
 ) -> None:
     if not np.isfinite(filling):
         raise ValueError("Requested filling must be finite")
@@ -358,30 +334,25 @@ def _validate_root_inputs(
         raise ValueError(
             "max_charge_evaluations must be a positive integer when provided"
         )
-    if charge_error_tol is not None:
-        if not np.isfinite(charge_error_tol) or charge_error_tol <= 0.0:
-            raise ValueError("charge_error_tol must be positive when provided")
 
 
 def solve_mu(
     *,
-    evaluate_charge: Callable[[float], tuple[float, float, float | None]],
+    evaluate_charge: Callable[[float], tuple[float, float | None]],
     initial_bracket: Callable[[], tuple[float, float]],
     filling: float,
     mu_guess: float,
     filling_tol: float,
     mu_tol: float,
     max_charge_evaluations: int | None,
-    charge_error_tol: float | None = None,
     use_derivative: bool = True,
 ) -> FixedFillingSolve:
     """Test the chemical-potential guess, then bracket and solve only if needed.
 
-    `evaluate_charge(mu)` must return `(charge, charge_error, derivative)`, where
-    `charge` approximates the requested filling function `N(mu)`, `charge_error`
-    is an absolute error estimate for that charge, and `derivative` is an optional
-    `dN/dmu` estimate. The solver assumes `N(mu)` is monotone nondecreasing over
-    the expanded bracket.
+    `evaluate_charge(mu)` returns `(charge, derivative)`, with an optional
+    `dN/dmu` estimate. Only `filling_tol` controls root acceptance; integration
+    and matrix-function accuracy belong to their own stages. The charge
+    function must be monotone nondecreasing over the expanded bracket.
     """
     _validate_root_inputs(
         filling=filling,
@@ -389,7 +360,6 @@ def solve_mu(
         filling_tol=filling_tol,
         mu_xtol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
-        charge_error_tol=charge_error_tol,
     )
     solver = _ChargeRootSolver(
         evaluate_charge,
@@ -397,7 +367,6 @@ def solve_mu(
         filling_tol=filling_tol,
         mu_xtol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
-        charge_error_tol=charge_error_tol,
         use_derivative=use_derivative,
     )
     try:

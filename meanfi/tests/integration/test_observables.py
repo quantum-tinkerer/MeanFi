@@ -345,6 +345,7 @@ def test_model_selected_density_keeps_physical_energy_without_one_body_entries(
         mean_field=correction,
         integration=integration,
         tol=1e-9,
+        compute_free_energy=True,
     )
     h = model.hamiltonian_from_meanfield(correction)[()]
     h = h.toarray() if use_sparse else h
@@ -397,7 +398,51 @@ def test_model_physical_inputs_have_one_owner():
     with pytest.raises(ValueError, match="set filling on the Model"):
         mf.density_matrix(model, filling=0.7)
     updated = replace(model, kT=0.4, filling=0.7)
-    result = mf.density_matrix(updated)
+    result = mf.density_matrix(updated, compute_free_energy=True)
     assert result.kT == 0.4
     assert result.filling == pytest.approx(0.7, abs=1e-4)
     assert result.free_energy == result.internal_energy - 0.4 * result.entropy
+
+
+@pytest.mark.usefixtures("require_mumps")
+@pytest.mark.parametrize("superconducting", [False, True])
+@pytest.mark.parametrize("covered", [False, True])
+def test_fixed_mu_selected_energy_uses_only_available_entries(
+    monkeypatch, superconducting, covered
+):
+    import meanfi as mf
+    from meanfi.density.kpoint.matrix_functions.rational import (
+        PreparedMumpsRationalNode,
+    )
+
+    h0 = np.diag([-0.4, 0.3]).astype(complex)
+    if not covered:
+        h0[0, 1], h0[1, 0] = 0.07j, -0.07j
+    model = mf.Model(
+        {(): sparse.csr_matrix(h0)},
+        {(): sparse.eye(2, format="csr")},
+        filling=1,
+        kT=0.2,
+        superconducting=superconducting,
+    )
+    hamiltonian = model.hamiltonian_from_meanfield()[()].toarray()
+    energies, vectors = np.linalg.eigh(hamiltonian)
+    exact_density = (vectors * expit(-energies / model.kT)) @ vectors.conj().T
+    expected = mf.internal_energy(model, {(): exact_density})
+
+    def unnecessary_work(*args, **kwargs):
+        raise AssertionError("Model energy must use the requested density entries")
+
+    monkeypatch.setattr(PreparedMumpsRationalNode, "charge", unnecessary_work)
+    monkeypatch.setattr(PreparedMumpsRationalNode, "thermodynamics", unnecessary_work)
+    result = mf.density_matrix_at_mu(model, 0, integration=mf.UniformGrid(), tol=1e-9)
+    assert result.coordinates.value_count == 2
+    assert not result.is_complete
+    assert result.band_energy is result.entropy is result.free_energy is None
+    if covered:
+        assert result.internal_energy == pytest.approx(expected, abs=1e-9)
+        assert result.internal_energy == mf.internal_energy(model, result)
+    else:
+        assert result.internal_energy is None
+        with pytest.raises(ValueError, match="missing"):
+            mf.internal_energy(model, result)

@@ -8,6 +8,7 @@ from scipy import sparse
 from meanfi.meanfield import correction_expectation, interaction_energy
 from meanfi.model import Model
 from meanfi.results import DensityResult
+from meanfi.space.coordinates import opposite_key
 from meanfi.tb.expectation import expectation_value
 from meanfi.tb.ops import _tb_type, block_diag
 from meanfi.tb.storage import tb_entries_changed
@@ -77,17 +78,21 @@ def _with_model_energy(model, density, correction):
     if not density.covers(model.required_coordinates):
         return density
     correction = {} if correction is None else correction
-    projected = model._project_mean_field(correction) if correction else correction
-    if tb_entries_changed(correction, projected):
-        # An arbitrary external correction may require density entries outside
-        # the interaction space. Only use complete one-body blocks in that case.
-        if not density.is_complete or not set(model.h_0) <= set(
-            density.coordinates.keys
+    if density.band_energy is not None:
+        projected = model._project_mean_field(correction) if correction else correction
+        if not tb_entries_changed(correction, projected):
+            energy = _internal_energy_from_band(
+                model, model._density_state(density), density.band_energy, projected
+            )
+            return replace(density, internal_energy=energy)
+    # A direct contraction needs only actual one-body nonzeros. For BdG these
+    # are already addressed in the electron block of the selected density.
+    available = set(density.coordinates.entries)
+    for key, block in model.h_0.items():
+        rows, cols = block.nonzero()
+        if any(
+            (opposite_key(key), int(col), int(row)) not in available
+            for row, col in zip(rows, cols, strict=True)
         ):
             return density
-        energy = internal_energy(model, density)
-    else:
-        energy = _internal_energy_from_band(
-            model, model._density_state(density), density.band_energy, projected
-        )
-    return replace(density, internal_energy=energy)
+    return replace(density, internal_energy=internal_energy(model, density))

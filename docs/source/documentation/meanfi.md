@@ -176,15 +176,17 @@ from dataclasses import replace
 
 def accuracy(tol):
     return replace(
-        meanfi.default_solver_tolerances(tol), matrix_function_tol=tol / 10
+        meanfi.default_solver_tolerances(tol),
+        charge_integration=tol
     )
 
 
 density = meanfi.density_matrix(model, tol=1e-5, tolerance_policy=accuracy)
 ```
 
-The default `matrix_function_tol` is `tol/5`. For all stage targets and their
-meaning, see [integration families](algorithms/integration_families.md).
+The default matrix-function target is `tol/40` for every calculation. The policy
+depends only on `tol`; backends use its targets unchanged. See
+[accuracy and diagnostics](algorithms/accuracy.md).
 
 `Model` validates finite filling and temperature, matching matrix sizes and
 lattice dimensions, Hermiticity, and real density-density interaction coefficients. It owns read-only copies of dense or sparse
@@ -199,7 +201,7 @@ combinations, using the exact quadratic mean-field interaction. Entropy and
 free energy do not participate in the coefficient optimization.
 EDIIS runs only its own update and raises `NoConvergence` on iteration
 exhaustion. Users can explicitly restart with another method using
-`model.mean_field(failure.result.density)`; see [user-controlled composition](algorithms/scf_loop.md).
+`model.mean_field(failure.result.density)`; see {ref}`the SCF overview <one-solve>`.
 Physical free energy need not fall on every iteration.
 
 Sparse `RationalFOE()` uses AAA at positive temperature on a prescribed
@@ -253,8 +255,8 @@ SCF settings are keyword-only. To change the history or iteration budget, pass
    :show-inheritance:
 ```
 
-Final SCF results report `internal_energy`, `free_energy`, and `entropy` per cell
-per physical orbital. Iteration history records internal energy only. Entropy is in units of Boltzmann's constant, so
+Final SCF results report internal energy per cell per physical orbital; optional
+entropy and free energy use the same normalization. Iteration history records internal energy only. Entropy is in units of Boltzmann's constant, so
 `free_energy = internal_energy - model.kT * entropy`. This is Helmholtz free
 energy at fixed electron filling. The chemical-potential term is not subtracted.
 All thermodynamic totals are divided by N for N physical orbitals in the unit
@@ -280,7 +282,9 @@ Compare converged solutions at the same filling and temperature using their
 free energies; SCF convergence alone does not establish a global minimum.
 
 ```python
-solution = meanfi.solver(model, model.random_meanfield(rng=0, scale=0.1))
+solution = meanfi.solver(
+    model, model.random_meanfield(rng=0, scale=0.1), compute_free_energy=True
+)
 print(solution.internal_energy, solution.entropy, solution.free_energy)
 ```
 
@@ -291,7 +295,7 @@ so energy evaluation needs no additional density entries:
 
 ```python
 density = meanfi.density_matrix(model, mean_field=solution.mean_field)
-print(density.internal_energy, density.free_energy)
+print(density.internal_energy)
 ```
 
 Retained energies belong to the evaluated state and model; selecting fewer
@@ -308,16 +312,23 @@ energies from the result properties above when using a selected result. Request
 full blocks with `keys=sorted(set(model.h_0) | set(model.required_coordinates.keys))`
 when the helpers need additional entries.
 
-`compute_free_energy=True` is the default on both density functions and `solver`.
-SCF computes entropy once after termination, including a failure with a valid
-partial state. Intermediate evaluations and EDIIS never compute entropy. Set
-`compute_free_energy=False` to skip this work; entropy, `errors.entropy`, and free
-energy then remain `None`, while internal energy is still available.
+Entropy and free energy are omitted by default. Set `compute_free_energy=True`
+on a density function or `solver` to request them. SCF then computes entropy
+once after termination, including a failure with a valid partial state.
+Intermediate evaluations and EDIIS never compute entropy.
 
 ```python
-solution = meanfi.solver(model, model.random_meanfield(rng=0), compute_free_energy=False)
+solution = meanfi.solver(model, model.random_meanfield(rng=0))
 assert solution.entropy is None and solution.free_energy is None
 ```
+
+At fixed chemical potential, no independent charge evaluation is performed.
+Filling is derived from available occupations or a complete requested physical
+diagonal; otherwise it is `None`. The charge-integration diagnostic is `None`.
+Band energy and internal energy can also be `None` if calculating them would
+require extra work beyond the requested density. Fixed-filling calculations
+retain the energy needed by SCF. Explicit `compute_free_energy=True` requests
+the additional thermodynamic work.
 
 `free_energy(model, density)` requires a `DensityResult` with computed entropy:
 a few real-space density blocks alone do not determine full-state entropy.

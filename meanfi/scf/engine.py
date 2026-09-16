@@ -72,7 +72,7 @@ def run_scf_loop(
     scf: SCFMethod,
     problem: SCFProblem,
     verbose: bool = False,
-    compute_free_energy: bool = True,
+    compute_free_energy: bool = False,
 ) -> SCFResult:
     projected_guess = problem.project_guess(guess)
     try:

@@ -34,15 +34,17 @@ def periodic_grid_resolution(nk: int, dimension: int) -> int:
 @dataclass
 class _Integral:
     values: np.ndarray
-    charge: float
-    band_energy: float
+    charge: float | None
+    band_energy: float | None
     entropy: float | None
 
     def errors(self, other: _Integral):
         return (
             np.abs(self.values - other.values),
-            abs(self.charge - other.charge),
-            abs(self.band_energy - other.band_energy),
+            None if self.charge is None else abs(self.charge - other.charge),
+            None
+            if self.band_energy is None
+            else abs(self.band_energy - other.band_energy),
             None if self.entropy is None else abs(self.entropy - other.entropy),
         )
 
@@ -78,6 +80,18 @@ class _Grid:
             yield flat, indices, points
 
 
+def _electron_charge(vectors, occupation):
+    """Trace only the physical electron block of a batched BdG density."""
+    electron_vectors = vectors[:, : vectors.shape[1] // 2]
+    return np.einsum(
+        "bia,ba,bia->b",
+        electron_vectors,
+        occupation,
+        electron_vectors.conj(),
+        optimize=True,
+    ).real
+
+
 class _Evaluator:
     def __init__(
         self,
@@ -87,10 +101,9 @@ class _Evaluator:
         integration: UniformGrid,
         coordinates: DensityCoordinates,
         q_diag: np.ndarray | None,
-        trace_weights: np.ndarray,
         tolerances: ErrorTolerances,
         sparse_layout: SparseRationalLayout | None,
-        filling_tol: float | None = None,
+        fixed_filling: bool = False,
         compute_entropy: bool = False,
     ):
         self.compute_entropy = compute_entropy
@@ -101,11 +114,10 @@ class _Evaluator:
         self.normal = q_diag is None
         self.size = tb_orbital_count(hamiltonian)
         self.q_diag = np.ones(self.size) if q_diag is None else np.asarray(q_diag)
-        self.trace_weights = trace_weights
         self.dtype = integration.dtype
         self.batch_size = integration.batch_size
         self.tolerances = tolerances
-        self.charge_tolerance = None if filling_tol is None else filling_tol / 4
+        self.fixed_filling = fixed_filling
         self.method = integration.matrix_function
         self.sparse_layout = sparse_layout
         self.tb_keys = np.asarray(list(hamiltonian), dtype=float)
@@ -184,7 +196,6 @@ class _Evaluator:
             kT=self.kT,
             q_diag=self.q_diag,
             options=self.method,
-            charge_tolerance=self.charge_tolerance,
             layout=self.sparse_layout,
             matrix_function_tol=self.tolerances.matrix_function_tol,
             workspace_dtype=self.dtype,
@@ -192,7 +203,7 @@ class _Evaluator:
             compute_entropy=compute_entropy,
         )
 
-    def charge(self, grid: _Grid, mu: float) -> tuple[float, float, float | None]:
+    def charge(self, grid: _Grid, mu: float) -> tuple[float, float | None]:
         self.work.charge_calls += 1
         if grid.spectra is not None:
             total = derivative = 0.0
@@ -205,19 +216,15 @@ class _Evaluator:
                     derivative += float(np.sum(occupation * (1 - occupation)) / self.kT)
             return (
                 total / grid.count,
-                0.0,
                 derivative / grid.count if self.kT > 0 else None,
             )
-        total = charge_error = 0.0
+        total = 0.0
         for _flat, _indices, points in grid.batches(self.batch_size):
             matrices = self.matrices_at(points)
             if isinstance(self.method, RationalFOE):
                 for matrix in matrices:
                     node = self._rational_node(matrix)
                     total += node.charge(mu)
-                    charge_error += node.matrix_function_error * np.sum(
-                        np.abs(self.trace_weights)
-                    )
                     self.work.kernels += 1
                     del node
             else:
@@ -226,20 +233,29 @@ class _Evaluator:
                 )
                 values, vectors = np.linalg.eigh(matrices)
                 occupation = fermi_dirac(values, self.kT, 0.0)
-                diagonal = np.einsum(
-                    "bia,ba,bia->bi", vectors, occupation, vectors.conj(), optimize=True
-                ).real
-                total += float(np.sum(diagonal @ self.trace_weights))
+                charges = (
+                    occupation.sum(axis=1)
+                    if self.normal
+                    else _electron_charge(vectors, occupation)
+                )
+                total += float(charges.sum())
                 self.work.diagonalizations += len(points)
                 self.work.kernels += len(points)
-        return total / grid.count, charge_error / grid.count, None
+        return total / grid.count, None
 
     def density(self, grid: _Grid, mu: float, *, compare_previous: bool):
-        """Evaluate requested entries and, optionally, the nested parent at this mu."""
+        """Integrate requested entries and reuse available data for observables."""
         values = np.zeros(self.coordinates.value_count, dtype=complex)
         previous_values = np.zeros_like(values)
-        charge = previous_charge = 0.0
-        energy = previous_energy = entropy = previous_entropy = 0.0
+        charge = previous_charge = energy = previous_energy = 0.0
+        entropy = previous_entropy = 0.0
+        direct = isinstance(self.method, DirectDiagonalization)
+        compute_energy = (
+            self.fixed_filling or self.compute_entropy or (direct and self.normal)
+        )
+        compute_charge = self.fixed_filling or (
+            direct and (self.normal or compute_energy)
+        )
         self.work.density_calls += 1
         for _flat, indices, points in grid.batches(self.batch_size):
             matrices = self.matrices_at(points)
@@ -251,27 +267,32 @@ class _Evaluator:
                         for matrix in matrices
                     ]
                 )
-                if not self.normal
+                if not self.normal and compute_energy
                 else None
             )
-            if isinstance(self.method, RationalFOE):
+            if not direct:
                 packed = np.empty(
                     (len(points), self.coordinates.value_count), dtype=complex
                 )
-                charges = np.empty(len(points))
-                energies = np.empty(len(points))
-                entropies = np.empty(len(points))
+                charges = np.empty(len(points)) if compute_charge else None
+                energies = np.empty(len(points)) if compute_energy else None
+                entropies = np.empty(len(points)) if self.compute_entropy else None
                 for index, matrix in enumerate(matrices):
                     node = self._rational_node(
                         matrix, compute_entropy=self.compute_entropy
                     )
-                    charges[index] = node.charge(mu)
-                    packed[index] = node.density_values_from_charge_order(mu)
-                    energies[index], point_entropy = node.thermodynamics(mu)
-                    entropies[index] = point_entropy if self.compute_entropy else 0.0
-                    self.matrix_function_error = max(
-                        self.matrix_function_error or 0.0, node.matrix_function_error
-                    )
+                    packed[index] = node.density_values(mu)
+                    if compute_energy:
+                        energies[index], point_entropy = node.thermodynamics(mu)
+                        if self.compute_entropy:
+                            entropies[index] = point_entropy
+                    if compute_charge:
+                        charges[index] = node.charge(mu)
+                    if node.matrix_function_error is not None:
+                        self.matrix_function_error = max(
+                            self.matrix_function_error or 0.0,
+                            node.matrix_function_error,
+                        )
                     if self.compute_entropy:
                         self.entropy_approximation_error = max(
                             self.entropy_approximation_error or 0.0,
@@ -295,48 +316,55 @@ class _Evaluator:
                 packed = density_values_from_eigensystem(
                     vectors, occupation, self.coordinates, phases=phases
                 )
-                diagonal = np.einsum(
-                    "bia,ba,bia->bi", vectors, occupation, vectors.conj(), optimize=True
-                ).real
-                charges = diagonal @ self.trace_weights
-                energies = np.sum(eigenvalues * occupation, axis=1)
+                charges = energies = None
+                if self.normal:
+                    charges = occupation.sum(axis=1)
+                elif compute_charge:
+                    charges = _electron_charge(vectors, occupation)
+                if compute_energy:
+                    energies = np.sum(eigenvalues * occupation, axis=1)
+                    if not self.normal:
+                        energies += mu * (2 * charges - occupation.sum(axis=1))
                 entropies = (
                     occupation_entropy(occupation).sum(axis=1)
                     if self.compute_entropy
-                    else np.zeros(len(points))
+                    else None
                 )
-                if not self.normal:
-                    energies += mu * (diagonal @ self.q_diag)
                 self.work.diagonalizations += len(points)
                 self.work.kernels += len(points)
-            if not self.normal:
-                energies += electron_trace
-            # Dividing by the Nambu size includes both its half factor and
-            # normalization by the number of physical orbitals.
-            energies /= self.size
-            entropies /= self.size
+            if compute_energy:
+                if not self.normal:
+                    energies += electron_trace
+                # Nambu size includes the half factor and physical-orbital normalization.
+                energies /= self.size
+                energy += float(energies.sum())
+            if self.compute_entropy:
+                entropies /= self.size
+                entropy += float(entropies.sum())
             values += packed.sum(axis=0)
-            charge += float(charges.sum())
-            energy += float(energies.sum())
-            entropy += float(entropies.sum())
+            if compute_charge:
+                charge += float(charges.sum())
             if compare_previous:
                 old = np.all(indices % 2 == 0, axis=1)
                 previous_values += packed[old].sum(axis=0)
-                previous_charge += float(charges[old].sum())
-                previous_energy += float(energies[old].sum())
-                previous_entropy += float(entropies[old].sum())
+                if compute_charge:
+                    previous_charge += float(charges[old].sum())
+                if compute_energy:
+                    previous_energy += float(energies[old].sum())
+                if self.compute_entropy:
+                    previous_entropy += float(entropies[old].sum())
         previous_count = (grid.n // 2) ** grid.dimension if compare_previous else 1
         return (
             _Integral(
                 values / grid.count,
-                charge / grid.count,
-                energy / grid.count,
+                charge / grid.count if compute_charge else None,
+                energy / grid.count if compute_energy else None,
                 entropy / grid.count if self.compute_entropy else None,
             ),
             _Integral(
                 previous_values / previous_count,
-                previous_charge / previous_count,
-                previous_energy / previous_count,
+                previous_charge / previous_count if compute_charge else None,
+                previous_energy / previous_count if compute_energy else None,
                 previous_entropy / previous_count if self.compute_entropy else None,
             ),
         )

@@ -118,11 +118,9 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
         kT=0.2,
         q_diag=q_diag,
         options=options,
-        charge_tolerance=1e-9,
         layout=SparseRationalLayout.build(
             density_coordinates=coords,
             trace_weights_diag=trace_weights,
-            include_all_diagonal=False,
         ),
         matrix_function_tol=1e-9,
     )
@@ -139,8 +137,6 @@ def test_bdg_sparse_rational_mumps_prepared_node_matches_solve_backend():
         )
         reference_values = coords.values_from_assembled_matrix(direct_density)
         mumps_charge = mumps_node.charge(mu)
-        mumps_density = mumps_node.density_values_from_charge_order(mu)
+        mumps_density = mumps_node.density_values(mu)
         assert abs(mumps_charge - reference_charge) <= 1e-8
         assert np.max(np.abs(mumps_density - reference_values)) <= 1e-8
-    with pytest.raises(ValueError, match="Evaluate charge at the requested mu"):
-        mumps_node.density_values_from_charge_order(0.05)

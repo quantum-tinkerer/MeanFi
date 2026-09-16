@@ -44,7 +44,9 @@ def test_periodic_thermodynamics_reuses_density_spectrum(superconducting, monkey
         return eigh(*args, **kwargs)
 
     monkeypatch.setattr(np.linalg, "eigh", counted)
-    density = mf.density_matrix_at_mu(model, mu=mu, mean_field=correction)
+    density = mf.density_matrix_at_mu(
+        model, mu=mu, mean_field=correction, compute_free_energy=True
+    )
     assert len(calls) == 1
     assert not density.is_complete
     assert density.band_energy == pytest.approx(expected_band / 2, abs=1e-13)
@@ -55,7 +57,7 @@ def test_periodic_thermodynamics_reuses_density_spectrum(superconducting, monkey
 def test_zero_temperature_flat_band_retains_half_occupation_entropy(dimension):
     key = (0,) * dimension
     result = mf.density_matrix_at_mu(
-        {key: np.diag([0.0, 1.0])}, mu=0.0, kT=0.0, keys=[key]
+        {key: np.diag([0.0, 1.0])}, mu=0.0, kT=0.0, keys=[key], compute_free_energy=True
     )
     assert result.filling == pytest.approx(0.5)
     assert result.entropy == pytest.approx(np.log(2.0) / 2)
@@ -73,9 +75,16 @@ def test_scf_selected_energy_agrees_with_full_density(superconducting):
     if superconducting:
         # A user may supply zero corrections on the full hopping support.
         guess.update({key: np.zeros((4, 4)) for key in h0 if key not in guess})
-    result = mf.solver(model, guess, integration=grid, tol=1e-8)
+    result = mf.solver(
+        model, guess, integration=grid, tol=1e-8, compute_free_energy=True
+    )
     full = mf.density_matrix(
-        model, mean_field=result.mean_field, keys=list(h0), integration=grid, tol=1e-10
+        model,
+        mean_field=result.mean_field,
+        keys=list(h0),
+        integration=grid,
+        tol=1e-10,
+        compute_free_energy=True,
     )
     assert result.converged
     assert result.internal_energy == pytest.approx(
@@ -114,7 +123,7 @@ def test_user_can_restart_stalled_ediis_with_explicit_anderson(a, b, kT, monkeyp
     assert not partial.converged
     assert len(partial.history) == 12
     assert partial.errors.scf_residual > 1e-9
-    assert np.isfinite(partial.free_energy)
+    assert np.isfinite(partial.internal_energy)
 
     # The user chooses the next method and its budget. The restart still has
     # to match the independent scalar self-consistency equation above.
@@ -132,16 +141,18 @@ def test_user_can_restart_stalled_ediis_with_explicit_anderson(a, b, kT, monkeyp
     assert (values[0, 0] - values[1, 1]).real == pytest.approx(expected_q, abs=1e-8)
     assert result.errors.scf_residual <= 1e-9
     assert len(partial.history) + len(result.history) <= 60
-    assert result.free_energy < result.internal_energy
+    assert result.entropy is result.free_energy is None
 
 
 def test_reference_subtraction_does_not_subtract_entropy():
     h0 = {(): np.diag([-0.2, 0.2])}
     hint = {(): np.array([[0.0, 0.5], [0.5, 0.0]])}
     bare = mf.Model(h0, hint, filling=1.0, kT=0.2)
-    reference = mf.density_matrix(bare, keys=[()])
+    reference = mf.density_matrix(bare, keys=[()], compute_free_energy=True)
     model = replace(bare, reference=reference)
-    result = mf.solver(model, {(): np.zeros((2, 2))}, tol=1e-9)
+    result = mf.solver(
+        model, {(): np.zeros((2, 2))}, tol=1e-9, compute_free_energy=True
+    )
     assert result.entropy == pytest.approx(reference.entropy)
     assert result.internal_energy == pytest.approx(
         mf.expectation_value(reference, h0).real / 2
@@ -155,14 +166,19 @@ def test_empty_density_selection_reports_thermal_errors_without_refining_them():
     h = {(0,): np.zeros((1, 1)), (1,): np.array([[0.5]]), (-1,): np.array([[0.5]])}
     coordinates = mf.DensityCoordinates.from_entries(size=1, keys=[(0,)], entries=())
     result = mf.density_matrix_at_mu(
-        h, mu=0.0, kT=0.1, coordinates=coordinates, tol=1e-5
+        h, mu=0.0, kT=0.1, coordinates=coordinates, tol=1e-5, compute_free_energy=True
     )
     reference = mf.density_matrix_at_mu(
-        h, mu=0.0, kT=0.1, coordinates=coordinates, integration=mf.UniformGrid(nk=8192)
+        h,
+        mu=0.0,
+        kT=0.1,
+        coordinates=coordinates,
+        integration=mf.UniformGrid(nk=8192),
+        compute_free_energy=True,
     )
     assert result.values.size == 0
     assert result.errors.density_matrix_integration == 0.0
-    assert result.errors.charge_integration <= 2e-6
+    assert result.errors.charge_integration is None
     # No density entries were requested. Charge is constant at half filling,
     # so thermal discrepancies must not force more integration work.
     assert abs(result.band_energy - reference.band_energy) > 1e-3
@@ -207,7 +223,6 @@ def test_bdg_grid_energy_uses_full_nambu_charge(use_sparse, request):
         SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=np.array([1.0, 0.0]),
-            include_all_diagonal=True,
         )
         if use_sparse
         else None
@@ -215,6 +230,7 @@ def test_bdg_grid_energy_uses_full_nambu_charge(use_sparse, request):
     evaluator = _Evaluator(
         h,
         sparse_layout=layout,
+        fixed_filling=True,
         kT=0.12,
         integration=mf.UniformGrid(
             nk=3,
@@ -224,7 +240,6 @@ def test_bdg_grid_energy_uses_full_nambu_charge(use_sparse, request):
         ),
         coordinates=coordinates,
         q_diag=q,
-        trace_weights=np.array([1.0, 0.0]),
         tolerances=default_solver_tolerances(1e-8),
     )
     result, _ = evaluator.density(grid, 0.15, compare_previous=False)
@@ -245,7 +260,7 @@ def test_bdg_interaction_support_does_not_depend_on_guess_keys():
         np.testing.assert_allclose(
             minimal.mean_field[key], complete.mean_field[key], atol=1e-12
         )
-    assert minimal.free_energy == pytest.approx(complete.free_energy)
+    assert minimal.internal_energy == pytest.approx(complete.internal_energy)
 
 
 @pytest.mark.parametrize(
@@ -300,6 +315,7 @@ def test_thermodynamics_per_orbital_is_invariant_under_independent_copies(
             keys=list(h0),
             integration=integration,
             tol=1e-7,
+            compute_free_energy=True,
         )
         selected = density.select(model.required_coordinates)
         assert selected.entropy == density.entropy
@@ -339,5 +355,5 @@ def test_ediis_per_orbital_energy_is_invariant_under_independent_copies(
     base, repeated = solve(1), solve(3)
     assert repeated.density.filling == pytest.approx(3 * base.density.filling)
     assert repeated.internal_energy == pytest.approx(base.internal_energy, abs=1e-9)
-    assert repeated.free_energy == pytest.approx(base.free_energy, abs=1e-9)
-    assert repeated.entropy == pytest.approx(base.entropy, abs=1e-9)
+    assert repeated.entropy is base.entropy is None
+    assert repeated.free_energy is base.free_energy is None

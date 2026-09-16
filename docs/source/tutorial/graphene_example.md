@@ -4,7 +4,6 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -13,17 +12,10 @@ kernelspec:
 
 # Interacting graphene
 
-In the previous tutorial, we showed how to use `MeanFi` to solve a simple 1D Hubbard model with onsite interactions.
-In this tutorial, we will apply `MeanFi` to more complex system: graphene with onsite $U$ and nearest-neighbour $V$ interactions.
-The system is more complicated in every aspect: the lattice structure, dimension of the problem, complexity of the interactions.
-And yet, the workflow is the same as in the previous tutorial and remains simple and straightforward.
+We use Kwant to build spinful graphene with onsite repulsion $U$ and
+nearest-neighbor repulsion $V$, then map its mean-field phases.
 
-## Building the system with `kwant`
-
-### Non-interacting part
-
-As in the previous tutorial, we could construct a tight-binding dictionary of graphene by hand, but instead it is much easier to use [`kwant`](https://kwant-project.org/) to build the system.
-For a more detailed explanation on `kwant` see the [tutorial](https://kwant-project.org/doc/1/tutorial/graphene).
+## Build the model
 
 ```{code-cell} ipython3
 import kwant
@@ -32,260 +24,99 @@ import meanfi
 import numpy as np
 from meanfi.interop import kwant as utils
 
-np.random.seed(0)
-
-s0 = np.identity(2)
+s0 = np.eye(2)
 sx = np.array([[0, 1], [1, 0]])
 sy = np.array([[0, -1j], [1j, 0]])
 sz = np.diag([1, -1])
 
-# Create graphene lattice
 graphene = kwant.lattice.general(
     [(1, 0), (1 / 2, np.sqrt(3) / 2)], [(0, 0), (0, 1 / np.sqrt(3))], norbs=2
 )
 a, b = graphene.sublattices
+bulk = kwant.Builder(kwant.TranslationalSymmetry(*graphene.prim_vecs))
+bulk[a(0, 0)] = bulk[b(0, 0)] = 0 * s0
+bulk[graphene.neighbors()] = s0
+h_0 = utils.builder_to_tb(bulk)
 
-# Create bulk system
-bulk_graphene = kwant.Builder(kwant.TranslationalSymmetry(*graphene.prim_vecs))
-# Set onsite energy to zero
-bulk_graphene[a.shape((lambda pos: True), (0, 0))] = 0 * s0
-bulk_graphene[b.shape((lambda pos: True), (0, 0))] = 0 * s0
-# Add hoppings between sublattices
-bulk_graphene[graphene.neighbors(1)] = s0
-```
 
-The `bulk_graphene` object is a `kwant.Builder` object that represents the non-interacting graphene system.
-To convert it to a tight-binding dictionary, we use the {autolink}`~meanfi.interop.kwant.builder_to_tb` function:
-
-```{code-cell} ipython3
-h_0 = utils.builder_to_tb(bulk_graphene)
-```
-
-### Interacting part
-
-We utilize `kwant` to build the interaction tight-binding dictionary as well.
-To define the interactions, we need to specify two functions:
-* `onsite_int(site)`: returns the onsite interaction matrix.
-* `nn_int(site1, site2)`: returns the interaction matrix between `site1` and `site2`.
-
-We feed these functions to the {autolink}`~meanfi.interop.kwant.build_interacting_syst` function, which constructs the `kwant.Builder` object encoding the interactions.
-All we need to do is to convert this object to a tight-binding dictionary using the {autolink}`~meanfi.interop.kwant.builder_to_tb` function.
-
-```{code-cell} ipython3
-def onsite_int(site, U):
+def onsite_interaction(site, U):
     return U * sx
 
-def nn_int(site1, site2, V):
+
+def bond_interaction(site1, site2, V):
     return V * np.ones((2, 2))
 
-builder_int = utils.build_interacting_syst(
-    builder=bulk_graphene,
-    lattice=graphene,
-    func_onsite=onsite_int,
-    func_hop=nn_int,
-    max_neighbor=1
+
+interaction = utils.build_interacting_syst(
+    bulk, graphene, onsite_interaction, bond_interaction, max_neighbor=1
 )
-params = dict(U=0.2, V=1.2)
-h_int = utils.builder_to_tb(builder_int, params=params)
-```
-
-Because `nn_int` function returns the same interaction matrix for all site pairs, we set `max_neighbor=1` to ensure that the interaction only extends to nearest-neighbours and is zero for longer distances.
-
-## Computing expectation values
-
-As before, we construct {autolink}`~meanfi.model.Model` object to represent the full system to be solved via the mean-field approximation.
-We then generate a random guess for the mean-field solution and solve the system.
-
-```{code-cell} ipython3
-:tags: [skip-execution]
-
-filling = 2
+h_int = utils.builder_to_tb(interaction, params={"U": 0.2, "V": 1.2})
 model = meanfi.Model(h_0, h_int, filling=2)
-result = meanfi.solver(
-    model,
-    model.random_meanfield(rng=0, scale=0.05),
-)
-h_full = meanfi.add_tb(h_0, result.mean_field)
+result = meanfi.solver(model, model.random_meanfield(rng=0, scale=0.05))
 ```
 
-To investigate the effects of interaction on systems with more than one degree of freedom, it is more useful to consider the expectation values of various operators which serve as order parameters.
-For example, we can compute the charge density wave (CDW) order parameter which is defined as the difference in the charge density between the two sublattices.
+The onsite matrix couples opposite spins. The bond matrix couples all spin pairs
+on neighboring sites. `filling=2` means two electrons per four-orbital cell.
 
-To calculate operator expectation values, we first need to construct the density matrix via the {autolink}`~meanfi.density_matrix` function.
-We then feed it into {autolink}`~meanfi.observables.expectation_value` function together with the operator we want to measure.
-In this case, we compute the CDW order parameter by measuring the expectation value of the $\sigma_z$ operator acting on the graphene sublattice degree of freedom.
+## Measure charge and spin order
+
+A charge density wave (CDW) gives different occupations on the two sublattices.
+Its operator is $\sigma_z\otimes I$, with sublattice first and spin second.
+Request the onsite density block to evaluate it. Reuse the solved chemical
+potential instead of repeating the filling search.
 
 ```{code-cell} ipython3
-:tags: [skip-execution]
-
-cdw_operator = {(0, 0): np.kron(sz, np.eye(2))}
-
-rho_result = meanfi.density_matrix(
-    h_full,
-    filling=2,
-    keys=[(0, 0)],
-)
-rho_0_result = meanfi.density_matrix(
-    h_0,
-    filling=2,
-    keys=[(0, 0)],
-)
-rho = rho_result.to_tb()
-rho_0 = rho_0_result.to_tb()
-
-cdw_order_parameter = meanfi.expectation_value(rho, cdw_operator)
-cdw_order_parameter_0 = meanfi.expectation_value(rho_0, cdw_operator)
-
-print(
-    f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}"
-)
-print(
-    f"CDW order parameter for non-interacting system: {np.round(np.abs(cdw_order_parameter_0), 2)}"
-)
+cdw_operator = {(0, 0): np.kron(sz, s0)}
+sdw_operators = [{(0, 0): np.kron(sz, spin)} for spin in (sx, sy, sz)]
+h = model.hamiltonian_from_meanfield(result.mean_field)
+rho = meanfi.density_matrix_at_mu(h, mu=result.mu, keys=[(0, 0)]).to_tb()
+print(f"CDW amplitude: {abs(meanfi.expectation_value(rho, cdw_operator)):.3f}")
 ```
 
-Automated documentation builds load deterministic reference values for the expensive FermiSimplex calculations. Run the skipped cells interactively to recompute them.
+Spin density wave (SDW) order uses $\sigma_z\otimes\boldsymbol\sigma$.
+Summing the squares of its three components makes the magnitude independent of
+the spin direction chosen by SCF.
+
+## Scan the phase diagram
+
+For this qualitative scan we use `tol=1e-2` to keep execution quick. The default
+EDIIS method and tolerance policy are unchanged. Each point is calculated afresh.
+The separate band grid includes the Dirac points and measures the gap between
+the second and third bands at half filling.
 
 ```{code-cell} ipython3
-:tags: [remove-input]
-
-single_point_data = np.load("data/graphene_phase_diagram.npz")
-cdw_order_parameter = single_point_data["cdw_interacting"]
-cdw_order_parameter_0 = single_point_data["cdw_noninteracting"]
-print(
-    f"CDW order parameter for interacting system: {np.round(np.abs(cdw_order_parameter), 2)}"
-)
-print(
-    f"CDW order parameter for non-interacting system: {np.round(np.abs(cdw_order_parameter_0), 2)}"
-)
-```
-
-We see that the CDW order parameter is non-zero only for the interacting system, indicating the presence of a CDW phase.
-
-## Graphene phase diagram
-
-In the remaining part of this tutorial, we will utilize all the tools we have developed so far to create a phase diagram for the graphene system.
-
-To identify phase changes, it is convenient to track the gap of the system as a function of $U$ and $V$.
-To that end, we first create a function that calculates the gap of the system given the tight-binding dictionary and the Fermi energy.
-
-```{code-cell} ipython3
-def compute_gap(h, fermi_energy=0, nk=100):
-    kham = meanfi.tb_to_kgrid(h, (nk,) * 2)
-    vals = np.linalg.eigvalsh(kham)
-
-    emax = np.max(vals[vals <= fermi_energy])
-    emin = np.min(vals[vals > fermi_energy])
-    return np.abs(emin - emax)
-```
-
-And proceed to compute the gap and the mean-field correction for a range of $U$ and $V$ values:
-
-```{code-cell} ipython3
-:tags: [skip-execution]
-
 Us = np.linspace(0, 4, 10)
 Vs = np.linspace(0, 1.5, 10)
-scf = meanfi.LinearMixing(alpha=0.3, max_iterations=500)
+gaps = np.empty((len(Us), len(Vs)))
+cdw = np.empty_like(gaps)
+sdw = np.empty_like(gaps)
 
-gaps = []
-mf_sols = []
-for U in Us:
-    for V in Vs:
-        params = dict(U=U, V=V)
-        h_int = utils.builder_to_tb(builder_int, params=params)
-
-        model = meanfi.Model(h_0, h_int, filling=filling)
+for i, U in enumerate(Us):
+    for j, V in enumerate(Vs):
+        h_int = utils.builder_to_tb(interaction, params={"U": U, "V": V})
+        model = meanfi.Model(h_0, h_int, filling=2)
         result = meanfi.solver(
-            model,
-            model.random_meanfield(rng=0, scale=0.05),
-            scf=scf,
+            model, model.random_meanfield(rng=0, scale=0.05), tol=1e-2
         )
-        mf_sols.append(result.mean_field)
-
-        gap = compute_gap(meanfi.add_tb(h_0, result.mean_field), fermi_energy=result.mu, nk=100)
-        gaps.append(gap)
-gaps = np.asarray(gaps, dtype=float).reshape((len(Us), len(Vs)))
-mf_sols = np.asarray(mf_sols).reshape((len(Us), len(Vs)))
+        h = model.hamiltonian_from_meanfield(result.mean_field)
+        bands = np.linalg.eigvalsh(meanfi.tb_to_kgrid(h, (60, 60)))
+        gaps[i, j] = max(0.0, bands[..., 2].min() - bands[..., 1].max())
+        rho = meanfi.density_matrix_at_mu(h, mu=result.mu, keys=[(0, 0)]).to_tb()
+        cdw[i, j] = abs(meanfi.expectation_value(rho, cdw_operator))**2
+        sdw[i, j] = sum(abs(meanfi.expectation_value(rho, op))**2 for op in sdw_operators)
 ```
 
-The rendered phase plots load reference data produced by the exact scan above.
-
 ```{code-cell} ipython3
-:tags: [remove-input]
-
-phase_data = np.load("data/graphene_phase_diagram.npz")
-Us = phase_data["Us"]
-Vs = phase_data["Vs"]
-gaps = phase_data["gaps"]
-cdw_list = phase_data["cdw"]
-sdw_list = phase_data["sdw"]
-
-plt.imshow(gaps.T, extent=(Us[0], Us[-1], Vs[0], Vs[-1]), origin="lower", aspect="auto")
-plt.colorbar()
-plt.xlabel("V")
-plt.ylabel("U")
-plt.title("Gap")
+fig, axes = plt.subplots(1, 3, figsize=(11, 3.3), constrained_layout=True)
+for ax, values, title in zip(axes, [gaps, cdw, sdw], ["Gap", "CDW squared", "SDW squared"]):
+    image = ax.imshow(values.T, origin="lower", aspect="auto",
+                      extent=(Us[0], Us[-1], Vs[0], Vs[-1]))
+    ax.set(title=title, xlabel="U", ylabel="V")
+    fig.colorbar(image, ax=ax)
 plt.show()
 ```
 
-This phase diagram has gap openings at the same places as shown in the [literature](https://arxiv.org/abs/1204.4531).
-
-We can now use the stored results in `mf_sols` to fully map out the phase diagram with order parameters.
-On top of the charge density wave (CDW), we also expect a spin density wave (SDW) in a different region of the phase diagram.
-We construct the SDW order parameter with the same steps as before, but now we need to sum over the expectation values of the three Pauli matrices to account for the $SU(2)$ spin-rotation symmetry.
-
-```{code-cell} ipython3
-:tags: [skip-execution]
-
-s_list = [sx, sy, sz]
-cdw_list = []
-sdw_list = []
-for mf_sol in mf_sols.flatten():
-    rho = meanfi.density_matrix(
-        meanfi.add_tb(h_0, mf_sol),
-        filling=2,
-        keys=[(0, 0)],
-    ).to_tb()
-
-    # Compute CDW order parameter
-    cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)
-
-    # Compute SDW order parameter
-    sdw_value = 0
-    for s_i in s_list:
-        sdw_operator_i = {(0, 0): np.kron(sz, s_i)}
-        sdw_value += np.abs(meanfi.expectation_value(rho, sdw_operator_i)) ** 2
-    sdw_list.append(sdw_value)
-
-cdw_list = np.asarray(cdw_list).reshape(mf_sols.shape)
-sdw_list = np.asarray(sdw_list).reshape(mf_sols.shape)
-```
-
-Finally, we can combine the gap, CDW and SDW order parameters into one plot.
-We naively do this by plotting the difference between CDW and SDW order parameters and indicate the gap with the transparency.
-
-```{code-cell} ipython3
-import matplotlib.ticker as mticker
-
-normalized_gap = gaps / np.max(gaps)
-plt.imshow(
-    (cdw_list - sdw_list).T,
-    extent=(Us[0], Us[-1], Vs[0], Vs[-1]),
-    origin="lower",
-    aspect="auto",
-    cmap="coolwarm",
-    alpha=normalized_gap.T,
-    vmin=-2.6,
-    vmax=2.6,
-)
-plt.colorbar(
-    ticks=[-2.6, 0, 2.6],
-    format=mticker.FixedFormatter(["SDW", "0", "CDW"]),
-    label="Order parameter",
-    extend="both",
-)
-plt.xlabel("V")
-plt.ylabel("U")
-plt.show()
-```
+Large onsite repulsion favors SDW order; large neighbor repulsion favors CDW
+order. This coarse scan illustrates the workflow, rather than locating precise
+phase boundaries. As with other mean-field calculations, competing initial
+guesses can reveal different self-consistent states.

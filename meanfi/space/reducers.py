@@ -157,12 +157,13 @@ class LinearConstraintReducer:
         coefficients: dict[int, complex] = {}
         for left_shift, left_unitary in symmetry.unitaries_by_shift.items():
             for right_shift, right_unitary in symmetry.unitaries_by_shift.items():
+                # R is the row-cell displacement relative to the column cell.
                 target_key = tuple(
                     int(component)
                     for component in (
                         transformed_base
-                        + np.asarray(right_shift, dtype=int)
-                        - np.asarray(left_shift, dtype=int)
+                        + np.asarray(left_shift, dtype=int)
+                        - np.asarray(right_shift, dtype=int)
                     )
                 )
                 for target_row in range(self.ndof):

@@ -32,7 +32,7 @@ def test_root_budget_is_hard_and_failure_has_context(use_derivative, budget):
     def evaluate(mu):
         calls.append(mu)
         charge = expit(mu)
-        return charge, 0.0, charge * (1 - charge)
+        return charge, charge * (1 - charge)
 
     with pytest.raises(
         RuntimeError,
@@ -49,14 +49,14 @@ def test_root_budget_is_hard_and_failure_has_context(use_derivative, budget):
 @pytest.mark.parametrize("budget", [0, -1, 2.5, True, np.nan])
 def test_root_rejects_invalid_evaluation_budget(budget):
     with pytest.raises(ValueError, match="positive integer"):
-        run_root(lambda mu: (expit(mu), 0.0, None), max_charge_evaluations=budget)
+        run_root(lambda mu: (expit(mu), None), max_charge_evaluations=budget)
 
 
 @pytest.mark.parametrize("mu_tol", [0.0, -1.0, np.nan, np.inf])
 def test_root_rejects_invalid_mu_tolerance(mu_tol):
     with pytest.raises(ValueError, match="mu_tol must be a positive finite"):
         solve_mu(
-            evaluate_charge=lambda mu: (expit(mu), 0.0, None),
+            evaluate_charge=lambda mu: (expit(mu), None),
             initial_bracket=lambda: (-4.0, 4.0),
             filling=0.3,
             mu_guess=0.0,
@@ -72,7 +72,7 @@ def test_accepted_guess_needs_one_charge_evaluation_and_no_bracket(use_derivativ
 
     def charge(mu):
         calls.append(mu)
-        return 0.7, 1e-8, 0.2
+        return 0.7, 0.2
 
     def bracket():
         raise AssertionError("accepted guess must skip bracket construction")
@@ -92,17 +92,17 @@ def test_accepted_guess_needs_one_charge_evaluation_and_no_bracket(use_derivativ
     assert result.charge_evaluations == 1
 
 
-def test_guess_with_zero_residual_but_bad_charge_error_is_not_accepted():
+def test_root_acceptance_uses_only_requested_filling_residual():
     def bracket():
-        raise RuntimeError("bracket was required")
+        pytest.fail("residual already meets the requested target")
 
-    with pytest.raises(RuntimeError, match="bracket was required"):
-        solve_mu(
-            evaluate_charge=lambda mu: (0.7, 1e-2, None),
-            initial_bracket=bracket,
-            filling=0.7,
-            mu_guess=0.0,
-            filling_tol=1e-6,
-            mu_tol=1e-10,
-            max_charge_evaluations=1,
-        )
+    result = solve_mu(
+        evaluate_charge=lambda mu: (0.70005, None),
+        initial_bracket=bracket,
+        filling=0.7,
+        mu_guess=0.0,
+        filling_tol=1e-4,
+        mu_tol=1e-10,
+        max_charge_evaluations=1,
+    )
+    assert result.residual == pytest.approx(5e-5)

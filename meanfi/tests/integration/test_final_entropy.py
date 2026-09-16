@@ -57,7 +57,7 @@ def test_scf_computes_entropy_only_once_after_termination(
         entropy,
     )
 
-    def solve(compute):
+    def solve(**options):
         try:
             result = mf.solver(
                 model,
@@ -65,7 +65,7 @@ def test_scf_computes_entropy_only_once_after_termination(
                 integration=mf.UniformGrid(),
                 scf=mf.LinearMixing(alpha=0.5, max_iterations=100 if converges else 1),
                 tol=1e-7,
-                compute_free_energy=compute,
+                **options,
             )
             assert converges
         except mf.NoConvergence as exc:
@@ -73,7 +73,7 @@ def test_scf_computes_entropy_only_once_after_termination(
             result = exc.result
         return result
 
-    result = solve(True)
+    result = solve(compute_free_energy=True)
     assert len(entropy_calls) == 1
     assert all(not kwargs.get("compute_entropy", False) for _, kwargs in records[:-1])
     assert records[-1][1]["compute_entropy"] is True
@@ -98,7 +98,7 @@ def test_scf_computes_entropy_only_once_after_termination(
 
     records.clear()
     entropy_calls.clear()
-    lean = solve(False)
+    lean = solve()
     assert not entropy_calls
     assert all(not kwargs.get("compute_entropy", False) for _, kwargs in records)
     assert lean.entropy is lean.free_energy is lean.errors.entropy is None
@@ -113,11 +113,11 @@ def test_standalone_density_entropy_flag_and_common_errors(method, kT):
         {(): np.diag([-0.3, 0.3])}, {(): np.zeros((2, 2))}, filling=1, kT=kT
     )
     for evaluate in (
-        lambda **kw: mf.density_matrix(model, **kw),
-        lambda **kw: mf.density_matrix_at_mu(model, 0, **kw),
+        lambda **kw: mf.density_matrix(model, keys=[()], **kw),
+        lambda **kw: mf.density_matrix_at_mu(model, 0, keys=[()], **kw),
     ):
-        full = evaluate(integration=method)
-        lean = evaluate(integration=method, compute_free_energy=False)
+        full = evaluate(integration=method, compute_free_energy=True)
+        lean = evaluate(integration=method)
         assert full.entropy is not None
         assert full.errors.entropy == 0
         assert lean.entropy is lean.free_energy is lean.errors.entropy is None
@@ -140,11 +140,46 @@ def test_final_entropy_failure_preserves_valid_result(monkeypatch):
 
     monkeypatch.setattr(problem, "evaluate_density", evaluate)
     with pytest.raises(mf.SolverFailure, match="Final entropy") as caught:
-        mf.solver(_model(), {(): np.zeros((2, 2))})
+        mf.solver(_model(), {(): np.zeros((2, 2))}, compute_free_energy=True)
     assert caught.value.result.converged
     assert caught.value.result.internal_energy is not None
     assert caught.value.result.entropy is None
     assert isinstance(caught.value.__cause__, mf.ConvergenceError)
+
+
+@pytest.mark.parametrize("integration", [mf.FermiSimplex(), mf.FermiSimplex(nk=5)])
+def test_empty_fixed_mu_entropy_evaluates_spectra_without_charge(
+    monkeypatch, integration
+):
+    from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
+
+    model = mf.Model(
+        {(0,): np.diag([0.0, 0.7])},
+        {(0,): np.zeros((2, 2))},
+        filling=0.5,
+    )
+    assert model.required_coordinates.value_count == 0
+
+    def no_charge(*args, **kwargs):
+        pytest.fail("Fixed-mu entropy must not integrate charge")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(SimplexEvaluator, "charge", no_charge)
+        density = mf.density_matrix_at_mu(
+            model, 0.0, integration=integration, compute_free_energy=True
+        )
+    assert density.entropy == pytest.approx(np.log(2) / 2)
+    assert density.values.size == 0
+    assert density.filling is density.errors.charge_integration is None
+    assert density.band_energy is None
+    assert density.statistics.n_diagonalizations == density.statistics.n_kpoints
+    assert density.statistics.charge_integration_calls == 0
+    assert density.statistics.refinements == 0
+
+    solution = mf.solver(model, {}, integration=integration, compute_free_energy=True)
+    assert solution.converged
+    assert solution.entropy == pytest.approx(np.log(2) / 2)
+    assert solution.free_energy == pytest.approx(0)
 
 
 @pytest.mark.parametrize(

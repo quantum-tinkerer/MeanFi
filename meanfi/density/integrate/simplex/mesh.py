@@ -28,7 +28,8 @@ def _spectral_mesh(
     # FermiSimplex's dyadic root mesh includes both faces of the unit cell.
     # Its native construction gives (2**level + 1)**dimension distinct nodes.
     dimension = len(next(iter(h)))
-    level = 1 if nk is None else 0
+    # Three vertices alias the first cosine harmonic with its midpoint preview.
+    level = 2 if nk is None else 0
     while nk is not None and (2**level + 1) ** dimension < nk:
         level += 1
     nodes = (2**level + 1) ** dimension
@@ -138,9 +139,13 @@ def _occupied_band_energy(
     return float(np.sum(weights * energies)) / energies.shape[-1]
 
 
-def _zero_temperature_entropy(mesh: SpectralMesh, mu: float) -> float:
+def _zero_temperature_entropy(
+    mesh: SpectralMesh, mu: float, eigenvalues: np.ndarray | None = None
+) -> float:
     """Only flat bands at mu have nonzero entropy in simplex integration."""
-    at_mu = np.abs(np.asarray(mesh.eigenvalues) - mu) <= mesh.tolerance
+    if eigenvalues is None:
+        eigenvalues = np.asarray(mesh.eigenvalues)
+    at_mu = np.abs(eigenvalues - mu) <= mesh.tolerance
     if not np.any(at_mu):
         return 0.0
     simplices = np.asarray(mesh.simplices)
@@ -252,7 +257,7 @@ class SimplexEvaluator:
         if not coordinates.value_count:
             return _DensityEntries(
                 coordinates, np.empty(0, complex), None if prescribed else np.empty(0)
-            ), False
+            )
         result = _integrate_density(
             self.mesh,
             coordinates,
@@ -278,9 +283,7 @@ class SimplexEvaluator:
             if prescribed
             else np.full(coordinates.value_count, result.stopping_error)
         )
-        return _DensityEntries(
-            coordinates, result.values, errors
-        ), result.stats.refinements > 0
+        return _DensityEntries(coordinates, result.values, errors)
 
     def statistics(self, charge_evaluations: int):
         work, mesh = self.work, self.mesh

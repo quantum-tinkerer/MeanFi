@@ -4,7 +4,6 @@ Thumbs.db
 .*~
 .*.swp
 .vscode/
-.vsocde/
 .idea/
 *.code-workspace
 
@@ -88,10 +87,9 @@ nosetests.xml
 *.cover
 .hypothesis/
 
-### Documentation and performance outputs
+### Documentation outputs
 docs/build/
 docs/jupyter_execute/
-performance/results/
 *.bin
 *.html
 *.jsonl

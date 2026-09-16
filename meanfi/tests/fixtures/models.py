@@ -1,12 +1,5 @@
 from __future__ import annotations
 
-import json
-import statistics
-import subprocess
-import sys
-import textwrap
-import time
-import tracemalloc
 from dataclasses import dataclass
 
 import numpy as np
@@ -22,15 +15,6 @@ class DenseReference:
     charge: float
     rho: dict[tuple[int, ...], np.ndarray]
     nk: int
-
-
-@dataclass(frozen=True)
-class BenchmarkResult:
-    median_s: float
-    mean_s: float
-    stdev_s: float
-    last_result: object
-    peak_traced_bytes: int | None = None
 
 
 def spinful_chain(t: float = 1.0):
@@ -297,76 +281,6 @@ def converged_dense_reference(
             )
         previous = reference
         nk = 2 * nk - 1
-
-
-def benchmark(
-    fn,
-    *,
-    repeat: int,
-    warmup: int,
-    track_tracemalloc: bool = False,
-) -> BenchmarkResult:
-    for _ in range(warmup):
-        fn()
-
-    timings = []
-    peaks = []
-    last_result = None
-    for _ in range(repeat):
-        if track_tracemalloc:
-            tracemalloc.start()
-        start = time.perf_counter()
-        last_result = fn()
-        timings.append(time.perf_counter() - start)
-        if track_tracemalloc:
-            _current, peak = tracemalloc.get_traced_memory()
-            peaks.append(peak)
-            tracemalloc.stop()
-
-    peak_traced_bytes = max(peaks) if peaks else None
-    return BenchmarkResult(
-        median_s=statistics.median(timings),
-        mean_s=statistics.mean(timings),
-        stdev_s=statistics.pstdev(timings),
-        last_result=last_result,
-        peak_traced_bytes=peak_traced_bytes,
-    )
-
-
-def peak_rss_bytes(python_body: str) -> int | None:
-    body = textwrap.indent(textwrap.dedent(python_body).strip(), "    ")
-    if not body:
-        body = "    pass"
-
-    runner = "\n".join(
-        [
-            "import json",
-            "import sys",
-            "",
-            "try:",
-            "    import resource",
-            "except ImportError:",
-            '    print(json.dumps({"rss_bytes": None}))',
-            "else:",
-            body,
-            "    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss",
-            '    if sys.platform.startswith("darwin"):',
-            "        rss_bytes = int(rss)",
-            "    else:",
-            "        rss_bytes = int(rss * 1024)",
-            '    print(json.dumps({"rss_bytes": rss_bytes}))',
-        ]
-    )
-    completed = subprocess.run(
-        [sys.executable, "-c", runner],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    output = completed.stdout.strip().splitlines()
-    if not output:
-        return None
-    return json.loads(output[-1])["rss_bytes"]
 
 
 def density_result_from_tb(tb):

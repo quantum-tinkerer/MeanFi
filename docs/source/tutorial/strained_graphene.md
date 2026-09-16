@@ -4,223 +4,132 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.16.2
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
-mystnb:
-  execution_mode: "auto"
 ---
 
 # Strained graphene superlattice
 
-We showcase the interface between `meanfi` and `Kwant` with a strained graphene supercell. In this tutorial, we qualitatively reproduce the results from [[1]](https://doi.org/10.1088/2053-1583/ac0b48).
+This example combines a large sparse Kwant model with rational matrix functions.
+We use a $16\times16$ graphene supercell and a fixed $2\times2$ momentum grid for a
+quick qualitative calculation inspired by
+[Manesco and Lado](https://doi.org/10.1088/2053-1583/ac0b48).
+The lattice construction and band plotting are in
+[`strained_graphene_kwant.py`](./scripts/strained_graphene_kwant.py).
 
-We first create the atomistic model in `Kwant`. The complete source code of this example can be found in [`strained_graphene_kwant.py`](./scripts/strained_graphene_kwant.py). To reduce the computational cost, we perform the calculations with a $16 \times 16$ supercell whereas in [1](https://doi.org/10.1088/2053-1583/ac0b48) the calculations were performed with a $25 \times 25$ supercell. Thus, the agreement throughout the tutorial is only qualitative.
+## Build the sparse model
 
 ```{code-cell} ipython3
-:tags: [hide-input]
-
-from dataclasses import replace
-
 import kwant
 import matplotlib.pyplot as plt
 import meanfi
 import numpy as np
 from meanfi.interop import kwant as utils
-from scripts.pauli import s0, sx, sy, sz
 from scripts.strained_graphene_kwant import create_system, plot_bands
 
-sigmas = [sx, sy, sz]
-xi = 7
-U = 0.8
-kT = 0.01
-charge_tol = 2
-density_atol = 1e-2
-scf_tol = 2e-2
-```
-
-We verify the band structure of the Kwant model along a high-symmetry k-path.
-
-```{code-cell} ipython3
-h0_builder, lat, k_path = create_system(n=16)
-```
-
-```{code-cell} ipython3
-:tags: [hide-input]
-
-fsyst = kwant.wraparound.wraparound(h0_builder).finalized()
-
-def hk(k):
-    return fsyst.hamiltonian_submatrix(
-        params={"xi": xi, "k_x": k[0], "k_y": k[1]}, sparse=False
-    )
+sigma_z = np.diag([1, -1])
+bare_builder, lattice, k_path = create_system(n=16)
+h_0, geometry = utils.builder_to_tb(
+    bare_builder, params={"xi": 7}, sparse=True, return_data=True
+)
 
 
-plot_bands(hk, k_path)
-```
-
-We now use the Kwant model to create the interacting Hamiltonian. Following [[1]](https://doi.org/10.1088/2053-1583/ac0b48), we consider only onsite interactions.
-
-```{code-cell} ipython3
-def func_hop(site1, site2):
-    return 0 * np.ones((2, 2))
-
-
-def func_onsite(site, U):
+def onsite_interaction(site, U):
     return U * np.ones((2, 2))
 
 
-int_builder = utils.build_interacting_syst(
-    h0_builder,
-    lat,
-    func_onsite,
-    func_hop,
-    max_neighbor=0,
+interaction_builder = utils.build_interacting_syst(
+    bare_builder, lattice, onsite_interaction
 )
+h_int = utils.builder_to_tb(interaction_builder, params={"U": 0.8}, sparse=True)
+filling = h_0[(0, 0)].shape[0] // 2
+model = meanfi.Model(h_0, h_int, filling=filling, kT=0.01)
+integration = meanfi.UniformGrid(nk=2**2, matrix_function=meanfi.RationalFOE())
 ```
 
-After we have created the interacting system we can use MeanFi again for getting the solution. We turn both the non-interacting and interacting systems into tight binding dictionaries using the kwant utils. Then we combine them into a mean-field model.
+`nk` counts total points: `2**2` means two per axis. A prescribed grid does not
+estimate integration error. Sparse rational evaluation needs the optional sparse
+solver dependencies. We use default EDIIS with `tol=1e-2` for a quick qualitative
+calculation; tighter tolerances can noticeably change the magnetization and gap.
+
+## Noninteracting bands
+
+At half filling, the bare model has chemical potential zero. Keep this band
+structure for comparison with the interacting solution below.
 
 ```{code-cell} ipython3
-integration = meanfi.UniformGrid(nk=4, matrix_function=meanfi.RationalFOE())
-
-h0_dense, data = utils.builder_to_tb(h0_builder, params={"xi": xi}, return_data=True)
-h0 = utils.builder_to_tb(h0_builder, params={"xi": xi}, sparse=True)
-
-ndof = [*h0_dense.values()][0].shape[0]
-filling = ndof // 2
-h_int = utils.builder_to_tb(int_builder, params={"U": U}, sparse=True)
-mf_model = meanfi.Model(h0, h_int, filling=filling, kT=kT)
+plot_bands(meanfi.tb_to_kfunc(h_0), k_path)
 ```
 
-Now getting the solution by providing a guess and the mean-field model to the solver. To accelerate the convergence, we use an antiferromagnetic guess.
+## Solve from an antiferromagnetic guess
 
 ```{code-cell} ipython3
-def func_hop(site1, site2):
-    return 0 * np.ones((2, 2))
-
-
-def func_onsite(site):
-    if site.family == lat.sublattices[0]:
-        return sz
-    else:
-        return -sz
+def staggered_field(site):
+    return sigma_z if site.family == lattice.sublattices[0] else -sigma_z
 
 
 guess_builder = utils.build_interacting_syst(
-    h0_builder,
-    lat,
-    func_onsite,
-    func_hop,
-    max_neighbor=0,
+    bare_builder, lattice, staggered_field
 )
-
 guess = utils.builder_to_tb(guess_builder, sparse=True)
+result = meanfi.solver(model, guess, integration=integration, tol=1e-2)
+print(f"SCF residual: {result.errors.scf_residual:.2e}")
+print(f"Chemical potential: {result.mu:.6f} t")
 ```
 
+## Mean-field bands
+
+The Hamiltonian is returned without shifting its energy origin. Pass the solved
+chemical potential to the band plot.
+
 ```{code-cell} ipython3
-result = meanfi.solver(
-    mf_model,
-    guess,
-    integration=integration,
-    tol=replace(
-        meanfi.default_solver_tolerances(scf_tol),
-        density_matrix_integration=density_atol,
-        charge_integration=density_atol,
-        filling_residual=charge_tol,
-    ),
+h = model.hamiltonian_from_meanfield(result.mean_field)
+plot_bands(meanfi.tb_to_kfunc(h), k_path, mu=result.mu)
+```
+
+## Local magnetization
+
+The collinear guess selects the $z$ direction. We plot the local magnetization
+$m_z=n_\uparrow-n_\downarrow$ and its magnitude $|m_z|$, with dot sizes
+proportional to the magnitude. The onsite occupations are already in the SCF
+result; no additional density calculation is needed.
+
+```{code-cell} ipython3
+occupations = np.array([
+    result.density.values[result.density.coordinates.index((0, 0), i, i)].real
+    for i in range(h_0[(0, 0)].shape[0])
+]).reshape(-1, 2)
+magnetization = dict(zip(geometry["sites"], occupations[:, 0] - occupations[:, 1]))
+magnitude = {site: abs(value) for site, value in magnetization.items()}
+peak = max(magnitude.values())
+solution_builder = utils.tb_to_builder(
+    result.mean_field, geometry["sites"], geometry["periods"]
 )
-mf_sol = {
-    key: value.toarray() if hasattr(value, "toarray") else np.asarray(value)
-    for key, value in result.mean_field.items()
-}
 ```
 
-The sparse solver uses the same default `EnergyDIIS` workflow as the dense
-examples. Rational evaluation obtains entropy from the same poles and sparse
-factorizations as density. `result.internal_energy`, `result.entropy`, and
-`result.free_energy` are per cell per physical orbital and are available without
-requesting a full density matrix.
-
-We now verify that the mean-field solution results in a gapped phase.
+The signed panel distinguishes the two spin orientations; the magnitude panel
+highlights where the magnetic order is strongest.
 
 ```{code-cell} ipython3
-mf_ham = meanfi.add_tb(h0_dense, mf_sol)
-hk_mf = meanfi.tb_to_kfunc(mf_ham)
-plot_bands(hk_mf, k_path)
-```
-
-Now we turn the mean-field corrections into a `kwant.Builder` such that we can visualize observables using Kwant's functionalities. We provide the mean-field solution `mf_sol` as well as the sites and periods of the bulk system to the `tb_to_builder` function.
-
-```{code-cell} ipython3
-mf_sol_builder = utils.tb_to_builder(mf_sol, data["sites"], data["periods"])
-```
-
-We now plot the magnetization of the system. First, we define the magnetization direction. We do extracting the exchange field at it site and finding the direction where all the spins are pointing to.
-
-```{code-cell} ipython3
-exchange_field = np.array([value[1] for value in list(mf_sol_builder.site_value_pairs())])
-
-magnetization_direction = np.zeros(3)
-for i, sigma in enumerate(sigmas):
-    for site_field in exchange_field:
-        magnetization_direction[i] += np.abs(np.trace(sigma @ site_field))
-
-magnetization_direction /= np.linalg.norm(magnetization_direction)
-reference_magnetization = np.transpose(sigmas, (1, 2, 0)) @ magnetization_direction
-```
-
-Now we plot the magnetization of the solution on the sites of the system. We do this by creating functions which calculate the magnetization and its magnitude with respect to the reference magnetization direction.
-
-```{code-cell} ipython3
-def magnetisation(site):
-    matrix = mf_sol_builder.H[site][1]
-    return np.trace(reference_magnetization @ matrix).real
-
-
-def abs_magnetisation(site):
-    matrix = mf_sol_builder.H[site][1]
-    projected_magnetization = []
-    for sigma in sigmas[1:]:
-        projected_magnetization.append(np.trace(sigma @ matrix))
-    return np.sqrt(np.sum(np.array(projected_magnetization) ** 2).real)
-
-
-def systemPlotter(syst, onsite, ax, cmap):
-    """
-    Plots the system with the onsite potential given by the function onsite.
-    """
-    sites = [*syst.sites()]
-    density = [onsite(site) for site in sites]
-
-    def size(site):
-        return 0.3 * np.abs(onsite(site)) / np.max(np.abs(density))
-
+fig, axes = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
+for ax, values, title, cmap, minimum in zip(
+    axes, [magnetization, magnitude], ["Magnetization", "Magnetization magnitude"],
+    ["coolwarm", "viridis"], [-peak, 0]
+):
     kwant.plot(
-        syst, site_color=onsite, ax=ax, cmap=cmap, site_size=size, show=False, unit=1
+        solution_builder, site_color=values.__getitem__,
+        site_size=lambda site: 0.3 * magnitude[site] / peak if peak else 0,
+        unit=1, cmap=cmap, ax=ax, show=False,
     )
-    return np.min(density), np.max(density)
-```
-
-```{code-cell} ipython3
-:tags: [hide-input]
-
-import matplotlib
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-
-
-titles = ["Magnetisation", "Magnetisation magnitude"]
-cmaps = ["coolwarm", "viridis"]
-onsites = [magnetisation, abs_magnetisation]
-for i, ax in enumerate(axs):
-    vmin, vmax = systemPlotter(mf_sol_builder, onsites[i], ax=ax, cmap=cmaps[i])
-    ax.axis("off")
-    ax.set_title(titles[i])
+    ax.collections[0].set_clim(minimum, peak)
+    ax.set_title(title)
+    ax.set_axis_off()
     ax.set_aspect("equal")
     fig.colorbar(ax.collections[0], ax=ax, shrink=0.5)
-fig.show()
+plt.show()
 ```
+
+This small fixed grid illustrates the sparse workflow. Establish convergence
+with respect to cell size and momentum sampling before using it quantitatively.

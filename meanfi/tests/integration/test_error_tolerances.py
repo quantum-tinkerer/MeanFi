@@ -30,7 +30,7 @@ def test_default_solver_tolerances_define_the_public_error_hierarchy():
         density_matrix_integration=2e-4,
         filling_residual=1e-4,
         charge_integration=2e-4,
-        matrix_function_tol=2e-4,
+        matrix_function_tol=2.5e-5,
     )
     with pytest.raises(FrozenInstanceError):
         tolerances.scf_residual = 1e-2
@@ -80,7 +80,7 @@ def test_explicit_integration_tolerances_are_effective_internal_requests(
         density_matrix_integration=5e-7,
         filling_residual=1e-5,
         charge_integration=charge_tolerance,
-        matrix_function_tol=2e-5,
+        matrix_function_tol=2.5e-6,
     )
 
 
@@ -117,6 +117,7 @@ def test_energy_units_do_not_control_density_refinement():
                 kT=scale * 0.037,
                 keys=[(0,)],
                 integration=UniformGrid(),
+                compute_free_energy=True,
                 tol=replace(
                     default_solver_tolerances(1e-3),
                     density_matrix_integration=tolerance,
@@ -212,7 +213,7 @@ def test_matrix_function_budget_and_report_match_dense_reference(target):
         kT=0.2,
         keys=[()],
         integration=UniformGrid(matrix_function=RationalFOE()),
-        tolerance_policy=lambda _: requested,
+        tolerance_policy=lambda *_: requested,
     )
     energies, vectors = np.linalg.eigh(matrix.toarray())
     exact = (vectors * expit((0.13 - energies) / 0.2)) @ vectors.conj().T
@@ -258,13 +259,20 @@ def test_all_public_calculations_accept_the_same_tolerance_record(evaluate):
     )
     run = getattr(mf, evaluate)
     result = run(*args, tol=targets)
-    scalar = run(*args, tol=1e-7)
+    calls = []
+
+    def policy(tol):
+        calls.append(tol)
+        return default_solver_tolerances(tol)
+
+    scalar = run(*args, tol=1e-7, tolerance_policy=policy)
+    assert calls == [1e-7]
     density = result.density if evaluate == "solver" else result
     scalar_density = scalar.density if evaluate == "solver" else scalar
     np.testing.assert_array_equal(density.values, scalar_density.values)
     assert result.errors == scalar.errors
     with pytest.raises(ValueError, match="custom tolerance_policy"):
-        run(*args, tol=targets, tolerance_policy=lambda _: targets)
+        run(*args, tol=targets, tolerance_policy=lambda *_: targets)
 
 
 @pytest.mark.parametrize("field", ErrorTolerances.__dataclass_fields__)
@@ -272,3 +280,18 @@ def test_all_public_calculations_accept_the_same_tolerance_record(evaluate):
 def test_accuracy_targets_reject_invalid_values(field, invalid):
     with pytest.raises(ValueError, match=field):
         replace(default_solver_tolerances(1e-3), **{field: invalid})
+
+
+def test_simplex_filling_residual_is_independent_of_charge_target():
+    from meanfi import density_matrix
+
+    result = density_matrix(
+        {(0,): np.zeros((1, 1))},
+        keys=[(0,)],
+        filling=0.50005,
+        tol=replace(default_solver_tolerances(1e-3), charge_integration=1e-12),
+    )
+    assert result.mu == 0
+    assert result.filling == 0.5
+    assert result.errors.filling_residual == pytest.approx(5e-5)
+    assert result.errors.charge_integration == 0

@@ -70,17 +70,13 @@ ToleranceFunction = Callable[[float], ErrorTolerances]
 
 
 def default_solver_tolerances(tol: float) -> ErrorTolerances:
-    """Map one user tolerance to MeanFi's default error hierarchy."""
-
-    tol = float(tol)
-    if not np.isfinite(tol) or tol <= 0.0:
-        raise ValueError("tol must be a positive finite number")
+    """Assign the same simple tolerance budgets to every calculation."""
     return ErrorTolerances(
         scf_residual=tol,
-        density_matrix_integration=tol / 5.0,
-        filling_residual=tol / 10.0,
-        charge_integration=tol / 5.0,
-        matrix_function_tol=tol / 5.0,
+        density_matrix_integration=tol / 5,
+        charge_integration=tol / 5,
+        filling_residual=tol / 10,
+        matrix_function_tol=tol / 40,
     )
 
 

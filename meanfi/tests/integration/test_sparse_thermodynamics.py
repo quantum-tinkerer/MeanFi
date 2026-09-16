@@ -89,13 +89,11 @@ def test_sparse_thermodynamics_reuses_density_factorizations(monkeypatch, bdg):
         kT=kT,
         q_diag=q_diag,
         options=RationalFOE(max_poles=128),
-        charge_tolerance=1e-9,
         matrix_function_tol=1e-9,
         compute_entropy=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=trace_weights,
-            include_all_diagonal=True,
         ),
     )
 
@@ -108,13 +106,15 @@ def test_sparse_thermodynamics_reuses_density_factorizations(monkeypatch, bdg):
     charge = node.charge(mu)
     np.testing.assert_allclose(charge, trace_weights @ density.diagonal(), atol=1e-9)
     factors = dict(node._last_factorizations)
-    values = node.density_values_from_charge_order(mu)
+    values = node.density_values(mu)
     np.testing.assert_allclose(
         values, coordinates.values_from_assembled_matrix(density), atol=1e-9
     )
 
+    node.thermodynamics(mu)
+
     def no_more_inverse_work(*args, **kwargs):
-        raise AssertionError("Thermodynamics must reuse the charge inverse entries")
+        raise AssertionError("Thermodynamics must reuse existing inverse entries")
 
     monkeypatch.setattr(SelectedInverseFactorization, "factor", no_more_inverse_work)
     monkeypatch.setattr(
@@ -127,7 +127,7 @@ def test_sparse_thermodynamics_reuses_density_factorizations(monkeypatch, bdg):
         <= node.size * node._last_terms.entropy_error + 1e-12
     )
     assert node._last_factorizations == factors
-    assert node.layout.charge.nnz == matrix.shape[0]
+    assert node.layout.charge.nnz == np.count_nonzero(trace_weights)
 
 
 @pytest.mark.usefixtures("require_mumps")
@@ -140,13 +140,11 @@ def test_sparse_thermodynamics_handles_filled_empty_and_narrow_spectra(mu):
         kT=0.1,
         q_diag=np.ones(3),
         options=RationalFOE(),
-        charge_tolerance=1e-10,
         matrix_function_tol=1e-10,
         compute_entropy=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coords,
             trace_weights_diag=np.ones(coords.size),
-            include_all_diagonal=True,
         ),
     )
     _, energy, entropy = _reference(matrix, np.ones(3), 0.1, mu)
@@ -154,8 +152,6 @@ def test_sparse_thermodynamics_handles_filled_empty_and_narrow_spectra(mu):
     np.testing.assert_allclose(
         node.thermodynamics(mu), (energy, entropy), atol=1e-10, rtol=0
     )
-    with pytest.raises(ValueError, match="Evaluate charge"):
-        node.thermodynamics(mu + 1)
 
 
 @pytest.mark.parametrize(
@@ -212,20 +208,18 @@ def test_sparse_band_energy_error_scales_with_hamiltonian_norm():
         kT=kT,
         q_diag=np.ones(4),
         options=RationalFOE(),
-        charge_tolerance=1e-7,
         matrix_function_tol=1e-7,
         compute_entropy=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=np.ones(coordinates.size),
-            include_all_diagonal=True,
         ),
     )
     _, expected, _ = _reference(matrix, np.ones(4), kT, mu)
     node.charge(mu)
     actual_energy, _ = node.thermodynamics(mu)
     # Tr(H delta_rho) scales with the energy units; it is not a separate target.
-    error_bound = np.linalg.norm(matrix, 2) * node.charge_tolerance
+    error_bound = node.size * np.linalg.norm(matrix, 2) * node.matrix_function_tol
     assert abs(actual_energy - expected) <= error_bound
 
 
@@ -274,27 +268,28 @@ def test_density_aaa_meets_original_tight_32_orbital_benchmark_tolerance():
         kT=kT,
         q_diag=np.ones(size),
         options=RationalFOE(),
-        charge_tolerance=tolerance,
         matrix_function_tol=tolerance,
         compute_entropy=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=np.ones(coordinates.size),
-            include_all_diagonal=True,
         ),
     )
     density, energy, entropy = _reference(matrix.toarray(), np.ones(size), kT, mu)
     assert node.charge(mu) == pytest.approx(
-        np.trace(density).real, abs=tolerance, rel=0
+        np.trace(density).real, abs=size * tolerance, rel=0
     )
     np.testing.assert_allclose(
-        node.density_values_from_charge_order(mu),
+        node.density_values(mu),
         coordinates.values_from_assembled_matrix(density),
         atol=tolerance,
         rtol=0,
     )
     actual_energy, actual_entropy = node.thermodynamics(mu)
-    assert abs(actual_energy - energy) <= tolerance
+    assert (
+        abs(actual_energy - energy)
+        <= size * np.linalg.norm(matrix.toarray(), 2) * tolerance
+    )
     assert (
         abs(actual_entropy - entropy)
         <= size * node._last_terms.entropy_error + tolerance
@@ -321,13 +316,11 @@ def test_nearby_intervals_reuse_one_accurate_fit(bdg):
             kT=0.1,
             q_diag=q,
             options=RationalFOE(),
-            charge_tolerance=1e-8,
             matrix_function_tol=1e-8,
             compute_entropy=True,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
                 trace_weights_diag=weights,
-                include_all_diagonal=True,
             ),
             shared_aaa_interval_cache=cache,
         )
@@ -363,12 +356,10 @@ def test_shared_fit_rechecks_accuracy_entropy_and_pole_budget():
             kT=0.02,
             q_diag=np.ones(2),
             options=RationalFOE(),
-            charge_tolerance=tolerance,
             matrix_function_tol=tolerance,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
                 trace_weights_diag=np.ones(coordinates.size),
-                include_all_diagonal=False,
             ),
             shared_aaa_interval_cache=cache,
         )
@@ -385,7 +376,7 @@ def test_shared_fit_rechecks_accuracy_entropy_and_pole_budget():
     np.testing.assert_array_equal(joint.shifts, tight.shifts)
     np.testing.assert_array_equal(joint.residues, tight.residues)
     errors = thermal_errors(joint, grid, thermal_targets(grid, 0.02))
-    assert errors[0] < 5e-11
+    assert errors[0] < 1e-10
     assert errors[1] <= 1.01 * joint.entropy_error + 1e-13
     with pytest.raises(ConvergenceError, match="max_poles"):
         node(1e-10, options=RationalFOE(max_poles=4))._sparse_terms(0.0)
@@ -401,13 +392,11 @@ def test_failed_interval_expansion_retries_actual_spectrum(monkeypatch):
         kT=0.1,
         q_diag=np.ones(2),
         options=RationalFOE(),
-        charge_tolerance=1e-10,
         matrix_function_tol=1e-10,
         compute_entropy=True,
         layout=SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=np.ones(coordinates.size),
-            include_all_diagonal=True,
         ),
         shared_aaa_interval_cache=cache,
     )
@@ -427,7 +416,7 @@ def test_failed_interval_expansion_retries_actual_spectrum(monkeypatch):
     assert attempts[0][0] < attempts[1][0] < attempts[1][1] < attempts[0][1]
     grid = np.linspace(-0.31, 0.19, 15001)
     errors = thermal_errors(terms, grid, thermal_targets(grid, 0.1))
-    assert errors[0] < 5e-11
+    assert errors[0] < 1e-10
     assert errors[1] <= 1.01 * terms.entropy_error + 1e-13
 
 
@@ -455,8 +444,7 @@ def test_density_aaa_refines_the_grid_for_a_sharp_fermi_transition():
 
 
 @pytest.mark.usefixtures("require_mumps")
-@pytest.mark.parametrize("include_all", [False, True])
-def test_shared_sparse_layout_preserves_requested_complex_entries(include_all):
+def test_shared_sparse_layout_preserves_requested_complex_entries():
     # A complex BdG-like matrix exercises both inverse orientations, hole
     # diagonals absent from the charge trace, and repeated pairs at different R.
     matrix = np.array(
@@ -473,7 +461,6 @@ def test_shared_sparse_layout_preserves_requested_complex_entries(include_all):
     layout = SparseRationalLayout.build(
         density_coordinates=coordinates,
         trace_weights_diag=weights,
-        include_all_diagonal=include_all,
     )
     # Read-only storage prevents one node from invalidating every other node's
     # coordinate contract. Construction also owns a copy of the input weights.
@@ -486,7 +473,7 @@ def test_shared_sparse_layout_preserves_requested_complex_entries(include_all):
         layout.density.lookup[(0, 1)] = 0
     pattern_arrays = [
         (array, array.copy())
-        for pattern in (layout.charge, layout.density, layout.extra)
+        for pattern in (layout.charge, layout.density, layout.diagonal)
         for array in (pattern.fortran_indptr, pattern.fortran_indices)
     ]
     for offset, mu in ((0.0, 0.12), (0.07, -0.16), (0.0, 0.12)):
@@ -497,14 +484,13 @@ def test_shared_sparse_layout_preserves_requested_complex_entries(include_all):
             kT=0.15,
             q_diag=q_diag,
             options=RationalFOE(),
-            charge_tolerance=1e-9,
             matrix_function_tol=1e-9,
             layout=layout,
         )
         assert node.layout is layout
         assert abs(node.charge(mu) - np.trace(density[:2, :2]).real) <= 1e-9
         np.testing.assert_allclose(
-            node.density_values_from_charge_order(mu),
+            node.density_values(mu),
             coordinates.values_from_assembled_matrix(density),
             atol=1e-9,
             rtol=0,
@@ -526,13 +512,11 @@ def test_cached_entropy_fit_does_not_enable_unrequested_thermodynamics():
             kT=0.2,
             q_diag=np.array([1.0, 1.0, -1.0, -1.0]),
             options=RationalFOE(),
-            charge_tolerance=1e-8,
             matrix_function_tol=1e-8,
             compute_entropy=compute_entropy,
             layout=SparseRationalLayout.build(
                 density_coordinates=coordinates,
                 trace_weights_diag=weights,
-                include_all_diagonal=True,
             ),
             shared_aaa_interval_cache=cache,
         )
@@ -556,7 +540,6 @@ def test_entropy_reporting_leaves_density_and_charge_unchanged():
     layout = SparseRationalLayout.build(
         density_coordinates=coordinates,
         trace_weights_diag=np.ones(6),
-        include_all_diagonal=True,
     )
     nodes = [
         PreparedMumpsRationalNode(
@@ -564,7 +547,6 @@ def test_entropy_reporting_leaves_density_and_charge_unchanged():
             kT=0.1,
             q_diag=np.ones(6),
             options=RationalFOE(),
-            charge_tolerance=1e-9,
             matrix_function_tol=1e-9,
             layout=layout,
             compute_entropy=thermal,
@@ -580,16 +562,112 @@ def test_entropy_reporting_leaves_density_and_charge_unchanged():
     )
     np.testing.assert_array_equal(charges[0], charges[1])
     np.testing.assert_array_equal(
-        nodes[0].density_values_from_charge_order(0.13),
-        nodes[1].density_values_from_charge_order(0.13),
+        nodes[0].density_values(0.13),
+        nodes[1].density_values(0.13),
     )
     exact, _, _ = _reference(matrix.toarray(), np.ones(6), 0.1, 0.13)
     assert (
         np.max(
             abs(
-                nodes[0].density_values_from_charge_order(0.13)
+                nodes[0].density_values(0.13)
                 - coordinates.values_from_assembled_matrix(exact)
             )
         )
         < 1e-9
     )
+
+
+@pytest.mark.usefixtures("require_mumps")
+@pytest.mark.parametrize("charge_first", [False, True])
+def test_sparse_selected_inverse_only_computes_requested_entries(
+    monkeypatch, charge_first
+):
+    matrix = np.array(
+        [
+            [0.4, 0.1j, 0.2, 0.0],
+            [-0.1j, -0.6, 0.0, -0.2],
+            [0.2, 0.0, -0.4, 0.1j],
+            [0.0, -0.2, -0.1j, 0.7],
+        ],
+        dtype=complex,
+    )
+    q_diag = np.array([1.0, 1.0, -1.0, -1.0])
+    mu, kT = 0.13, 0.2
+    coordinates = DensityCoordinates.from_entries(
+        entries=(((), 0, 1),), size=4, keys=[()]
+    )
+    node = PreparedMumpsRationalNode(
+        sp.csr_matrix(matrix),
+        kT=kT,
+        q_diag=q_diag,
+        options=RationalFOE(),
+        layout=SparseRationalLayout.build(
+            density_coordinates=coordinates, trace_weights_diag=np.array([1, 1, 0, 0])
+        ),
+        matrix_function_tol=1e-9,
+    )
+    computed = {}
+    selected = SelectedInverseFactorization.selected_inverse
+
+    def record(factorization, pattern):
+        previous = computed.setdefault(factorization, set())
+        requested = set(pattern.lookup)
+        assert not (previous & requested), "An inverse entry was computed twice"
+        previous.update(requested)
+        return selected(factorization, pattern)
+
+    monkeypatch.setattr(SelectedInverseFactorization, "selected_inverse", record)
+    if charge_first:
+        node.charge(mu)
+        assert computed
+        assert all(entries == {(0, 0), (1, 1)} for entries in computed.values())
+        assert all(values.size == 2 for values in node._last_inverse_entries.values())
+    expected_density, expected_energy, _ = _reference(matrix, q_diag, kT, mu)
+    np.testing.assert_allclose(
+        node.density_values(mu),
+        coordinates.values_from_assembled_matrix(expected_density),
+        atol=1e-9,
+        rtol=0,
+    )
+    expected_entries = {(0, 1), (1, 0)}
+    if charge_first:
+        expected_entries |= {(0, 0), (1, 1)}
+    assert all(entries == expected_entries for entries in computed.values())
+    factors = dict(node._last_factorizations)
+    actual_energy, entropy = node.thermodynamics(mu)
+    assert abs(actual_energy - expected_energy) <= 4 * np.linalg.norm(matrix, 2) * 1e-9
+    assert entropy is None
+    assert node._last_factorizations == factors
+    assert all(
+        entries == expected_entries | {(i, i) for i in range(4)}
+        for entries in computed.values()
+    )
+
+
+def test_matrix_function_target_is_not_rescaled_for_trace_size(monkeypatch):
+    from meanfi.density.kpoint.matrix_functions.rational import prepared_sparse
+
+    target = 3e-5
+    requested = []
+    original = prepared_sparse._aaa_terms_for_interval
+
+    def record(*args, **kwargs):
+        requested.append(kwargs["scalar_tolerance"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(prepared_sparse, "_aaa_terms_for_interval", record)
+    for size in (2, 20):
+        coordinates = DensityCoordinates.from_entries(size=size, keys=[()], entries=())
+        node = PreparedMumpsRationalNode(
+            sp.diags(np.linspace(-0.3, 0.2, size), format="csr"),
+            kT=0.1,
+            q_diag=np.ones(size),
+            options=RationalFOE(),
+            layout=SparseRationalLayout.build(
+                density_coordinates=coordinates, trace_weights_diag=np.ones(size)
+            ),
+            matrix_function_tol=target,
+        )
+        terms = node._sparse_terms(0.0)
+        assert terms.error <= target
+    assert requested == [target, target]

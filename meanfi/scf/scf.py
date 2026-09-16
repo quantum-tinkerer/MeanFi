@@ -29,15 +29,15 @@ def solver(
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
     max_charge_evaluations: int | None = None,
     verbose: bool = False,
-    compute_free_energy: bool = True,
+    compute_free_energy: bool = False,
 ) -> SCFResult:
     """Run mean-field update -> density update -> SCF mixing.
 
     ``tol`` accepts a number or an explicit ErrorTolerances record.
 
-    Entropy is computed once at termination by default, including valid partial
-    results on failure. Set ``compute_free_energy=False`` to skip that final
-    evaluation; entropy and free energy remain None. SCF uses internal energy.
+    Entropy and free energy are omitted by default. ``compute_free_energy=True``
+    requests one final evaluation, including valid partial results on failure.
+    SCF uses internal energy.
     """
 
     tolerances = resolve_error_tolerances(tol, tolerance_policy)

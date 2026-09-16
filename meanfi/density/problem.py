@@ -77,7 +77,6 @@ def build_density_problem(
         layout = SparseRationalLayout.build(
             density_coordinates=coordinates,
             trace_weights_diag=weights,
-            include_all_diagonal=True,
         )
     return DensityProblem(
         hamiltonian,

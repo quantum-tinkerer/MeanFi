@@ -1,2 +1,4 @@
 [run]
 data_file = build/test-reports/.coverage
+branch = True
+omit = meanfi/tests/*

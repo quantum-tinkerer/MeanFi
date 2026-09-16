@@ -28,11 +28,6 @@ def solve_periodic(
     coordinates = problem.density_coordinates
     ndof = problem.electron_ndof
     q_diag = None if ndof is None else charge_diagonal(ndof)
-    weights = (
-        np.ones(coordinates.size)
-        if ndof is None
-        else np.r_[np.ones(ndof), np.zeros(ndof)]
-    )
     prescribed = integration.nk is not None
     filling_tol = tolerances.filling_residual
     evaluator = _Evaluator(
@@ -41,10 +36,9 @@ def solve_periodic(
         integration=integration,
         coordinates=coordinates,
         q_diag=q_diag,
-        trace_weights=weights,
         tolerances=tolerances,
         sparse_layout=problem.sparse_layout,
-        filling_tol=None if filling is None else filling_tol,
+        fixed_filling=filling is not None,
         compute_entropy=compute_entropy,
     )
     starting_nk = integration.nk if prescribed else integration.initial_nk
@@ -101,17 +95,18 @@ def solve_periodic(
             break
         if dimension == 0:
             density_error = np.zeros(integral.values.size)
-            charge_error = energy_error = 0.0
+            charge_error = 0.0 if filling is not None else None
+            energy_error = 0.0 if integral.band_energy is not None else None
             entropy_error = 0.0 if compute_entropy else None
             break
         if previous is not None:
             density_error, charge_error, energy_error, entropy_error = integral.errors(
                 parent
             )
-            if (
-                np.max(density_error, initial=0.0)
-                <= tolerances.density_matrix_integration
-                and charge_error <= tolerances.charge_integration
+            if np.max(
+                density_error, initial=0.0
+            ) <= tolerances.density_matrix_integration and (
+                filling is None or charge_error <= tolerances.charge_integration
             ):
                 break
         if (
@@ -128,13 +123,10 @@ def solve_periodic(
         previous = grid
         n *= 2
         refinements += 1
-    values, charge = integral.values, integral.charge
-    if filling is not None and abs(charge - filling) > filling_tol:
-        raise RuntimeError(
-            "UniformGrid density recomputation did not satisfy the filling tolerance: "
-            f"residual={abs(charge - filling)}, filling_tol={filling_tol}. "
-            'Use dtype="complex128" or tighten the matrix-function accuracy.'
-        )
+    entries = _DensityEntries(coordinates, integral.values, density_error)
+    charge = root.charge if filling is not None else integral.charge
+    if charge is None:
+        charge = entries.trace(ndof)
     work = evaluator.work
     info = IntegrationInfo(
         requested_nk=integration.nk,
@@ -150,14 +142,14 @@ def solve_periodic(
         spectrum_bytes=work.spectrum_bytes,
     )
     return DensityResult(
-        entries=_DensityEntries(coordinates, values, density_error),
+        entries=entries,
         mu=resolved_mu,
         filling=charge,
         errors=ErrorValues(
             density_matrix_integration=None
             if density_error is None
             else float(np.max(density_error, initial=0.0)),
-            charge_integration=charge_error,
+            charge_integration=charge_error if filling is not None else None,
             band_energy_integration=energy_error,
             entropy=None
             if entropy_error is None

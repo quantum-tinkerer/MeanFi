@@ -158,7 +158,9 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(
     grid = mf.UniformGrid(
         matrix_function=mf.RationalFOE() if use_sparse else mf.DirectDiagonalization(),
     )
-    result = mf.solver(model, guess, integration=grid, tol=1e-9)
+    result = mf.solver(
+        model, guess, integration=grid, tol=1e-9, compute_free_energy=True
+    )
 
     # Independent positive gap: x = V * (tanh(x / (2 kT)) / 2 + reference_pairing).
     gap = brentq(

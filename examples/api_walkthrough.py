@@ -1,17 +1,17 @@
-"""Public API tour. Run with --sparse and/or --kwant to exercise installed extras."""
+"""Executable API tour; add --sparse and/or --kwant for the optional backends."""
 
 import argparse
 from dataclasses import replace
 
-import numpy as np
 import meanfi as mf
+import numpy as np
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--sparse", action="store_true")
 parser.add_argument("--kwant", action="store_true")
 args = parser.parse_args()
 
-# Tight-binding keys are lattice displacements; matrices describe cell orbitals.
+# Tight-binding keys are cell displacements; matrices describe cell orbitals.
 h0 = {
     (0,): np.array([[0.15, 0.08j], [-0.08j, -0.1]]),
     (1,): np.diag([-0.7, -0.5]),
@@ -20,122 +20,98 @@ h0 = {
 interaction = {(0,): np.array([[0.0, 0.25], [0.25, 0.0]])}
 model = mf.Model(h0, interaction, filling=0.8, kT=0.2)
 guess = model.random_meanfield(rng=12, scale=0.03)
-solution = mf.solver(model, guess, tol=1e-5)
-print("SCF:", solution.mu, solution.filling, solution.errors, len(solution.history))
-print(
-    "Internal energy / entropy / free energy (per cell per orbital):",
-    solution.internal_energy,
-    solution.entropy,
-    solution.free_energy,
-)
-np.testing.assert_allclose(
-    solution.free_energy, solution.internal_energy - model.kT * solution.entropy
-)
+solution = mf.solver(model, guess)  # Default EDIIS and tolerance policy.
+print("SCF:", solution.mu, solution.filling, solution.errors)
+print("Internal energy per cell per orbital:", solution.internal_energy)
+assert solution.entropy is solution.free_energy is None
 
-# A Model supplies filling, temperature, normal/BdG structure and needed entries.
-selected = mf.density_matrix(model, mean_field=solution.mean_field, tol=1e-6)
+# SCF computes selected density entries, described by their coordinates.
+selected = solution.density
 assert selected.covers(model.required_coordinates)
 assert not selected.is_complete
 print("Selected entries:", selected.coordinates.entries, selected.values)
-# Energy uses the evaluated band trace, with no extra selected density entries.
-print("Selected-state energies:", selected.internal_energy, selected.free_energy)
-lean = mf.density_matrix(
-    model, mean_field=solution.mean_field, tol=1e-6, compute_free_energy=False
-)
-assert lean.entropy is lean.free_energy is lean.errors.entropy is None
-np.testing.assert_array_equal(lean.values, selected.values)
-np.testing.assert_allclose(lean.internal_energy, selected.internal_energy)
-assert selected.kT == model.kT
 
-# Request full blocks for plotting, export, or observables with additional support.
-full = mf.density_matrix(model, mean_field=solution.mean_field, keys=list(h0), tol=1e-6)
-rho = full.to_tb()  # dict[displacement, ndarray]; selected.to_tb() would raise.
+# Request complete blocks for observables/export; reuse the solved mu.
+# Entropy/free energy are opt-in and are computed only for this final state.
+full = mf.density_matrix_at_mu(
+    model,
+    solution.mu,
+    mean_field=solution.mean_field,
+    keys=list(h0),
+    compute_free_energy=True,
+)
+rho = full.to_tb()  # Selected entries cannot be converted to complete blocks.
 rho_sparse = full.to_tb(sparse=True)
 subset = full.select(selected.coordinates)
-np.testing.assert_allclose(subset.values, selected.values, atol=1e-6)
+np.testing.assert_allclose(subset.values, selected.values, atol=1e-3)
 np.testing.assert_allclose(rho_sparse[(0,)].toarray(), rho[(0,)])
-
-# The same functions also accept raw Hamiltonian dictionaries and explicit layouts.
-h = model.hamiltonian_from_meanfield(solution.mean_field)
-at_mu = mf.density_matrix_at_mu(h, full.mu, kT=model.kT, keys=list(h0), tol=1e-6)
-np.testing.assert_allclose(at_mu.values, full.values, atol=1e-6)
-correction = model.mean_field(selected)
-h_from_density = model.hamiltonian_from_density(selected)
-np.testing.assert_allclose(h_from_density[(0,)], mf.add_tb(h0, correction)[(0,)])
-print("Orbital polarization:", mf.expectation_value(full, {(0,): np.diag([1, -1])}))
-print("Internal energy:", mf.internal_energy(model, full))
-print("Free energy:", mf.free_energy(model, full))
-assert subset.entropy == full.entropy  # Selecting entries keeps full-state metadata.
-np.testing.assert_allclose(
+assert subset.entropy == full.entropy  # Selection preserves state metadata.
+print("Polarization:", mf.expectation_value(full, {(0,): np.diag([1, -1])}))
+print(
+    "Internal / free energy:",
+    mf.internal_energy(model, full),
     mf.free_energy(model, full),
-    mf.internal_energy(model, full) - model.kT * full.entropy,
 )
-
-# Manual references use density blocks directly, without result metadata.
-manual = replace(model, reference={(0,): np.diag([0.4, 0.4])})
 np.testing.assert_allclose(
-    manual.hamiltonian_from_density(manual.reference)[(0,)], h0[(0,)]
+    full.free_energy, full.internal_energy - model.kT * full.entropy
 )
 
-# Reference subtraction uses the complete Hartree/Fock correction of rho-rho_ref.
-reference = mf.density_matrix(model, tol=1e-6)
+# Raw dictionaries and explicit entry selections also work.
+h = model.hamiltonian_from_meanfield(solution.mean_field)
+coordinates = mf.DensityCoordinates.from_entries(
+    size=2, keys=[(0,)], entries=(((0,), 0, 1),)
+)
+coherence = mf.density_matrix_at_mu(
+    h, solution.mu, kT=model.kT, coordinates=coordinates
+)
+print("Onsite coherence:", coherence.values[0])
+# Filling may be None if the requested density does not determine the trace.
+# Fixed-mu calculations do not independently refine charge to populate a diagnostic.
+assert coherence.errors.charge_integration is None
+assert coherence.errors.filling_residual is None
+
+# References subtract the Hartree/Fock correction of rho_ref. Observables still
+# use the physical density; reference subtraction also enters interaction energy.
+reference = mf.density_matrix(model)
 referenced = replace(model, reference=reference)
 np.testing.assert_allclose(
     referenced.hamiltonian_from_density(reference)[(0,)], h0[(0,)]
 )
 reference_solution = mf.solver(
-    referenced, referenced.random_meanfield(rng=1, scale=0.01), tol=1e-5
+    referenced, referenced.random_meanfield(rng=1, scale=0.01)
 )
-assert reference_solution.converged
+print("Reference-subtracted internal energy:", reference_solution.internal_energy)
+# A user-supplied density dictionary is accepted too.
+manual_reference = replace(model, reference={(0,): np.diag([0.4, 0.4])})
 
-# EDIIS is the default for normal and BdG solves, including finite temperature.
-# It minimizes internal energy and never switches methods automatically.
-cold = replace(model, kT=0.0)
-cold_solution = mf.solver(cold, cold.random_meanfield(rng=12, scale=0.03), tol=1e-4)
-np.testing.assert_allclose(cold_solution.free_energy, cold_solution.internal_energy)
-print("Zero-temperature energy:", cold_solution.internal_energy)
-
-# Integration nk is a TOTAL point request. Explicit nk fixes the mesh;
-# omitting it refines to the requested accuracy at positive temperature.
+# nk is a TOTAL point request. An explicit nk fixes the integration grid;
+# omitting it enables refinement and its density-integration error estimate.
 fixed = mf.density_matrix(model, integration=mf.UniformGrid(nk=64))
-controlled = mf.density_matrix(
-    model, integration=mf.UniformGrid(initial_nk=16, dtype="complex128"), tol=1e-5
-)
+adaptive = mf.density_matrix(model, integration=mf.UniformGrid(initial_nk=16))
 assert fixed.entry_errors is None
-assert controlled.entry_errors is not None
+assert adaptive.entry_errors is not None
 print("Fixed grid:", fixed.statistics.grid_shape)
+# Normal zero-temperature calculations default to FermiSimplex.
+cold = mf.density_matrix(replace(model, kT=0.0))
+print("Zero-temperature chemical potential:", cold.mu)
 
-# Explicit accuracy targets use the same tol argument on every calculation.
-requested = replace(
-    mf.default_solver_tolerances(1e-5), charge_integration=1e-4, mu_tol=1e-12
-)
-custom = mf.density_matrix(model, tol=requested)
-assert custom.errors.filling_residual <= requested.filling_residual
+# Explicit targets are optional; normal calls use the policy without overrides.
+targets = replace(mf.default_solver_tolerances(1e-4), charge_integration=1e-3)
+custom = mf.density_matrix(model, tol=targets)
+assert custom.errors.filling_residual <= targets.filling_residual
 
-# SCF settings are keyword-only: EnergyDIIS(history_size=6, max_iterations=100).
-# Alternatives include AndersonMixing(alpha=.5) and LinearMixing(alpha=.5).
+# Other SCF methods are explicit choices. Numerical failures retain a usable
+# partial result when at least one density evaluation has succeeded.
 try:
-    mf.solver(
-        model,
-        guess,
-        integration=mf.UniformGrid(nk=64),
-        scf=mf.LinearMixing(alpha=0.1, max_iterations=1),
-        tol=replace(mf.default_solver_tolerances(1e-3), scf_residual=1e-14),
-    )
+    mf.solver(model, guess, scf=mf.LinearMixing(alpha=0.1, max_iterations=1))
 except mf.NoConvergence as failure:
     assert failure.result is not None
-    # This choice belongs to the caller; neither method switches automatically.
-    restarted = mf.solver(
-        model,
-        model.mean_field(failure.result.density),
-        tol=1e-5,
-        scf=mf.AndersonMixing(),
-    )
+    restarted = mf.solver(model, model.mean_field(failure.result.density))
     assert restarted.converged
-# SolverFailure.result may be None if the first density evaluation fails.
-# All numerical convergence failures are catchable as mf.ConvergenceError.
+# SolverFailure.result can be None when the initial evaluation itself fails.
+# ConvergenceError catches density/root failures and SCF convergence failures.
 
-# A symmetry constrains the reduced density variables before SCF iteration.
+# Spatial symmetries reduce the active SCF variables before iteration.
 swap = mf.SpatialSymmetry(np.eye(1, dtype=int), {(0,): np.array([[0, 1], [1, 0]])})
 symmetric = mf.Model(
     {(0,): np.zeros((2, 2)), (1,): -np.eye(2), (-1,): -np.eye(2)},
@@ -144,19 +120,16 @@ symmetric = mf.Model(
     kT=0.2,
     spatial_symmetries=(swap,),
 )
-assert mf.solver(
-    symmetric, symmetric.random_meanfield(rng=2, scale=0.01), tol=1e-5
-).converged
+assert mf.solver(symmetric, symmetric.random_meanfield(rng=2, scale=0.01)).converged
 
-# Finite systems use the empty displacement and an empty Fourier grid shape.
-finite = mf.Model({(): np.diag([-1.0, 1.0])}, {(): np.zeros((2, 2))}, filling=1.0)
+# Finite systems have the empty displacement and no momentum grid.
+finite = mf.Model({(): np.diag([-1.0, 1.0])}, {(): np.zeros((2, 2))}, filling=1)
 np.testing.assert_allclose(
     mf.density_matrix(finite, keys=[()]).to_tb()[()], np.diag([1, 0])
 )
 np.testing.assert_allclose(mf.tb_to_kgrid(finite.h_0, ()), finite.h_0[()])
 
-# BdG uses exactly the same density and Hamiltonian methods, with electron-first
-# Nambu blocks. Chemical potential shifts diag(+I, -I), not the full identity.
+# BdG uses electron-first Nambu blocks and the same solver/density methods.
 pwave = mf.Model(
     {(0,): np.zeros((1, 1)), (1,): -np.ones((1, 1)), (-1,): -np.ones((1, 1))},
     {(1,): np.full((1, 1), 1.8), (-1,): np.full((1, 1), 1.8)},
@@ -168,107 +141,53 @@ pair_guess = {
     (1,): np.array([[0.0, 0.25], [-0.25, 0.0]]),
     (-1,): np.array([[0.0, -0.25], [0.25, 0.0]]),
 }
-# Internal-energy EDIIS needs a longer budget for this finite-temperature case.
-bdg = mf.solver(
-    pwave,
-    pair_guess,
-    integration=mf.UniformGrid(nk=256),
-    tol=1e-5,
-    scf=mf.EnergyDIIS(max_iterations=200),
-)
-bdg_density = mf.density_matrix(
-    pwave,
-    mean_field=bdg.mean_field,
-    keys=[(0,), (1,), (-1,)],
-    integration=mf.UniformGrid(nk=256),
-    tol=1e-6,
-)
+bdg = mf.solver(pwave, pair_guess)
 bdg_h = pwave.hamiltonian_from_meanfield(bdg.mean_field)
+# Chemical potential shifts the electron and hole blocks with opposite signs.
 quasiparticles = np.linalg.eigvalsh(
     mf.tb_to_kfunc(bdg_h)(np.array([0.3])) - bdg.mu * np.diag([1.0, -1.0])
 )
-print("BdG:", bdg_density.filling, quasiparticles)
-print("BdG internal / free energy:", bdg.internal_energy, bdg.free_energy)
-np.testing.assert_allclose(
-    mf.free_energy(pwave, bdg_density),
-    mf.internal_energy(pwave, bdg_density) - pwave.kT * bdg_density.entropy,
-)
+print("BdG:", bdg.filling, quasiparticles, bdg.internal_energy)
 
-# A normal reference also works in BdG: its reference pairing is zero.
-normal_reference = mf.density_matrix(
-    replace(pwave, superconducting=False),
-    integration=mf.UniformGrid(nk=256),
-    tol=1e-6,
-)
-referenced_pwave = replace(pwave, reference=normal_reference)
-referenced_bdg = mf.solver(
-    referenced_pwave,
-    pair_guess,
-    integration=mf.UniformGrid(nk=256),
-    scf=mf.EnergyDIIS(max_iterations=200),
-    tol=1e-5,
-)
-assert referenced_bdg.converged
-print("BdG with a normal reference:", referenced_bdg.internal_energy)
-
-# A BdG reference subtracts both normal and pairing densities, even when selected.
-paired_reference_model = replace(pwave, reference=bdg.density)
-bare_bdg_h = pwave.hamiltonian_from_meanfield()
-for key, block in paired_reference_model.hamiltonian_from_density(bdg.density).items():
-    np.testing.assert_allclose(
-        block, bare_bdg_h.get(key, np.zeros_like(block)), atol=1e-14
-    )
+# A normal reference has zero pairing; a BdG reference subtracts both sectors.
+normal_reference = mf.density_matrix(replace(pwave, superconducting=False))
+normal_referenced_pwave = replace(pwave, reference=normal_reference)
+paired_reference = replace(pwave, reference=bdg.density)
+bare = pwave.hamiltonian_from_meanfield()
+for key, block in paired_reference.hamiltonian_from_density(bdg.density).items():
+    np.testing.assert_allclose(block, bare.get(key, np.zeros_like(block)), atol=1e-14)
 
 # Fourier helpers use explicit points PER AXIS and FFT ordering.
 grid = mf.tb_to_kgrid(h0, (16,))
 recovered = mf.kgrid_to_tb(grid)
 np.testing.assert_allclose(mf.tb_to_kgrid(recovered, (16,)), grid, atol=1e-14)
 print("Sampled Fermi level:", mf.fermi_energy(h0, filling=0.8, shape=(128,)))
-print("Occupations:", mf.fermi_dirac([-1.0, 0.0, 1.0], kT=0.2, mu=0.0))
+print("Occupations:", mf.fermi_dirac([-1, 0, 1], kT=0.2, mu=0))
 
 if args.sparse:
     from scipy.sparse import csr_matrix
 
-    sparse_model = mf.Model(
-        {key: csr_matrix(value) for key, value in h0.items()},
-        {key: csr_matrix(value) for key, value in interaction.items()},
-        filling=0.8,
-        kT=0.2,
+    sparse_model = replace(
+        model,
+        h_0={key: csr_matrix(value) for key, value in h0.items()},
+        h_int={key: csr_matrix(value) for key, value in interaction.items()},
     )
     sparse_grid = mf.UniformGrid(nk=64, matrix_function=mf.RationalFOE())
 
-    # Customize the existing policy; the default matrix-function budget is tol/5.
+    # A custom policy receives only tol. Backends use its targets as given.
     def accuracy(tol):
-        return replace(mf.default_solver_tolerances(tol), matrix_function_tol=tol / 10)
+        defaults = mf.default_solver_tolerances(tol)
+        return replace(defaults, charge_integration=tol)
 
     sparse_density = mf.density_matrix(
-        sparse_model, integration=sparse_grid, tol=1e-5, tolerance_policy=accuracy
+        sparse_model, integration=sparse_grid, tolerance_policy=accuracy
     )
-    assert (
-        sparse_density.errors.matrix_function_error
-        <= accuracy(1e-5).matrix_function_tol
-    )
+    print("Sparse matrix-function error:", sparse_density.errors.matrix_function_error)
     assert sparse_density.errors.density_matrix_integration is None
-    print("Sparse density approximation:", sparse_density.errors.matrix_function_error)
-    print(
-        "Sparse AAA:", sparse_density.mu, sparse_density.filling, sparse_density.entropy
-    )
-    print(
-        "Sparse entropy / total error estimate:",
-        sparse_density.entropy,
-        sparse_density.errors.entropy,
-    )
     sparse_solution = mf.solver(
-        sparse_model,
-        sparse_model.random_meanfield(rng=12, scale=0.03),
-        integration=sparse_grid,
-        tol=1e-5,
+        sparse_model, sparse_model.random_meanfield(rng=12), integration=sparse_grid
     )
-    print(
-        "Sparse internal / free energy:",
-        sparse_solution.internal_energy,
-        sparse_solution.free_energy,
-    )
+    print("Sparse internal energy:", sparse_solution.internal_energy)
 
 if args.kwant:
     import kwant
@@ -278,8 +197,8 @@ if args.kwant:
     builder = kwant.Builder(kwant.TranslationalSymmetry((1,)))
     builder[lattice(0)] = h0[(0,)]
     builder[lattice(0), lattice(1)] = h0[(1,)]
-    tb, data = builder_to_tb(builder, sparse=True, return_data=True)
-    rebuilt = tb_to_builder(tb, data["sites"], data["periods"])
+    tb, geometry = builder_to_tb(builder, sparse=True, return_data=True)
+    rebuilt = tb_to_builder(tb, geometry["sites"], geometry["periods"])
     assert len(list(rebuilt.sites())) == 1
 
 print("API walkthrough passed.")

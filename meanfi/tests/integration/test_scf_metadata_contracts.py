@@ -111,5 +111,5 @@ def test_solver_verbose_prints_scf_progress(capsys):
     assert all(
         "internal_energy=" in line and "free_energy=" not in line for line in progress
     )
-    assert output.count("free_energy=") == 1
-    assert output.splitlines()[-1].startswith("scf converged:")
+    assert "free_energy=" not in output
+    assert output.splitlines()[-1].startswith("scf step=")

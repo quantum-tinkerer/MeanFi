@@ -103,7 +103,6 @@ cxx-compiler = ">=1.11.0,<2"
 pytest = ">=8.3.4,<9"
 pytest-cov = ">=6.0.0,<7"
 pytest-randomly = ">=3.15.0,<4"
-pytest-regressions = "*"
 ruff = ">=0.9.6,<0.10"
 
 [tool.pixi.feature.test.pypi-dependencies]
@@ -152,13 +151,6 @@ pip = "*"
 [tool.pixi.feature.publish.dependencies]
 twine = ">=6"
 
-[tool.pixi.feature.performance.dependencies]
-matplotlib-base = ">=3.8.4,<3.9"
-pyinstrument = "*"
-
-[tool.pixi.feature.performance.pypi-dependencies]
-memray = "*"
-
 [tool.pixi.pypi-dependencies]
 meanfi = { path = ".", editable = true }
 
@@ -170,16 +162,16 @@ test-py312 = { features = ["py312", "test", "build"], solve-group = "py312" }
 test-py313 = { features = ["py313", "test"], solve-group = "py313" }
 test-sparse = { features = ["py312", "test", "build", "sparse", "kwant"], solve-group = "py312" }
 docs = { features = ["py312", "docs", "sparse"], solve-group = "py312" }
-performance = { features = ["py312", "performance", "sparse"], solve-group = "py312" }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["py312", "build", "publish"], no-default-feature = true }
 
 [tool.pixi.feature.test.tasks]
-tests = { cmd = "pytest -m \"not performance and not perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
+tests = { cmd = "pytest -m \"not perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 tests-perf-slow = { cmd = "pytest -m \"perf_slow\" -W error -W ignore:ast.NameConstant:DeprecationWarning", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 
 
 [tool.pixi.tasks]
+benchmark = { cmd = "python performance/benchmark.py", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 tests-py311 = "pixi run -e test-py311 tests"
 tests-py312 = "pixi run -e test-py312 tests"
 tests-py313 = "pixi run -e test-py313 tests"
@@ -187,15 +179,7 @@ tests-sparse = "pixi run -e test-sparse tests"
 tests-all = { depends-on = ["tests-py311", "tests-py312", "tests-py313", "tests-sparse"] }
 
 [tool.pixi.feature.docs.tasks]
-docs-build = { cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\"", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
-
-[tool.pixi.feature.performance.tasks]
-performance-density-scaling = "python -m performance.benchmarks.density_scaling --profile quick --output performance/results/density_scaling.json"
-performance-density-scaling-manual = "python -m performance.benchmarks.density_scaling --profile full --output performance/results/manual/density_scaling.json --plot-dir performance/results/manual/plots"
-performance-scf-scaling = "python performance/benchmarks/scf_scaling.py --output performance/results/scf_scaling.json"
-performance-profile-density = "python -m memray run -o performance/results/hubbard_1d_density_profile.bin performance/profiling/hubbard_1d_density.py --output performance/results/hubbard_1d_density_profile.json && python -m memray stats performance/results/hubbard_1d_density_profile.bin"
-performance-profile-scf = "python -m memray run -o performance/results/hubbard_1d_scf_profile.bin performance/profiling/hubbard_1d_scf.py --output performance/results/hubbard_1d_scf_profile.json && python -m memray stats performance/results/hubbard_1d_scf_profile.bin"
-performance-profile-qwz-density = "python -m memray run -o performance/results/qiwuzhang_2d_density_profile.bin performance/profiling/qwz_2d_density.py --output performance/results/qiwuzhang_2d_density_profile.json && python -m memray stats performance/results/qiwuzhang_2d_density_profile.bin"
+docs-build = { cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-E -a -WT --keep-going -n\"", env = { OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1", MKL_DYNAMIC = "FALSE", MKL_NUM_THREADS = "1" } }
 
 [tool.pixi.feature.precommit.tasks]
 git = "git"
@@ -203,9 +187,6 @@ pre-commit = "pre-commit"
 
 [tool.pixi.feature.build.tasks]
 build = "python -m build --no-isolation"
-check-wheel = "python tools/check_wheel.py"
-check-install = "python tools/check_wheel.py --clean"
-check-wheel-sparse = "python tools/check_wheel.py --sparse"
 
 [tool.pixi.feature.publish.tasks]
 publish = "twine upload dist/*"
