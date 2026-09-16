@@ -82,10 +82,19 @@ Without a reference, $\delta\rho=\rho$. A reference changes the interaction
 functional; the one-body energy still uses the actual density. The returned
 energy is not an energy difference from the reference state.
 
-With `superconducting=True`, the calculation also retains anomalous pairing
-densities in an electron-first, $2N\times2N$ Bogoliubov–de Gennes representation.
-Filling and normalization still count the $N$ physical orbitals. See the
-[API guide](../meanfi.md) for normal and superconducting references.
+With `superconducting=True`, the electron-first Nambu density contains
+$\kappa_{ij}=\langle c_j c_i\rangle$ in its upper-right block. The pairing correction
+is $\Delta_{ij}=v_{ij}\delta\kappa_{ij}$, where a normal reference has zero pairing.
+For a finite system the interaction energy is
+
+:::{math}
+u_{\mathrm{int}}=\frac{1}{2N}\sum_{ij}v_{ij}
+\left(\delta n_i\delta n_j-|\delta\rho_{ij}|^2+|\delta\kappa_{ij}|^2\right).
+:::
+
+Thus negative interaction coefficients favor pairing. The Bogoliubov–de Gennes
+matrices have size $2N\times2N$, but filling and normalization still count the $N$
+physical orbitals. See the [API guide](../meanfi.md) for reference inputs.
 
 (theory-filling)=
 ## Self-consistency

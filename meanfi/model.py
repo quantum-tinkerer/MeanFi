@@ -30,6 +30,9 @@ class Model:
     Public matrix containers share read-only arrays with owned storage; replacing
     their arrays cannot change the model. Use ``dataclasses.replace`` for changes.
 
+    Positive ``h_int`` coefficients are repulsive; negative ones are attractive,
+    including in the superconducting pairing channel.
+
     ``reference`` subtracts the normal and pairing reference densities from
     the mean-field correction. A normal reference has zero pairing in a BdG
     model. Filling counts electrons per unit cell.

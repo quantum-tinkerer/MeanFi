@@ -13,7 +13,8 @@ kernelspec:
 # Chiral $p$-wave superconductivity
 
 Set `superconducting=True` to solve for pairing alongside the normal mean field.
-This spinless square-lattice example starts from a chiral $p_x+i p_y$ guess.
+This spinless square-lattice example uses attractive nearest-neighbor interactions
+(`h_int < 0`) and starts from a chiral $p_x+i p_y$ guess.
 
 ## Define the model
 
@@ -24,7 +25,7 @@ import numpy as np
 
 bonds = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 h_0 = {(0, 0): np.zeros((1, 1)), **{key: -0.5 * np.eye(1) for key in bonds}}
-h_int = {key: np.ones((1, 1)) for key in bonds}
+h_int = {key: -np.ones((1, 1)) for key in bonds}
 model = meanfi.Model(h_0, h_int, filling=0.5, kT=0.04, superconducting=True)
 ```
 

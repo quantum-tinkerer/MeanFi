@@ -88,11 +88,9 @@ def interaction_correction(
         key: matrix[:ndof, ndof:] for key, matrix in density_matrix.items()
     }
     normal_block = _normal_correction(electron_density, h_int)
+    # kappa_ij = <c_j c_i>; Wick contraction gives Delta_ij = V_ij kappa_ij.
     anomalous_block = {
-        key: -elementwise_product(
-            interaction,
-            anomalous_density[key],
-        )
+        key: elementwise_product(interaction, anomalous_density[key])
         for key, interaction in h_int.items()
     }
     anomalous_block = _antisymmetrize_anomalous_block(anomalous_block, ndof)

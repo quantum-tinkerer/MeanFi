@@ -138,7 +138,7 @@ np.testing.assert_allclose(mf.tb_to_kgrid(finite.h_0, ()), finite.h_0[()])
 # BdG uses electron-first Nambu blocks and the same solver/density methods.
 pwave = mf.Model(
     {(0,): np.zeros((1, 1)), (1,): -np.ones((1, 1)), (-1,): -np.ones((1, 1))},
-    {(1,): np.full((1, 1), 1.8), (-1,): np.full((1, 1), 1.8)},
+    {(1,): np.full((1, 1), -1.8), (-1,): np.full((1, 1), -1.8)},
     filling=0.35,
     kT=0.08,
     superconducting=True,

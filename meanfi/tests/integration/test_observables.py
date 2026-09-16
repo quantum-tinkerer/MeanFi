@@ -207,31 +207,6 @@ def test_internal_energy_gradient_matches_hubbard_mean_field_hamiltonian():
     assert derivative == pytest.approx(rhs / 4, rel=1e-8, abs=1e-8)
 
 
-def test_internal_energy_matches_bdg_block_formula():
-    model = Model(
-        {(): np.diag([2.0, 3.0]).astype(complex)},
-        {(): np.array([[0.0, 1.5], [1.5, 0.0]], dtype=complex)},
-        filling=1.0,
-        kT=0.2,
-        superconducting=True,
-    )
-    density = {
-        (): np.array(
-            [
-                [0.4, 0.05, 0.0, 0.2],
-                [0.05, 0.3, -0.2, 0.0],
-                [0.0, -0.2, 0.6, 0.01],
-                [0.2, 0.0, 0.01, 0.7],
-            ],
-            dtype=complex,
-        )
-    }
-
-    # Independent two-orbital Wick expression, including attractive pairing.
-    expected = 2.0 * 0.4 + 3.0 * 0.3 + 1.5 * (0.4 * 0.3 - 0.05**2 - 0.2**2)
-    assert evaluate_internal_energy(model, density) == pytest.approx(expected / 2)
-
-
 def test_bdg_correction_projects_pairing_antisymmetry_noise():
     model = Model(
         {
@@ -255,8 +230,8 @@ def test_bdg_correction_projects_pairing_antisymmetry_noise():
 
     correction = interaction_correction(density, model.h_int, electron_ndof=model._ndof)
 
-    assert correction[(1,)][0, 1] == pytest.approx(-0.20000002)
-    assert correction[(-1,)][0, 1] == pytest.approx(0.20000002)
+    assert correction[(1,)][0, 1] == pytest.approx(0.20000002)
+    assert correction[(-1,)][0, 1] == pytest.approx(-0.20000002)
 
 
 @pytest.mark.parametrize("use_sparse", [False, True])

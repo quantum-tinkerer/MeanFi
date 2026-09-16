@@ -63,16 +63,16 @@ def test_bdg_reference_energy_and_hamiltonian(
         density = density.select(energy_coordinates)
 
     dn, dk = normal - ref_normal, pairing - ref_pairing
-    # Explicit Wick polynomial in the density differences, in MeanFi's pairing convention.
+    # Wick energy: normal exchange is negative and the pairing term is positive.
     expected_energy = (
         np.trace(h0 @ normal).real
         + interaction
-        * (dn[0, 0].real * dn[1, 1].real - abs(dn[0, 1]) ** 2 - abs(dk[0, 1]) ** 2)
+        * (dn[0, 0].real * dn[1, 1].real - abs(dn[0, 1]) ** 2 + abs(dk[0, 1]) ** 2)
     ) / 2
     normal_h = h0 + interaction * np.array(
         [[dn[1, 1], -dn[0, 1]], [-dn[1, 0], dn[0, 0]]]
     )
-    gap = -interaction * dk
+    gap = interaction * dk
     expected_h = np.block([[normal_h, gap], [gap.conj().T, -normal_h.T]])
 
     with monkeypatch.context() as patch:
@@ -129,7 +129,7 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(
 ):
     if use_sparse:
         pytest.importorskip("mumps")
-    interaction, temperature, onsite = 1.6, 0.15, 0.23
+    attraction, temperature, onsite = 1.6, 0.15, 0.23
     phase = np.exp(0.37j)
     ref_amplitude = 0.0 if normal_reference else 0.05
     normal = 0.5 * np.eye(2)
@@ -142,7 +142,7 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(
     if manual_reference:
         reference = reference.to_tb(sparse=use_sparse)
     h0 = {(): onsite * np.eye(2)}
-    hint = {(): np.array([[0.0, interaction], [interaction, 0.0]])}
+    hint = {(): np.array([[0.0, -attraction], [-attraction, 0.0]])}
     if use_sparse:
         h0 = {key: sparse.csr_matrix(value) for key, value in h0.items()}
         hint = {key: sparse.csr_matrix(value) for key, value in hint.items()}
@@ -162,15 +162,16 @@ def test_reference_bdg_ediis_matches_scalar_gap_equation(
         model, guess, integration=grid, tol=1e-9, compute_free_energy=True
     )
 
-    # Independent positive gap: x = V * (tanh(x / (2 kT)) / 2 + reference_pairing).
+    # For U < 0, the positive gap obeys
+    # x = |U| * (tanh(x / (2 kT)) / 2 + reference_pairing).
     gap = brentq(
         lambda x: x
-        - interaction * (0.5 * np.tanh(x / (2 * temperature)) + ref_amplitude),
+        - attraction * (0.5 * np.tanh(x / (2 * temperature)) + ref_amplitude),
         1e-5,
-        interaction,
+        attraction,
         xtol=1e-14,
     )
-    expected_energy = onsite / 2 - gap**2 / (2 * interaction)
+    expected_energy = onsite / 2 - gap**2 / (2 * attraction)
     occupation = expit(-gap / temperature)
     expected_entropy = entr(occupation) + entr(1 - occupation)
     assert result.converged and len(result.history) > 1

@@ -241,7 +241,7 @@ def test_scf_interaction_functional_matches_exact_two_orbital_energy(kind):
             * (
                 electron[0, 0].real * electron[1, 1].real
                 - abs(electron[0, 1]) ** 2
-                - pairing
+                + pairing
             )
             / 2
         )

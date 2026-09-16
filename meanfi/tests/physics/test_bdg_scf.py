@@ -103,7 +103,7 @@ def _dense_bdg_scf_reference(
 
 def test_bdg_solver_matches_1d_nonlocal_odd_parity_reference():
     hopping = 1.0
-    coupling = 1.8
+    coupling = -1.8
     filling = 0.35
     kT = 0.08
 
