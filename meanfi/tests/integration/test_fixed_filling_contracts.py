@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 import scipy.sparse as sp
@@ -91,10 +93,10 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
 
 
 def test_explicit_density_tolerance_sets_charge_but_preserves_filling_residual():
-    from meanfi.errors import resolve_integration_tolerances, default_solver_tolerances
-
-    tolerances = resolve_integration_tolerances(
-        UniformGrid(density_matrix_tol=1e-8), default_solver_tolerances(1e-3)
+    tolerances = replace(
+        default_solver_tolerances(1e-3),
+        density_matrix_integration=1e-8,
+        charge_integration=None,
     )
     assert tolerances.charge_integration == pytest.approx(1e-8)
     assert tolerances.filling_residual == pytest.approx(1e-4)
@@ -107,9 +109,10 @@ def test_periodic_grid_accepts_finite_temperature_fixed_filling_controls():
         kT=0.15,
         keys=[(0,)],
         integration=UniformGrid(nk=8),
-        filling_tol=1e-2,
-        mu_tol=1e-8,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-2, mu_tol=1e-8
+        ),
     )
 
     assert np.isfinite(result.mu)
@@ -140,8 +143,8 @@ def test_periodic_grid_default_filling_tol_matches_explicit_default():
         kT=0.15,
         keys=[(0,)],
         integration=integration,
-        mu_tol=1e-8,
         max_charge_evaluations=80,
+        tol=replace(default_solver_tolerances(1e-3), mu_tol=1e-8),
     )
     explicit = density_matrix(
         spinful_chain(),
@@ -149,9 +152,10 @@ def test_periodic_grid_default_filling_tol_matches_explicit_default():
         kT=0.15,
         keys=[(0,)],
         integration=integration,
-        filling_tol=explicit_tol,
-        mu_tol=1e-8,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=explicit_tol, mu_tol=1e-8
+        ),
     )
 
     assert implicit.mu == pytest.approx(explicit.mu)

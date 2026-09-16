@@ -1,3 +1,6 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
+
 # %% Imports
 import kwant
 import matplotlib.pyplot as plt
@@ -70,7 +73,7 @@ h_int = utils.builder_to_tb(builder_int, params=params)
 
 int_keys = frozenset(h_int)
 ndof = len(next(iter(h_0.values())))
-integration = meanfi.FermiSimplex(density_matrix_tol=density_atol)
+integration = meanfi.FermiSimplex()
 
 
 # %% Single solve
@@ -84,8 +87,13 @@ result = meanfi.solver(
     scf=meanfi.AndersonMixing(
         history_size=0, line_search="wolfe", max_iterations=max_iterations
     ),
-    scf_tol=scf_tol,
-    filling_tol=charge_tol,
+    tol=replace(
+        default_solver_tolerances(1e-3),
+        density_matrix_integration=density_atol,
+        charge_integration=density_atol,
+        scf_residual=scf_tol,
+        filling_residual=charge_tol,
+    ),
 )
 h_full = meanfi.add_tb(h_0, result.mean_field)
 
@@ -102,14 +110,24 @@ rho_result = meanfi.density_matrix(
     filling=filling,
     keys=[(0, 0)],
     integration=integration,
-    filling_tol=charge_tol,
+    tol=replace(
+        default_solver_tolerances(1e-3),
+        density_matrix_integration=density_atol,
+        charge_integration=density_atol,
+        filling_residual=charge_tol,
+    ),
 )
 rho_0_result = meanfi.density_matrix(
     h_0,
     filling=filling,
     keys=[(0, 0)],
     integration=integration,
-    filling_tol=charge_tol,
+    tol=replace(
+        default_solver_tolerances(1e-3),
+        density_matrix_integration=density_atol,
+        charge_integration=density_atol,
+        filling_residual=charge_tol,
+    ),
 )
 
 rho = rho_result.to_tb()
@@ -157,8 +175,13 @@ for U in Us:
                 line_search="wolfe",
                 max_iterations=max_iterations,
             ),
-            scf_tol=scf_tol,
-            filling_tol=charge_tol,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=density_atol,
+                charge_integration=density_atol,
+                scf_residual=scf_tol,
+                filling_residual=charge_tol,
+            ),
         )
         mf_sols.append(result.mean_field)
 
@@ -188,7 +211,12 @@ for mf_sol in mf_sols.flatten():
         filling=filling,
         keys=[(0, 0)],
         integration=integration,
-        filling_tol=charge_tol,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=density_atol,
+            charge_integration=density_atol,
+            filling_residual=charge_tol,
+        ),
     ).to_tb()
 
     cdw_list.append(np.abs(meanfi.expectation_value(rho, cdw_operator)) ** 2)

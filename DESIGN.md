@@ -11,6 +11,10 @@ filling -> SCF update.
 - `Model` owns immutable physical inputs, the reference density, the bare
   normal/BdG Hamiltonian, and a private reduced density space. Its public
   `required_coordinates` describes the entries needed by the interaction.
+- Physical inputs are validated once at public boundaries: interaction coefficients
+  are real, and corrections match the model shape, lattice and Hermiticity.
+  `Model.mean_field(density)` is the public correction operation for normal/BdG
+  and reference-subtracted models. SCF uses the same interaction map internally.
 - `meanfield.py` implements the linear interaction correction and its quadratic
   energy contraction. Observables and SCF use these same operations.
 - `DensityCoordinates` describes entry addresses; slices are derived from them.
@@ -22,6 +26,9 @@ filling -> SCF update.
 - `space/` builds one compact representation of Hermiticity and pairing
   antisymmetry. General spatial constraints materialize that same representation
   as a basis and reduce it further. The common path has linear storage.
+  Spatial transformations have an invertible integer lattice map and a unitary
+  combined Fourier symbol. Rank decisions use the unit scale of these constraints
+  so roundoff in an identity action cannot remove physical density directions.
 - A Model owns temperature and filling; calls with a Model cannot override
   them. Use a replaced Model to change physical inputs. All method settings
   are keyword-only and all integration methods return `IntegrationInfo`.
@@ -38,8 +45,9 @@ filling -> SCF update.
 
 For each momentum, the density is the Fermi function of `A = H(k) - mu Q`. `Q = I`
 normally; BdG uses the electron/hole charge diagonal. Filling searches use a bracket
-and verify the charge residual. A small chemical-potential step alone does not
-establish convergence.
+and verify the charge residual. A supplied chemical-potential guess is checked
+before constructing a bracket; an accepted guess needs only one charge evaluation.
+A small chemical-potential step alone does not establish convergence.
 
 Normal zero-temperature calculations use `FermiSimplex`. `UniformGrid` supports
 normal and BdG models, with direct diagonalization or positive-temperature sparse
@@ -106,7 +114,9 @@ curvature; reference offsets cancel. A small history objective is prepared once 
 update. Entropy and free energy do not enter the optimization. SCF stops on the
 largest reconstructed complex density-entry residual, or raises at its iteration
 limit. Users explicitly compose solver calls to change methods. Failures retain the
-last accepted result when available.
+last accepted result when available. An SCF result retains the exact input
+correction that produced its density; `model.mean_field(result.density)` computes
+the next correction. These coincide only at a fixed point.
 
 ## Units, accuracy, and verification
 
@@ -115,11 +125,18 @@ orbital: a 2N-dimensional BdG Hamiltonian has N physical orbitals. Entropy is in
 units of Boltzmann's constant; free energy is `internal_energy - kT * entropy`.
 Generic observable contractions remain raw traces per cell.
 
+All numerical targets belong to `ErrorTolerances`, including the chemical-potential
+step tolerance. Public calls accept either a numeric `tol` through the existing
+policy, or a complete `ErrorTolerances` record as `tol`. An explicit record cannot
+be combined with a custom policy. Integration methods configure mesh, backend and
+resource limits only. Prescribed meshes do not apply integration targets.
+
 The existing tolerance policy assigns `tol/5` to density integration, charge
 integration and matrix-function approximation, `tol/10` to filling residual, and
-`tol` to SCF residual. An explicit density target also supplies an omitted charge
-target; users can override charge independently. Energy and entropy have no accuracy
-targets. Unavailable error estimates are `None`. The entropy estimate is diagnostic and never controls convergence.
+`tol` to SCF residual. An omitted charge target in an explicitly constructed
+tolerance record follows its density target; both remain independently adjustable.
+Energy and entropy have no accuracy targets. Unavailable error estimates are
+`None`. The entropy estimate is diagnostic and never controls convergence.
 
 Numerical changes are checked against exact finite systems or independently
 converged dense references, including complex pairing phases, reference subtraction,

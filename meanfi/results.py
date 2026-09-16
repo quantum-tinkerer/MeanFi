@@ -37,6 +37,8 @@ def _readonly_vector(values, *, dtype, name: str) -> np.ndarray:
     array = np.array(values, dtype=dtype, copy=True)
     if array.ndim != 1:
         raise ValueError(f"{name} must be one-dimensional")
+    if not np.all(np.isfinite(array)):
+        raise ValueError(f"{name} must be finite")
     array.setflags(write=False)
     return array
 
@@ -63,7 +65,7 @@ class _DensityEntries:
             errors = _readonly_vector(self.errors, dtype=float, name="density errors")
             if errors.size != values.size:
                 raise ValueError("density errors do not match their coordinate layout")
-            if np.any(~np.isfinite(errors)) or np.any(errors < 0.0):
+            if np.any(errors < 0.0):
                 raise ValueError("density errors must be finite and non-negative")
             object.__setattr__(self, "errors", errors)
 
@@ -184,7 +186,12 @@ class SCFIteration:
 
 @dataclass(frozen=True)
 class SCFResult:
-    """A self-consistent mean-field state, or the last valid partial state."""
+    """An evaluated Hamiltonian/density pair, converged or the last valid state.
+
+    ``mean_field`` is the input correction that produced ``density``. The next
+    correction is ``model.mean_field(result.density)``; on nonconvergence it may
+    differ substantially from the input correction.
+    """
 
     density: DensityResult
     mean_field: _tb_type

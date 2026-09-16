@@ -23,7 +23,6 @@ def evaluate_density(
     *,
     mu: float | None = None,
     filling: float | None = None,
-    mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
     mu_guess: float = 0.0,
     compute_entropy: bool = False,
@@ -37,8 +36,6 @@ def evaluate_density(
         )
     if mu is not None and not math.isfinite(mu):
         raise ValueError("mu must be finite")
-    if not math.isfinite(mu_tol) or mu_tol <= 0:
-        raise ValueError("mu_tol must be positive and finite")
     if max_charge_evaluations is not None and (
         isinstance(max_charge_evaluations, bool)
         or not isinstance(max_charge_evaluations, Integral)
@@ -57,7 +54,7 @@ def evaluate_density(
             problem,
             mu=mu,
             filling=filling,
-            mu_tol=mu_tol,
+            mu_tol=problem.tolerances.mu_tol,
             max_charge_evaluations=max_charge_evaluations,
             mu_guess=mu_guess,
             compute_entropy=compute_entropy,

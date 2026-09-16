@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 
@@ -29,7 +31,7 @@ def test_graphene_kwant_end_to_end_regression():
         model,
         guess,
         scf=AndersonMixing(history_size=0, max_iterations=40),
-        scf_tol=5e-4,
+        tol=replace(default_solver_tolerances(1e-3), scf_residual=5e-4),
     )
     density_result = density_matrix(
         add_tb(h_0, result.mean_field),
@@ -56,7 +58,7 @@ def test_solver_supports_anderson_mixing():
         model,
         guess,
         scf=AndersonMixing(history_size=0, line_search="wolfe", max_iterations=8),
-        scf_tol=1e-8,
+        tol=replace(default_solver_tolerances(1e-3), scf_residual=1e-8),
     )
 
     assert result.history
@@ -143,7 +145,7 @@ def test_zero_temperature_model_solver_workflow_supports_zero_interaction():
         model,
         guess,
         scf=LinearMixing(),
-        scf_tol=1e-3,
+        tol=replace(default_solver_tolerances(1e-3), scf_residual=1e-3),
     )
 
     assert abs(result.mu) < 1e-3
@@ -180,7 +182,7 @@ def test_default_mixer_handles_reference_restart_and_spatial_symmetry():
             model.random_meanfield(rng=12, scale=0.03),
             integration=UniformGrid(nk=64),
             scf=LinearMixing(alpha=0.1, max_iterations=1),
-            scf_tol=1e-14,
+            tol=replace(default_solver_tolerances(1e-3), scf_residual=1e-14),
         )
     for problem, guess in (
         (referenced, referenced.random_meanfield(rng=1, scale=0.01)),
@@ -212,9 +214,11 @@ def test_scf_residual_uses_complex_density_entry_magnitudes():
     difference = {(): np.array([[0, 0.8e-6 * (1 + 1j)], [0.8e-6 * (1 - 1j), 0]])}
     params = model._space.params_from_density(difference)
     evaluation = SCFEvaluation(
-        density,
-        ActiveDensityState(model._space, params),
-        ActiveDensityState(model._space, np.zeros_like(params)),
+        density=density,
+        output_state=ActiveDensityState(model._space, params),
+        input_state=ActiveDensityState(model._space, np.zeros_like(params)),
+        internal_energy=0.0,
+        mean_field={},
     )
     assert np.max(abs(params)) == 0.8e-6
     assert evaluation.residual_norm == pytest.approx(np.sqrt(2) * 0.8e-6)

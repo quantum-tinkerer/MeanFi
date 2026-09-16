@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -33,9 +35,14 @@ if __name__ == "__main__":
     solution = meanfi.solver(
         model,
         guess,
-        integration=meanfi.FermiSimplex(density_matrix_tol=1e-6),
+        integration=meanfi.FermiSimplex(),
         scf=meanfi.LinearMixing(max_iterations=80),
-        scf_tol=1e-6,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-6,
+            charge_integration=1e-6,
+            scf_residual=1e-6,
+        ),
     )
 
     h_mf = meanfi.add_tb(h_0, solution.mean_field)

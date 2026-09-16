@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 
@@ -59,10 +61,10 @@ def test_bdg_solver_rejects_guess_without_opposite_key():
         superconducting=True,
     )
 
-    with pytest.raises(ValueError, match="opposite keys"):
+    with pytest.raises(ValueError, match="hermitian"):
         solver(
             model,
-            {(1,): np.zeros((2, 2), dtype=complex)},
+            {(1,): np.diag([0.1, -0.1])},
             integration=UniformGrid(),
         )
 
@@ -135,7 +137,7 @@ def test_zero_temperature_bdg_supports_explicit_periodic_grid():
         {(0,): np.zeros((2, 2), dtype=complex)},
         integration=UniformGrid(nk=1),
         scf=LinearMixing(max_iterations=2),
-        scf_tol=1e-6,
+        tol=replace(default_solver_tolerances(1e-3), scf_residual=1e-6),
     )
 
     assert np.isfinite(result.mu)
@@ -163,9 +165,14 @@ def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():
         result = solver(
             model,
             guess,
-            integration=UniformGrid(density_matrix_tol=1e-2),
+            integration=UniformGrid(),
             scf=LinearMixing(max_iterations=1),
-            scf_tol=1e-8,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-2,
+                charge_integration=1e-2,
+                scf_residual=1e-8,
+            ),
         )
 
     assert result.errors.scf_residual is not None

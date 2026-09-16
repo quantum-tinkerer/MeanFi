@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 
@@ -68,7 +70,7 @@ def _sdw_measure(h0, mf, sz):
         filling=2,
         integration=UniformGrid(nk=40**2),
         keys=[(0, 0)],
-        filling_tol=1e-6,
+        tol=replace(default_solver_tolerances(1e-3), filling_residual=1e-6),
     ).to_tb()
     sdw_sq = 0.0
     for spin_matrix in s_list:
@@ -107,16 +109,18 @@ def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
                 result = solver(
                     model,
                     _broad_hermitian_correction(h_int, ndof, seed=seed),
-                    integration=FermiSimplex(
-                        density_matrix_tol=1e-4,
-                    ),
+                    integration=FermiSimplex(),
                     scf=AndersonMixing(
                         history_size=0, line_search="wolfe", max_iterations=200
                     ),
                     # SCF convergence must exceed integration noise amplified
                     # by interactions; this diagnostic tests the ordered phase.
-                    tol=1e-3,
-                    filling_tol=1e-3,
+                    tol=replace(
+                        default_solver_tolerances(1e-3),
+                        density_matrix_integration=1e-4,
+                        charge_integration=1e-4,
+                        filling_residual=1e-3,
+                    ),
                 )
             values.append(_sdw_measure(h0, result.mean_field, sz))
         return values

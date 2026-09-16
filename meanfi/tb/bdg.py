@@ -10,9 +10,14 @@ from meanfi.tb.ops import (
     as_sparse,
     block_diag,
     is_sparse_like,
-    matrix_shape,
 )
-from meanfi.tb.validate import matrix_allclose
+from meanfi.tb.validate import (
+    matrix_allclose,
+    tb_dimension,
+    tb_orbital_count,
+    validate_tb_dict,
+    validate_hermiticity,
+)
 from meanfi.tb.storage import prefers_sparse_storage
 
 
@@ -47,28 +52,21 @@ def split_bdg_matrix(matrix: Any, ndof: int) -> tuple[Any, Any, Any, Any]:
 def validate_bdg_tb(
     tb: _tb_type, *, ndof: int, ndim: int, name: str = "BdG correction"
 ) -> None:
-    expected_shape = (2 * ndof, 2 * ndof)
-
-    for key, matrix in tb.items():
-        if len(key) != ndim:
-            raise ValueError(f"{name} keys must match the model dimension")
-        if matrix_shape(matrix) != expected_shape:
-            raise ValueError(f"{name} matrices must have shape (2*ndof, 2*ndof)")
-
-    for key, matrix in tb.items():
-        opposite = tuple(-np.asarray(key, dtype=int))
-        if opposite not in tb:
-            raise ValueError(f"{name} must include opposite keys for Hermiticity")
-        opposite_matrix = tb[opposite]
-        if not matrix_allclose(matrix, opposite_matrix.conj().T):
-            raise ValueError(
-                f"{name} must be Hermitian in real-space tight-binding form"
-            )
+    if not tb:
+        return
+    validate_tb_dict(tb)
+    if tb_dimension(tb) != ndim:
+        raise ValueError(f"{name} keys must match the model dimension")
+    if tb_orbital_count(tb) != 2 * ndof:
+        raise ValueError(f"{name} matrices must have shape (2*ndof, 2*ndof)")
+    validate_hermiticity(tb)
 
     for key, matrix in tb.items():
         opposite = tuple(-np.asarray(key, dtype=int))
-        opposite_matrix = tb[opposite]
-        _normal, anomalous, lower, hole = split_bdg_matrix(matrix, ndof)
+        opposite_matrix = tb.get(opposite)
+        if opposite_matrix is None:
+            opposite_matrix = matrix * 0
+        _normal, anomalous, _lower, hole = split_bdg_matrix(matrix, ndof)
         opposite_normal, opposite_anomalous, _, _ = split_bdg_matrix(
             opposite_matrix, ndof
         )
@@ -76,10 +74,6 @@ def validate_bdg_tb(
         if not matrix_allclose(hole, -opposite_normal.T):
             raise ValueError(
                 f"{name} lower-right block must equal -h(-R).T in electron-first BdG form"
-            )
-        if not matrix_allclose(lower, opposite_anomalous.conj().T):
-            raise ValueError(
-                f"{name} lower-left block must equal Delta(-R).dagger in electron-first BdG form"
             )
         if not matrix_allclose(anomalous, -opposite_anomalous.T):
             raise ValueError(

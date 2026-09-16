@@ -12,27 +12,24 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.errors import default_solver_tolerances, resolve_integration_tolerances
+from meanfi.errors import default_solver_tolerances
+from meanfi.density.problem import build_density_problem
 from meanfi.space.coordinates import full_density_coordinates
 
 
-@pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
-def test_mode_is_resolved_before_policy_targets(method):
-    policy = default_solver_tolerances(1e-5)
-    fixed = method(nk=17, max_refinements=0)
-    tolerances = resolve_integration_tolerances(fixed, policy)
-    assert fixed.density_matrix_tol is fixed.charge_tol is None
-    assert tolerances == policy
-    adaptive = method(max_refinements=0)
-    assert resolve_integration_tolerances(adaptive, policy) == policy
-    assert adaptive.nk is adaptive.density_matrix_tol is adaptive.charge_tol is None
-
-
-@pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
-@pytest.mark.parametrize("target", ["density_matrix_tol", "charge_tol"])
-def test_explicit_size_conflicts_with_explicit_targets(method, target):
-    with pytest.raises(ValueError, match="nk cannot be combined"):
-        method(nk=17, **{target: 1e-5})
+@pytest.mark.parametrize("method,kT", [(FermiSimplex, 0.0), (UniformGrid, 0.2)])
+@pytest.mark.parametrize("nk", [None, 17])
+def test_mesh_settings_preserve_the_shared_tolerance_record(method, kT, nk):
+    targets = default_solver_tolerances(1e-5)
+    problem = build_density_problem(
+        {(0,): np.diag([-1.0, 1.0])},
+        kT=kT,
+        keys=[(0,)],
+        integration=method(nk=nk, max_refinements=0),
+        tolerances=targets,
+    )
+    assert problem.tolerances is targets
+    assert problem.integration.nk == nk
 
 
 @pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
@@ -45,8 +42,6 @@ def test_explicit_size_conflicts_with_explicit_targets(method, target):
         {"max_points": 0},
         {"max_refinements": -1},
         {"max_refinements": 1.5},
-        {"density_matrix_tol": float("nan")},
-        {"charge_tol": float("inf")},
     ],
 )
 def test_invalid_mesh_controls_fail_early(method, options):

@@ -531,3 +531,31 @@ def test_sparse_fourier_matches_dense_without_densifying_kfunc_inputs(
     monkeypatch.setattr(sparse.csr_matrix, "toarray", reject_dense)
     k = np.array([[-0.7], [0.0], [0.3]])
     np.testing.assert_allclose(tb_to_kfunc(sparse_tb)(k), tb_to_kfunc(tb)(k))
+
+
+@pytest.mark.parametrize("rows,columns,rank", [(200, 40, 31), (20, 40, 13)])
+def test_nullspace_preserves_tall_and_wide_null_directions(
+    monkeypatch, rows, columns, rank
+):
+    from meanfi.space.reducers import nullspace
+
+    rng = np.random.default_rng(41)
+    left, _ = np.linalg.qr(rng.normal(size=(rows, rank)))
+    right, _ = np.linalg.qr(rng.normal(size=(columns, columns)))
+    equations = (left * np.linspace(1, 2, rank)) @ right[:, :rank].T
+    expected = right[:, rank:] @ right[:, rank:].T
+    original = np.linalg.svd
+    modes = []
+
+    def svd(matrix, **kwargs):
+        modes.append(kwargs["full_matrices"])
+        return original(matrix, **kwargs)
+
+    monkeypatch.setattr(np.linalg, "svd", svd)
+    basis = nullspace(equations, columns)
+    assert modes == [rows < columns]
+    assert basis.shape == (columns, columns - rank)
+    projector_error = np.max(abs(basis @ basis.T - expected))
+    residual = np.max(abs(equations @ basis))
+    assert projector_error < 1e-13, projector_error
+    assert residual < 1e-13, residual

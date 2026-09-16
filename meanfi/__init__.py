@@ -29,7 +29,6 @@ from .density.kpoint.matrix_functions import (
 )
 from .density.kpoint.occupations import fermi_dirac
 from .model import Model
-from .meanfield import meanfield
 from .observables import expectation_value, free_energy, internal_energy
 from .scf.engine import NoConvergence, SolverError, SolverFailure
 from .scf.methods import AndersonMixing, EnergyDIIS, LinearMixing
@@ -80,7 +79,6 @@ __all__ = [
     "generate_tb_keys",
     "ifftn_to_tb",
     "kgrid_to_tb",
-    "meanfield",
     "scale_tb",
     "solver",
     "tb_to_kfunc",

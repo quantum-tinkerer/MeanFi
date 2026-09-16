@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 
@@ -27,9 +29,14 @@ def test_solver_raises_no_convergence_when_scf_budget_is_exhausted():
         solver(
             model,
             {(0,): 0.2 * np.eye(2)},
-            integration=UniformGrid(density_matrix_tol=1e-6),
+            integration=UniformGrid(),
             scf=LinearMixing(max_iterations=1, alpha=0.1),
-            scf_tol=1e-30,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-6,
+                charge_integration=1e-6,
+                scf_residual=1e-30,
+            ),
         )
 
     assert exc_info.value.last_iterate.size > 0
@@ -52,9 +59,14 @@ def test_solver_result_exposes_compact_scf_iteration_history():
     result = solver(
         model,
         {(0,): np.zeros((2, 2))},
-        integration=UniformGrid(density_matrix_tol=1e-5),
+        integration=UniformGrid(),
         scf=LinearMixing(max_iterations=3),
-        scf_tol=1e-5,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-5,
+            charge_integration=1e-5,
+            scf_residual=1e-5,
+        ),
     )
 
     history = result.history
@@ -77,10 +89,15 @@ def test_solver_verbose_prints_scf_progress(capsys):
     result = solver(
         model,
         {(0,): np.zeros((2, 2))},
-        integration=UniformGrid(density_matrix_tol=1e-5),
+        integration=UniformGrid(),
         scf=LinearMixing(max_iterations=3),
-        scf_tol=1e-5,
         verbose=True,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-5,
+            charge_integration=1e-5,
+            scf_residual=1e-5,
+        ),
     )
 
     output = capsys.readouterr().out

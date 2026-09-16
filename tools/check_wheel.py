@@ -19,6 +19,7 @@ import zipfile
 
 
 SMOKE = r"""
+from dataclasses import replace
 import importlib.util
 from importlib.metadata import metadata
 from pathlib import Path
@@ -71,7 +72,8 @@ sparse_h = {key: csr_array(np.kron(value, np.eye(2))) for key, value in h.items(
 sparse_h[(0,)] = csr_array([[0., .2], [.2, 0.]])
 try:
     result = meanfi.density_matrix(
-        sparse_h, filling=.86, kT=.2, keys=[(0,)], filling_tol=1e-7,
+        sparse_h, filling=.86, kT=.2, keys=[(0,)],
+        tol=replace(meanfi.default_solver_tolerances(1e-3), filling_residual=1e-7),
         integration=meanfi.UniformGrid(nk=32, matrix_function=meanfi.RationalFOE()),
     )
 except ImportError as exc:

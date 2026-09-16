@@ -64,3 +64,45 @@ def test_root_rejects_invalid_mu_tolerance(mu_tol):
             mu_tol=mu_tol,
             max_charge_evaluations=10,
         )
+
+
+@pytest.mark.parametrize("use_derivative", [False, True])
+def test_accepted_guess_needs_one_charge_evaluation_and_no_bracket(use_derivative):
+    calls = []
+
+    def charge(mu):
+        calls.append(mu)
+        return 0.7, 1e-8, 0.2
+
+    def bracket():
+        raise AssertionError("accepted guess must skip bracket construction")
+
+    result = solve_mu(
+        evaluate_charge=charge,
+        initial_bracket=bracket,
+        filling=0.7,
+        mu_guess=0.125,
+        filling_tol=1e-6,
+        mu_tol=1e-10,
+        max_charge_evaluations=1,
+        use_derivative=use_derivative,
+    )
+    assert calls == [0.125]
+    assert result.mu == 0.125
+    assert result.charge_evaluations == 1
+
+
+def test_guess_with_zero_residual_but_bad_charge_error_is_not_accepted():
+    def bracket():
+        raise RuntimeError("bracket was required")
+
+    with pytest.raises(RuntimeError, match="bracket was required"):
+        solve_mu(
+            evaluate_charge=lambda mu: (0.7, 1e-2, None),
+            initial_bracket=bracket,
+            filling=0.7,
+            mu_guess=0.0,
+            filling_tol=1e-6,
+            mu_tol=1e-10,
+            max_charge_evaluations=1,
+        )

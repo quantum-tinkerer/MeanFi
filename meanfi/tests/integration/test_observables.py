@@ -20,7 +20,6 @@ from meanfi import (
 )
 from meanfi.meanfield import (
     interaction_correction,
-    meanfield,
 )
 from meanfi.tests.fixtures.models import bipartite_hubbard_2d
 from meanfi.tb.bdg import assemble_bdg_tb
@@ -79,7 +78,7 @@ def test_internal_energy_half_counts_normal_mean_field_interaction():
     )
     density = {(): np.diag([0.25, 0.75]).astype(complex)}
 
-    correction = meanfield(density, model.h_int)
+    correction = model.mean_field(density)
     interaction_energy = expectation_value(density, correction)
     expected = expectation_value(density, model.h_0) + 0.5 * interaction_energy
     naive = expectation_value(density, add_tb(model.h_0, correction))

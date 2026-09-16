@@ -1,5 +1,7 @@
 # %%
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import numpy as np
 
@@ -53,7 +55,6 @@ def chiral_square_problem():
         superconducting=True,
     )
     integration = UniformGrid(
-        density_matrix_tol=1e-3,
         max_refinements=200,
     )
     scf = LinearMixing(max_iterations=220, alpha=0.2)
@@ -67,8 +68,12 @@ def solve_chiral_square_state():
         guess,
         integration=integration,
         scf=scf,
-        scf_tol=1e-3,
-        filling_tol=1e-3,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-3,
+            charge_integration=1e-3,
+            filling_residual=1e-3,
+        ),
     )
     return model, result
 

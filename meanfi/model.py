@@ -14,7 +14,13 @@ from meanfi.space.symmetry import SpatialSymmetry
 from meanfi.tb.bdg import assemble_bdg_tb, electron_to_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import add_tb, _tb_type
 from meanfi.tb.storage import prefers_sparse_storage
-from meanfi.tb.validate import freeze_tb, tb_dimension, tb_orbital_count
+from meanfi.tb.validate import (
+    freeze_tb,
+    tb_dimension,
+    tb_orbital_count,
+    validate_tb_dict,
+    validate_hermiticity,
+)
 
 
 @dataclass(frozen=True, eq=False)
@@ -41,7 +47,7 @@ class Model:
     _hamiltonian: _tb_type = field(init=False, repr=False)
 
     def __post_init__(self):
-        h_0, h_int = freeze_tb(self.h_0), freeze_tb(self.h_int)
+        h_0, h_int = freeze_tb(self.h_0), freeze_tb(self.h_int, real=True)
         ndim, ndof = tb_dimension(h_0), tb_orbital_count(h_0)
         if tb_dimension(h_int) != ndim or tb_orbital_count(h_int) != ndof:
             raise ValueError(
@@ -160,6 +166,14 @@ class Model:
             active, self.h_int, electron_ndof=self._electron_ndof
         )
 
+    def mean_field(self, density: _tb_type | DensityResult) -> _tb_type:
+        """Return the interaction correction, including reference and pairing terms.
+
+        The density must cover the model's required coordinates. The correction
+        excludes the bare Hamiltonian and chemical-potential shift.
+        """
+        return self._mean_field_from_state(self._density_state(density))
+
     def hamiltonian_from_density(self, density: _tb_type | DensityResult) -> _tb_type:
         """Build the normal or BdG Hamiltonian from a trial density.
 
@@ -167,9 +181,7 @@ class Model:
         Subtract the reference normal and pairing densities before computing
         the correction; a normal reference contributes no pairing.
         """
-        return add_tb(
-            self._hamiltonian, self._mean_field_from_state(self._density_state(density))
-        )
+        return add_tb(self._hamiltonian, self.mean_field(density))
 
     def hamiltonian_from_meanfield(
         self, mean_field: _tb_type | None = None
@@ -179,11 +191,25 @@ class Model:
         Omitting ``mean_field`` returns the noninteracting Hamiltonian.
         Chemical potential is applied during density evaluation.
         """
-        if self.superconducting and mean_field is not None:
-            validate_bdg_tb(
-                mean_field, ndof=self._ndof, ndim=self._ndim, name="BdG correction"
-            )
+        if mean_field is not None:
+            self._validate_mean_field(mean_field)
         return add_tb(self._hamiltonian, mean_field or {})
+
+    def _validate_mean_field(self, correction: _tb_type) -> None:
+        if not correction:
+            return
+        if self.superconducting:
+            validate_bdg_tb(correction, ndof=self._ndof, ndim=self._ndim)
+        else:
+            validate_tb_dict(correction)
+            if (
+                tb_dimension(correction) != self._ndim
+                or tb_orbital_count(correction) != self._ndof
+            ):
+                raise ValueError(
+                    "Mean-field correction must match the model dimension and matrix size"
+                )
+            validate_hermiticity(correction)
 
     def _project_mean_field(self, correction: _tb_type) -> _tb_type:
         projected = self._space.project_correction(correction)

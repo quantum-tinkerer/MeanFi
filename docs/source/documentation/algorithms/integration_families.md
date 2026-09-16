@@ -18,8 +18,8 @@ All method settings are keyword-only. Both integrators use the same contract:
 meanfi.FermiSimplex(nk=4096)
 meanfi.UniformGrid(nk=4096)
 
-meanfi.FermiSimplex(density_matrix_tol=1e-5, charge_tol=1e-6)
-meanfi.UniformGrid(density_matrix_tol=1e-5, charge_tol=1e-6)
+meanfi.FermiSimplex()  # Accuracy comes from tol on the calculation.
+meanfi.UniformGrid()
 
 meanfi.FermiSimplex(initial_nk=256)  # Refine from at least 256 vertices.
 meanfi.UniformGrid(initial_nk=256)   # Refine from at least 256 points.
@@ -27,12 +27,12 @@ meanfi.UniformGrid(initial_nk=256)   # Refine from at least 256 points.
 
 An explicit `nk` requests a prescribed final mesh size. Omitting `nk` requests
 accuracy control, using explicit targets or MeanFi's public tolerance policy.
-An explicit `density_matrix_tol` also supplies `charge_tol` when it is omitted.
-An explicit `charge_tol` can be either tighter or looser. Without mesh overrides,
-both targets come from the tolerance policy.
-Passing both `nk` and an integration target is an error. Safety limits such as
-`max_points` and `max_refinements` do not select the mode. The top-level `tol`
-continues to control filling roots and SCF convergence on a prescribed mesh.
+All numerical targets live in `ErrorTolerances`, passed as `tol` to the calculation.
+A numeric `tol` uses the default policy. An omitted `charge_integration` in an
+explicit record follows `density_matrix_integration`; charge can also be tighter
+or looser. With `nk`, integration targets do not apply, while filling, matrix-function
+and SCF targets still do. Resource limits such as `max_points` and `max_refinements`
+do not select the mode.
 
 `nk` is the requested **total number of mesh nodes**, with backend-dependent
 rounding. It is never a per-axis resolution or a cumulative work count.
@@ -81,7 +81,7 @@ exact finite-system evaluation. `result.statistics` contains work and mesh
 information, not physical quantities or their errors.
 
 Matrix-function approximation has its own target and estimate on every result:
-`tolerance_policy(tol).matrix_function_tol` and
+`ErrorTolerances.matrix_function_tol` and
 `result.errors.matrix_function_error`. AAA reports the largest sampled scalar
 Fermi-function error across the evaluated momenta, which estimates an upper
 limit on every integrated density-entry error from that approximation. Positive
@@ -92,8 +92,7 @@ For AAA, charge traces may require a tighter scalar fit because they sum many
 diagonal entries. Filling-search constraints apply only when finding filling.
 Entropy reuses the accepted poles but has no accuracy target; its sampled error
 remains a diagnostic. Neither estimate measures unsampled momentum variation.
-Passing mesh integration targets with `nk` remains an error; the policy's
-matrix-function target remains active on prescribed meshes.
+The matrix-function target remains active on prescribed meshes.
 
 `entry_errors` describes momentum integration only. UniformGrid reports each
 entry's coarse/fine difference. FermiSimplex supplies its global worst-entry
@@ -104,14 +103,17 @@ potential, rather than an error at a single momentum.
 ## Migration
 
 The development names `AdaptiveSimplex` and `PeriodicGrid` are now
-`FermiSimplex` and `UniformGrid`; their settings are unchanged and no aliases
+`FermiSimplex` and `UniformGrid`; no aliases
 remain. `PeriodicQuadrature` and `AdaptiveQuadrature` are removed.
 
 The earlier per-axis `UniformGrid` implementation used a different `nk`
 convention. For that API, replace `nk=n` with `nk=n**d` in dimension `d` to
 preserve the per-axis resolution. Replace adaptive quadrature with
-`UniformGrid(density_matrix_tol=..., charge_tol=...)`. Remove old quadrature
-rules, per-axis caps, derivative-accuracy and cache-policy options.
+`UniformGrid()` and configure accuracy through `tol`. Former `density_matrix_tol`
+and `charge_tol` settings are now `ErrorTolerances.density_matrix_integration` and
+`charge_integration`. Former per-call `scf_tol`, `filling_tol` and `mu_tol` are now
+`scf_residual`, `filling_residual` and `mu_tol` in that same record. Remove old
+quadrature rules, per-axis caps, derivative-accuracy and cache-policy options.
 
 Prescribed finite-temperature sparse `RationalFOE` remains available with
 `UniformGrid(nk=..., matrix_function=RationalFOE(...))`. Adaptive rational

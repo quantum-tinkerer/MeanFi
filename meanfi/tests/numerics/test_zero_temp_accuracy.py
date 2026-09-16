@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 from dataclasses import dataclass
 
 import pytest
@@ -66,8 +68,12 @@ def test_zero_temperature_density_matrix_at_mu_matches_self_converged_reference_
             kT=0.0,
             keys=case.keys,
             integration=FermiSimplex(
-                density_matrix_tol=density_atol,
                 max_refinements=None,
+            ),
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=density_atol,
+                charge_integration=density_atol,
             ),
         )
         actual_density_error = max_density_error(result.to_tb(), reference.rho)
@@ -113,11 +119,15 @@ def test_zero_temperature_fixed_filling_matches_self_converged_reference_across_
             kT=0.0,
             keys=case.keys,
             integration=FermiSimplex(
-                density_matrix_tol=density_atol,
                 max_refinements=None,
             ),
-            filling_tol=scalar_tol,
-            mu_tol=scalar_tol,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=density_atol,
+                charge_integration=density_atol,
+                filling_residual=scalar_tol,
+                mu_tol=scalar_tol,
+            ),
         )
         actual_density_error = max_density_error(result.to_tb(), reference.rho)
         actual_charge_error = abs(result.filling - filling)
@@ -152,8 +162,12 @@ def test_zero_temperature_density_at_mu_matches_reference_near_brillouin_zone_se
         kT=0.0,
         keys=keys,
         integration=FermiSimplex(
-            density_matrix_tol=3e-3,
             max_refinements=None,
+        ),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=3e-3,
+            charge_integration=3e-3,
         ),
     )
     actual_density_error = max_density_error(result.to_tb(), reference.rho)

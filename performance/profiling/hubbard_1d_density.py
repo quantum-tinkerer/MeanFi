@@ -1,10 +1,12 @@
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import argparse
 
 import numpy as np
 
-from meanfi import UniformGrid, add_tb, density_matrix, meanfield
+from meanfi import Model, UniformGrid, density_matrix
 from performance._shared.fixtures import (
     benchmark,
     bipartite_hubbard_1d,
@@ -17,7 +19,7 @@ from performance._shared.common import density_record, print_summary, write_reco
 def hubbard_chain_trial_hamiltonian(U: float = 2.0):
     h_0, h_int = bipartite_hubbard_1d(U)
     rho_trial = {(0,): np.diag([0.7, 0.3, 0.3, 0.7])}
-    return add_tb(h_0, meanfield(rho_trial, h_int))
+    return Model(h_0, h_int, filling=2).hamiltonian_from_density(rho_trial)
 
 
 def main() -> None:
@@ -40,7 +42,7 @@ def main() -> None:
         nk_start=129,
         nk_max=1025,
     )
-    integration = UniformGrid(density_matrix_tol=1e-6)
+    integration = UniformGrid()
     measurement = benchmark(
         lambda: density_matrix(
             h,
@@ -48,7 +50,12 @@ def main() -> None:
             kT=kT,
             keys=keys,
             integration=integration,
-            filling_tol=1e-6,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-6,
+                charge_integration=1e-6,
+                filling_residual=1e-6,
+            ),
         ),
         repeat=args.repeat,
         warmup=args.warmup,

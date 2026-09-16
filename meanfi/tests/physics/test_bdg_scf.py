@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 from scipy.optimize import brentq
@@ -138,12 +140,16 @@ def test_bdg_solver_matches_1d_nonlocal_odd_parity_reference():
         model,
         guess,
         integration=UniformGrid(
-            density_matrix_tol=2e-4,
             max_refinements=120,
         ),
         scf=LinearMixing(max_iterations=140, alpha=0.6),
-        scf_tol=2e-4,
-        filling_tol=2e-4,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=2e-4,
+            charge_integration=2e-4,
+            scf_residual=2e-4,
+            filling_residual=2e-4,
+        ),
     )
 
     assert result.errors.scf_residual <= 2e-4

@@ -6,7 +6,7 @@
 
 ```{eval-rst}
 .. autoclass:: meanfi.model.Model
-   :members: hamiltonian_from_density, hamiltonian_from_meanfield, random_meanfield
+   :members: mean_field, hamiltonian_from_density, hamiltonian_from_meanfield, random_meanfield
 ```
 
 `Model(..., reference=reference)` enables reference-state subtraction for normal
@@ -104,9 +104,12 @@ required = model.required_coordinates
 
 ## Mean-field and density matrix
 
-```{eval-rst}
-.. autofunction:: meanfi.meanfield
-```
+`model.mean_field(density)` computes the correction from the required density
+entries, including reference subtraction and superconducting pairing. It replaces
+the former top-level normal-only `meanfield` function. Add it to the bare
+Hamiltonian with `model.hamiltonian_from_density(density)`. The correction stored
+as `solution.mean_field` is the input that produced `solution.density`; it differs
+from `model.mean_field(solution.density)` before self-consistency is reached.
 
 ```{eval-rst}
 .. autofunction:: meanfi.density_matrix
@@ -145,7 +148,27 @@ inapplicable estimate is `None`; a prescribed `nk` does not trigger extra grids
 for error estimation. For density integration, inspect
 `errors.density_matrix_integration`; for AAA's matrix-function approximation,
 inspect `errors.matrix_function_error`. The existing tolerance policy controls
-both independently:
+both independently. All three calculation functions accept the same `tol`: a
+number for the default policy, or a complete `ErrorTolerances` record.
+
+```python
+from dataclasses import replace
+
+requested = replace(
+    meanfi.default_solver_tolerances(1e-5),
+    charge_integration=1e-4,       # Independent charge-integration budget.
+    filling_residual=1e-7,
+    mu_tol=1e-12,                 # Energy units; not a filling-error estimate.
+)
+solution = meanfi.solver(model, guess, tol=requested)
+density = meanfi.density_matrix(model, tol=requested)
+```
+
+An explicit record uses its fields directly and cannot be combined with a custom
+policy. In a newly constructed record, omitted `charge_integration` follows
+`density_matrix_integration`. When replacing an existing record, set
+`charge_integration=None` to follow a changed density target again. For repeated
+calculations with a custom numeric scaling rule, a policy remains available:
 
 ```python
 from dataclasses import replace
@@ -164,7 +187,7 @@ The default `matrix_function_tol` is `tol/5`. For all stage targets and their
 meaning, see [integration families](algorithms/integration_families.md).
 
 `Model` validates finite filling and temperature, matching matrix sizes and
-lattice dimensions, and Hermiticity. It owns read-only copies of dense or sparse
+lattice dimensions, Hermiticity, and real density-density interaction coefficients. It owns read-only copies of dense or sparse
 input matrices and symmetry data. Use a new model (or `dataclasses.replace`) to
 change model parameters.
 
@@ -176,7 +199,7 @@ combinations, using the exact quadratic mean-field interaction. Entropy and
 free energy do not participate in the coefficient optimization.
 EDIIS runs only its own update and raises `NoConvergence` on iteration
 exhaustion. Users can explicitly restart with another method using
-`failure.result.mean_field`; see [user-controlled composition](algorithms/scf_loop.md).
+`model.mean_field(failure.result.density)`; see [user-controlled composition](algorithms/scf_loop.md).
 Physical free energy need not fall on every iteration.
 
 Sparse `RationalFOE()` uses AAA at positive temperature on a prescribed

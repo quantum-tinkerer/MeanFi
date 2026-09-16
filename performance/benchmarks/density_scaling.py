@@ -4,7 +4,12 @@ import argparse
 from dataclasses import replace
 from typing import NamedTuple
 
-from meanfi import FermiSimplex, UniformGrid, density_matrix_at_mu
+from meanfi import (
+    FermiSimplex,
+    UniformGrid,
+    density_matrix_at_mu,
+    default_solver_tolerances,
+)
 from performance._shared.fixtures import (
     benchmark,
     converged_dense_reference,
@@ -69,11 +74,7 @@ def _bytes_to_mib(value: int | float) -> float:
 
 def _integration_expr(integration: FermiSimplex | UniformGrid) -> str:
     if isinstance(integration, FermiSimplex):
-        return (
-            "FermiSimplex("
-            f"density_matrix_tol={integration.density_matrix_tol!r}, "
-            f"max_refinements={integration.max_refinements!r})"
-        )
+        return f"FermiSimplex(max_refinements={integration.max_refinements!r})"
     if isinstance(integration, UniformGrid):
         return f"UniformGrid(nk={integration.nk!r})"
     raise TypeError(
@@ -88,9 +89,10 @@ def _peak_density_rss_bytes(
     kT: float,
     keys,
     integration: FermiSimplex | UniformGrid,
+    tol,
 ) -> int | None:
     body = f"""
-from meanfi import FermiSimplex, UniformGrid, density_matrix_at_mu
+from meanfi import FermiSimplex, UniformGrid, density_matrix_at_mu, ErrorTolerances
 from performance._shared.scenarios import block_chain_model
 
 tb = block_chain_model({ndof!r})
@@ -101,7 +103,7 @@ density_matrix_at_mu(
     mu={mu!r},
     kT={kT!r},
     keys=keys,
-    integration=integration,
+    integration=integration, tol={tol!r},
 )
 """
     return peak_rss_bytes(body)
@@ -116,6 +118,7 @@ def _density_measurement(
     integration: FermiSimplex | UniformGrid,
     repeat: int,
     warmup: int,
+    tol=1e-3,
 ):
     result = benchmark(
         lambda: density_matrix_at_mu(
@@ -124,6 +127,7 @@ def _density_measurement(
             kT=kT,
             keys=keys,
             integration=integration,
+            tol=tol,
         ),
         repeat=repeat,
         warmup=warmup,
@@ -135,6 +139,7 @@ def _density_measurement(
         kT=kT,
         keys=keys,
         integration=integration,
+        tol=tol,
     )
     if peak_rss is not None:
         result = replace(result, peak_traced_bytes=peak_rss)
@@ -244,7 +249,6 @@ def _zero_temperature_records(
 
         for density_matrix_tol in _adaptive_simplex_tolerances(ndof):
             integration = FermiSimplex(
-                density_matrix_tol=density_matrix_tol,
                 max_refinements=None,
             )
             measurement, result = _density_measurement(
@@ -255,6 +259,11 @@ def _zero_temperature_records(
                 integration=integration,
                 repeat=repeat,
                 warmup=warmup,
+                tol=replace(
+                    default_solver_tolerances(1e-3),
+                    density_matrix_integration=density_matrix_tol,
+                    charge_integration=density_matrix_tol,
+                ),
             )
             records.append(
                 _density_record(

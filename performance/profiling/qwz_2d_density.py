@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import argparse
 
@@ -32,7 +34,7 @@ def main() -> None:
         nk_start=65,
         nk_max=513,
     )
-    integration = UniformGrid(density_matrix_tol=1e-6)
+    integration = UniformGrid()
     measurement = benchmark(
         lambda: density_matrix(
             tb,
@@ -40,7 +42,12 @@ def main() -> None:
             kT=kT,
             keys=keys,
             integration=integration,
-            filling_tol=1e-6,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-6,
+                charge_integration=1e-6,
+                filling_residual=1e-6,
+            ),
         ),
         repeat=args.repeat,
         warmup=args.warmup,

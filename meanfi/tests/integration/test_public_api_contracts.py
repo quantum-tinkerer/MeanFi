@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import inspect
 from types import SimpleNamespace
 
@@ -45,9 +47,6 @@ def test_public_signatures_expose_documented_keyword_only_controls():
         "scf",
         "tol",
         "tolerance_policy",
-        "scf_tol",
-        "filling_tol",
-        "mu_tol",
         "max_charge_evaluations",
     ):
         assert solver_params[name].kind is inspect.Parameter.KEYWORD_ONLY
@@ -55,7 +54,7 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert solver_params["scf"].default is None
     assert "accuracy" not in solver_params
     assert solver_params["tol"].default == 1e-3
-    assert solver_params["scf_tol"].default is None
+    assert "scf_tol" not in solver_params
     assert "optimizer" not in solver_params
     assert "optimizer_kwargs" not in solver_params
 
@@ -64,8 +63,8 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_params["integration"].kind is inspect.Parameter.KEYWORD_ONLY
     assert density_params["integration"].default is None
     assert density_params["tol"].default == 1e-3
-    assert density_params["filling_tol"].default is None
-    assert density_params["mu_tol"].default == 1e-10
+    assert "filling_tol" not in density_params
+    assert "mu_tol" not in density_params
     assert density_params["max_charge_evaluations"].default is None
 
     selected_density_params = inspect.signature(density_matrix).parameters
@@ -87,8 +86,8 @@ def test_public_signatures_expose_documented_keyword_only_controls():
 
     for method in (FermiSimplex, UniformGrid):
         params = inspect.signature(method).parameters
-        assert params["charge_tol"].default is None
-        assert params["density_matrix_tol"].default is None
+        assert "charge_tol" not in params
+        assert "density_matrix_tol" not in params
 
 
 def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
@@ -109,9 +108,18 @@ def test_solver_uses_default_scf_tol_when_not_provided(monkeypatch):
 
     model = Model(**_base_model_kwargs())
     guess = {(0,): np.zeros((2, 2))}
-    integration = UniformGrid(density_matrix_tol=5.4e-4)
+    integration = UniformGrid()
 
-    result = solver(model, guess, integration=integration)
+    result = solver(
+        model,
+        guess,
+        integration=integration,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=5.4e-4,
+            charge_integration=5.4e-4,
+        ),
+    )
 
     assert result == SimpleNamespace()
     tolerances = captured["problem"].density_problem.tolerances
@@ -325,18 +333,37 @@ def test_model_density_api_matches_full_blocks_at_filling_and_mu(superconducting
     )
     if not superconducting:
         np.testing.assert_allclose(
-            meanfi.meanfield(selected, model.h_int)[()],
-            meanfi.meanfield(dense, model.h_int)[()],
+            model.mean_field(selected)[()],
+            model.mean_field(dense)[()],
         )
 
 
 def test_initial_integration_failure_has_the_public_solver_exception():
     model = Model(spinful_chain(), {(0,): np.zeros((2, 2))}, filling=0.7)
-    integration = FermiSimplex(max_refinements=0, density_matrix_tol=1e-9)
+    integration = FermiSimplex(
+        max_refinements=0,
+    )
     with pytest.raises(meanfi.ConvergenceError):
-        density_matrix(model, integration=integration)
+        density_matrix(
+            model,
+            integration=integration,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-9,
+                charge_integration=1e-9,
+            ),
+        )
     with pytest.raises(meanfi.SolverFailure) as caught:
-        solver(model, model.random_meanfield(rng=1), integration=integration)
+        solver(
+            model,
+            model.random_meanfield(rng=1),
+            integration=integration,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-9,
+                charge_integration=1e-9,
+            ),
+        )
     assert caught.value.result is None
     assert isinstance(caught.value.__cause__, meanfi.ConvergenceError)
 

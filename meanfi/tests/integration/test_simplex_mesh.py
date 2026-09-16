@@ -105,11 +105,11 @@ def test_prescribed_filling_reuses_native_spectra_and_preserves_band_energy():
                 density_matrix_integration=1e-20,
                 charge_integration=1e-20,
                 filling_residual=1e-10,
+                mu_tol=1e-12,
             ),
         ),
         filling=0.5,
         mu_guess=0.2,
-        mu_tol=1e-12,
         max_charge_evaluations=40,
     )
     info = result.statistics
@@ -157,7 +157,12 @@ def test_adaptive_simplex_preview_storage_limit_is_checked():
             _chain(),
             mu=0.2,
             keys=[(0,), (1,)],
-            integration=FermiSimplex(density_matrix_tol=1e-3, max_points=3),
+            integration=FermiSimplex(max_points=3),
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-3,
+                charge_integration=1e-3,
+            ),
         )
 
 
@@ -237,11 +242,11 @@ def test_adaptive_density_refinement_keeps_root_consistent_with_final_native_mes
                 density_matrix_integration=0.0001,
                 charge_integration=0.0001,
                 filling_residual=1e-10,
+                mu_tol=1e-12,
             ),
         ),
         filling=0.4,
         mu_guess=0.0,
-        mu_tol=1e-12,
         max_charge_evaluations=100,
     )
     info = result.statistics
@@ -308,8 +313,11 @@ def test_fixed_mu_simplex_charge_target_cannot_be_ignored_at_refinement_limit():
             _chain(),
             mu=0.2,
             keys=[(0,)],
-            integration=FermiSimplex(
-                density_matrix_tol=1.0, charge_tol=1e-12, max_refinements=0
+            integration=FermiSimplex(max_refinements=0),
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1.0,
+                charge_integration=1e-12,
             ),
         )
 
@@ -319,7 +327,12 @@ def test_fixed_mu_simplex_reports_both_integration_errors_publicly():
         _chain(),
         mu=0.2,
         keys=[(1,)],
-        integration=FermiSimplex(density_matrix_tol=1e-3, charge_tol=1e-7),
+        integration=FermiSimplex(),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-3,
+            charge_integration=1e-7,
+        ),
     )
     assert result.errors.density_matrix_integration <= 1e-3
     assert result.errors.charge_integration <= 1e-7

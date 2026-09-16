@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- All numerical targets now live in `ErrorTolerances`, including `mu_tol`. Public
+  calculations accept a number or this record through `tol`; removed per-call
+  `scf_tol`/`filling_tol`/`mu_tol` and integration-setting accuracy overrides.
+- `Model.mean_field(density)` replaces the normal-only top-level `meanfield`.
+  `SCFResult.mean_field` now reproduces its density even before convergence;
+  compute the next correction explicitly from `result.density`.
+- Reject complex interaction coefficients, malformed corrections, nonfinite density
+  entries and unsupported method objects at boundaries. Accepted chemical-potential
+  guesses skip bracket work; symmetry reduction uses economical SVD for tall systems.
+- Normal/BdG corrections share omitted-zero-block semantics. Reject nonunitary
+  spatial transformations and noninvertible lattice maps. Fix symmetry rank
+  detection when a physically trivial global phase produces roundoff residuals.
+
 - Entropy is computed once after SCF termination by default, including valid partial
   results on failure; iterations perform no entropy work. `compute_free_energy=False`
   on `solver` or density calls leaves entropy and free energy unknown. All methods

@@ -30,7 +30,7 @@ import numpy as np  # noqa: E402
 from scipy import sparse  # noqa: E402
 from threadpoolctl import threadpool_limits  # noqa: E402
 
-from meanfi import Model, meanfield  # noqa: E402
+from meanfi import Model  # noqa: E402
 
 with threadpool_limits(1):
     size = args.size
@@ -57,7 +57,12 @@ with threadpool_limits(1):
     def reconstruct():
         density = decode(params)
         recovered = encode(density)
-        correction = meanfield(density, interaction)
+        if hasattr(model, "mean_field"):
+            correction = model.mean_field(density)
+        else:
+            from meanfi import meanfield  # Historical checkout under --checkout.
+
+            correction = meanfield(density, interaction)
         return recovered, correction
 
     reconstruct()

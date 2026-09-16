@@ -32,14 +32,25 @@ review; the remaining items are a backlog, not new API promises.
 - Result records retain no hidden Model; SCF scalars delegate to the density.
   Invalid filling and noninteger coordinates are rejected before numerical work.
 
+- Accuracy controls live in `ErrorTolerances`, passed through `tol`, with numeric
+  shorthand and the existing policy callback. Integration objects have no accuracy
+  overrides. Charge accuracy remains independently adjustable.
+- Physical boundaries reject complex interaction coefficients and malformed normal
+  or BdG corrections. Unsupported methods fail before numerical work.
+- `Model.mean_field(density)` is the public correction operation for all models.
+  `SCFResult.mean_field` is the input that produced the returned density, including
+  partial results; the next correction is explicit.
+- Normal and BdG corrections both allow omitted zero partner blocks. Energy
+  contractions use the same canonical correction representation.
+- Spatial symmetries validate the lattice map and combined Fourier unitarity;
+  roundoff in a global phase no longer removes valid density directions.
+- Accepted chemical-potential guesses skip bracket construction and endpoint solves.
+  Tall symmetry systems use economical SVD without losing wide-system null directions.
+
 ## Still open
 
 - Adaptive AAA integration: currently requires a prescribed mesh. Its matrix-function
   estimate does not establish Brillouin-zone integration accuracy.
-- Further consolidation of physical-input validation and unsupported-configuration
-  errors, and of public-call versus integration-setting tolerance overrides.
-- Entropy accuracy beyond the density-selected approximation: the shared diagnostic
-  remains `None` where total error cannot be estimated. There is no entropy target.
 
 EDIIS remains an internal-energy optimizer with no automatic switching. Entropy
 introduces no accuracy target or stopping criterion.

@@ -77,9 +77,8 @@ def _with_model_energy(model, density, correction):
     if not density.covers(model.required_coordinates):
         return density
     correction = {} if correction is None else correction
-    if correction and tb_entries_changed(
-        correction, model._project_mean_field(correction)
-    ):
+    projected = model._project_mean_field(correction) if correction else correction
+    if tb_entries_changed(correction, projected):
         # An arbitrary external correction may require density entries outside
         # the interaction space. Only use complete one-body blocks in that case.
         if not density.is_complete or not set(model.h_0) <= set(
@@ -89,6 +88,6 @@ def _with_model_energy(model, density, correction):
         energy = internal_energy(model, density)
     else:
         energy = _internal_energy_from_band(
-            model, model._density_state(density), density.band_energy, correction
+            model, model._density_state(density), density.band_energy, projected
         )
     return replace(density, internal_energy=energy)

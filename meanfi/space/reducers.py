@@ -33,12 +33,14 @@ def nullspace(equations: np.ndarray, variable_count: int) -> np.ndarray:
         return np.zeros((0, 0), dtype=float)
     if equations.size == 0:
         return np.eye(variable_count, dtype=float)
-    u, singular_values, vh = np.linalg.svd(equations, full_matrices=True)
-    del u
+    # Wide matrices need the full right basis to retain all null directions.
+    _, singular_values, vh = np.linalg.svd(
+        equations, full_matrices=equations.shape[0] < equations.shape[1]
+    )
+    # These equations subtract unit-scale symmetry operations. Roundoff in an
+    # identity operation must not become a full-rank constraint when A is tiny.
     tolerance = (
-        np.finfo(float).eps
-        * max(equations.shape)
-        * (singular_values[0] if singular_values.size else 1.0)
+        np.finfo(float).eps * max(equations.shape) * max(singular_values[0], 1.0)
     )
     rank = int(np.sum(singular_values > tolerance))
     return np.asarray(vh[rank:].T, dtype=float)

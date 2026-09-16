@@ -1,8 +1,7 @@
 """Public density calculations for Hamiltonian dictionaries and models."""
 
-from dataclasses import replace
-
 from meanfi.errors import (
+    ErrorTolerances,
     ToleranceFunction,
     default_solver_tolerances,
     resolve_error_tolerances,
@@ -55,7 +54,7 @@ def _density_problem(
             "spatial_symmetries requires interaction or a configured Model"
         )
     if interaction is not None:
-        validate_tb_dict(interaction)
+        validate_tb_dict(interaction, real=True)
         validate_hermiticity(interaction)
         coordinates = ActiveSCFSpace.from_interaction(
             interaction, spatial_symmetries=spatial_symmetries
@@ -84,11 +83,13 @@ def density_matrix_at_mu(
     interaction=None,
     spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
-    tol: float = 1e-3,
+    tol: float | ErrorTolerances = 1e-3,
     compute_free_energy: bool = True,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
 ) -> DensityResult:
     """Compute density at fixed chemical potential.
+
+    ``tol`` accepts a number or an explicit ErrorTolerances record.
 
     A Model supplies temperature, normal/BdG structure and required entries.
     ``mean_field`` optionally adds a correction to its bare Hamiltonian.
@@ -123,14 +124,14 @@ def density_matrix(
     interaction=None,
     spatial_symmetries=(),
     integration: IntegrationMethod | None = None,
-    tol: float = 1e-3,
+    tol: float | ErrorTolerances = 1e-3,
     compute_free_energy: bool = True,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
-    filling_tol: float | None = None,
-    mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
 ) -> DensityResult:
     """Compute density at fixed electron filling per unit cell.
+
+    ``tol`` accepts a number or an explicit ErrorTolerances record.
 
     A Model supplies filling, temperature and the normal/BdG density layout.
     Override ``keys`` to request complete blocks for analysis or ``to_tb()``.
@@ -147,8 +148,6 @@ def density_matrix(
             raise ValueError("filling is required for a Hamiltonian dictionary")
         filling = h.filling
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
-    if filling_tol is not None:
-        tolerances = replace(tolerances, filling_residual=float(filling_tol))
     problem = _density_problem(
         h,
         kT=kT,
@@ -163,7 +162,6 @@ def density_matrix(
     result = evaluate_density(
         problem,
         filling=filling,
-        mu_tol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
         compute_entropy=compute_free_energy,
     )

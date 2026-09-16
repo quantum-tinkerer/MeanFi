@@ -22,6 +22,8 @@ when benchmarking public APIs from before thermodynamic normalization.
 """
 
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import argparse
 from contextlib import contextmanager
@@ -637,9 +639,11 @@ def filling_case(case, scheme):
             mean_field=correction,
             coordinates=coords,
             integration=integration,
-            tol=case.tolerance,
-            filling_tol=case.tolerance,
-            mu_tol=1e-11,
+            tol=replace(
+                default_solver_tolerances(case.tolerance),
+                filling_residual=case.tolerance,
+                mu_tol=1e-11,
+            ),
         )
         extra = dict(
             mu=result.mu,

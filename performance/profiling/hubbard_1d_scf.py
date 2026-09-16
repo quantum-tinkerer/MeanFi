@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import argparse
 
@@ -16,7 +18,7 @@ def main() -> None:
     args = parser.parse_args()
 
     model, guess = hubbard_chain_scf_problem(U=2.0, kT=0.1)
-    integration = UniformGrid(density_matrix_tol=1e-4)
+    integration = UniformGrid()
     scf = AndersonMixing(history_size=0, max_iterations=40)
     measurement = benchmark(
         lambda: solver(
@@ -24,7 +26,12 @@ def main() -> None:
             guess,
             integration=integration,
             scf=scf,
-            scf_tol=1e-4,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-4,
+                charge_integration=1e-4,
+                scf_residual=1e-4,
+            ),
         ),
         repeat=args.repeat,
         warmup=args.warmup,

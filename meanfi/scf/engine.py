@@ -13,7 +13,7 @@ from meanfi.scf.fixed_point import (
     SolverFailure,
     iterate_anderson,
 )
-from meanfi.scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
+from meanfi.scf.methods import AndersonMixing, LinearMixing, SCFMethod
 from meanfi.scf.problem import SCFEvaluation, SCFProblem
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.ops import _tb_type
@@ -41,7 +41,7 @@ def _build_result(problem, evaluation, history, *, converged, compute_free_energ
     )
     result = SCFResult(
         density=density,
-        mean_field=problem.model._mean_field_from_state(evaluation.output_state),
+        mean_field=evaluation.mean_field,
         history=tuple(history),
         converged=converged,
     )
@@ -84,7 +84,10 @@ def run_scf_loop(
         problem.model, state, density.band_energy, projected_guess
     )
     last = SCFEvaluation(
-        density, state, internal_energy=energy, mean_field=projected_guess
+        density=density,
+        output_state=state,
+        internal_energy=energy,
+        mean_field=projected_guess,
     )
     history: list[SCFIteration] = []
     tolerance = problem.density_problem.tolerances.scf_residual
@@ -127,7 +130,7 @@ def run_scf_loop(
                     break
                 if isinstance(scf, LinearMixing):
                     params = params + scf.alpha * evaluation.residual
-                elif isinstance(scf, EnergyDIIS):
+                else:
                     points.append(
                         EDIISPoint(
                             evaluation.output_state.values, evaluation.internal_energy
@@ -138,10 +141,6 @@ def run_scf_loop(
                         points, interaction_curvature=problem.interaction_curvature
                     )
                     params = weights @ np.stack([point.params for point in points])
-                else:
-                    raise TypeError(
-                        "scf must be LinearMixing, EnergyDIIS, or AndersonMixing"
-                    )
             else:
                 raise NoConvergence(params)
     except NoConvergence as exc:

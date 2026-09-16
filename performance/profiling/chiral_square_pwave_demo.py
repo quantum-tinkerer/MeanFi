@@ -1,5 +1,7 @@
 # %%
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 
 import numpy as np
@@ -67,8 +69,9 @@ def solve_chiral_square_state():
         guess_random,
         integration=integration,
         scf=scf,
-        scf_tol=1e-3,
-        filling_tol=1e-3,
+        tol=replace(
+            default_solver_tolerances(1e-3), scf_residual=1e-3, filling_residual=1e-3
+        ),
     )
     return model, result
 

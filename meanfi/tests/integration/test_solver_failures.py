@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 
@@ -44,8 +46,13 @@ def test_numerical_failure_attaches_last_valid_physical_result(monkeypatch):
         solver(
             model,
             {(0,): np.zeros((2, 2))},
-            integration=UniformGrid(density_matrix_tol=1e-4),
+            integration=UniformGrid(),
             scf=LinearMixing(max_iterations=3),
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-4,
+                charge_integration=1e-4,
+            ),
         )
 
     assert calls == 3

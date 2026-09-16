@@ -151,13 +151,13 @@ free_result = meanfi.solver(
     model_free,
     model_free.random_meanfield(rng=10, scale=0.05),
     integration=integration,
-    scf_tol=1e-6,
+    tol=1e-6,
 )
 glide_result = meanfi.solver(
     model_glide,
     model_glide.random_meanfield(rng=10, scale=0.05),
     integration=integration,
-    scf_tol=1e-6,
+    tol=1e-6,
 )
 
 print(f"unconstrained required entries: {model_free.required_coordinates.value_count}")

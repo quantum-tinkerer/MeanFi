@@ -59,7 +59,7 @@ np.testing.assert_allclose(rho_sparse[(0,)].toarray(), rho[(0,)])
 h = model.hamiltonian_from_meanfield(solution.mean_field)
 at_mu = mf.density_matrix_at_mu(h, full.mu, kT=model.kT, keys=list(h0), tol=1e-6)
 np.testing.assert_allclose(at_mu.values, full.values, atol=1e-6)
-correction = mf.meanfield(selected, interaction)
+correction = model.mean_field(selected)
 h_from_density = model.hamiltonian_from_density(selected)
 np.testing.assert_allclose(h_from_density[(0,)], mf.add_tb(h0, correction)[(0,)])
 print("Orbital polarization:", mf.expectation_value(full, {(0,): np.diag([1, -1])}))
@@ -105,6 +105,13 @@ assert fixed.entry_errors is None
 assert controlled.entry_errors is not None
 print("Fixed grid:", fixed.statistics.grid_shape)
 
+# Explicit accuracy targets use the same tol argument on every calculation.
+requested = replace(
+    mf.default_solver_tolerances(1e-5), charge_integration=1e-4, mu_tol=1e-12
+)
+custom = mf.density_matrix(model, tol=requested)
+assert custom.errors.filling_residual <= requested.filling_residual
+
 # SCF settings are keyword-only: EnergyDIIS(history_size=6, max_iterations=100).
 # Alternatives include AndersonMixing(alpha=.5) and LinearMixing(alpha=.5).
 try:
@@ -113,13 +120,16 @@ try:
         guess,
         integration=mf.UniformGrid(nk=64),
         scf=mf.LinearMixing(alpha=0.1, max_iterations=1),
-        scf_tol=1e-14,
+        tol=replace(mf.default_solver_tolerances(1e-3), scf_residual=1e-14),
     )
 except mf.NoConvergence as failure:
     assert failure.result is not None
     # This choice belongs to the caller; neither method switches automatically.
     restarted = mf.solver(
-        model, failure.result.mean_field, tol=1e-5, scf=mf.AndersonMixing()
+        model,
+        model.mean_field(failure.result.density),
+        tol=1e-5,
+        scf=mf.AndersonMixing(),
     )
     assert restarted.converged
 # SolverFailure.result may be None if the first density evaluation fails.

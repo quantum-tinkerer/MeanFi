@@ -1,3 +1,4 @@
+from meanfi import default_solver_tolerances
 from meanfi.results import _DensityEntries
 from dataclasses import fields, replace
 
@@ -22,7 +23,7 @@ pytestmark = pytest.mark.integration
 
 def test_density_selection_modes_preserve_the_explicit_layout():
     hamiltonian = {(): np.diag([-0.5, 0.5]).astype(complex)}
-    integration = UniformGrid(density_matrix_tol=1e-10)
+    integration = UniformGrid()
     coordinates = DensityCoordinates.from_entries(
         size=2,
         keys=[()],
@@ -35,7 +36,12 @@ def test_density_selection_modes_preserve_the_explicit_layout():
         kT=0.2,
         keys=[()],
         integration=integration,
-        filling_tol=1e-10,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-10,
+            charge_integration=1e-10,
+            filling_residual=1e-10,
+        ),
     )
     selected = density_matrix(
         hamiltonian,
@@ -43,7 +49,12 @@ def test_density_selection_modes_preserve_the_explicit_layout():
         kT=0.2,
         coordinates=coordinates,
         integration=integration,
-        filling_tol=1e-10,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-10,
+            charge_integration=1e-10,
+            filling_residual=1e-10,
+        ),
     )
 
     assert complete.is_complete is True
@@ -265,7 +276,9 @@ def test_results_share_immutable_entries_and_preserve_selected_errors():
         ([1], [], "density errors do not match"),
         ([1], [[0]], "one-dimensional"),
         ([1], [-1], "finite and non-negative"),
-        ([1], [np.nan], "finite and non-negative"),
+        ([1], [np.nan], "finite"),
+        ([np.nan], None, "density values must be finite"),
+        ([np.inf], None, "density values must be finite"),
     ],
 )
 def test_density_entries_reject_invalid_arrays(values, errors, message):

@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import warnings
 
 import numpy as np
@@ -56,8 +58,9 @@ def test_zero_dimensional_normal_rational_rejects_dense_matrix():
             integration=UniformGrid(
                 matrix_function=matrix_function,
             ),
-            filling_tol=1e-2,
-            mu_tol=1e-8,
+            tol=replace(
+                default_solver_tolerances(1e-3), filling_residual=1e-2, mu_tol=1e-8
+            ),
         )
 
 
@@ -113,8 +116,9 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
             nk=128,
             matrix_function=DirectDiagonalization(),
         ),
-        filling_tol=1e-8,
-        mu_tol=1e-10,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-8, mu_tol=1e-10
+        ),
     )
     result = density_matrix(
         sparse_tb,
@@ -124,8 +128,9 @@ def test_sparse_normal_rational_fixed_filling_matches_dense_reference():
         integration=UniformGrid(
             nk=128,
         ),
-        filling_tol=1e-2,
-        mu_tol=1e-8,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-2, mu_tol=1e-8
+        ),
     )
 
     assert abs(result.mu - reference.mu) <= 2e-2
@@ -183,8 +188,9 @@ def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
             nk=31,
             matrix_function=DirectDiagonalization(),
         ),
-        filling_tol=1e-8,
-        mu_tol=1e-10,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-8, mu_tol=1e-10
+        ),
     )
     result = density_matrix(
         sparse_tb,
@@ -194,9 +200,10 @@ def test_sparse_periodic_grid_fixed_filling_matches_dense_reference():
         integration=UniformGrid(
             nk=31,
         ),
-        filling_tol=1e-2,
-        mu_tol=1e-8,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-2, mu_tol=1e-8
+        ),
     )
 
     assert abs(result.mu - reference.mu) <= 2e-2
@@ -224,7 +231,7 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
         kT=0.15,
         keys=[(0,)],
         integration=integration,
-        filling_tol=1e-2,
+        tol=replace(default_solver_tolerances(1e-3), filling_residual=1e-2),
     )
     sparse_result = density_matrix(
         sparse_h0,
@@ -232,7 +239,7 @@ def test_normal_scf_sparse_minimal_selection_matches_dense_reference():
         kT=0.15,
         coordinates=space.required_coordinates,
         integration=integration,
-        filling_tol=1e-2,
+        tol=replace(default_solver_tolerances(1e-3), filling_residual=1e-2),
     )
     assert abs(dense_result.mu - sparse_result.mu) <= 5e-4
     assert abs(dense_result.filling - sparse_result.filling) <= 5e-4
@@ -263,8 +270,9 @@ def test_periodic_complex64_matches_complex128():
             nk=128,
             dtype="complex128",
         ),
-        filling_tol=1e-2,
-        mu_tol=1e-8,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-2, mu_tol=1e-8
+        ),
     )
     low_precision = density_matrix(
         tb,
@@ -275,8 +283,9 @@ def test_periodic_complex64_matches_complex128():
             nk=128,
             dtype="complex64",
         ),
-        filling_tol=1e-2,
-        mu_tol=1e-8,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-2, mu_tol=1e-8
+        ),
     )
 
     assert abs(low_precision.mu - high_precision.mu) <= 5e-3
@@ -295,8 +304,9 @@ def test_sparse_solver_result_does_not_expose_reduced_density():
             nk=128,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
-        scf_tol=1.0,
-        filling_tol=1e-2,
+        tol=replace(
+            default_solver_tolerances(1e-3), scf_residual=1.0, filling_residual=1e-2
+        ),
     )
 
     assert not hasattr(result, "density_matrix")
@@ -314,8 +324,9 @@ def test_density_postprocessing_returns_complete_dense_blocks():
             nk=128,
         ),
         scf=LinearMixing(max_iterations=1, alpha=0.5),
-        scf_tol=1.0,
-        filling_tol=1e-2,
+        tol=replace(
+            default_solver_tolerances(1e-3), scf_residual=1.0, filling_residual=1e-2
+        ),
     )
     density = density_matrix_at_mu(
         model.hamiltonian_from_meanfield(result.mean_field),
@@ -426,8 +437,9 @@ def test_strained_graphene_single_shot_sparse_aaa_is_stable():
             nk=4,  # Large sparse smoke test; accuracy is checked on small models.
             matrix_function=RationalFOE(initial_poles=4, max_poles=128),
         ),
-        filling_tol=1e-1,
-        mu_tol=1e-8,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-1, mu_tol=1e-8
+        ),
     )
 
     assert np.isfinite(result.mu)

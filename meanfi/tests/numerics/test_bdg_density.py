@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 import scipy.sparse as sparse
@@ -114,9 +116,10 @@ def test_bdg_exact_density_matches_dense_2d_reference():
         mean_field=meanfield,
         keys=keys,
         integration=UniformGrid(nk=256, matrix_function=DirectDiagonalization()),
-        filling_tol=0.0005,
-        mu_tol=0.0005,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=0.0005, mu_tol=0.0005
+        ),
     )
 
     assert abs(result.mu - reference_mu) <= 8e-4
@@ -147,9 +150,10 @@ def test_bdg_dense_rational_is_rejected(matrix_function):
             mean_field=meanfield,
             keys=keys,
             integration=UniformGrid(nk=256, matrix_function=matrix_function),
-            filling_tol=0.001,
-            mu_tol=0.001,
             max_charge_evaluations=80,
+            tol=replace(
+                default_solver_tolerances(1e-3), filling_residual=0.001, mu_tol=0.001
+            ),
         )
 
 
@@ -177,18 +181,20 @@ def test_bdg_sparse_rational_matches_exact_density_in_2d(matrix_function):
         mean_field=meanfield,
         keys=keys,
         integration=UniformGrid(nk=256, matrix_function=DirectDiagonalization()),
-        filling_tol=0.001,
-        mu_tol=0.001,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=0.001, mu_tol=0.001
+        ),
     )
     rational = density_matrix(
         model,
         mean_field=meanfield,
         keys=keys,
         integration=UniformGrid(nk=256, matrix_function=matrix_function),
-        filling_tol=0.001,
-        mu_tol=0.001,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=0.001, mu_tol=0.001
+        ),
     )
 
     assert abs(rational.mu - exact.mu) <= 2e-3
@@ -215,9 +221,10 @@ def test_bdg_sparse_rational_accepts_sparse_matrices_when_scipy_is_available():
         mean_field=meanfield,
         keys=[local],
         integration=UniformGrid(nk=256),
-        filling_tol=1e-06,
-        mu_tol=1e-08,
         max_charge_evaluations=40,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-06, mu_tol=1e-08
+        ),
     )
 
     assert abs(result.mu) <= 1e-8
@@ -251,9 +258,10 @@ def test_bdg_sparse_rational_does_not_fallback_to_exact_diagonalization(monkeypa
         mean_field=meanfield,
         keys=[local],
         integration=UniformGrid(nk=256),
-        filling_tol=1e-06,
-        mu_tol=1e-08,
         max_charge_evaluations=40,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-06, mu_tol=1e-08
+        ),
     )
 
     assert abs(result.mu) <= 1e-8
@@ -283,9 +291,10 @@ def test_bdg_sparse_rational_density_path_avoids_dense_conversion(monkeypatch):
         mean_field=meanfield,
         keys=[local],
         integration=UniformGrid(nk=256),
-        filling_tol=1e-06,
-        mu_tol=1e-08,
         max_charge_evaluations=40,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-06, mu_tol=1e-08
+        ),
     )
 
     assert abs(result.mu) <= 1e-8
@@ -310,9 +319,10 @@ def test_bdg_zero_dimensional_rational_density_rejects_dense_matrix():
             integration=UniformGrid(
                 nk=256, matrix_function=RationalFOE(initial_poles=4, max_poles=256)
             ),
-            filling_tol=1e-08,
-            mu_tol=1e-10,
             max_charge_evaluations=40,
+            tol=replace(
+                default_solver_tolerances(1e-3), filling_residual=1e-08, mu_tol=1e-10
+            ),
         )
 
 
@@ -331,18 +341,20 @@ def test_bdg_sparse_selected_density_matches_dense_reference():
         mean_field=meanfield,
         keys=[local],
         integration=UniformGrid(nk=256),
-        filling_tol=0.001,
-        mu_tol=1e-08,
         max_charge_evaluations=40,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=0.001, mu_tol=1e-08
+        ),
     )
     sparse_result = density_matrix(
         Model(sparse_h0, sparse_hint, filling=0.5, kT=0.2, superconducting=True),
         mean_field=sparse_meanfield,
         keys=[local],
         integration=UniformGrid(nk=256),
-        filling_tol=0.001,
-        mu_tol=1e-08,
         max_charge_evaluations=40,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=0.001, mu_tol=1e-08
+        ),
     )
 
     space = Model(
@@ -390,18 +402,20 @@ def test_bdg_sparse_periodic_grid_selected_density_matches_dense_reference(
         mean_field=meanfield,
         keys=[local],
         integration=UniformGrid(nk=25, matrix_function=DirectDiagonalization()),
-        filling_tol=1e-08,
-        mu_tol=1e-10,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=1e-08, mu_tol=1e-10
+        ),
     )
     sparse_result = density_matrix(
         sparse_model,
         mean_field=sparse_meanfield,
         integration=UniformGrid(nk=25, matrix_function=matrix_function),
-        filling_tol=0.001,
-        mu_tol=1e-08,
         max_charge_evaluations=80,
         coordinates=space.required_coordinates,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=0.001, mu_tol=1e-08
+        ),
     )
 
     np.testing.assert_allclose(

@@ -189,6 +189,11 @@ U_s[c,a]\,
 :::
 
 This representation covers ordinary point symmetries, orbital or spin rotations, antiunitary symmetries, and shifted spatial symmetries such as glides.
+`SpatialSymmetry` verifies that the integer lattice map has determinant +1 or -1
+and that the combined Fourier transformation is unitary. Equivalently,
+$\sum_s U_s^\dagger U_{s+d}=\delta_{d,0}I$. Individual shift blocks may be
+nonunitary, as in a glide. The user still chooses transformations appropriate to
+the physical model. Roundoff in an identity action does not add constraints.
 
 For normal density entries, the induced constraint is
 

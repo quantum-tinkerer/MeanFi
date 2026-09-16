@@ -14,7 +14,6 @@ from meanfi.tb.ops import _tb_type, matrix_bound
 
 ChargeEvaluation = Callable[[float], tuple[float, float, float | None]]
 _CHARGE_ERROR_ACCEPTANCE_FRACTION = 0.5
-_CHARGE_INTEGRAL_ATOL_FRACTION = 0.25
 _MAX_BRACKET_EXPANSIONS = 64
 _BRENT_MAXITER = 10_000
 
@@ -114,7 +113,7 @@ class _MaxRootIterations(RuntimeError):
 
 
 class _AcceptedSample(RuntimeError):
-    # scipy.brentq exposes only a residual-based stopping rule, so we use a
+    # scipy.brentq stops on chemical-potential intervals, so we use a
     # private exception to stop once the physical charge acceptance criterion is met.
     def __init__(self, sample: _ChargeSample) -> None:
         self.sample = sample
@@ -146,35 +145,14 @@ class _ChargeRootSolver:
         self.last: _ChargeSample | None = None
         self.best: _ChargeSample | None = None
 
-    def solve_with_expansion(
-        self,
-        *,
-        lower: float,
-        upper: float,
-        mu_guess: float,
+    def solve(
+        self, *, initial_bracket: Callable[[], tuple[float, float]], mu_guess: float
     ) -> FixedFillingSolve:
+        guess = self.sample(mu_guess)
+        if self.accepted(guess):
+            return self._result(guess)
+        lower, upper = initial_bracket()
         bracket = self._expand_bracket(lower=lower, upper=upper)
-        return self.solve_in_bracket(
-            lower=bracket.lower.mu,
-            upper=bracket.upper.mu,
-            mu_guess=mu_guess,
-            bracket=bracket,
-        )
-
-    def solve_in_bracket(
-        self,
-        *,
-        lower: float,
-        upper: float,
-        mu_guess: float,
-        bracket: _ChargeBracket | None = None,
-    ) -> FixedFillingSolve:
-        if bracket is None:
-            bracket = _ChargeBracket(self.sample(lower), self.sample(upper))
-        if bracket.lower.residual > 0.0 or bracket.upper.residual < 0.0:
-            raise ValueError(
-                "Chemical-potential bracket does not enclose the requested filling"
-            )
         for sample in (bracket.lower, bracket.upper):
             if self.accepted(sample):
                 return self._result(sample)
@@ -242,6 +220,8 @@ class _ChargeRootSolver:
     ) -> _ChargeBracket:
         lower_value = float(lower)
         upper_value = float(upper)
+        if not np.isfinite(lower_value) or not np.isfinite(upper_value):
+            raise ValueError("Chemical-potential bracket endpoints must be finite")
         if not lower_value < upper_value:
             raise ValueError(
                 "Expected lower < upper for the chemical-potential bracket"
@@ -357,8 +337,6 @@ def _validate_root_inputs(
     *,
     filling: float,
     mu_guess: float,
-    lower: float,
-    upper: float,
     filling_tol: float,
     mu_xtol: float,
     max_charge_evaluations: int | None,
@@ -368,10 +346,6 @@ def _validate_root_inputs(
         raise ValueError("Requested filling must be finite")
     if not np.isfinite(mu_guess):
         raise ValueError("Initial chemical-potential guess must be finite")
-    if not np.isfinite(lower) or not np.isfinite(upper):
-        raise ValueError("Chemical-potential bracket endpoints must be finite")
-    if not lower < upper:
-        raise ValueError("Expected lower < upper for the chemical-potential bracket")
     if not np.isfinite(filling_tol) or filling_tol <= 0.0:
         raise ValueError("filling_tol must be a positive finite number")
     if not np.isfinite(mu_xtol) or mu_xtol <= 0.0:
@@ -401,7 +375,7 @@ def solve_mu(
     charge_error_tol: float | None = None,
     use_derivative: bool = True,
 ) -> FixedFillingSolve:
-    """Solve for the chemical potential by first building and expanding a bracket.
+    """Test the chemical-potential guess, then bracket and solve only if needed.
 
     `evaluate_charge(mu)` must return `(charge, charge_error, derivative)`, where
     `charge` approximates the requested filling function `N(mu)`, `charge_error`
@@ -409,12 +383,9 @@ def solve_mu(
     `dN/dmu` estimate. The solver assumes `N(mu)` is monotone nondecreasing over
     the expanded bracket.
     """
-    lower, upper = initial_bracket()
     _validate_root_inputs(
         filling=filling,
         mu_guess=mu_guess,
-        lower=lower,
-        upper=upper,
         filling_tol=filling_tol,
         mu_xtol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
@@ -430,7 +401,7 @@ def solve_mu(
         use_derivative=use_derivative,
     )
     try:
-        return solver.solve_with_expansion(lower=lower, upper=upper, mu_guess=mu_guess)
+        return solver.solve(initial_bracket=initial_bracket, mu_guess=mu_guess)
     except _MaxRootIterations:
         solver._fail(
             "maximum charge-evaluation budget reached before satisfying the filling tolerance",

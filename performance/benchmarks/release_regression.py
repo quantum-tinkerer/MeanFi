@@ -7,7 +7,7 @@ with its PeriodicQuadrature implementation; that compatibility is study-only.
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 import os
 from pathlib import Path
@@ -112,6 +112,24 @@ def problem(name):
 
 
 def evaluate(model, mf):
+    if "mu_tol" in meanfi.ErrorTolerances.__dataclass_fields__:
+        return meanfi.density_matrix(
+            model,
+            mean_field=mf,
+            integration=meanfi.UniformGrid(
+                max_points=262144,
+                batch_size=128,
+                matrix_function=meanfi.DirectDiagonalization(),
+            ),
+            tol=replace(
+                meanfi.default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-4,
+                charge_integration=2.5e-5,
+                filling_residual=2.5e-5,
+                mu_tol=1e-12,
+            ),
+            max_charge_evaluations=200,
+        )
     settings = dict(
         density_matrix_tol=1e-4,
         charge_tol=2.5e-5,

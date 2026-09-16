@@ -67,11 +67,12 @@ def test_explicit_integration_tolerances_are_effective_internal_requests(
         _two_level_hamiltonian(),
         kT=0.2,
         keys=[()],
-        integration=UniformGrid(
-            density_matrix_tol=5e-7,
-            charge_tol=charge_tolerance,
+        integration=UniformGrid(),
+        tolerances=replace(
+            default_solver_tolerances(1e-4),
+            density_matrix_integration=5e-7,
+            charge_integration=charge_tolerance,
         ),
-        tolerances=default_solver_tolerances(1e-4),
     )
 
     assert problem.tolerances == ErrorTolerances(
@@ -115,8 +116,11 @@ def test_energy_units_do_not_control_density_refinement():
                 mu=scale * 0.27,
                 kT=scale * 0.037,
                 keys=[(0,)],
-                integration=UniformGrid(
-                    density_matrix_tol=tolerance, charge_tol=tolerance
+                integration=UniformGrid(),
+                tol=replace(
+                    default_solver_tolerances(1e-3),
+                    density_matrix_integration=tolerance,
+                    charge_integration=tolerance,
                 ),
             )
         )
@@ -158,8 +162,12 @@ def test_explicit_density_target_supplies_omitted_charge_target(method, kT):
         _two_level_hamiltonian(),
         kT=kT,
         keys=[()],
-        integration=method(density_matrix_tol=5e-7),
-        tolerances=default_solver_tolerances(1e-3),
+        integration=method(),
+        tolerances=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=5e-7,
+            charge_integration=5e-7,
+        ),
     )
     assert problem.tolerances.density_matrix_integration == 5e-7
     assert problem.tolerances.charge_integration == 5e-7
@@ -231,3 +239,36 @@ def test_direct_density_does_not_invent_a_matrix_function_estimate(method, kT):
     )
     assert isinstance(result.statistics, IntegrationInfo)
     assert result.errors.matrix_function_error is None
+
+
+@pytest.mark.parametrize(
+    "evaluate", ["density_matrix", "density_matrix_at_mu", "solver"]
+)
+def test_all_public_calculations_accept_the_same_tolerance_record(evaluate):
+    import meanfi as mf
+
+    model = mf.Model(_two_level_hamiltonian(), {(): np.zeros((2, 2))}, 1, kT=0.2)
+    targets = default_solver_tolerances(1e-7)
+    args = (
+        (model, {})
+        if evaluate == "solver"
+        else (model, 0.0)
+        if evaluate == "density_matrix_at_mu"
+        else (model,)
+    )
+    run = getattr(mf, evaluate)
+    result = run(*args, tol=targets)
+    scalar = run(*args, tol=1e-7)
+    density = result.density if evaluate == "solver" else result
+    scalar_density = scalar.density if evaluate == "solver" else scalar
+    np.testing.assert_array_equal(density.values, scalar_density.values)
+    assert result.errors == scalar.errors
+    with pytest.raises(ValueError, match="custom tolerance_policy"):
+        run(*args, tol=targets, tolerance_policy=lambda _: targets)
+
+
+@pytest.mark.parametrize("field", ErrorTolerances.__dataclass_fields__)
+@pytest.mark.parametrize("invalid", [0, -1, float("nan"), float("inf")])
+def test_accuracy_targets_reject_invalid_values(field, invalid):
+    with pytest.raises(ValueError, match=field):
+        replace(default_solver_tolerances(1e-3), **{field: invalid})

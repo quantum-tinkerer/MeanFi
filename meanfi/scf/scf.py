@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from meanfi.errors import (
+    ErrorTolerances,
     ToleranceFunction,
     default_solver_tolerances,
     resolve_error_tolerances,
@@ -15,7 +14,7 @@ from meanfi.density.integrate.methods import IntegrationMethod
 from meanfi.model import Model
 from meanfi.results import SCFResult
 from meanfi.scf.engine import run_scf_loop
-from meanfi.scf.methods import EnergyDIIS, SCFMethod
+from meanfi.scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 from meanfi.scf.problem import SCFProblem
 from meanfi.tb.ops import _tb_type
 
@@ -26,16 +25,15 @@ def solver(
     *,
     integration: IntegrationMethod | None = None,
     scf: SCFMethod | None = None,
-    scf_tol: float | None = None,
-    tol: float = 1e-3,
+    tol: float | ErrorTolerances = 1e-3,
     tolerance_policy: ToleranceFunction = default_solver_tolerances,
-    filling_tol: float | None = None,
-    mu_tol: float = 1e-10,
     max_charge_evaluations: int | None = None,
     verbose: bool = False,
     compute_free_energy: bool = True,
 ) -> SCFResult:
     """Run mean-field update -> density update -> SCF mixing.
+
+    ``tol`` accepts a number or an explicit ErrorTolerances record.
 
     Entropy is computed once at termination by default, including valid partial
     results on failure. Set ``compute_free_energy=False`` to skip that final
@@ -43,19 +41,9 @@ def solver(
     """
 
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
-    if scf_tol is not None:
-        tolerances = replace(
-            tolerances,
-            scf_residual=float(scf_tol),
-        )
-    if filling_tol is not None:
-        tolerances = replace(
-            tolerances,
-            filling_residual=float(filling_tol),
-        )
     resolved_scf = scf if scf is not None else EnergyDIIS()
-    if not isinstance(resolved_scf, SCFMethod):
-        raise TypeError("scf must be an SCFMethod instance")
+    if not isinstance(resolved_scf, (AndersonMixing, EnergyDIIS, LinearMixing)):
+        raise TypeError("scf must be LinearMixing, EnergyDIIS, or AndersonMixing")
 
     density_problem = build_density_problem(
         model.hamiltonian_from_meanfield(),
@@ -66,7 +54,7 @@ def solver(
         density_coordinates=model.required_coordinates,
         electron_ndof=model._ndof if model.superconducting else None,
     )
-    problem = SCFProblem(model, density_problem, mu_tol, max_charge_evaluations)
+    problem = SCFProblem(model, density_problem, max_charge_evaluations)
     return run_scf_loop(
         guess,
         scf=resolved_scf,

@@ -93,15 +93,18 @@ if it exhausts `max_iterations`; no SCF method switches to another automatically
 Free energy is reported for the final state and need not decrease during SCF.
 
 SCF settings are keyword-only. Anderson exposes `alpha`, `history_size`,
-`regularization`, `line_search` and `max_iterations`. Use `solver(..., scf_tol=...)`
-for the absolute residual target. EDIIS exposes `history_size` and
+`regularization`, `line_search` and `max_iterations`. A numeric `tol` sets the
+absolute SCF residual target; use `ErrorTolerances.scf_residual` to adjust it independently. EDIIS exposes `history_size` and
 `max_iterations`; linear mixing exposes `alpha` and `max_iterations`.
 
 ## Output
 
 Once the fixed point converges, `MeanFi` returns two useful state views: the
-layout-aware final `result.density` and the physical interaction correction
-`result.mean_field`. It does not store a redundant effective Hamiltonian. The
+layout-aware final `result.density` and the input interaction correction
+`result.mean_field` that produced it. This pairing also holds for unconverged
+results. `model.mean_field(result.density)` computes the next correction; it
+coincides with the input only at a fixed point. The result does not store a
+redundant effective Hamiltonian. The
 chemical potential and filling remain available as `result.mu` and
 `result.filling`, backed by the final density result. `result.internal_energy`
 and `result.free_energy` report energies per cell per physical orbital; `result.entropy` is in
@@ -143,7 +146,7 @@ def my_solver(model, guess):
         )
     except meanfi.NoConvergence as failure:
         return meanfi.solver(
-            model, failure.result.mean_field,
+            model, model.mean_field(failure.result.density),
             scf=meanfi.AndersonMixing(max_iterations=80),
         )
 ```

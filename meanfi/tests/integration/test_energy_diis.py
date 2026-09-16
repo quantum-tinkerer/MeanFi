@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import numpy as np
 import pytest
@@ -44,8 +46,13 @@ def test_default_zero_temperature_adaptive_solver_reports_energy():
     result = solver(
         _zero_dimensional_model(),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=FermiSimplex(density_matrix_tol=1e-6),
-        scf_tol=1e-7,
+        integration=FermiSimplex(),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-6,
+            charge_integration=1e-6,
+            scf_residual=1e-7,
+        ),
     )
 
     assert result.converged is True
@@ -58,9 +65,14 @@ def test_explicit_energy_diis_uses_requested_tolerances_from_first_iteration():
     result = solver(
         _zero_dimensional_model(),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=FermiSimplex(density_matrix_tol=1e-6),
+        integration=FermiSimplex(),
         scf=EnergyDIIS(),
-        scf_tol=1e-7,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-6,
+            charge_integration=1e-6,
+            scf_residual=1e-7,
+        ),
     )
 
     assert len(result.history) == 1
@@ -107,8 +119,13 @@ def test_finite_temperature_default_reports_free_energy():
     result = solver(
         _zero_dimensional_model(kT=0.2),
         {(): np.zeros((2, 2), dtype=complex)},
-        integration=UniformGrid(density_matrix_tol=1e-8),
-        scf_tol=1e-7,
+        integration=UniformGrid(),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-8,
+            charge_integration=1e-8,
+            scf_residual=1e-7,
+        ),
     )
 
     assert result.history
@@ -146,11 +163,15 @@ def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():
         model,
         {(0,): np.diag([0.2, -0.2]).astype(complex)},
         integration=FermiSimplex(
-            density_matrix_tol=2e-3,
             max_refinements=500,
         ),
         scf=EnergyDIIS(),
-        scf_tol=3e-3,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=2e-3,
+            charge_integration=2e-3,
+            scf_residual=3e-3,
+        ),
     )
 
     assert np.isfinite(result.internal_energy)

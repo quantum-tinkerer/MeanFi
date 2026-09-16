@@ -39,9 +39,14 @@ def test_normal_solver_warns_when_guess_is_projected_to_structural_selection():
         result = solver(
             model,
             {(0,): np.array([[0.0, 0.3], [0.3, 0.0]], dtype=complex)},
-            integration=UniformGrid(density_matrix_tol=1e-2),
+            integration=UniformGrid(),
             scf=LinearMixing(max_iterations=1),
-            scf_tol=1e-8,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-2,
+                charge_integration=1e-2,
+                scf_residual=1e-8,
+            ),
         )
 
     assert result.history
@@ -63,7 +68,7 @@ def test_density_matrix_requires_local_key_for_zero_dimensional_inputs():
 @pytest.mark.parametrize("mode", ("at_mu", "fixed_filling"))
 def test_zero_temperature_backend_raises_when_refinement_cap_prevents_convergence(mode):
     tb = spinful_chain()
-    integration = FermiSimplex(density_matrix_tol=1e-6, max_refinements=0)
+    integration = FermiSimplex(max_refinements=0)
     keys = [(0,), (1,), (-1,)]
 
     with pytest.raises(RuntimeError, match="Adaptive simplex loop did not converge"):
@@ -74,6 +79,11 @@ def test_zero_temperature_backend_raises_when_refinement_cap_prevents_convergenc
                 kT=0.0,
                 keys=keys,
                 integration=integration,
+                tol=replace(
+                    default_solver_tolerances(1e-3),
+                    density_matrix_integration=1e-6,
+                    charge_integration=1e-6,
+                ),
             )
             return
 
@@ -83,6 +93,11 @@ def test_zero_temperature_backend_raises_when_refinement_cap_prevents_convergenc
             kT=0.0,
             keys=keys,
             integration=integration,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-6,
+                charge_integration=1e-6,
+            ),
         )
 
 
@@ -100,7 +115,12 @@ def test_positive_temperature_density_matrix_does_not_use_zero_temperature_backe
         filling=1.0,
         kT=0.1,
         keys=[(0,)],
-        integration=UniformGrid(density_matrix_tol=1e-4),
+        integration=UniformGrid(),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-4,
+            charge_integration=1e-4,
+        ),
     )
 
     assert np.isfinite(result.mu)
@@ -151,8 +171,13 @@ def test_zero_temperature_density_matrix_dispatches_to_zero_temperature_backend(
         filling=1.0,
         kT=0.0,
         keys=[(0,)],
-        integration=FermiSimplex(density_matrix_tol=1e-4, num_threads=3),
-        filling_tol=2e-3,
+        integration=FermiSimplex(num_threads=3),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-4,
+            charge_integration=1e-4,
+            filling_residual=2e-3,
+        ),
     )
 
     assert called["problem"].tolerances.density_matrix_integration == 1e-4
@@ -299,7 +324,6 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
         ),
         filling=1.0,
         mu_guess=0.0,
-        mu_tol=1e-10,
         max_charge_evaluations=None,
     )
 
@@ -408,7 +432,12 @@ def test_zero_temperature_backend_supports_higher_dimensions(ndim):
         mu=0.0,
         kT=0.0,
         keys=[key],
-        integration=FermiSimplex(density_matrix_tol=1e-12, max_refinements=10),
+        integration=FermiSimplex(max_refinements=10),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-12,
+            charge_integration=1e-12,
+        ),
     )
 
     assert np.allclose(

@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import argparse
 
@@ -13,14 +15,21 @@ from performance._shared.common import print_summary, scf_record, write_records
 from performance._shared.scenarios import hubbard_chain_scf_problem
 
 
-def _scf_measurement(model, guess, *, integration, scf, repeat: int, warmup: int):
+def _scf_measurement(
+    model, guess, *, integration, density_target, scf, repeat: int, warmup: int
+):
     result = benchmark(
         lambda: solver(
             model,
             guess,
             integration=integration,
             scf=scf,
-            scf_tol=1e-4,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                scf_residual=1e-4,
+                density_matrix_integration=density_target,
+                charge_integration=density_target,
+            ),
         ),
         repeat=repeat,
         warmup=warmup,
@@ -46,7 +55,7 @@ def main() -> None:
             "hubbard_chain_ft_scf",
             ft_model,
             ft_guess,
-            UniformGrid(density_matrix_tol=1e-4),
+            UniformGrid(),
             {
                 "problem_family": "hubbard_chain",
                 "held_constant": "U=2.0,filling=2.0,kT=0.1",
@@ -58,7 +67,7 @@ def main() -> None:
             "hubbard_chain_zt_scf",
             zt_model,
             zt_guess,
-            FermiSimplex(density_matrix_tol=1e-3, max_refinements=600),
+            FermiSimplex(max_refinements=600),
             {
                 "problem_family": "hubbard_chain",
                 "held_constant": "U=2.0,filling=2.0,kT=0.0",
@@ -86,6 +95,9 @@ def main() -> None:
             model,
             guess,
             integration=integration,
+            density_target=extra["control_value"]
+            if extra["control_parameter"] == "density_matrix_tol"
+            else 2e-4,
             scf=anderson,
             repeat=args.repeat,
             warmup=args.warmup,

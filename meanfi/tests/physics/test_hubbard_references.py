@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import pytest
 
 from meanfi import (
@@ -25,7 +27,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
     h_0, h_int = bipartite_hubbard_1d(U)
     delta_ref = solve_antiferromagnetic_gap(h_0, U=U, kT=kT, ndim=1, nk=4000)
     m_ref = 2.0 * delta_ref / U
-    integration = UniformGrid(density_matrix_tol=1e-6)
+    integration = UniformGrid()
     scf_tol = 1e-5
 
     model = Model(h_0, h_int, filling=2.0, kT=kT)
@@ -34,8 +36,13 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
         antiferromagnetic_guess(0.5 * delta_ref, 1),
         integration=integration,
         scf=AndersonMixing(history_size=0, line_search="wolfe", max_iterations=80),
-        scf_tol=scf_tol,
-        filling_tol=1e-6,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-6,
+            charge_integration=1e-6,
+            scf_residual=scf_tol,
+            filling_residual=1e-6,
+        ),
     )
     density_result = density_matrix(
         model.hamiltonian_from_meanfield(result.mean_field),
@@ -43,7 +50,12 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_1d():
         kT=kT,
         keys=[(0,)],
         integration=integration,
-        filling_tol=1e-6,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-6,
+            charge_integration=1e-6,
+            filling_residual=1e-6,
+        ),
     )
 
     assert result.errors.scf_residual <= scf_tol
@@ -57,7 +69,7 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
     h_0, h_int = bipartite_hubbard_2d(U)
     delta_ref = solve_antiferromagnetic_gap(h_0, U=U, kT=kT, ndim=2, nk=140)
     m_ref = 2.0 * delta_ref / U
-    integration = UniformGrid(density_matrix_tol=1e-5)
+    integration = UniformGrid()
     scf_tol = 5e-5
 
     model = Model(h_0, h_int, filling=2.0, kT=kT)
@@ -66,8 +78,13 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
         antiferromagnetic_guess(0.5 * delta_ref, 2),
         integration=integration,
         scf=AndersonMixing(history_size=0, line_search="wolfe", max_iterations=40),
-        scf_tol=scf_tol,
-        filling_tol=1e-5,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-5,
+            charge_integration=1e-5,
+            scf_residual=scf_tol,
+            filling_residual=1e-5,
+        ),
     )
     density_result = density_matrix(
         model.hamiltonian_from_meanfield(result.mean_field),
@@ -75,7 +92,12 @@ def test_solver_matches_antiferromagnetic_gap_equation_in_2d():
         kT=kT,
         keys=[(0, 0)],
         integration=integration,
-        filling_tol=1e-5,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-5,
+            charge_integration=1e-5,
+            filling_residual=1e-5,
+        ),
     )
 
     assert result.errors.scf_residual <= scf_tol

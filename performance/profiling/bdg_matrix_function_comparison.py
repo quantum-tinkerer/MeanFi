@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import argparse
 
@@ -62,9 +64,10 @@ def main() -> None:
             nk=args.nk,
             matrix_function=DirectDiagonalization(),
         ),
-        filling_tol=5e-5,
-        mu_tol=5e-5,
         max_charge_evaluations=80,
+        tol=replace(
+            default_solver_tolerances(1e-3), filling_residual=5e-5, mu_tol=5e-5
+        ),
     )
 
     configurations = (
@@ -91,9 +94,10 @@ def main() -> None:
                 mean_field=meanfield,
                 keys=keys,
                 integration=integration,
-                filling_tol=1e-4,
-                mu_tol=1e-4,
                 max_charge_evaluations=80,
+                tol=replace(
+                    default_solver_tolerances(1e-3), filling_residual=1e-4, mu_tol=1e-4
+                ),
             ),
             repeat=args.repeat,
             warmup=args.warmup,

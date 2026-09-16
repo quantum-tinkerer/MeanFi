@@ -1,136 +1,41 @@
-from __future__ import annotations
-
-import numpy as np
+"""Density entries used by the normal and anomalous interaction maps."""
 
 from meanfi.space.coordinates import (
     DensityCoordinates,
     canonical_tb_keys,
     matrix_support_pairs,
     onsite_key,
-    sorted_unique_pairs,
 )
 from meanfi.tb.ops import _tb_type
-
 from meanfi.tb.validate import tb_dimension, tb_orbital_count
 
 
 def active_tb_keys(keys) -> list[tuple[int, ...]]:
-    key_set = {tuple(key) for key in keys}
-    if not key_set:
-        key_set.add(tuple())
+    key_set = {tuple(key) for key in keys} or {()}
     key_set.add(onsite_key(len(next(iter(key_set)))))
     return canonical_tb_keys(key_set)
 
 
-def normal_active_support(h_int: _tb_type) -> DensityCoordinates:
+def _active_support(h_int: _tb_type, *, superconducting: bool) -> DensityCoordinates:
+    size = tb_orbital_count(h_int)
     onsite = onsite_key(tb_dimension(h_int))
-    interaction_keys = list(h_int)
-    density_keys = active_tb_keys([*interaction_keys, onsite])
-    coordinates = DensityCoordinates.from_pairs(
-        size=tb_orbital_count(h_int),
-        keys=density_keys,
-        pairs_by_key=_normal_active_pairs_from_interaction(
-            h_int,
-            keys=density_keys,
-            onsite=onsite,
-        ),
+    entries = set()
+    for key, matrix in h_int.items():
+        rows, cols = matrix_support_pairs(matrix)
+        for row, col in zip(rows, cols, strict=True):
+            entries.update(((onsite, row, row), (onsite, col, col), (key, row, col)))
+            if superconducting:
+                entries.add((key, row, size + col))
+    return DensityCoordinates.from_entries(
+        size=(2 if superconducting else 1) * size,
+        keys=active_tb_keys(h_int),
+        entries=entries,
     )
-    return coordinates
+
+
+def normal_active_support(h_int: _tb_type) -> DensityCoordinates:
+    return _active_support(h_int, superconducting=False)
 
 
 def bdg_active_support(h_int: _tb_type) -> DensityCoordinates:
-    onsite = onsite_key(tb_dimension(h_int))
-    density_keys = active_tb_keys([*h_int, onsite])
-    electron_pairs = _normal_active_pairs_from_interaction(
-        h_int,
-        keys=density_keys,
-        onsite=onsite,
-    )
-    anomalous_pairs = _bdg_anomalous_pairs_from_interaction(
-        h_int,
-        keys=density_keys,
-        ndof=tb_orbital_count(h_int),
-    )
-    coordinates = DensityCoordinates.from_pairs(
-        size=2 * tb_orbital_count(h_int),
-        keys=density_keys,
-        pairs_by_key=_merge_pair_maps(electron_pairs, anomalous_pairs),
-    )
-    return coordinates
-
-
-def _normal_active_pairs_from_interaction(
-    h_int: _tb_type,
-    *,
-    keys: list[tuple[int, ...]],
-    onsite: tuple[int, ...],
-) -> dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]]:
-    """Read density entries that can affect the normal mean-field map."""
-
-    pairs: dict[tuple[int, ...], list[tuple[int, int]]] = {key: [] for key in keys}
-    diagonal_indices: set[int] = set()
-    for matrix in h_int.values():
-        rows, cols = matrix_support_pairs(matrix)
-        diagonal_indices.update(int(row) for row in rows)
-        diagonal_indices.update(int(col) for col in cols)
-
-    for key in keys:
-        matrix = h_int.get(key)
-        if matrix is not None:
-            rows, cols = matrix_support_pairs(matrix)
-            _append_pairs(pairs, key, rows, cols)
-        if key == onsite:
-            for index in diagonal_indices:
-                pairs[key].append((index, index))
-    return _materialize_pairs(pairs)
-
-
-def _bdg_anomalous_pairs_from_interaction(
-    h_int: _tb_type,
-    *,
-    keys: list[tuple[int, ...]],
-    ndof: int,
-) -> dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]]:
-    pairs: dict[tuple[int, ...], list[tuple[int, int]]] = {key: [] for key in keys}
-    for key in keys:
-        matrix = h_int.get(key)
-        if matrix is None:
-            continue
-        rows, cols = matrix_support_pairs(matrix)
-        shifted_cols = ndof + cols
-        _append_pairs(pairs, key, rows, shifted_cols)
-    return _materialize_pairs(pairs)
-
-
-def _merge_pair_maps(
-    *pair_maps: dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]],
-) -> dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]]:
-    merged: dict[tuple[int, ...], list[tuple[int, int]]] = {}
-    for pair_map in pair_maps:
-        for key, (rows, cols) in pair_map.items():
-            _append_pairs(merged, key, rows, cols)
-    return _materialize_pairs(merged)
-
-
-def _append_pairs(
-    pairs: dict[tuple[int, ...], list[tuple[int, int]]],
-    key: tuple[int, ...],
-    rows: np.ndarray,
-    cols: np.ndarray,
-) -> None:
-    pairs.setdefault(key, [])
-    for row, col in zip(rows, cols, strict=True):
-        pairs[key].append((int(row), int(col)))
-
-
-def _materialize_pairs(
-    pairs: dict[tuple[int, ...], list[tuple[int, int]]],
-) -> dict[tuple[int, ...], tuple[np.ndarray, np.ndarray]]:
-    result = {}
-    for key, entries in pairs.items():
-        if entries:
-            rows, cols = np.asarray(entries, dtype=int).T
-            result[key] = sorted_unique_pairs(rows, cols)
-        else:
-            result[key] = (np.empty(0, dtype=int), np.empty(0, dtype=int))
-    return result
+    return _active_support(h_int, superconducting=True)

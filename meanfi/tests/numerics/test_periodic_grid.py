@@ -90,8 +90,13 @@ def test_adaptive_fixed_filling_matches_dense_reference():
     result = evaluate(
         kT=temperature,
         filling=filling,
-        integration=UniformGrid(density_matrix_tol=1e-8, charge_tol=1e-8),
-        filling_tol=1e-10,
+        integration=UniformGrid(),
+        tolerances=replace(
+            default_solver_tolerances(1e-5),
+            density_matrix_integration=1e-8,
+            charge_integration=1e-8,
+            filling_residual=1e-10,
+        ),
     )
     assert_allclose(result.mu, expected_mu, atol=2e-9)
     assert_allclose(result.values, [filling, expected_density], atol=2e-9)
@@ -118,7 +123,14 @@ def test_initial_grid_can_resolve_nested_alias(harmonic):
         wire(harmonic),
         keys=[(0,)],
         mu=0.3,
-        integration=UniformGrid(initial_nk=8 * harmonic, density_matrix_tol=1e-8),
+        integration=UniformGrid(
+            initial_nk=8 * harmonic,
+        ),
+        tolerances=replace(
+            default_solver_tolerances(1e-5),
+            density_matrix_integration=1e-8,
+            charge_integration=1e-8,
+        ),
     )
     k = 2 * np.pi * np.arange(32768) / 32768
     reference = expit((0.3 - 2 * np.cos(harmonic * k)) / 0.2).mean()
@@ -201,7 +213,7 @@ def test_bdg_recomputes_mu_dependent_spectrum_and_matches_reference(monkeypatch)
         integration=UniformGrid(nk=5),
         q_diag=np.array([1.0, -1.0]),
         trace_weights_diag=np.array([1.0, 0.0]),
-        filling_tol=1e-10,
+        tolerances=replace(default_solver_tolerances(1e-5), filling_residual=1e-10),
     )
     expected_mu = brentq(
         lambda mu: 0.5
@@ -341,7 +353,7 @@ def test_normal_root_cost_does_not_grow_with_repeated_identical_points():
             keys=[(0,)],
             integration=UniformGrid(nk=n),
             filling=0.37,
-            filling_tol=1e-10,
+            tolerances=replace(default_solver_tolerances(1e-5), filling_residual=1e-10),
         )
         assert_allclose(result.mu, 0.3 + 0.2 * np.log(0.37 / 0.63), atol=1e-9)
         calls.append(result.statistics.charge_evaluations)
@@ -437,8 +449,7 @@ def test_explicit_filling_tolerance_controls_sparse_pointwise_accuracy():
         keys=[(0,)],
         kT=0.2,
         filling=1.0,
-        filling_tol=1e-6,
-        tolerances=default_solver_tolerances(1e-3),
+        tolerances=replace(default_solver_tolerances(1e-3), filling_residual=1e-6),
         integration=UniformGrid(nk=2),
         q_diag=np.array([1.0, 1.0, -1.0, -1.0]),
         trace_weights_diag=np.array([1.0, 1.0, 0.0, 0.0]),

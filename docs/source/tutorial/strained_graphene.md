@@ -22,6 +22,8 @@ We first create the atomistic model in `Kwant`. The complete source code of this
 ```{code-cell} ipython3
 :tags: [hide-input]
 
+from dataclasses import replace
+
 import kwant
 import matplotlib.pyplot as plt
 import meanfi
@@ -123,8 +125,12 @@ result = meanfi.solver(
     mf_model,
     guess,
     integration=integration,
-    scf_tol=scf_tol,
-    filling_tol=charge_tol,
+    tol=replace(
+        meanfi.default_solver_tolerances(scf_tol),
+        density_matrix_integration=density_atol,
+        charge_integration=density_atol,
+        filling_residual=charge_tol,
+    ),
 )
 mf_sol = {
     key: value.toarray() if hasattr(value, "toarray") else np.asarray(value)

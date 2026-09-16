@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 
 import argparse
 import json
@@ -205,15 +207,18 @@ def graphene_reference_suite() -> dict[str, dict[str, float]]:
             scf=meanfi.AndersonMixing(
                 history_size=0, line_search="wolfe", max_iterations=80
             ),
-            scf_tol=2e-2,
-            filling_tol=1e-2,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                scf_residual=2e-2,
+                filling_residual=1e-2,
+            ),
         )
         h_full = meanfi.add_tb(h_0, solver_result.mean_field)
         density_result = meanfi.density_matrix(
             h_full,
             filling=2,
             keys=[(0, 0)],
-            filling_tol=1e-2,
+            tol=replace(default_solver_tolerances(1e-3), filling_residual=1e-2),
         )
         rho = density_result.to_tb()
 
@@ -295,8 +300,9 @@ def solve_strained_graphene_reference(
             line_search="armijo",
             max_iterations=max_scf_steps,
         ),
-        scf_tol=2e-2,
-        filling_tol=2.0,
+        tol=replace(
+            default_solver_tolerances(1e-3), scf_residual=2e-2, filling_residual=2.0
+        ),
     )
     mf_ham = meanfi.add_tb(h0, solver_result.mean_field)
     return {
@@ -328,15 +334,16 @@ def solve_hubbard_reference(
         scf=meanfi.AndersonMixing(
             history_size=0, line_search="wolfe", max_iterations=80
         ),
-        scf_tol=2e-3,
-        filling_tol=1e-3,
+        tol=replace(
+            default_solver_tolerances(1e-3), scf_residual=2e-3, filling_residual=1e-3
+        ),
     )
     h_full = meanfi.add_tb(h_0, solver_result.mean_field)
     density_result = meanfi.density_matrix(
         h_full,
         filling=2.0,
         keys=[(0,)],
-        filling_tol=1e-3,
+        tol=replace(default_solver_tolerances(1e-3), filling_residual=1e-3),
     )
     resolved_gap, gap_info = resolved_hubbard_gap(
         h_full,

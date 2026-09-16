@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 import math
 import warnings
 
-from meanfi.errors import ErrorTolerances, resolve_integration_tolerances
+from meanfi.errors import ErrorTolerances
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
 from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationalLayout
 from meanfi.tb.storage import prefers_sparse_storage
@@ -55,7 +55,6 @@ def build_density_problem(
         integration=integration,
         superconducting=electron_ndof is not None,
     )
-    tolerances = resolve_integration_tolerances(integration, tolerances)
     size = tb_orbital_count(hamiltonian)
     if density_coordinates is None:
         coordinates = full_density_coordinates(
@@ -97,8 +96,10 @@ def resolve_integration(hamiltonian, *, kT, integration=None, superconducting=Fa
         raise ValueError(
             "meanfi supports only finite non-negative temperatures (kT >= 0)"
         )
-    if integration is not None and not isinstance(integration, IntegrationMethod):
-        raise TypeError("integration must be an IntegrationMethod instance")
+    if integration is not None and not isinstance(
+        integration, (FermiSimplex, UniformGrid)
+    ):
+        raise TypeError("integration must be FermiSimplex or UniformGrid")
     sparse = prefers_sparse_storage(hamiltonian)
     finite = tb_dimension(hamiltonian) == 0
     if finite and integration is not None:
@@ -129,8 +130,6 @@ def resolve_integration(hamiltonian, *, kT, integration=None, superconducting=Fa
         if kT != 0:
             raise ValueError("FermiSimplex requires kT == 0")
         return integration
-    if not isinstance(integration, UniformGrid):
-        raise TypeError("integration must be an IntegrationMethod instance")
     if kT == 0 and integration.nk is None and not finite:
         raise ValueError("Zero-temperature UniformGrid requires explicit nk")
     method = integration.matrix_function

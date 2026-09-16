@@ -49,14 +49,17 @@ direct diagonalization and coarse/fine grid refinement.
 ```python
 # Choose a total point count or request accuracy-controlled integration.
 integration = meanfi.UniformGrid(nk=4096)
-integration = meanfi.UniformGrid(initial_nk=256, density_matrix_tol=1e-5, charge_tol=1e-6)
+integration = meanfi.UniformGrid(initial_nk=256)
+result = meanfi.solver(model, guess, integration=integration, tol=1e-5)
 ```
 
-An explicit `nk` fixes the mesh and cannot be combined with integration targets.
+An explicit `nk` fixes the mesh; integration targets then do not apply.
 For example, `nk=4096` gives 64² periodic points in 2D. Prescribed meshes do not
 estimate integration error. `initial_nk` chooses a starting mesh for refinement,
 using the same total-point units; it cannot be combined with `nk`. The solver's `tol` still controls filling and SCF
-convergence. Zero-temperature BdG calculations require an explicit mesh.
+convergence. Periodic zero-temperature BdG calculations require an explicit mesh.
+For individual targets, pass an `ErrorTolerances` record as `tol`; method objects
+contain mesh, backend and resource settings only.
 
 Sparse finite-temperature calculations use
 `UniformGrid(nk=..., matrix_function=RationalFOE())`. AAA shares poles and sparse

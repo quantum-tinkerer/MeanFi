@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationalLayout
 import numpy as np
 import pytest
@@ -29,9 +31,9 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
             nk=128,
             matrix_function=DirectDiagonalization(),
         ),
-        tol=1e-9,
-        filling_tol=1e-9,
-        mu_tol=1e-8,
+        tol=replace(
+            default_solver_tolerances(1e-9), filling_residual=1e-9, mu_tol=1e-8
+        ),
     )
     sparse_result = density_matrix(
         sparse_tb,
@@ -42,9 +44,9 @@ def test_sparse_rational_fixed_filling_matches_dense_reference():
             nk=128,
             matrix_function=RationalFOE(initial_poles=4, max_poles=64),
         ),
-        tol=1e-9,
-        filling_tol=1e-9,
-        mu_tol=1e-8,
+        tol=replace(
+            default_solver_tolerances(1e-9), filling_residual=1e-9, mu_tol=1e-8
+        ),
     )
 
     assert abs(sparse_result.mu - dense_result.mu) <= 1e-8

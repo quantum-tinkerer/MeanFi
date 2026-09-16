@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
@@ -12,17 +12,27 @@ class ConvergenceError(RuntimeError):
     """A density integration or filling solve could not meet its numerical target."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ErrorTolerances:
-    """Absolute targets for density, filling, and SCF convergence."""
+    """Absolute targets accepted as ``tol`` by density calculations and SCF.
+
+    Omitted ``charge_integration`` takes ``density_matrix_integration``.
+    ``mu_tol`` limits root-search steps; only the filling residual establishes
+    charge convergence. Energy and entropy have no accuracy targets.
+    """
 
     scf_residual: float
     density_matrix_integration: float
     filling_residual: float
-    charge_integration: float
     matrix_function_tol: float
+    charge_integration: float | None = None
+    mu_tol: float = 1e-10
 
     def __post_init__(self) -> None:
+        if self.charge_integration is None:
+            object.__setattr__(
+                self, "charge_integration", self.density_matrix_integration
+            )
         for name, value in self.__dict__.items():
             number = float(value)
             if not np.isfinite(number) or number <= 0.0:
@@ -75,10 +85,16 @@ def default_solver_tolerances(tol: float) -> ErrorTolerances:
 
 
 def resolve_error_tolerances(
-    tol: float,
+    tol: float | ErrorTolerances,
     tolerance_policy: ToleranceFunction,
 ) -> ErrorTolerances:
-    """Evaluate and validate an ordinary ``tol -> tolerances`` callable."""
+    """Accept explicit targets or apply the scalar tolerance policy once."""
+    if isinstance(tol, ErrorTolerances):
+        if tolerance_policy is not default_solver_tolerances:
+            raise ValueError(
+                "An ErrorTolerances record cannot be combined with a custom tolerance_policy"
+            )
+        return tol
 
     tol = float(tol)
     if not np.isfinite(tol) or tol <= 0.0:
@@ -89,18 +105,3 @@ def resolve_error_tolerances(
     if not isinstance(tolerances, ErrorTolerances):
         raise TypeError("tolerance_policy must return ErrorTolerances")
     return tolerances
-
-
-def resolve_integration_tolerances(integration, tolerances: ErrorTolerances):
-    """An explicit density target also supplies an omitted charge target.
-
-    Without mesh overrides, retain both targets from the tolerance policy.
-    """
-    charge = integration.charge_tol
-    if charge is None and integration.density_matrix_tol is not None:
-        charge = integration.density_matrix_tol
-    settings = {
-        "density_matrix_integration": integration.density_matrix_tol,
-        "charge_integration": charge,
-    }
-    return replace(tolerances, **{k: v for k, v in settings.items() if v is not None})

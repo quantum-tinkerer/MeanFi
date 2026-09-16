@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from numbers import Integral
-import math
 import numpy as np
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
 
@@ -33,17 +32,6 @@ def _validate_mesh_settings(method):
     _positive_integer("initial_nk", method.initial_nk, allow_none=True)
     if method.nk is not None and method.initial_nk is not None:
         raise ValueError("nk and initial_nk are mutually exclusive")
-    targets = ("density_matrix_tol", "charge_tol")
-    for name in targets:
-        value = getattr(method, name)
-        if value is not None and (not math.isfinite(value) or value <= 0):
-            raise ValueError(f"{name} must be positive and finite when provided")
-    if method.nk is not None and any(
-        getattr(method, name) is not None for name in targets
-    ):
-        raise ValueError(
-            "nk cannot be combined with explicit integration accuracy targets"
-        )
     _positive_integer("max_points", method.max_points)
     _positive_integer(
         "max_refinements", method.max_refinements, allow_none=True, minimum=0
@@ -60,10 +48,8 @@ class FermiSimplex(IntegrationMethod):
     ``initial_nk`` sets the starting size; the default is 3**dimension vertices.
     """
 
-    density_matrix_tol: float | None = None
     max_refinements: int | None = None
     num_threads: int | None = 1
-    charge_tol: float | None = None
     nk: int | None = None
     initial_nk: int | None = None
     max_points: int = 1_048_576
@@ -86,8 +72,6 @@ class UniformGrid(IntegrationMethod):
 
     nk: int | None = None
     initial_nk: int | None = None
-    density_matrix_tol: float | None = None
-    charge_tol: float | None = None
     max_points: int = 1_048_576
     max_refinements: int | None = 12
     batch_size: int = 128

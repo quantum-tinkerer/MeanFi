@@ -34,7 +34,7 @@ def tb_orbital_count(tb: _tb_type) -> int:
     return rows
 
 
-def validate_tb_dict(tb: _tb_type) -> None:
+def validate_tb_dict(tb: _tb_type, *, real: bool = False) -> None:
     ndim = tb_dimension(tb)
     n_orbitals = tb_orbital_count(tb)
 
@@ -51,6 +51,10 @@ def validate_tb_dict(tb: _tb_type) -> None:
         if matrix_shape(value) != (n_orbitals, n_orbitals):
             raise ValueError("All hopping matrices need to have the same shape")
         values = value.tocoo().data if is_sparse_like(value) else np.asarray(value)
+        if real and np.any(np.imag(values) != 0):
+            raise ValueError(
+                "Expected real tight-binding coefficients for density-density interactions"
+            )
         if not np.all(np.isfinite(values)):
             raise ValueError("Tight-binding matrices must contain finite values")
 
@@ -96,9 +100,9 @@ def require_zero_dim_local_key_only(hamiltonian: _tb_type) -> None:
         )
 
 
-def freeze_tb(tb: _tb_type):
+def freeze_tb(tb: _tb_type, *, real: bool = False):
     """Own validated matrix copies, retaining sparse storage and explicit zeros."""
-    validate_tb_dict(tb)
+    validate_tb_dict(tb, real=real)
     validate_hermiticity(tb)
     owned = {}
     for key, matrix in tb.items():

@@ -15,21 +15,10 @@ from meanfi.tb.validate import tb_dimension, tb_orbital_count
 from meanfi.space.coordinates import onsite_key
 from meanfi.tb.expectation import expectation_value
 from meanfi.tb.storage import prefers_sparse_storage
-from meanfi.results import DensityResult
-from meanfi.space.space import ActiveSCFSpace
 
 
-def meanfield(density_matrix: _tb_type | DensityResult, h_int: _tb_type) -> _tb_type:
-    """Compute the normal mean-field correction from a density matrix."""
-
-    if isinstance(density_matrix, DensityResult):
-        space = ActiveSCFSpace.from_interaction(
-            h_int, sparse=prefers_sparse_storage(h_int)
-        )
-        values = density_matrix.values_for(space.required_coordinates)
-        density_matrix = space.density_from_params(
-            space.params_from_required_entries(values)
-        )
+def _normal_correction(density_matrix: _tb_type, h_int: _tb_type) -> _tb_type:
+    """Apply the normal Hartree/Fock map to validated active density blocks."""
     local = onsite_key(tb_dimension(density_matrix))
     diagonal_density = np.asarray(density_matrix[local].diagonal()).real.ravel()
     onsite_diagonal = np.zeros_like(diagonal_density, dtype=complex)
@@ -90,7 +79,7 @@ def interaction_correction(
 ) -> _tb_type:
     """Apply the linear interaction map to normal or normal-and-pairing density."""
     if electron_ndof is None:
-        return meanfield(density_matrix, h_int)
+        return _normal_correction(density_matrix, h_int)
     ndof = electron_ndof
     electron_density = {
         key: matrix[:ndof, :ndof] for key, matrix in density_matrix.items()
@@ -98,7 +87,7 @@ def interaction_correction(
     anomalous_density = {
         key: matrix[:ndof, ndof:] for key, matrix in density_matrix.items()
     }
-    normal_block = meanfield(electron_density, h_int)
+    normal_block = _normal_correction(electron_density, h_int)
     anomalous_block = {
         key: -elementwise_product(
             interaction,

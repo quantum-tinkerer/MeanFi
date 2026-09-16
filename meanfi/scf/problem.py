@@ -14,20 +14,19 @@ from meanfi.meanfield import interaction_energy
 from meanfi.observables import _internal_energy_from_band
 from meanfi.results import _DensityEntries, DensityResult
 from meanfi.space.state import ActiveDensityState
-from meanfi.tb.bdg import validate_bdg_tb
 from meanfi.tb.ops import _tb_type, add_tb
 from meanfi.tb.storage import tb_entries_changed
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SCFEvaluation:
     """One density evaluation and its input correction; initial input density is unknown."""
 
     density: DensityResult
     output_state: ActiveDensityState
+    internal_energy: float
+    mean_field: _tb_type
     input_state: ActiveDensityState | None = None
-    internal_energy: float | None = None
-    mean_field: _tb_type | None = None
 
     @property
     def residual(self) -> np.ndarray | None:
@@ -47,15 +46,11 @@ class SCFEvaluation:
 class SCFProblem:
     model: Model
     density_problem: DensityProblem
-    mu_tol: float = 1e-10
     max_charge_evaluations: int | None = None
 
     def project_guess(self, guess: _tb_type) -> _tb_type:
         model = self.model
-        if model.superconducting:
-            validate_bdg_tb(
-                guess, ndof=model._ndof, ndim=model._ndim, name="BdG correction"
-            )
+        model._validate_mean_field(guess)
         projected = model._project_mean_field(guess)
         if tb_entries_changed(guess, projected):
             warnings.warn(
@@ -82,7 +77,6 @@ class SCFProblem:
             filling=self.model.filling if mu is None else None,
             mu=mu,
             compute_entropy=compute_entropy,
-            mu_tol=self.mu_tol,
             max_charge_evaluations=self.max_charge_evaluations,
             mu_guess=mu_guess,
         )
@@ -113,4 +107,10 @@ class SCFProblem:
         energy = _internal_energy_from_band(
             model, output_state, density.band_energy, correction
         )
-        return SCFEvaluation(density, output_state, input_state, energy, correction)
+        return SCFEvaluation(
+            density=density,
+            output_state=output_state,
+            input_state=input_state,
+            internal_energy=energy,
+            mean_field=correction,
+        )

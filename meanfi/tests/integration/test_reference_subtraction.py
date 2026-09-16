@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 from meanfi.results import _DensityEntries
 import numpy as np
 import pytest
@@ -15,7 +17,6 @@ from meanfi import (
     density_matrix_at_mu,
     solver,
 )
-from meanfi.meanfield import meanfield
 from meanfi.space.state import ActiveDensityState
 
 
@@ -30,8 +31,13 @@ def test_selected_density_is_an_efficient_reference_without_zero_filling():
         filling=1.0,
         kT=0.2,
         interaction=h_int,
-        integration=UniformGrid(density_matrix_tol=1e-10),
-        filling_tol=1e-10,
+        integration=UniformGrid(),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-10,
+            charge_integration=1e-10,
+            filling_residual=1e-10,
+        ),
     )
     model = Model(h_0, h_int, filling=1.0, kT=0.2, reference=reference)
 
@@ -84,7 +90,7 @@ def test_reference_density_subtracts_full_mean_field_correction():
         reference=density_result_from_tb(rho_ref),
     )
 
-    unsubtracted_correction = meanfield(rho_ref, h_int)[()]
+    unsubtracted_correction = replace(model, reference=None).mean_field(rho_ref)[()]
     hamiltonian = model.hamiltonian_from_density(rho_ref)
 
     assert abs(unsubtracted_correction[0, 1]) > 1e-12
@@ -94,14 +100,19 @@ def test_reference_density_subtracts_full_mean_field_correction():
 def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
     h_0 = {(): np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)}
     h_int = {(): np.array([[0.4, 1.1], [1.1, 0.6]], dtype=complex)}
-    integration = UniformGrid(density_matrix_tol=1e-10)
+    integration = UniformGrid()
     rho_ref = density_matrix(
         h_0,
         filling=1.0,
         kT=0.2,
         keys=[()],
         integration=integration,
-        filling_tol=1e-10,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-10,
+            charge_integration=1e-10,
+            filling_residual=1e-10,
+        ),
     ).to_tb()
     model = Model(
         h_0,
@@ -116,8 +127,13 @@ def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
         {(): np.zeros((2, 2), dtype=complex)},
         integration=integration,
         scf=LinearMixing(max_iterations=3, alpha=1.0),
-        scf_tol=1e-8,
-        filling_tol=1e-10,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-10,
+            charge_integration=1e-10,
+            scf_residual=1e-8,
+            filling_residual=1e-10,
+        ),
     )
     interaction_correction = result.mean_field[()]
     final_density = density_matrix_at_mu(
@@ -126,6 +142,11 @@ def test_solver_reference_density_fixed_point_has_zero_interaction_correction():
         kT=model.kT,
         keys=[()],
         integration=integration,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-10,
+            charge_integration=1e-10,
+        ),
     )
 
     np.testing.assert_allclose(

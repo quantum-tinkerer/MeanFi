@@ -1,5 +1,8 @@
 """Sparse SCF reconstruction must stay sparse through Hamiltonian assembly."""
 
+from dataclasses import replace
+from meanfi import default_solver_tolerances
+
 from meanfi.results import _DensityEntries
 
 import numpy as np
@@ -18,7 +21,6 @@ from meanfi import (
     add_tb,
     solver,
 )
-from meanfi.meanfield import meanfield
 from meanfi.tb.bdg import validate_bdg_tb
 from meanfi.tb.ops import to_dense
 
@@ -65,7 +67,7 @@ def test_large_sparse_model_reconstruction_avoids_dense_blocks(
         assert expectation_value(result, h) == size
         hamiltonian = model.hamiltonian_from_density(result)
         density = model._space.density_from_params(np.ones(model._space.num_params))
-        assert np.isfinite(expectation_value(density, meanfield(density, interaction)))
+        assert np.isfinite(expectation_value(density, model.mean_field(density)))
     assert all(sparse.issparse(block) for block in hamiltonian.values())
 
 
@@ -97,8 +99,11 @@ def test_sparse_and_dense_scf_agree(superconducting):
             model.random_meanfield(rng=12, scale=0.03),
             integration=UniformGrid(nk=32, matrix_function=DirectDiagonalization()),
             scf=LinearMixing(alpha=0.7, max_iterations=100),
-            scf_tol=1e-8,
-            filling_tol=1e-10,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                scf_residual=1e-8,
+                filling_residual=1e-10,
+            ),
         )
         assert result.converged
         assert all(
@@ -126,6 +131,6 @@ def test_observable_from_mixed_dense_sparse_hamiltonian():
     )
     mixed_density = add_tb(density.to_tb(), {(): sparse.csr_matrix((2, 2))})
     np.testing.assert_allclose(
-        to_dense(meanfield(mixed_density, model.h_int)[()]),
-        to_dense(meanfield(density.to_tb(), model.h_int)[()]),
+        to_dense(model.mean_field(mixed_density)[()]),
+        to_dense(model.mean_field(density.to_tb())[()]),
     )

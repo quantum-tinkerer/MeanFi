@@ -1,3 +1,5 @@
+from dataclasses import replace
+from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 
@@ -49,8 +51,13 @@ def test_density_matrix_respects_hermiticity_and_charge_sum_rule():
         filling=2.0,
         kT=0.1,
         keys=[(0,), (1,), (-1,)],
-        integration=UniformGrid(density_matrix_tol=1e-8),
-        filling_tol=1e-8,
+        integration=UniformGrid(),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-8,
+            charge_integration=1e-8,
+            filling_residual=1e-8,
+        ),
     )
 
     assert np.allclose(
@@ -73,8 +80,13 @@ def test_half_filling_keeps_particle_hole_symmetry():
         filling=1.0,
         kT=0.2,
         keys=[(0,)],
-        integration=UniformGrid(density_matrix_tol=1e-8),
-        filling_tol=1e-9,
+        integration=UniformGrid(),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-8,
+            charge_integration=1e-8,
+            filling_residual=1e-9,
+        ),
     )
 
     assert abs(result.mu) < 5e-7
@@ -91,10 +103,14 @@ def test_zero_temperature_fixed_filling_tracks_exact_mu_on_analytic_chain():
             kT=0.0,
             keys=[(0,), (1,)],
             integration=FermiSimplex(
-                density_matrix_tol=1e-5,
                 max_refinements=2000,
             ),
-            filling_tol=filling_tol,
+            tol=replace(
+                default_solver_tolerances(1e-3),
+                density_matrix_integration=1e-5,
+                charge_integration=1e-5,
+                filling_residual=filling_tol,
+            ),
         )
 
         assert result.errors.charge_integration is not None
@@ -115,10 +131,14 @@ def test_zero_temperature_fixed_filling_default_charge_evaluation_limit_matches_
         kT=0.0,
         keys=[(0,), (1,)],
         integration=FermiSimplex(
-            density_matrix_tol=1e-2,
             max_refinements=600,
         ),
-        filling_tol=5e-5,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-2,
+            charge_integration=1e-2,
+            filling_residual=5e-5,
+        ),
     )
     explicit_result = density_matrix(
         tb,
@@ -126,11 +146,15 @@ def test_zero_temperature_fixed_filling_default_charge_evaluation_limit_matches_
         kT=0.0,
         keys=[(0,), (1,)],
         integration=FermiSimplex(
-            density_matrix_tol=1e-2,
             max_refinements=600,
         ),
-        filling_tol=5e-5,
         max_charge_evaluations=128,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-2,
+            charge_integration=1e-2,
+            filling_residual=5e-5,
+        ),
     )
 
     assert abs(default_result.mu - explicit_result.mu) <= 1e-12
@@ -146,10 +170,14 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
         kT=0.0,
         keys=[(0,)],
         integration=FermiSimplex(
-            density_matrix_tol=1e-12,
             max_refinements=4,
         ),
-        filling_tol=1e-12,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-12,
+            charge_integration=1e-12,
+            filling_residual=1e-12,
+        ),
     )
     doubled_result = density_matrix(
         doubled,
@@ -157,10 +185,14 @@ def test_zero_temperature_density_is_invariant_under_equivalent_local_supercell(
         kT=0.0,
         keys=[(0,)],
         integration=FermiSimplex(
-            density_matrix_tol=1e-12,
             max_refinements=4,
         ),
-        filling_tol=1e-12,
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            density_matrix_integration=1e-12,
+            charge_integration=1e-12,
+            filling_residual=1e-12,
+        ),
     )
 
     assert primitive_result.errors.density_matrix_integration is not None

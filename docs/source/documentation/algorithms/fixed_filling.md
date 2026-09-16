@@ -5,11 +5,15 @@
 `density_matrix_at_mu(..., mu=...)` uses the supplied value directly and omits
 the filling-root search.
 
-The filling solver brackets the root using spectral bounds and expands the
-bracket when necessary. It uses safeguarded Newton steps when a supported
+The filling solver first evaluates the supplied or previous chemical potential.
+If its filling residual and charge error meet their targets, no bracket is needed.
+Otherwise it brackets the root using spectral bounds and expands when necessary. It uses safeguarded Newton steps when a supported
 backend supplies useful derivatives, and bracketed interpolation with midpoint
-fallback otherwise. `filling_tol`, `mu_tol` and `max_charge_evaluations` control this
-solve. Periodic integration adds no derivative-integration accuracy controls.
+fallback otherwise. `ErrorTolerances.filling_residual` and `mu_tol` control this
+solve through `tol`; `max_charge_evaluations` bounds work per root search. A small
+chemical-potential step is not an accuracy estimate for the root. The filling
+residual must still meet its target. Periodic integration adds no derivative-integration
+accuracy controls.
 
 Normal periodic spectra do not change with chemical potential. Retaining their
 eigenvalues makes repeated charge evaluations inexpensive; density evaluation
