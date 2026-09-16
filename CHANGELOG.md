@@ -13,7 +13,11 @@ preserving the previous interfaces.
   physical quantities, optional error estimates and work statistics.
 - `FermiSimplex` handles normal zero-temperature integration. `UniformGrid` handles
   prescribed grids and coarse/fine refinement; sparse finite-temperature
-  calculations use `RationalFOE` with AAA and optional MUMPS.
+  calculations use `RationalFOE` with AAA and optional MUMPS. Zero-temperature
+  `UniformGrid` fixed-filling searches now raise `NotImplementedError` before
+  numerical work; fixed-mu evaluation remains supported.
+- Removed the approximate `fermi_energy` helper. Use the chemical potential
+  returned by a density calculation or SCF result.
 - `ErrorTolerances` contains the numerical targets. The default policy maps the
   scalar `tol` to independent SCF, integration, filling and matrix-function targets.
   Missing or inapplicable estimates are `None`; fixed-mu calculations do not run

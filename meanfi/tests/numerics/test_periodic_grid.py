@@ -274,10 +274,10 @@ def test_adaptive_bdg_fixed_mu():
     )
 
 
-def test_zero_temperature_fixed_grid_and_unattainable_filling():
+def test_zero_temperature_grid_requires_fixed_mu():
     fixed = evaluate(kT=0, integration=UniformGrid(nk=16), mu=0.2)
     assert fixed.errors.density_matrix_integration is None
-    with pytest.raises(RuntimeError, match="Chemical-potential solve failed"):
+    with pytest.raises(NotImplementedError, match="UniformGrid fixed-filling"):
         evaluate(kT=0, integration=UniformGrid(nk=8), filling=0.37)
     with pytest.raises(ValueError, match="requires explicit nk"):
         evaluate(kT=0, mu=0)

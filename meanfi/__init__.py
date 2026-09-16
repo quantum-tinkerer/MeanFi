@@ -40,7 +40,6 @@ from .scf.scf import solver
 from .space import DensityCoordinates, SpatialSymmetry
 from .tb import (
     add_tb,
-    fermi_energy,
     generate_tb_keys,
     ifftn_to_tb,
     kgrid_to_tb,
@@ -79,7 +78,6 @@ __all__ = [
     "density_matrix_at_mu",
     "expectation_value",
     "fermi_dirac",
-    "fermi_energy",
     "generate_tb_keys",
     "ifftn_to_tb",
     "kgrid_to_tb",

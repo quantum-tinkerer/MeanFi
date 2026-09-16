@@ -68,6 +68,8 @@ class UniformGrid(IntegrationMethod):
     convergence by comparing coarse and fine integrals. ``initial_nk`` sets
     the starting size; the default is 4**dimension points. ``batch_size`` bounds transient matrix
     storage; ``max_spectrum_bytes`` bounds retained normal-state eigenvalues.
+    At zero temperature, only fixed-mu evaluation is supported; periodic systems
+    also require explicit ``nk``. Fixed-filling root searches require kT > 0.
     """
 
     nk: int | None = None

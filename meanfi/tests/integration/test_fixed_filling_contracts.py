@@ -99,17 +99,16 @@ def test_periodic_grid_accepts_finite_temperature_fixed_filling_controls():
     assert abs(result.filling - 1.0) <= 1e-2
 
 
-def test_periodic_grid_accepts_zero_temperature_fixed_filling_controls():
-    result = density_matrix(
-        spinful_chain(),
-        filling=1.0,
-        kT=0.0,
-        keys=[(0,)],
-        integration=UniformGrid(nk=10),
-    )
-
-    assert np.isfinite(result.mu)
-    assert result.filling == pytest.approx(1.0)
+@pytest.mark.parametrize("nk", [None, 9, 10])
+def test_zero_temperature_grid_rejects_filling_search_on_any_mesh(nk):
+    with pytest.raises(NotImplementedError, match="UniformGrid fixed-filling"):
+        density_matrix(
+            spinful_chain(),
+            filling=1.0,
+            kT=0.0,
+            keys=[(0,)],
+            integration=UniformGrid(nk=nk),
+        )
 
 
 def test_periodic_grid_default_filling_tol_matches_explicit_default():
@@ -140,14 +139,3 @@ def test_periodic_grid_default_filling_tol_matches_explicit_default():
 
     assert implicit.mu == pytest.approx(explicit.mu)
     assert implicit.filling == pytest.approx(explicit.filling)
-
-
-def test_prescribed_zero_temperature_mesh_rejects_unrepresentable_filling():
-    with pytest.raises(RuntimeError, match="filling tolerance"):
-        density_matrix(
-            spinful_chain(),
-            filling=1.0,
-            kT=0.0,
-            keys=[(0,)],
-            integration=UniformGrid(nk=9),
-        )

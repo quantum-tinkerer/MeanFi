@@ -72,13 +72,18 @@ $$
 | --- | --- |
 | Dense, normal, zero temperature | `FermiSimplex()` by default |
 | Dense, positive temperature, normal or BdG | `UniformGrid()` by default |
-| Periodic BdG at zero temperature | Explicit `UniformGrid(nk=...)` |
+| Periodic, fixed mu, zero temperature, normal or BdG | Explicit `UniformGrid(nk=...)` |
 | Sparse at positive temperature | Explicit `UniformGrid(nk=...)`, using AAA |
 
 `FermiSimplex` integrates interpolated spectra and density contributions on an
 adaptive simplex mesh. Adaptive `UniformGrid` doubles each axis and compares
 coarse and fine integrals; it requires positive temperature and dense
 diagonalization. There is no shifted validation grid.
+
+Zero-temperature `UniformGrid` fixed-filling searches, including SCF, raise
+`NotImplementedError`: occupation jumps can prevent the current root solver from
+meeting the filling target. This restriction includes finite and BdG systems.
+Fixed-mu evaluation remains supported.
 
 `nk` prescribes a **total point count** and disables refinement and integration
 error estimation. For example, `UniformGrid(nk=4)` uses $2\times2$ points in two

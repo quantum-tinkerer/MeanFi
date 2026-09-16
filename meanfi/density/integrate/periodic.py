@@ -22,9 +22,21 @@ def solve_periodic(
     compute_entropy: bool = False,
 ) -> DensityResult:
     """Evaluate one prescribed grid, or refine until coarse/fine tests pass."""
+    if filling is not None and problem.kT == 0:
+        raise NotImplementedError(
+            "UniformGrid fixed-filling calculations at kT=0 are not implemented: "
+            "occupations can jump as mu crosses a discrete level, so the current "
+            "root solver cannot reliably meet the filling target. "
+            "Use FermiSimplex for normal zero-temperature models, a physically "
+            "appropriate kT > 0, or density_matrix_at_mu with a supplied mu."
+        )
     integration, tolerances = problem.integration, problem.tolerances
     hamiltonian, kT = problem.hamiltonian, problem.kT
     dimension = tb_dimension(hamiltonian)
+    if kT == 0 and dimension and integration.nk is None:
+        raise ValueError(
+            "Zero-temperature UniformGrid at fixed mu requires explicit nk"
+        )
     coordinates = problem.density_coordinates
     ndof = problem.electron_ndof
     q_diag = None if ndof is None else charge_diagonal(ndof)

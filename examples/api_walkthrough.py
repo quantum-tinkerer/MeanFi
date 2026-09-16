@@ -167,7 +167,6 @@ for key, block in paired_reference.hamiltonian_from_density(bdg.density).items()
 grid = mf.tb_to_kgrid(h0, (16,))
 recovered = mf.kgrid_to_tb(grid)
 np.testing.assert_allclose(mf.tb_to_kgrid(recovered, (16,)), grid, atol=1e-14)
-print("Sampled Fermi level:", mf.fermi_energy(h0, filling=0.8, shape=(128,)))
 print("Occupations:", mf.fermi_dirac([-1, 0, 1], kT=0.2, mu=0))
 
 if args.sparse:

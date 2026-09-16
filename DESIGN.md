@@ -60,7 +60,10 @@ do not add root tests.
   coarse/fine differences only, starting with four points per axis. `nk` specifies
   a prescribed total point count; `initial_nk` specifies the adaptive starting
   count. Prescribed grids have no integration-error estimate. Sparse AAA currently
-  requires a prescribed grid for periodic systems.
+  requires a prescribed grid for periodic systems. At zero temperature, only
+  fixed-mu evaluation is supported: fixed-filling calls raise NotImplementedError
+  before numerical work because the root solver cannot reliably handle occupation
+  jumps. This restriction also applies to BdG and SCF.
 
 Fixed-mu calls have no root search or independent charge-integration estimate.
 Empty requests skip the numerical backend unless entropy is requested.

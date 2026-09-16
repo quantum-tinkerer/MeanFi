@@ -9,7 +9,7 @@ from meanfi import (
     Model,
     UniformGrid,
     add_tb,
-    density_matrix,
+    density_matrix_at_mu,
     expectation_value,
     solver,
 )
@@ -61,16 +61,15 @@ def _build_graphene_bad_point():
     return h0, h_int, sz
 
 
-def _sdw_measure(h0, mf, sz):
+def _sdw_measure(h0, mf, sz, mu):
     sx = np.array([[0, 1], [1, 0]])
     sy = np.array([[0, -1j], [1j, 0]])
     s_list = [sx, sy, np.diag([1, -1])]
-    rho = density_matrix(
+    rho = density_matrix_at_mu(
         add_tb(h0, mf),
-        filling=2,
+        mu=mu,
         integration=UniformGrid(nk=40**2),
         keys=[(0, 0)],
-        tol=replace(default_solver_tolerances(1e-3), filling_residual=1e-6),
     ).to_tb()
     sdw_sq = 0.0
     for spin_matrix in s_list:
@@ -122,7 +121,7 @@ def test_adaptive_simplex_handles_bad_graphene_point_diagnostic():
                         filling_residual=1e-3,
                     ),
                 )
-            values.append(_sdw_measure(h0, result.mean_field, sz))
+            values.append(_sdw_measure(h0, result.mean_field, sz, result.mu))
         return values
 
     values = solve_sdw_measure()

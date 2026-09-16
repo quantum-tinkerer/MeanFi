@@ -56,7 +56,9 @@ An explicit `nk` fixes the mesh; integration targets then do not apply.
 For example, `nk=4096` gives 64² periodic points in 2D. Prescribed meshes do not
 estimate integration error. `initial_nk` chooses a starting mesh for refinement,
 using the same total-point units; it cannot be combined with `nk`. The solver's `tol` still controls filling and SCF
-convergence. Periodic zero-temperature BdG calculations require an explicit mesh.
+convergence. Zero-temperature `UniformGrid` supports fixed-mu evaluation only,
+with explicit `nk` for periodic systems. Its fixed-filling searches (including SCF)
+raise `NotImplementedError`; use `FermiSimplex` for normal zero-temperature models.
 For individual targets, pass an `ErrorTolerances` record as `tol`; method objects
 contain mesh, backend and resource settings only.
 

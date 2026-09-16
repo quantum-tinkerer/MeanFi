@@ -109,38 +109,16 @@ def test_bdg_solver_supports_anderson_mixing():
     assert result.errors.scf_residual is not None
 
 
-def test_zero_temperature_bdg_requires_explicit_periodic_grid_default_override():
+@pytest.mark.parametrize("integration", [None, UniformGrid(nk=1)])
+def test_zero_temperature_bdg_scf_requires_supported_filling_solver(integration):
     model = Model(
         {(0,): np.array([[0.0]], dtype=complex)},
         {(0,): np.array([[0.0]], dtype=complex)},
         filling=0.5,
         superconducting=True,
     )
-
-    with pytest.raises(ValueError, match="UniformGrid"):
-        solver(
-            model,
-            {(0,): np.zeros((2, 2), dtype=complex)},
-        )
-
-
-def test_zero_temperature_bdg_supports_explicit_periodic_grid():
-    model = Model(
-        {(0,): np.array([[0.0]], dtype=complex)},
-        {(0,): np.array([[0.0]], dtype=complex)},
-        filling=0.5,
-        superconducting=True,
-    )
-
-    result = solver(
-        model,
-        {(0,): np.zeros((2, 2), dtype=complex)},
-        integration=UniformGrid(nk=1),
-        scf=LinearMixing(max_iterations=2),
-        tol=replace(default_solver_tolerances(1e-3), scf_residual=1e-6),
-    )
-
-    assert np.isfinite(result.mu)
+    with pytest.raises(NotImplementedError, match="UniformGrid fixed-filling"):
+        solver(model, {}, integration=integration)
 
 
 def test_bdg_solver_warns_when_guess_is_projected_to_structural_selection():

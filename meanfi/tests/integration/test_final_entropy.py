@@ -192,9 +192,9 @@ def test_finite_zero_temperature_bdg_ignores_mesh_settings(settings):
         filling=1,
         superconducting=True,
     )
-    reference = mf.density_matrix(model)
+    reference = mf.density_matrix_at_mu(model, mu=0, keys=[()])
     with pytest.warns(UserWarning, match="Finite systems do not use nk"):
-        actual = mf.density_matrix(model, integration=settings)
+        actual = mf.density_matrix_at_mu(model, mu=0, keys=[()], integration=settings)
     np.testing.assert_array_equal(actual.values, reference.values)
     assert actual.errors == reference.errors
     assert actual.statistics.requested_nk is None

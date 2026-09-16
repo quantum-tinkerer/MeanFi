@@ -75,5 +75,6 @@ def test_adaptive_rational_is_explicitly_unsupported():
 
 def test_zero_temperature_defaults():
     assert isinstance(resolve_integration(spinful_chain(), kT=0), FermiSimplex)
-    with pytest.raises(ValueError, match="UniformGrid"):
-        resolve_integration(spinful_chain(), kT=0, superconducting=True)
+    assert isinstance(
+        resolve_integration(spinful_chain(), kT=0, superconducting=True), UniformGrid
+    )

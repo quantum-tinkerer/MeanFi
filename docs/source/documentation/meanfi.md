@@ -44,7 +44,13 @@ coordinates. Both normal and superconducting models use this API; optional
 support is available in `density_matrix_at_mu(model, mu)`. A Model owns its
 physical parameters: passing a separate `kT` or `filling` with a Model raises.
 Use `dataclasses.replace(model, kT=..., filling=...)` to change them. Every
-`DensityResult` records the evaluation temperature as `kT`.
+`DensityResult` records the evaluation temperature as `kT`. Read `result.mu` for
+the chemical potential.
+
+At zero temperature, `UniformGrid` supports `density_matrix_at_mu` only, with
+explicit `nk` for periodic systems. Fixed-filling calls and SCF raise
+`NotImplementedError` because the current root solver cannot reliably handle
+occupation jumps. Use `FermiSimplex` for normal zero-temperature filling solves.
 
 `DensityCoordinates` is an address list: each entry is a displacement, row and
 column. It contains no density values. `DensityResult` is the answer returned

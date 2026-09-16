@@ -101,6 +101,43 @@ def test_prescribed_normal_zero_temperature_periodic_public_workflow():
     assert result.errors.density_matrix_integration is None
 
 
+@pytest.mark.parametrize("finite", [False, True])
+@pytest.mark.parametrize("superconducting", [False, True])
+def test_zero_temperature_grid_rejects_filling_search_before_eigensolves(
+    finite, superconducting, monkeypatch
+):
+    key = () if finite else (0,)
+    model = Model(
+        {key: np.diag([-0.37, 1.13])},
+        {key: np.zeros((2, 2))},
+        filling=0.5,
+        superconducting=superconducting,
+    )
+    integration = UniformGrid(nk=None if finite else 8)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("unsupported filling search reached numerical work")
+
+    monkeypatch.setattr(np.linalg, "eigh", fail)
+    monkeypatch.setattr(np.linalg, "eigvalsh", fail)
+    with pytest.raises(NotImplementedError, match="root solver cannot reliably"):
+        density_matrix(model, integration=integration)
+    with pytest.raises(NotImplementedError, match="root solver cannot reliably"):
+        solver(model, {}, integration=integration)
+
+
+def test_zero_temperature_finite_grid_at_mu_keeps_half_occupation():
+    result = density_matrix_at_mu(
+        {(): np.diag([-0.37, 1.13])},
+        mu=-0.37,
+        keys=[()],
+        integration=UniformGrid(),
+    )
+    np.testing.assert_array_equal(result.to_tb()[()], np.diag([0.5, 0.0]))
+    assert result.filling == 0.5
+    assert result.statistics.charge_evaluations == 0
+
+
 def test_finite_grid_size_is_ignored_with_a_warning():
     with pytest.warns(UserWarning, match="Finite systems do not use nk"):
         result = density_matrix(

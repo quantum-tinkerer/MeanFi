@@ -116,10 +116,6 @@ def resolve_integration(hamiltonian, *, kT, integration=None, superconducting=Fa
             )
 
         if kT == 0:
-            if superconducting and not finite:
-                raise ValueError(
-                    "Zero-temperature superconducting calculations require an explicit UniformGrid(nk=...) integration setting."
-                )
             integration = UniformGrid() if superconducting else FermiSimplex()
         else:
             integration = UniformGrid()
@@ -129,8 +125,6 @@ def resolve_integration(hamiltonian, *, kT, integration=None, superconducting=Fa
         if kT != 0:
             raise ValueError("FermiSimplex requires kT == 0")
         return integration
-    if kT == 0 and integration.nk is None and not finite:
-        raise ValueError("Zero-temperature UniformGrid requires explicit nk")
     method = integration.matrix_function
     if method is None:
         if sparse and ((integration.nk is None and not finite) or kT <= 0):
