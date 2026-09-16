@@ -106,3 +106,53 @@ def test_root_acceptance_uses_only_requested_filling_residual():
         max_charge_evaluations=1,
     )
     assert result.residual == pytest.approx(5e-5)
+
+
+@pytest.mark.parametrize("use_derivative", [False, True])
+@pytest.mark.parametrize("filling", [0.0, 1.0])
+def test_bracket_expansion_accepts_tolerance_without_sign_change(
+    use_derivative, filling
+):
+    calls = []
+
+    def charge(mu):
+        calls.append(mu)
+        occupation = expit(mu)
+        return occupation, occupation * (1 - occupation)
+
+    result = run_root(
+        charge,
+        filling=filling,
+        filling_tol=1e-4,
+        max_charge_evaluations=4,
+        use_derivative=use_derivative,
+    )
+    expected_mu = -12.0 if filling == 0.0 else 12.0
+    assert calls == [0.0, -4.0, 4.0, expected_mu]
+    assert result.mu == expected_mu
+    assert result.charge_evaluations == len(calls)
+    assert 0.0 < abs(result.residual) <= 1e-4
+
+
+@pytest.mark.parametrize("filling,budget,expected_mu", [(0.0, 2, -3.0), (2.0, 3, 3.0)])
+def test_finite_filling_accepts_bracket_endpoint_within_evaluation_budget(
+    filling,
+    budget,
+    expected_mu,
+):
+    from meanfi import density_matrix
+
+    energies = np.array([-1.0, 1.0])
+    result = density_matrix(
+        {(): np.diag(energies)},
+        filling,
+        kT=0.2,
+        keys=[()],
+        max_charge_evaluations=budget,
+    )
+    expected = np.diag(expit((expected_mu - energies) / 0.2))
+    error = np.max(np.abs(result.to_tb()[()] - expected))
+    assert error < 1e-14, f"Finite density error: {error}"
+    assert result.mu == expected_mu
+    assert result.errors.filling_residual <= 1e-4
+    assert result.statistics.charge_evaluations == budget

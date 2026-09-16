@@ -49,12 +49,16 @@ assert subset.entropy == full.entropy  # Selection preserves state metadata.
 print("Polarization:", mf.expectation_value(full, {(0,): np.diag([1, -1])}))
 print(
     "Internal / free energy:",
-    mf.internal_energy(model, full),
-    mf.free_energy(model, full),
+    full.internal_energy,
+    full.free_energy,
 )
 np.testing.assert_allclose(
     full.free_energy, full.internal_energy - model.kT * full.entropy
 )
+
+# Trial helpers independently evaluate entries against the supplied model.
+np.testing.assert_allclose(mf.trial_internal_energy(model, full), full.internal_energy)
+np.testing.assert_allclose(mf.trial_free_energy(model, full), full.free_energy)
 
 # Raw dictionaries and explicit entry selections also work.
 h = model.hamiltonian_from_meanfield(solution.mean_field)

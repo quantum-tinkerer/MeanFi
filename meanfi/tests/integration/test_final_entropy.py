@@ -125,7 +125,7 @@ def test_standalone_density_entropy_flag_and_common_errors(method, kT):
         np.testing.assert_array_equal(full.values, lean.values)
         assert asdict(full)["entropy"] == full.entropy
         with pytest.raises(ValueError, match="entropy"):
-            mf.free_energy(model, lean)
+            mf.trial_free_energy(model, lean)
 
 
 def test_final_entropy_failure_preserves_valid_result(monkeypatch):

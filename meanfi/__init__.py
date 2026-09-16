@@ -29,7 +29,7 @@ from .density.kpoint.matrix_functions import (
 )
 from .density.kpoint.occupations import fermi_dirac
 from .model import Model
-from .observables import expectation_value, free_energy, internal_energy
+from .observables import expectation_value, trial_free_energy, trial_internal_energy
 from .scf.engine import NoConvergence, SolverError, SolverFailure
 from .scf.methods import AndersonMixing, EnergyDIIS, LinearMixing
 from .scf.scf import solver
@@ -83,6 +83,6 @@ __all__ = [
     "solver",
     "tb_to_kfunc",
     "tb_to_kgrid",
-    "free_energy",
-    "internal_energy",
+    "trial_free_energy",
+    "trial_internal_energy",
 ]

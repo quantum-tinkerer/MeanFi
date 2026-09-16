@@ -45,7 +45,7 @@ class FermiSimplex(IntegrationMethod):
     ``nk`` requests a total number of native mesh vertices, including distinct
     boundary vertices. Native dyadic construction may overshoot this request.
     Without ``nk``, use integration targets and adaptive refinement.
-    ``initial_nk`` sets the starting size; the default is 3**dimension vertices.
+    ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
     """
 
     max_refinements: int | None = None

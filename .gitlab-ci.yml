@@ -27,6 +27,8 @@ run tests:
 run coverage:
   extends: run tests
   parallel: null
+  script:
+    - pixi run -e $PIXI_ENV pytest -W error -W ignore:ast.NameConstant:DeprecationWarning
   variables:
     PIXI_ENV: "test-sparse"
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'

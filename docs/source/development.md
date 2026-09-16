@@ -23,6 +23,10 @@ pixi run -e test-py312 build
 pixi run -e precommit pre-commit run --all-files
 ```
 
+The sparse CI coverage job runs the complete suite, including the heavier
+`perf_slow` numerical-reference checks. Local `tests` tasks omit that group;
+`tests-perf-slow` runs it separately.
+
 The test task writes coverage and test reports to ignored `build/test-reports/`.
 CI also builds the source distribution and wheel, installs the wheel into a
 separate environment, then checks its import location and an exact density
@@ -54,3 +58,8 @@ there, replace the Git requirement with a compatible FermiSimplex release,
 refresh the lock and rerun the installation and numerical checks.
 
 [direct-urls]: https://setuptools.pypa.io/en/latest/userguide/dependency_management.html#direct-url-dependencies
+
+The published FermiSimplex 0.1.0 is not compatible: its `SpectralMesh` lacks
+`integrate_density_components` and `occupied_weights`, both required by this
+adapter. Keep the working Git pin until a release includes these APIs; changing
+only the dependency version would break zero-temperature calculations.

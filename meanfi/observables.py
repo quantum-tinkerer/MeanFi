@@ -14,8 +14,10 @@ from meanfi.tb.ops import _tb_type, block_diag
 from meanfi.tb.storage import tb_entries_changed
 
 
-def internal_energy(model: Model, density_matrix: _tb_type | DensityResult) -> float:
-    """Compute mean-field internal energy per cell per physical orbital.
+def trial_internal_energy(
+    model: Model, density_matrix: _tb_type | DensityResult
+) -> float:
+    """Evaluate a trial density under a model, per cell per physical orbital.
 
     This evaluates a trial density under the supplied model and requires the
     one-body and interaction entries. Read result.internal_energy for the energy
@@ -42,20 +44,24 @@ def internal_energy(model: Model, density_matrix: _tb_type | DensityResult) -> f
     )
 
 
-def free_energy(model: Model, density: DensityResult) -> float:
-    """Compute Helmholtz free energy per cell per physical orbital as ``U - kT * entropy``.
+def trial_free_energy(model: Model, density: DensityResult) -> float:
+    """Evaluate a trial state's Helmholtz free energy per physical orbital.
 
+    Requires the one-body and interaction entries used by trial_internal_energy.
+    Read result.free_energy for an already calculated state.
     Entropy is in units of Boltzmann's constant per physical orbital and belongs
     to the complete state evaluated by the density solver, including selected results.
     A bare tight-binding dictionary does not retain that entropy.
     """
     if not isinstance(density, DensityResult):
-        raise TypeError("free_energy requires a DensityResult with computed entropy")
+        raise TypeError(
+            "trial_free_energy requires a DensityResult with computed entropy"
+        )
     if density.entropy is None:
         raise ValueError(
             "entropy was not computed; enable compute_free_energy for the calculation"
         )
-    return internal_energy(model, density) - model.kT * density.entropy
+    return trial_internal_energy(model, density) - model.kT * density.entropy
 
 
 def _internal_energy_from_band(model, state, band_energy, correction):
@@ -95,4 +101,4 @@ def _with_model_energy(model, density, correction):
             for row, col in zip(rows, cols, strict=True)
         ):
             return density
-    return replace(density, internal_energy=internal_energy(model, density))
+    return replace(density, internal_energy=trial_internal_energy(model, density))

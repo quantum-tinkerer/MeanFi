@@ -15,8 +15,8 @@ from meanfi import (
     Model,
     add_tb,
     expectation_value,
-    free_energy,
-    internal_energy,
+    trial_free_energy,
+    trial_internal_energy,
 )
 from meanfi.meanfield import (
     interaction_correction,
@@ -47,8 +47,8 @@ def test_selected_density_supports_covered_observables_and_internal_energy():
     assert expectation_value(density, model.h_0) == pytest.approx(
         expectation_value(matrix, model.h_0)
     )
-    assert internal_energy(model, density) == pytest.approx(
-        internal_energy(model, matrix)
+    assert trial_internal_energy(model, density) == pytest.approx(
+        trial_internal_energy(model, matrix)
     )
 
 
@@ -83,8 +83,8 @@ def test_internal_energy_half_counts_normal_mean_field_interaction():
     expected = expectation_value(density, model.h_0) + 0.5 * interaction_energy
     naive = expectation_value(density, add_tb(model.h_0, correction))
 
-    assert internal_energy(model, density) == pytest.approx(np.real(expected) / 2)
-    assert naive / 2 - internal_energy(model, density) == pytest.approx(
+    assert trial_internal_energy(model, density) == pytest.approx(np.real(expected) / 2)
+    assert naive / 2 - trial_internal_energy(model, density) == pytest.approx(
         0.5 * interaction_energy / 2
     )
 
@@ -106,15 +106,15 @@ def test_internal_energy_uses_reference_subtracted_interaction_functional():
     delta = density[()] - reference[()]
     expected = 0.2 * 0.25 - 0.3 * 0.75
     expected += interaction * (delta[0, 0] * delta[1, 1] - abs(delta[0, 1]) ** 2)
-    error = abs(internal_energy(model, density) - expected.real / 2)
+    error = abs(trial_internal_energy(model, density) - expected.real / 2)
     assert error < 1e-14, f"Reference-subtracted energy error: {error}"
 
     # Its derivative must be the Hamiltonian used for the density calculation.
     direction = np.array([[0.2, 0.13 - 0.09j], [0.13 + 0.09j, -0.2]])
     step = 1e-5
     numerical = (
-        internal_energy(model, {(): density[()] + step * direction})
-        - internal_energy(model, {(): density[()] - step * direction})
+        trial_internal_energy(model, {(): density[()] + step * direction})
+        - trial_internal_energy(model, {(): density[()] - step * direction})
     ) / (2 * step)
     h = model.hamiltonian_from_density(density)[()]
     analytic = np.trace(h @ direction).real / 2
@@ -135,7 +135,7 @@ def test_internal_energy_rejects_missing_one_body_density_keys():
     )
 
     with pytest.raises(ValueError, match="missing keys required by the observable"):
-        internal_energy(model, {(0,): np.array([[0.5]], dtype=complex)})
+        trial_internal_energy(model, {(0,): np.array([[0.5]], dtype=complex)})
 
 
 def test_internal_energy_gradient_matches_hubbard_mean_field_hamiltonian():
@@ -165,12 +165,12 @@ def test_internal_energy_gradient_matches_hubbard_mean_field_hamiltonian():
         return float(np.real(np.vdot(vec, (one_body + two_body) @ vec)))
 
     derivative = (
-        internal_energy(model, shifted(epsilon))
-        - internal_energy(model, shifted(-epsilon))
+        trial_internal_energy(model, shifted(epsilon))
+        - trial_internal_energy(model, shifted(-epsilon))
     ) / (2.0 * epsilon)
     rhs = np.real(expectation_value(direction, model.hamiltonian_from_density(rho)))
 
-    assert internal_energy(model, rho) == pytest.approx(slater_energy() / 4)
+    assert trial_internal_energy(model, rho) == pytest.approx(slater_energy() / 4)
     assert derivative == pytest.approx(rhs / 4, rel=1e-8, abs=1e-8)
 
 
@@ -196,7 +196,7 @@ def test_internal_energy_matches_bdg_block_formula():
 
     # Independent two-orbital Wick expression, including attractive pairing.
     expected = 2.0 * 0.4 + 3.0 * 0.3 + 1.5 * (0.4 * 0.3 - 0.05**2 - 0.2**2)
-    assert internal_energy(model, density) == pytest.approx(expected / 2)
+    assert trial_internal_energy(model, density) == pytest.approx(expected / 2)
 
 
 def test_bdg_correction_projects_pairing_antisymmetry_noise():
@@ -261,13 +261,13 @@ def test_bdg_energy_is_phase_invariant_and_has_the_hamiltonian_gradient(
             raise AssertionError("sparse energy evaluation must not densify blocks")
 
         monkeypatch.setattr(sparse.csr_matrix, "toarray", forbid_dense)
-    assert internal_energy(model, as_tb(rotated)) == pytest.approx(
-        internal_energy(model, as_tb(density)), abs=1e-14
+    assert trial_internal_energy(model, as_tb(rotated)) == pytest.approx(
+        trial_internal_energy(model, as_tb(density)), abs=1e-14
     )
     epsilon = 1e-5
     derivative = (
-        internal_energy(model, as_tb(density + epsilon * direction))
-        - internal_energy(model, as_tb(density - epsilon * direction))
+        trial_internal_energy(model, as_tb(density + epsilon * direction))
+        - trial_internal_energy(model, as_tb(density - epsilon * direction))
     ) / (2 * epsilon)
     expected = (
         0.5
@@ -305,11 +305,11 @@ def test_free_energy_uses_full_state_entropy_after_selecting_entries(
     selected = full.select(model.required_coordinates)
 
     assert not selected.is_complete
-    assert internal_energy(model, selected) == pytest.approx(
-        internal_energy(model, full)
+    assert trial_internal_energy(model, selected) == pytest.approx(
+        trial_internal_energy(model, full)
     )
-    assert free_energy(model, selected) == pytest.approx(
-        internal_energy(model, full) - kT * entropy
+    assert trial_free_energy(model, selected) == pytest.approx(
+        trial_internal_energy(model, full) - kT * entropy
     )
     assert selected.entropy == full.entropy
 
@@ -317,7 +317,7 @@ def test_free_energy_uses_full_state_entropy_after_selecting_entries(
 def test_free_energy_rejects_dictionary_without_entropy():
     model = Model({(): np.eye(1)}, {(): np.zeros((1, 1))}, filling=0.5, kT=0.2)
     with pytest.raises(TypeError, match="DensityResult with computed entropy"):
-        free_energy(model, {(): np.array([[0.5]])})
+        trial_free_energy(model, {(): np.array([[0.5]])})
 
 
 @pytest.mark.parametrize("bdg", [False, True])
@@ -352,7 +352,7 @@ def test_model_selected_density_keeps_physical_energy_without_one_body_entries(
     q = np.r_[np.ones(2), -np.ones(2)] if bdg else np.ones(2)
     energies, vectors = np.linalg.eigh(h - 0.07 * np.diag(q))
     exact = (vectors * expit(-energies / model.kT)) @ vectors.conj().T
-    reference = mf.internal_energy(model, {(): exact})
+    reference = mf.trial_internal_energy(model, {(): exact})
     assert result.internal_energy == pytest.approx(reference, abs=2e-9)
     assert result.free_energy == result.internal_energy - model.kT * result.entropy
     assert result.kT == model.kT
@@ -384,7 +384,7 @@ def test_default_selected_density_energy_does_not_require_hopping_entries():
     expected = -0.1 * np.tanh(0.5)
     for equivalent_model in (model, replace(model)):
         with pytest.raises(ValueError, match="missing"):
-            mf.internal_energy(equivalent_model, result)
+            mf.trial_internal_energy(equivalent_model, result)
     assert result.internal_energy == pytest.approx(expected, abs=1e-14)
 
 
@@ -428,7 +428,7 @@ def test_fixed_mu_selected_energy_uses_only_available_entries(
     hamiltonian = model.hamiltonian_from_meanfield()[()].toarray()
     energies, vectors = np.linalg.eigh(hamiltonian)
     exact_density = (vectors * expit(-energies / model.kT)) @ vectors.conj().T
-    expected = mf.internal_energy(model, {(): exact_density})
+    expected = mf.trial_internal_energy(model, {(): exact_density})
 
     def unnecessary_work(*args, **kwargs):
         raise AssertionError("Model energy must use the requested density entries")
@@ -441,8 +441,8 @@ def test_fixed_mu_selected_energy_uses_only_available_entries(
     assert result.band_energy is result.entropy is result.free_energy is None
     if covered:
         assert result.internal_energy == pytest.approx(expected, abs=1e-9)
-        assert result.internal_energy == mf.internal_energy(model, result)
+        assert result.internal_energy == mf.trial_internal_energy(model, result)
     else:
         assert result.internal_energy is None
         with pytest.raises(ValueError, match="missing"):
-            mf.internal_energy(model, result)
+            mf.trial_internal_energy(model, result)

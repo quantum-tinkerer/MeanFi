@@ -21,6 +21,11 @@ preserving the previous interfaces.
 - EDIIS is the default SCF method, uses internal energy and never switches methods
   automatically. Results retain the evaluated mean field, density and history,
   including the last valid state on nonconvergence.
+- Read calculated energies from result properties. The standalone functions
+  are named `trial_internal_energy` and `trial_free_energy` to distinguish
+  independent trial-density evaluation from stored results.
+- Charge root searches accept any sample meeting the filling target, including
+  bracket endpoints and expansion steps, without spending further evaluations.
 - Energies and entropy are per cell per physical orbital. Entropy/free energy are
   opt-in through `compute_free_energy=True`, evaluated only after SCF terminates.
 - Dense and sparse density layouts share coordinate selection. Fourier grids use

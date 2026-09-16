@@ -94,7 +94,10 @@ def test_partial_result_correction_reproduces_density_and_energy(
     expected = result.density.coordinates.values_from_assembled_matrix(exact)
     error = np.max(abs(result.density.values - expected))
     assert error < 1e-12, f"Returned Hamiltonian/density mismatch: {error}"
-    assert abs(result.internal_energy - mf.internal_energy(model, {(): exact})) < 1e-12
+    assert (
+        abs(result.internal_energy - mf.trial_internal_energy(model, {(): exact}))
+        < 1e-12
+    )
     # The next correction is a distinct operation before convergence.
     next_correction = model.mean_field(result.density)
     assert (

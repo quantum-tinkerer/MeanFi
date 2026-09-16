@@ -16,7 +16,7 @@ from meanfi import (
     density_matrix,
     density_matrix_at_mu,
     solver,
-    internal_energy,
+    trial_internal_energy,
 )
 from meanfi.tests.fixtures.models import spinful_chain, density_result_from_tb
 
@@ -80,9 +80,9 @@ def test_public_signatures_expose_documented_keyword_only_controls():
     assert density_at_mu_params["integration"].default is None
     assert "filling_tol" not in density_at_mu_params
 
-    internal_energy_params = inspect.signature(internal_energy).parameters
+    internal_energy_params = inspect.signature(trial_internal_energy).parameters
     assert list(internal_energy_params) == ["model", "density_matrix"]
-    assert meanfi.internal_energy is internal_energy
+    assert meanfi.trial_internal_energy is trial_internal_energy
 
     for method in (FermiSimplex, UniformGrid):
         params = inspect.signature(method).parameters

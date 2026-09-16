@@ -63,7 +63,7 @@ contain mesh, backend and resource settings only.
 Sparse finite-temperature calculations use
 `UniformGrid(nk=..., matrix_function=RationalFOE())`. AAA approximates the Fermi
 function using selected inverse entries from MUMPS. The default tolerance policy
-accounts for the number of orbitals when resolving fixed-filling accuracy.
+uses fixed fractions of `tol`, independent of orbital count.
 `result.errors.matrix_function_error` reports the achieved approximation estimate
 (or `None` for methods without this estimate). See the [accuracy and integration guide](https://meanfi.readthedocs.io/en/latest/documentation/algorithms/accuracy.html)
 for supported combinations, mesh rounding, and changes from previous APIs.

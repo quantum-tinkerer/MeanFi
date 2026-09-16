@@ -135,59 +135,44 @@ class _ChargeRootSolver:
     def solve(
         self, *, initial_bracket: Callable[[], tuple[float, float]], mu_guess: float
     ) -> FixedFillingSolve:
-        guess = self.sample(mu_guess)
-        if self.accepted(guess):
-            return self._result(guess)
-        lower, upper = initial_bracket()
-        bracket = self._expand_bracket(lower=lower, upper=upper)
-        for sample in (bracket.lower, bracket.upper):
-            if self.accepted(sample):
-                return self._result(sample)
+        try:
+            self.sample(mu_guess)
+            lower, upper = initial_bracket()
+            bracket = self._expand_bracket(lower=lower, upper=upper)
+            mu = float(np.clip(mu_guess, bracket.lower.mu, bracket.upper.mu))
+            if bracket.lower.mu < mu < bracket.upper.mu:
+                bracket.update(self.sample(mu))
 
-        mu = float(np.clip(mu_guess, bracket.lower.mu, bracket.upper.mu))
-        if bracket.lower.mu < mu < bracket.upper.mu:
-            sample = self.sample(mu)
-            bracket.update(sample)
-            if self.accepted(sample):
-                return self._result(sample)
-
-        lower_mu, upper_mu = bracket.pair
-        mu0 = self.last.mu if self.last is not None else 0.5 * (lower_mu + upper_mu)
-        final = (
-            self._solve_with_newton(bracket, mu0=mu0)
-            if self.use_derivative
-            else self._solve_with_brent(bracket)
-        )
-
-        if not self.accepted(final):
-            self._fail(
-                "root search ended before satisfying the filling tolerance",
-                self.best if self.best is not None else final,
+            final = (
+                self._solve_with_newton(bracket, mu0=self.last.mu)
+                if self.use_derivative
+                else self._solve_with_brent(bracket)
             )
-        return self._result(final)
-
-    def accepted(self, sample: _ChargeSample) -> bool:
-        return abs(sample.residual) <= self.filling_tol
+        except _AcceptedSample as exc:
+            return self._result(exc.sample)
+        self._fail(
+            "root search ended before satisfying the filling tolerance",
+            self.best or final,
+        )
 
     def sample(self, mu: float) -> _ChargeSample:
         mu_value = float(mu)
-        if mu_value in self.cache:
-            sample = self.cache[mu_value]
-            self.last = sample
-            return sample
-        if self.max_charge_evaluations is not None:
-            if self.charge_evaluations >= self.max_charge_evaluations:
+        if mu_value not in self.cache:
+            if (
+                self.max_charge_evaluations is not None
+                and self.charge_evaluations >= self.max_charge_evaluations
+            ):
                 raise _MaxRootIterations
-        sample = _evaluate_charge_sample(
-            self.evaluate_charge,
-            filling=self.filling,
-            mu=mu_value,
-        )
-        self.charge_evaluations += 1
-        self.cache[mu_value] = sample
-        self.last = sample
-        if self.best is None or abs(sample.residual) < abs(self.best.residual):
-            self.best = sample
+            sample = _evaluate_charge_sample(
+                self.evaluate_charge, filling=self.filling, mu=mu_value
+            )
+            self.charge_evaluations += 1
+            self.cache[mu_value] = sample
+            if self.best is None or abs(sample.residual) < abs(self.best.residual):
+                self.best = sample
+        sample = self.last = self.cache[mu_value]
+        if abs(sample.residual) <= self.filling_tol:
+            raise _AcceptedSample(sample)
         return sample
 
     def _expand_bracket(
@@ -243,8 +228,6 @@ class _ChargeRootSolver:
         while True:
             sample = self.sample(mu)
             bracket.update(sample)
-            if self.accepted(sample):
-                return sample
 
             derivative = sample.derivative
             if derivative is None or not np.isfinite(derivative) or derivative <= 0.0:
@@ -258,8 +241,6 @@ class _ChargeRootSolver:
             if abs(next_mu - sample.mu) <= self.mu_xtol:
                 final = self.sample(next_mu)
                 bracket.update(final)
-                if self.accepted(final):
-                    return final
                 return self._solve_with_brent(bracket)
 
             mu = next_mu
@@ -268,22 +249,16 @@ class _ChargeRootSolver:
         def residual(mu: float) -> float:
             sample = self.sample(mu)
             bracket.update(sample)
-            if self.accepted(sample):
-                raise _AcceptedSample(sample)
             return sample.residual
 
-        try:
-            root = brentq(
-                residual,
-                *bracket.pair,
-                xtol=self.mu_xtol,
-                rtol=np.finfo(float).eps * 4.0,
-                maxiter=_BRENT_MAXITER,
-                disp=False,
-            )
-        except _AcceptedSample as exc:
-            return exc.sample
-
+        root = brentq(
+            residual,
+            *bracket.pair,
+            xtol=self.mu_xtol,
+            rtol=np.finfo(float).eps * 4.0,
+            maxiter=_BRENT_MAXITER,
+            disp=False,
+        )
         sample = self.sample(float(root))
         bracket.update(sample)
         return sample

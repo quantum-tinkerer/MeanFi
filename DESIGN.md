@@ -21,8 +21,10 @@ an energy difference from the reference.
 `DensityCoordinates` lists requested real-space entries. `DensityResult` stores
 those values and available observables/diagnostics. Missing entries are unknown;
 missing metadata is `None`. No calculation is performed solely to fill a result
-field. `SCFResult` adds the input correction, convergence status and iteration
-history. Its correction reproduces its density; applying `model.mean_field` to
+field. Read energies from result properties; `trial_internal_energy` and
+`trial_free_energy` independently evaluate a trial density against a supplied
+model and require all entries used by that contraction. `SCFResult` adds the input
+correction, convergence status and iteration history. Its correction reproduces its density; applying `model.mean_field` to
 that density gives the next correction, equal only at self-consistency.
 
 `space/` compresses Hermiticity and pairing antisymmetry into real variables.
@@ -40,8 +42,10 @@ orbital: N for a normal Hamiltonian and N for a 2N-dimensional BdG Hamiltonian.
 `density/problem.py` resolves backend compatibility, coordinate selection and
 sparse patterns once. `density/filling.py` solves `N(mu) = filling` using the
 requested filling residual and chemical-potential step tolerance. It checks the
-previous mu before constructing a bracket; numerical samples are cached within
-the root solve. Integration and matrix-function errors do not add root tests.
+previous mu before constructing a bracket; every sample is accepted immediately
+when it meets the filling target, including during bracket expansion. Numerical
+samples are cached within the root solve. Integration and matrix-function errors
+do not add root tests.
 
 - `FermiSimplex` integrates normal zero-temperature density on an adaptive mesh.
   At fixed filling, charge/mu refinement finishes before one density stage at
@@ -110,4 +114,6 @@ Coverage is used to find unexercised paths, not as a reason to remove failure ch
 The small `performance/` runner reports time and reference errors for density and
 SCF workloads. Generated reports, plots and distributions belong under ignored
 build directories or CI artifacts. Tutorials execute fresh calculations and use
-the default policy/EDIIS; the graphene scan explicitly chooses tol=1e-2 for speed.
+the default policy/EDIIS; the graphene scan and strained-graphene tutorial
+explicitly choose tol=1e-2 for speed. Sparse CI runs the complete suite, including the heavier numerical
+reference checks.
