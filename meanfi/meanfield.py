@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sparse
 
+from meanfi.interaction import BilinearInteraction
 from meanfi.tb.bdg import assemble_bdg_tb
 from meanfi.tb.ops import (
     _tb_type,
@@ -73,11 +74,16 @@ def _antisymmetrize_anomalous_block(anomalous_block: _tb_type, ndof: int) -> _tb
 
 def interaction_correction(
     density_matrix: _tb_type,
-    h_int: _tb_type,
+    h_int: _tb_type | BilinearInteraction,
     *,
     electron_ndof: int | None = None,
 ) -> _tb_type:
     """Apply the linear interaction map to normal or normal-and-pairing density."""
+    if isinstance(h_int, BilinearInteraction):
+        if electron_ndof is not None:
+            raise ValueError("BilinearInteraction supports normal states only")
+        local = onsite_key(tb_dimension(density_matrix))
+        return {local: h_int.correction(density_matrix[local])}
     if electron_ndof is None:
         return _normal_correction(density_matrix, h_int)
     ndof = electron_ndof
@@ -118,7 +124,10 @@ def correction_expectation(
 
 
 def interaction_energy(
-    difference: _tb_type, h_int: _tb_type, *, electron_ndof: int | None = None
+    difference: _tb_type,
+    h_int: _tb_type | BilinearInteraction,
+    *,
+    electron_ndof: int | None = None,
 ) -> float:
     """Quadratic interaction energy of a density difference, per physical orbital."""
     correction = interaction_correction(difference, h_int, electron_ndof=electron_ndof)

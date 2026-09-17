@@ -6,6 +6,12 @@ from dataclasses import dataclass, replace
 import math
 import warnings
 
+from meanfi.hamiltonian import (
+    BlochHamiltonian,
+    Hamiltonian,
+    hamiltonian_dimension,
+    hamiltonian_size,
+)
 from meanfi.errors import ErrorTolerances
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization, RationalFOE
 from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationalLayout
@@ -17,18 +23,15 @@ from meanfi.density.integrate.methods import (
     UniformGrid,
 )
 from meanfi.space.coordinates import DensityCoordinates, full_density_coordinates
-from meanfi.tb.ops import _tb_type
 from meanfi.tb.validate import (
     normalize_keys,
-    tb_dimension,
-    tb_orbital_count,
     require_zero_dim_local_key_only,
 )
 
 
 @dataclass(frozen=True)
 class DensityProblem:
-    hamiltonian: _tb_type
+    hamiltonian: Hamiltonian
     kT: float
     integration: IntegrationMethod
     tolerances: ErrorTolerances
@@ -38,7 +41,7 @@ class DensityProblem:
 
 
 def build_density_problem(
-    hamiltonian: _tb_type,
+    hamiltonian: Hamiltonian,
     *,
     kT: float,
     keys: list[tuple[int, ...]] | None = None,
@@ -47,7 +50,7 @@ def build_density_problem(
     density_coordinates: DensityCoordinates | None = None,
     electron_ndof: int | None = None,
 ) -> DensityProblem:
-    if tb_dimension(hamiltonian) == 0:
+    if hamiltonian_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
     integration = resolve_integration(
         hamiltonian,
@@ -55,13 +58,15 @@ def build_density_problem(
         integration=integration,
         superconducting=electron_ndof is not None,
     )
-    size = tb_orbital_count(hamiltonian)
+    size = hamiltonian_size(hamiltonian)
     if density_coordinates is None:
         coordinates = full_density_coordinates(
-            normalize_keys(hamiltonian, keys), size=size
+            normalize_keys(keys, ndim=hamiltonian_dimension(hamiltonian)), size=size
         )
     else:
-        normalize_keys(hamiltonian, list(density_coordinates.keys))
+        normalize_keys(
+            list(density_coordinates.keys), ndim=hamiltonian_dimension(hamiltonian)
+        )
         coordinates = density_coordinates
     if coordinates.size != size:
         raise ValueError(
@@ -99,8 +104,10 @@ def resolve_integration(hamiltonian, *, kT, integration=None, superconducting=Fa
         integration, (FermiSimplex, UniformGrid)
     ):
         raise TypeError("integration must be FermiSimplex or UniformGrid")
-    sparse = prefers_sparse_storage(hamiltonian)
-    finite = tb_dimension(hamiltonian) == 0
+    sparse = not isinstance(hamiltonian, BlochHamiltonian) and prefers_sparse_storage(
+        hamiltonian
+    )
+    finite = hamiltonian_dimension(hamiltonian) == 0
     if finite and integration is not None:
         if integration.nk is not None or integration.initial_nk is not None:
             warnings.warn(

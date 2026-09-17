@@ -5,6 +5,14 @@ from collections.abc import Mapping
 
 import numpy as np
 
+from meanfi.hamiltonian import (
+    BlochHamiltonian,
+    Hamiltonian,
+    add_correction,
+    hamiltonian_dimension,
+    hamiltonian_size,
+)
+from meanfi.interaction import BilinearInteraction
 from meanfi.meanfield import interaction_correction
 from meanfi.results import DensityResult
 from meanfi.space.coordinates import DensityCoordinates
@@ -12,7 +20,7 @@ from meanfi.space.space import ActiveSCFSpace
 from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.space.symmetry import SpatialSymmetry
 from meanfi.tb.bdg import assemble_bdg_tb, electron_to_bdg_tb, validate_bdg_tb
-from meanfi.tb.ops import add_tb, _tb_type
+from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import _MatrixView, prefers_sparse_storage
 from meanfi.tb.validate import (
     freeze_tb,
@@ -25,39 +33,52 @@ from meanfi.tb.validate import (
 
 @dataclass(frozen=True, eq=False)
 class Model:
-    """Owned, read-only tight-binding inputs and their reduced SCF space.
+    """Owned physical inputs and their reduced SCF space.
 
     Public matrix containers share read-only arrays with owned storage; replacing
     their arrays cannot change the model. Use ``dataclasses.replace`` for changes.
 
-    Positive ``h_int`` coefficients are repulsive; negative ones are attractive,
-    including in the superconducting pairing channel.
+    ``h_0`` accepts a tight-binding dictionary or ``BlochHamiltonian``.
+    ``h_int`` accepts a density-density dictionary or ``BilinearInteraction``.
+    The latter inputs support normal states only. Callable parameters must stay
+    fixed throughout a calculation; MeanFi cannot own their captured state.
+
+    Positive density-density coefficients are repulsive; negative ones are
+    attractive, including in the superconducting pairing channel.
 
     ``reference`` subtracts the normal and pairing reference densities from
     the mean-field correction. A normal reference has zero pairing in a BdG
     model. Filling counts electrons per unit cell.
     """
 
-    h_0: _tb_type
-    h_int: _tb_type
+    h_0: Hamiltonian
+    h_int: _tb_type | BilinearInteraction
     filling: float
     _: KW_ONLY
     kT: float = 0.0
     superconducting: bool = False
     spatial_symmetries: tuple[SpatialSymmetry, ...] = ()
     reference: _tb_type | DensityResult | None = None
-    _h_0: _tb_type = field(init=False, repr=False)
-    _h_int: _tb_type = field(init=False, repr=False)
+    _h_0: Hamiltonian = field(init=False, repr=False)
+    _h_int: _tb_type | BilinearInteraction = field(init=False, repr=False)
     _space: ActiveSCFSpace = field(init=False, repr=False)
     _reference_state: ActiveDensityState | None = field(init=False, repr=False)
     _ndim: int = field(init=False, repr=False)
     _ndof: int = field(init=False, repr=False)
-    _hamiltonian: _tb_type = field(init=False, repr=False)
+    _hamiltonian: Hamiltonian = field(init=False, repr=False)
 
     def __post_init__(self):
-        h_0, h_int = freeze_tb(self.h_0), freeze_tb(self.h_int, real=True)
-        ndim, ndof = tb_dimension(h_0), tb_orbital_count(h_0)
-        if tb_dimension(h_int) != ndim or tb_orbital_count(h_int) != ndof:
+        callable_h = isinstance(self.h_0, BlochHamiltonian)
+        bilinear = isinstance(self.h_int, BilinearInteraction)
+        if self.superconducting and (callable_h or bilinear):
+            raise ValueError(
+                "BlochHamiltonian and BilinearInteraction support normal states only"
+            )
+        h_0 = self.h_0 if callable_h else freeze_tb(self.h_0)
+        h_int = self.h_int if bilinear else freeze_tb(self.h_int, real=True)
+        ndim, ndof = hamiltonian_dimension(h_0), hamiltonian_size(h_0)
+        interaction_size = h_int.ndof if bilinear else tb_orbital_count(h_int)
+        if interaction_size != ndof or (not bilinear and tb_dimension(h_int) != ndim):
             raise ValueError(
                 "Hamiltonian and interaction must have the same dimension and matrix size"
             )
@@ -78,8 +99,8 @@ class Model:
                     "Spatial symmetry must match the model dimension and orbital count"
                 )
         for name, value in dict(
-            h_0=_MatrixView(h_0),
-            h_int=_MatrixView(h_int),
+            h_0=h_0 if callable_h else _MatrixView(h_0),
+            h_int=h_int if bilinear else _MatrixView(h_int),
             _h_0=h_0,
             _h_int=h_int,
             filling=filling,
@@ -94,7 +115,9 @@ class Model:
             h_int,
             superconducting=self.superconducting,
             spatial_symmetries=symmetries,
-            sparse=prefers_sparse_storage(h_0, h_int),
+            ndim=ndim,
+            sparse=(not callable_h and prefers_sparse_storage(h_0))
+            or (not bilinear and prefers_sparse_storage(h_int)),
         )
         reference_state = None
         if self.reference is not None:
@@ -184,18 +207,20 @@ class Model:
         """
         return self._mean_field_from_state(self._density_state(density))
 
-    def hamiltonian_from_density(self, density: _tb_type | DensityResult) -> _tb_type:
+    def hamiltonian_from_density(
+        self, density: _tb_type | DensityResult
+    ) -> Hamiltonian:
         """Build the normal or BdG Hamiltonian from a trial density.
 
         Selected results must cover this model's required coordinates.
         Subtract the reference normal and pairing densities before computing
         the correction; a normal reference contributes no pairing.
         """
-        return add_tb(self._hamiltonian, self.mean_field(density))
+        return add_correction(self._hamiltonian, self.mean_field(density))
 
     def hamiltonian_from_meanfield(
         self, mean_field: _tb_type | None = None
-    ) -> _tb_type:
+    ) -> Hamiltonian:
         """Build the unshifted normal or electron-first BdG Hamiltonian.
 
         Omitting ``mean_field`` returns the noninteracting Hamiltonian.
@@ -203,7 +228,7 @@ class Model:
         """
         if mean_field is not None:
             self._validate_mean_field(mean_field)
-        return add_tb(self._hamiltonian, mean_field or {})
+        return add_correction(self._hamiltonian, mean_field or {})
 
     def _validate_mean_field(self, correction: _tb_type) -> None:
         if not correction:

@@ -15,8 +15,8 @@ from meanfi.density.kpoint.matrix_functions.rational.common import SparseRationa
 from meanfi.density.kpoint.occupations import fermi_dirac, occupation_entropy
 from meanfi.errors import ErrorTolerances
 from meanfi.space.coordinates import DensityCoordinates
-from meanfi.tb.ops import _tb_type, as_sparse, to_dense
-from meanfi.tb.validate import tb_orbital_count
+from meanfi.hamiltonian import BlochHamiltonian, Hamiltonian, hamiltonian_size
+from meanfi.tb.ops import as_sparse, to_dense
 
 
 def periodic_grid_resolution(nk: int, dimension: int) -> int:
@@ -95,7 +95,7 @@ def _electron_charge(vectors, occupation):
 class _Evaluator:
     def __init__(
         self,
-        hamiltonian: _tb_type,
+        hamiltonian: Hamiltonian,
         *,
         kT: float,
         integration: UniformGrid,
@@ -112,7 +112,7 @@ class _Evaluator:
         self.integration = integration
         self.coordinates = coordinates
         self.normal = q_diag is None
-        self.size = tb_orbital_count(hamiltonian)
+        self.size = hamiltonian_size(hamiltonian)
         self.q_diag = np.ones(self.size) if q_diag is None else np.asarray(q_diag)
         self.dtype = integration.dtype
         self.batch_size = integration.batch_size
@@ -120,24 +120,30 @@ class _Evaluator:
         self.fixed_filling = fixed_filling
         self.method = integration.matrix_function
         self.sparse_layout = sparse_layout
-        self.tb_keys = np.asarray(list(hamiltonian), dtype=float)
         self.density_keys = np.asarray(coordinates.keys, dtype=float)
-        self.matrices = (
-            [
-                as_sparse(matrix).astype(self.dtype).tocsr()
-                for matrix in hamiltonian.values()
-            ]
-            if isinstance(self.method, RationalFOE)
-            else np.asarray(
-                [to_dense(matrix) for matrix in hamiltonian.values()], dtype=self.dtype
+        if not isinstance(hamiltonian, BlochHamiltonian):
+            self.tb_keys = np.asarray(list(hamiltonian), dtype=float)
+            self.matrices = (
+                [
+                    as_sparse(matrix).astype(self.dtype).tocsr()
+                    for matrix in hamiltonian.values()
+                ]
+                if isinstance(self.method, RationalFOE)
+                else np.asarray(
+                    [to_dense(matrix) for matrix in hamiltonian.values()],
+                    dtype=self.dtype,
+                )
             )
-        )
         self.work = _Work()
         self._aaa_interval_cache = []
         self.entropy_approximation_error = None
         self.matrix_function_error = None
 
     def matrices_at(self, points: np.ndarray):
+        if isinstance(self.hamiltonian, BlochHamiltonian):
+            return np.asarray(
+                [self.hamiltonian(point) for point in points], dtype=self.dtype
+            )
         phases = np.exp(-1j * (points @ self.tb_keys.T))
         if isinstance(self.method, DirectDiagonalization):
             return np.einsum(

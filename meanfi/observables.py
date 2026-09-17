@@ -5,6 +5,7 @@ from dataclasses import replace
 import numpy as np
 from scipy import sparse
 
+from meanfi.hamiltonian import BlochHamiltonian
 from meanfi.meanfield import correction_expectation, interaction_energy
 from meanfi.model import Model
 from meanfi.results import DensityResult
@@ -27,6 +28,11 @@ def evaluate_internal_energy(
     reference normal and pairing densities. The one-body term uses the actual
     density. BdG pairing uses the conjugate anomalous density difference.
     """
+    if isinstance(model._h_0, BlochHamiltonian):
+        raise ValueError(
+            "A callable Hamiltonian's energy cannot be reconstructed from integrated "
+            "density entries; read result.internal_energy or result.free_energy instead"
+        )
     active = model._active_density_from_state(
         model._reference_difference(model._density_state(density_matrix))
     )
@@ -91,6 +97,8 @@ def _with_model_energy(model, density, correction):
                 model, model._density_state(density), density.band_energy, projected
             )
             return replace(density, internal_energy=energy)
+    if isinstance(model._h_0, BlochHamiltonian):
+        return density
     # A direct contraction needs only actual one-body nonzeros. For BdG these
     # are already addressed in the electron block of the selected density.
     available = set(density.coordinates.entries)

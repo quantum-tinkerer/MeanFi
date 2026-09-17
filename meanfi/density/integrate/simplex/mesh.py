@@ -3,15 +3,17 @@
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from math import comb, factorial
+from inspect import Parameter, Signature
 
 import numpy as np
 from fermisimplex import SpectralMesh
 from threadpoolctl import threadpool_limits
 
+from meanfi.hamiltonian import BlochHamiltonian, Hamiltonian, hamiltonian_dimension
 from meanfi.density.problem import DensityProblem
 from meanfi.results import IntegrationInfo, _DensityEntries
 from meanfi.space.coordinates import DensityCoordinates
-from meanfi.tb.ops import _tb_type, to_dense
+from meanfi.tb.ops import to_dense
 
 _CHARGE_ERROR_DEPTH = 2
 _DENSITY_PREVIEW_DEPTH = 1
@@ -20,14 +22,14 @@ _MAX_REFINEMENT_BATCH_SIZE = 100
 
 
 def _spectral_mesh(
-    h: _tb_type,
+    h: Hamiltonian,
     *,
     nk: int | None = None,
     max_points: int | None = None,
 ) -> SpectralMesh:
     # FermiSimplex's dyadic root mesh includes both faces of the unit cell.
     # Its native construction gives (2**level + 1)**dimension distinct nodes.
-    dimension = len(next(iter(h)))
+    dimension = hamiltonian_dimension(h)
     # Three vertices alias the first cosine harmonic with its midpoint preview.
     level = 2 if nk is None else 0
     while nk is not None and (2**level + 1) ** dimension < nk:
@@ -38,6 +40,19 @@ def _spectral_mesh(
             f"FermiSimplex mesh requires {nodes} nodes for nk={nk}, "
             f"exceeding max_points={max_points}; increase max_points or reduce nk"
         )
+    if isinstance(h, BlochHamiltonian):
+
+        def evaluate(*coordinates):
+            return h(2 * np.pi * np.asarray(coordinates))
+
+        # FermiSimplex infers dimension from positional callback arguments.
+        evaluate.__signature__ = Signature(
+            [
+                Parameter(f"k{axis}", Parameter.POSITIONAL_ONLY)
+                for axis in range(dimension)
+            ]
+        )
+        return SpectralMesh(evaluate, root_level=level)
     dense_hamiltonian = {
         key: np.asarray(to_dense(matrix), dtype=np.complex128)
         for key, matrix in h.items()

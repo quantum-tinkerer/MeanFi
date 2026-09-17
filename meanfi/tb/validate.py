@@ -70,8 +70,9 @@ def validate_hermiticity(tb: _tb_type) -> None:
 
 
 def normalize_keys(
-    hamiltonian: _tb_type,
     keys: list[tuple[int, ...]],
+    *,
+    ndim: int,
 ) -> list[tuple[int, ...]]:
     normalized = [tuple(key) for key in keys]
     if any(
@@ -80,7 +81,6 @@ def normalize_keys(
         for r in key
     ):
         raise ValueError("Requested density-matrix keys must contain integers")
-    ndim = tb_dimension(hamiltonian)
     for key in normalized:
         if len(key) != ndim:
             raise ValueError(

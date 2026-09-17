@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from meanfi.interaction import BilinearInteraction
 from meanfi.space.coordinates import DensityCoordinates, DensityEntry, _assemble_blocks
 from meanfi.space.reducers import (
     LinearConstraintReducer,
@@ -104,13 +105,19 @@ class ActiveSCFSpace:
     @classmethod
     def from_interaction(
         cls,
-        h_int: _tb_type,
+        h_int: _tb_type | BilinearInteraction,
         *,
+        ndim: int | None = None,
         superconducting=False,
         spatial_symmetries=(),
         sparse=False,
     ) -> ActiveSCFSpace:
-        ndof = tb_orbital_count(h_int)
+        bilinear = isinstance(h_int, BilinearInteraction)
+        if bilinear and (superconducting or ndim is None):
+            raise ValueError(
+                "BilinearInteraction requires ndim and a normal-state space"
+            )
+        ndof = h_int.ndof if bilinear else tb_orbital_count(h_int)
         if superconducting:
             support = bdg_active_support(h_int)
             family = "bdg"
@@ -119,7 +126,11 @@ class ActiveSCFSpace:
                 ParticleHoleConstraint(ndof),
             )
         else:
-            support = normal_active_support(h_int)
+            support = (
+                h_int.density_coordinates(ndim)
+                if bilinear
+                else normal_active_support(h_int)
+            )
             family = "normal"
             constraints = (HermiticityConstraint(),)
 

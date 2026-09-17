@@ -9,6 +9,7 @@ import numpy as np
 from meanfi.errors import ConvergenceError
 from scipy.optimize import brentq
 
+from meanfi.hamiltonian import BlochHamiltonian, Hamiltonian
 from meanfi.tb.ops import _tb_type, matrix_bound
 
 
@@ -29,15 +30,25 @@ def charge_diagonal(ndof: int) -> np.ndarray:
     return np.concatenate([np.ones(ndof), -np.ones(ndof)])
 
 
-def mu_bracket(hamiltonian: _tb_type, kT: float) -> tuple[float, float]:
-    """Return a conservative chemical-potential bracket."""
+def mu_bracket(
+    hamiltonian: Hamiltonian, kT: float, *, eigenvalues=None
+) -> tuple[float, float]:
+    """Bracket the TB bound or a callable's sampled spectrum.
+
+    Sampled extrema bracket the current quadrature, not the continuous spectrum.
+    The root solver expands this initial interval if necessary.
+    """
 
     if not hamiltonian:
         raise ValueError("Hamiltonian cannot be empty")
     if not np.isfinite(kT) or kT < 0.0:
         raise ValueError("kT must be a nonnegative finite number")
-    bound = _conservative_spectral_bound(hamiltonian)
     padding = max(1.0, 10.0 * kT)
+    if isinstance(hamiltonian, BlochHamiltonian):
+        return float(np.min(eigenvalues) - padding), float(
+            np.max(eigenvalues) + padding
+        )
+    bound = _conservative_spectral_bound(hamiltonian)
     return -float(bound + padding), float(bound + padding)
 
 

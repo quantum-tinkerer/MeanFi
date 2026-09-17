@@ -14,7 +14,8 @@ from meanfi.meanfield import interaction_energy
 from meanfi.observables import _internal_energy_from_band
 from meanfi.results import _DensityEntries, DensityResult
 from meanfi.space.state import ActiveDensityState
-from meanfi.tb.ops import _tb_type, add_tb
+from meanfi.hamiltonian import add_correction
+from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import tb_entries_changed
 
 
@@ -72,7 +73,7 @@ class SCFProblem:
         return evaluate_density(
             replace(
                 self.density_problem,
-                hamiltonian=add_tb(self.model._hamiltonian, mean_field),
+                hamiltonian=add_correction(self.model._hamiltonian, mean_field),
             ),
             filling=self.model.filling if mu is None else None,
             mu=mu,

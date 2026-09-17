@@ -8,7 +8,7 @@ from meanfi.density.problem import DensityProblem
 from meanfi.errors import ErrorValues
 from meanfi.results import DensityResult
 from meanfi.tb.ops import to_dense
-from meanfi.tb.validate import tb_dimension
+from meanfi.hamiltonian import BlochHamiltonian, hamiltonian_dimension
 from .mesh import SimplexEvaluator, _occupied_band_energy, _zero_temperature_entropy
 
 
@@ -23,7 +23,7 @@ def solve_simplex(
     compute_entropy: bool = False,
 ) -> DensityResult:
     """Finish the charge solve, then refine density at its chemical potential."""
-    if tb_dimension(problem.hamiltonian) == 0:
+    if hamiltonian_dimension(problem.hamiltonian) == 0:
         return evaluate_zero_dim(
             to_dense(problem.hamiltonian[()]),
             problem.density_coordinates,
@@ -58,7 +58,13 @@ def solve_simplex(
                 )
             root = solve_mu(
                 evaluate_charge=frozen_charge,
-                initial_bracket=lambda: mu_bracket(problem.hamiltonian, 0.0),
+                initial_bracket=lambda: mu_bracket(
+                    problem.hamiltonian,
+                    0.0,
+                    eigenvalues=evaluator.mesh.eigenvalues
+                    if isinstance(problem.hamiltonian, BlochHamiltonian)
+                    else None,
+                ),
                 filling=filling,
                 mu_guess=mu_guess,
                 filling_tol=tolerances.filling_residual,

@@ -7,7 +7,7 @@ from meanfi.density.problem import DensityProblem
 from meanfi.density.kpoint.matrix_functions import DirectDiagonalization
 from meanfi.errors import ErrorValues
 from meanfi.results import _DensityEntries, DensityResult, IntegrationInfo
-from meanfi.tb.validate import tb_dimension
+from meanfi.hamiltonian import hamiltonian_dimension
 from .periodic_grid import _Evaluator, _Grid, periodic_grid_resolution
 
 
@@ -32,7 +32,7 @@ def solve_periodic(
         )
     integration, tolerances = problem.integration, problem.tolerances
     hamiltonian, kT = problem.hamiltonian, problem.kT
-    dimension = tb_dimension(hamiltonian)
+    dimension = hamiltonian_dimension(hamiltonian)
     if kT == 0 and dimension and integration.nk is None:
         raise ValueError(
             "Zero-temperature UniformGrid at fixed mu requires explicit nk"
@@ -86,7 +86,9 @@ def solve_periodic(
                 )
             root = solve_mu(
                 evaluate_charge=lambda candidate: evaluator.charge(grid, candidate),
-                initial_bracket=lambda: mu_bracket(hamiltonian, kT),
+                initial_bracket=lambda: mu_bracket(
+                    hamiltonian, kT, eigenvalues=grid.spectra
+                ),
                 filling=filling,
                 mu_guess=mu_guess,
                 filling_tol=filling_tol,

@@ -29,6 +29,8 @@ from .density.kpoint.matrix_functions import (
 )
 from .density.kpoint.occupations import fermi_dirac
 from .model import Model
+from .hamiltonian import BlochHamiltonian
+from .interaction import BilinearInteraction, BilinearTerm
 from .observables import (
     expectation_value,
     evaluate_free_energy,
@@ -50,6 +52,9 @@ from .tb import (
 
 
 __all__ = [
+    "BlochHamiltonian",
+    "BilinearInteraction",
+    "BilinearTerm",
     "FermiSimplex",
     "AndersonMixing",
     "EnergyDIIS",

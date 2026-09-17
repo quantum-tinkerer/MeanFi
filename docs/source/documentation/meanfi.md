@@ -11,7 +11,7 @@
 
 `Model(..., reference=reference)` enables reference-state subtraction for normal
 and superconducting calculations. The effective Hamiltonian is built as
-`h_0 + W[rho - rho_ref]`, where `W` is the complete density-density mean-field
+`h_0 + W[rho - rho_ref]`, where `W` is the complete interaction mean-field
 correction, including both Hartree and exchange-like terms. `reference` accepts
 a complete density dictionary or a `DensityResult`. Selected results need only
 the interaction's required entries; every required coordinate is validated when
@@ -107,6 +107,100 @@ reference = {(0,): np.diag([0.5, 0.5])}
 model = mf.Model(h_0, h_int, filling=1.0, reference=reference)
 required = model.required_coordinates
 ```
+
+## Callable Hamiltonians and bilinear interactions
+
+`Model(h_0, h_int, filling)` also accepts the following inputs, independently:
+
+- `BlochHamiltonian(function, ndim, ndof)` for a dense callable `function(k)`.
+  The argument is a momentum vector in radians, just like `tb_to_kfunc`.
+- `BilinearInteraction(terms)` for local normal-ordered bilinear products.
+  Existing density-density dictionaries continue to work with either Hamiltonian.
+
+```{eval-rst}
+.. autoclass:: meanfi.BlochHamiltonian
+
+.. autoclass:: meanfi.BilinearTerm
+
+.. autoclass:: meanfi.BilinearInteraction
+```
+
+Each `BilinearTerm(g, A, B)` represents $g:(c^\dagger A c)(c^\dagger B c):$,
+with real $g$ and Hermitian $A,B$ in the full orbital space. Normal ordering
+removes the one-body contraction; there is **no implicit factor of one half**.
+For example, $U n_0 n_1$ is:
+
+```python
+interaction = mf.BilinearInteraction([
+    mf.BilinearTerm(U, np.diag([1, 0]), np.diag([0, 1]))
+])
+model = mf.Model(h_0, interaction, filling=1.0)
+solution = mf.solver(model, model.random_meanfield(rng=0, scale=0.01))
+```
+
+For onsite density $\rho$, Wick contraction gives
+
+$$
+E_{\rm int}=\sum_t g_t\left[
+\operatorname{Tr}(A_t\rho)\operatorname{Tr}(B_t\rho)
+-\operatorname{Tr}(A_t\rho B_t\rho)\right].
+$$
+
+The correction is its derivative with respect to $\rho$. Reference subtraction
+and EDIIS use this same quadratic functional. Reported energies divide by the
+orbital count. Operators may include spin, valley and orbital coherences; embed
+an operator in the desired orbital subset to select a site or flavor block.
+These terms are local and currently support normal states only. General nonlocal
+bilinear interactions and bilinear pairing channels are not implemented.
+
+Callable Hamiltonians also currently support normal states only. They work with
+`FermiSimplex` at zero temperature and dense `UniformGrid` at positive temperature
+(or prescribed grids at fixed chemical potential at zero temperature). Callbacks
+must return finite Hermitian matrices of the declared size and keep their
+captured parameters fixed during a calculation. Their boundary values need not
+match, but both BZ endpoints must be defined for simplex integration. Smooth
+integrands generally converge faster.
+
+### Integration domain and normalization
+
+Integration remains on $[0,2\pi]^d$ with normalized measure
+$d^d k/(2\pi)^d$. A user wrapper can map this box into another domain without
+introducing a domain object. For a disk of radius $\Lambda$, use
+
+$$
+r=\Lambda\sqrt{k_0/(2\pi)},\qquad \theta=k_1,
+\qquad q=(r\cos\theta,r\sin\theta).
+$$
+
+Composing a continuum Hamiltonian with this map gives the **normalized disk
+average** $\int_{|q|<\Lambda}d^2q/(\pi\Lambda^2)$. The physical measure
+$d^2q/(2\pi)^2$ differs by $\Lambda^2/(4\pi)$. Convert densities, couplings and
+reported energy densities consistently with your physical units. For a contact
+interaction, absorbing that factor into the coupling makes its self-energy act
+on the normalized density used by MeanFi.
+
+A general coordinate map with a varying Jacobian requires weighted integration,
+which is not supported yet. Multiplying $h(k)$ by that Jacobian would change the
+spectrum and occupations; it does not implement the missing integration weight.
+Nonzero displacement keys denote Fourier moments of the computational BZ. On a
+mapped disk they do not automatically represent physical real-space correlations;
+local continuum interactions use the onsite key `(0, 0)`.
+
+{download}`Run the disk example and its analytic density check <../../../examples/continuum.py>`.
+
+Use `solution.internal_energy`, or `density_matrix(model).internal_energy`, for
+callable models. MeanFi obtains the bare one-body contribution by subtracting the
+input correction's expectation from the band energy, then adds the interaction
+energy evaluated on the output density. This works before SCF convergence too.
+`evaluate_internal_energy(model, density)` and `evaluate_free_energy` cannot
+reconstruct a callable's one-body energy from finitely many integrated density
+entries and raise; result properties retain already computed energies. A
+selection missing interaction entries or a supplied correction outside the
+interaction space can leave the retained energy unavailable.
+
+Integration remains density-driven. A converged density or SCF residual does not
+certify total-energy accuracy or small energy differences; check energy convergence
+separately when comparing phases.
 
 ## Mean-field and density matrix
 

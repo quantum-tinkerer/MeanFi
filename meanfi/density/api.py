@@ -1,5 +1,7 @@
-"""Public density calculations for Hamiltonian dictionaries and models."""
+"""Public density calculations for Hamiltonians and models."""
 
+from meanfi.hamiltonian import BlochHamiltonian, hamiltonian_dimension
+from meanfi.interaction import BilinearInteraction
 from meanfi.errors import (
     ErrorTolerances,
     ToleranceFunction,
@@ -54,13 +56,17 @@ def _density_problem(
             "spatial_symmetries requires interaction or a configured Model"
         )
     if interaction is not None:
-        validate_tb_dict(interaction, real=True)
-        validate_hermiticity(interaction)
+        if not isinstance(interaction, BilinearInteraction):
+            validate_tb_dict(interaction, real=True)
+            validate_hermiticity(interaction)
         coordinates = ActiveSCFSpace.from_interaction(
-            interaction, spatial_symmetries=spatial_symmetries
+            interaction,
+            ndim=hamiltonian_dimension(h),
+            spatial_symmetries=spatial_symmetries,
         ).required_coordinates
-    validate_tb_dict(h)
-    validate_hermiticity(h)
+    if not isinstance(h, BlochHamiltonian):
+        validate_tb_dict(h)
+        validate_hermiticity(h)
     return build_density_problem(
         h,
         kT=0.0 if kT is None else kT,
@@ -93,9 +99,9 @@ def density_matrix_at_mu(
 
     A Model supplies temperature, normal/BdG structure and required entries.
     ``mean_field`` optionally adds a correction to its bare Hamiltonian.
-    For a Hamiltonian dictionary, supply exactly one of ``keys`` (full blocks),
+    For a Hamiltonian dictionary or BlochHamiltonian, supply exactly one of ``keys`` (full blocks),
     ``coordinates`` (explicit entries) or ``interaction`` (required entries).
-    Temperature defaults to zero for dictionaries. Entropy and free energy are
+    Temperature defaults to zero for Hamiltonian inputs. Entropy and free energy are
     omitted unless ``compute_free_energy=True`` is requested.
     """
     problem = _density_problem(
@@ -135,7 +141,7 @@ def density_matrix(
 
     A Model supplies filling, temperature and the normal/BdG density layout.
     Override ``keys`` to request complete blocks for analysis or ``to_tb()``.
-    For a Hamiltonian dictionary, supply filling and exactly one selection mode:
+    For a Hamiltonian dictionary or BlochHamiltonian, supply filling and exactly one selection mode:
     ``keys``, ``coordinates`` or ``interaction``. See ``density_matrix_at_mu``.
     Set ``compute_free_energy=True`` to also compute entropy and free energy.
     """
@@ -145,7 +151,7 @@ def density_matrix(
         )
     if filling is None:
         if not isinstance(h, Model):
-            raise ValueError("filling is required for a Hamiltonian dictionary")
+            raise ValueError("filling is required for a Hamiltonian input")
         filling = h.filling
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
     problem = _density_problem(
