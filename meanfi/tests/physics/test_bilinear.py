@@ -6,19 +6,10 @@ import numpy as np
 import pytest
 
 from meanfi import BilinearInteraction, BilinearTerm, Model, evaluate_internal_energy
+from meanfi.tests.fixtures.fermions import annihilators
 
 
 pytestmark = pytest.mark.physics
-
-
-def annihilators(size):
-    operators = np.zeros((size, 2**size, 2**size), complex)
-    for orbital in range(size):
-        for state in range(2**size):
-            if state & (1 << orbital):
-                parity = (state & ((1 << orbital) - 1)).bit_count()
-                operators[orbital, state ^ (1 << orbital), state] = (-1) ** parity
-    return operators
 
 
 @pytest.mark.parametrize("occupied", [1, 2, 3])
@@ -121,8 +112,6 @@ def test_bilinear_owns_operators_and_validates_terms():
         BilinearInteraction([])
     with pytest.raises(ValueError, match="same matrix size"):
         BilinearInteraction([term, BilinearTerm(1, np.eye(3), np.eye(3))])
-    with pytest.raises(ValueError, match="normal states"):
-        Model({(): np.eye(2)}, interaction, 1, superconducting=True)
     with pytest.raises(ValueError, match="same dimension and matrix size"):
         Model({(): np.eye(3)}, interaction, 1)
 

@@ -115,7 +115,7 @@ required = model.required_coordinates
 - `BlochHamiltonian(function)` for a dense callable `function(kx, ky, ...)`.
   Coordinates are in radians. Required positional arguments determine dimension;
   the returned matrix at the origin determines the orbital count.
-- `BilinearInteraction(terms)` for local normal-ordered bilinear products.
+- `BilinearInteraction(terms)` for finite-range normal-ordered bilinear products.
   Existing density-density dictionaries continue to work with either Hamiltonian.
 
 ```{eval-rst}
@@ -126,8 +126,10 @@ required = model.required_coordinates
 .. autoclass:: meanfi.BilinearInteraction
 ```
 
-Each `BilinearTerm(g, A, B)` represents $g:(c^\dagger A c)(c^\dagger B c):$,
-with real $g$ and Hermitian $A,B$ in the full orbital space. Normal ordering
+Each `BilinearTerm(g, A, B, displacement=R)` represents
+$g\sum_x :(c_x^\dagger A c_x)(c_{x+R}^\dagger B c_{x+R}):$,
+with real $g$ and Hermitian $A,B$ in the full orbital space. Omitting the
+displacement gives an onsite term in the model's dimension. Normal ordering
 removes the one-body contraction; there is **no implicit factor of one half**.
 For example, $U n_0 n_1$ is:
 
@@ -139,7 +141,7 @@ model = mf.Model(h_0, interaction, filling=1.0)
 solution = mf.solver(model, model.random_meanfield(rng=0, scale=0.01))
 ```
 
-For onsite density $\rho$, Wick contraction gives
+For onsite normal density $\rho$, Wick contraction gives
 
 $$
 E_{\rm int}=\sum_t g_t\left[
@@ -151,13 +153,38 @@ The correction is its derivative with respect to $\rho$. Reference subtraction
 and EDIIS use this same quadratic functional. Reported energies divide by the
 orbital count. Operators may include spin, valley and orbital coherences; embed
 an operator in the desired orbital subset to select a site or flavor block.
-These terms are local and currently support normal states only. General nonlocal
-bilinear interactions and bilinear pairing channels are not implemented.
+For intercell terms, `displacement` is an integer tuple matching the Hamiltonian
+dimension. For example, a spinless nearest-neighbor density interaction is
+`BilinearTerm(V, np.eye(1), np.eye(1), displacement=(1,))`. List it once: the
+correction automatically includes both displacement directions. Listing the
+reversed term with A and B exchanged would count the same interaction again.
+Products of two onsite bilinears in different cells are supported; arbitrary
+four-cell bond-bilinear products require a richer input representation.
 
-Callable Hamiltonians also currently support normal states only. They work with
-`FermiSimplex` at zero temperature and dense `UniformGrid` at positive temperature
-(or prescribed grids at fixed chemical potential at zero temperature). Callbacks
-must return finite Hermitian matrices of the inferred size and keep their
+Both interactions and callable Hamiltonians support `Model(..., superconducting=True)`.
+For a term at R, the interaction energy per cell is
+
+$$
+E_{\rm int}=g\left[
+\operatorname{Tr}(A\rho_0)\operatorname{Tr}(B\rho_0)
+-\operatorname{Tr}(A\rho_R B\rho_{-R})
++\operatorname{Tr}(\kappa_R^\dagger A\kappa_R B^T)\right].
+$$
+
+Here $\rho_{R,ij}=\langle c_{x+R,j}^\dagger c_{x,i}\rangle$ and
+$\kappa_{R,ij}=\langle c_{x+R,j}c_{x,i}\rangle$. The anomalous term vanishes
+in a normal state. The generated gap obeys $\Delta_R=-\Delta_{-R}^T$.
+Normal or paired references, reduced density selections, and EDIIS use the same
+Wick functional; reported energy divides by the physical orbital count.
+
+Normal states work with `FermiSimplex` at zero temperature or `UniformGrid`.
+BdG uses `UniformGrid`: positive temperature for fixed filling/SCF, or a prescribed
+grid at fixed chemical potential at zero temperature. The existing zero-temperature
+fixed-filling restriction remains. No superconducting FermiSimplex path is added.
+
+{download}`Run the intercell superconducting example <../../../examples/intercell_bdg.py>`.
+
+Callbacks must return finite Hermitian matrices of the inferred size and keep their
 captured parameters fixed during a calculation. Their boundary values need not
 match, but both BZ endpoints must be defined for simplex integration. Smooth
 integrands generally converge faster.
@@ -203,6 +230,13 @@ spectrum and occupations; it does not implement the missing integration weight.
 Nonzero displacement keys denote Fourier moments of the computational BZ. On a
 mapped disk they do not automatically represent physical real-space correlations;
 local continuum interactions use the onsite key `(0, 0)`.
+
+Callable BdG assembly uses the electron and hole blocks $h(k)$ and
+$-h(-k\bmod 2\pi)^T$. A transformed-domain wrapper must map these paired BZ
+points to physical momenta $q$ and $-q$. The radial disk map above does **not**
+have this property and is a normal-state example. Use an inversion-compatible
+map for superconductivity; physical momentum reversal is not inferred from a
+callable. Nonlocal terms retain the computational BZ displacement convention.
 
 {download}`Run the disk example and its analytic density check <../../../examples/continuum.py>`.
 

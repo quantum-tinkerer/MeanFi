@@ -188,8 +188,6 @@ def test_callable_validation():
         changing_size(1.0)
     with pytest.raises(FrozenInstanceError):
         h.ndof = 3
-    with pytest.raises(ValueError, match="normal states"):
-        mf.Model(h, {(0,): np.ones((2, 2))}, 1, superconducting=True)
     with pytest.raises(ValueError, match="dimension"):
         mf.density_matrix(h, filling=1, keys=[(0, 0)])
     with pytest.raises(ValueError, match="size"):

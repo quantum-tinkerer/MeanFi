@@ -9,6 +9,7 @@ from meanfi.hamiltonian import (
     BlochHamiltonian,
     Hamiltonian,
     add_correction,
+    electron_to_bdg,
     hamiltonian_dimension,
     hamiltonian_size,
 )
@@ -19,7 +20,7 @@ from meanfi.space.coordinates import DensityCoordinates
 from meanfi.space.space import ActiveSCFSpace
 from meanfi.space.state import ActiveDensityState, require_same_space
 from meanfi.space.symmetry import SpatialSymmetry
-from meanfi.tb.bdg import assemble_bdg_tb, electron_to_bdg_tb, validate_bdg_tb
+from meanfi.tb.bdg import assemble_bdg_tb, validate_bdg_tb
 from meanfi.tb.ops import _tb_type
 from meanfi.tb.storage import _MatrixView, prefers_sparse_storage
 from meanfi.tb.validate import (
@@ -40,7 +41,7 @@ class Model:
 
     ``h_0`` accepts a tight-binding dictionary or ``BlochHamiltonian``.
     ``h_int`` accepts a density-density dictionary or ``BilinearInteraction``.
-    The latter inputs support normal states only. Callable parameters must stay
+    Both support normal or superconducting states. Callable parameters must stay
     fixed throughout a calculation; MeanFi cannot own their captured state.
 
     Positive density-density coefficients are repulsive; negative ones are
@@ -70,10 +71,6 @@ class Model:
     def __post_init__(self):
         callable_h = isinstance(self.h_0, BlochHamiltonian)
         bilinear = isinstance(self.h_int, BilinearInteraction)
-        if self.superconducting and (callable_h or bilinear):
-            raise ValueError(
-                "BlochHamiltonian and BilinearInteraction support normal states only"
-            )
         h_0 = self.h_0 if callable_h else freeze_tb(self.h_0)
         h_int = self.h_int if bilinear else freeze_tb(self.h_int, real=True)
         ndim, ndof = hamiltonian_dimension(h_0), hamiltonian_size(h_0)
@@ -108,7 +105,7 @@ class Model:
             spatial_symmetries=symmetries,
             _ndim=ndim,
             _ndof=ndof,
-            _hamiltonian=electron_to_bdg_tb(h_0, ndof) if self.superconducting else h_0,
+            _hamiltonian=electron_to_bdg(h_0) if self.superconducting else h_0,
         ).items():
             object.__setattr__(self, name, value)
         space = ActiveSCFSpace.from_interaction(

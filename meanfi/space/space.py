@@ -113,13 +113,15 @@ class ActiveSCFSpace:
         sparse=False,
     ) -> ActiveSCFSpace:
         bilinear = isinstance(h_int, BilinearInteraction)
-        if bilinear and (superconducting or ndim is None):
-            raise ValueError(
-                "BilinearInteraction requires ndim and a normal-state space"
-            )
+        if bilinear and ndim is None:
+            raise ValueError("BilinearInteraction requires the Hamiltonian dimension")
         ndof = h_int.ndof if bilinear else tb_orbital_count(h_int)
         if superconducting:
-            support = bdg_active_support(h_int)
+            support = (
+                h_int.density_coordinates(ndim, superconducting=True)
+                if bilinear
+                else bdg_active_support(h_int)
+            )
             family = "bdg"
             constraints = (
                 HermiticityConstraint(electron_ndof=ndof),

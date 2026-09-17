@@ -7,7 +7,8 @@ from inspect import Parameter, signature
 
 import numpy as np
 
-from meanfi.tb.ops import _tb_type, add_tb
+from meanfi.tb.ops import _tb_type, add_tb, block_diag
+from meanfi.tb.bdg import electron_to_bdg_tb
 from meanfi.tb.transforms import tb_to_kfunc
 from meanfi.tb.validate import freeze_tb, tb_dimension, tb_orbital_count
 
@@ -38,7 +39,8 @@ class BlochHamiltonian:
     Every evaluation must return a finite Hermitian matrix of the same size.
     Keep captured parameters fixed during a calculation. Integration uses
     ``[0, 2*pi]^ndim`` with normalized measure; coordinate transformations do not
-    insert a Jacobian. Only normal states are supported.
+    insert a Jacobian. BdG uses the partner momentum ``-k mod 2*pi``; a domain
+    wrapper must preserve this relation to physical momentum reversal.
     """
 
     function: Callable[..., np.ndarray]
@@ -100,3 +102,16 @@ def add_correction(h: Hamiltonian, correction: _tb_type) -> Hamiltonian:
         return h(*k) + evaluate_correction(np.asarray(k))
 
     return BlochHamiltonian(corrected)
+
+
+def electron_to_bdg(h: Hamiltonian) -> Hamiltonian:
+    """Embed an electron Hamiltonian using the standard BZ momentum reversal."""
+    if not isinstance(h, BlochHamiltonian):
+        return electron_to_bdg_tb(h, tb_orbital_count(h))
+
+    @wraps(h.function)
+    def bdg(*k):
+        opposite = np.mod(-np.asarray(k), 2 * np.pi)
+        return block_diag(h(*k), -h(*opposite).T)
+
+    return BlochHamiltonian(bdg)

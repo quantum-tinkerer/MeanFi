@@ -80,10 +80,9 @@ def interaction_correction(
 ) -> _tb_type:
     """Apply the linear interaction map to normal or normal-and-pairing density."""
     if isinstance(h_int, BilinearInteraction):
-        if electron_ndof is not None:
-            raise ValueError("BilinearInteraction supports normal states only")
-        local = onsite_key(tb_dimension(density_matrix))
-        return {local: h_int.correction(density_matrix[local])}
+        return h_int.correction(
+            density_matrix, superconducting=electron_ndof is not None
+        )
     if electron_ndof is None:
         return _normal_correction(density_matrix, h_int)
     ndof = electron_ndof

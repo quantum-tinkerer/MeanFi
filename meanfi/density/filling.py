@@ -36,7 +36,8 @@ def mu_bracket(
     """Bracket the TB bound or a callable's sampled spectrum.
 
     Sampled extrema bracket the current quadrature, not the continuous spectrum.
-    The root solver expands this initial interval if necessary.
+    Without retained spectra (BdG), a callable's norm at the origin supplies an
+    initial scale. The root solver expands until charge brackets the filling.
     """
 
     if not hamiltonian:
@@ -45,10 +46,13 @@ def mu_bracket(
         raise ValueError("kT must be a nonnegative finite number")
     padding = max(1.0, 10.0 * kT)
     if isinstance(hamiltonian, BlochHamiltonian):
-        return float(np.min(eigenvalues) - padding), float(
-            np.max(eigenvalues) + padding
-        )
-    bound = _conservative_spectral_bound(hamiltonian)
+        if eigenvalues is not None:
+            return float(np.min(eigenvalues) - padding), float(
+                np.max(eigenvalues) + padding
+            )
+        bound = matrix_bound(hamiltonian(*np.zeros(hamiltonian.ndim)))
+    else:
+        bound = _conservative_spectral_bound(hamiltonian)
     return -float(bound + padding), float(bound + padding)
 
 

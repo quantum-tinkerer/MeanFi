@@ -1,8 +1,8 @@
 # MeanFi design
 
-MeanFi solves normal-state tight-binding or callable Bloch Hamiltonians with
-density-density or local bilinear interactions. Tight-binding density-density
-models also support superconducting pairing. Its core loop is
+MeanFi solves tight-binding or callable Bloch Hamiltonians with density-density
+or finite-range bilinear interactions, in normal or superconducting mean-field
+states. Its core loop is
 
 `density -> interaction correction -> Hamiltonian -> density at fixed filling -> mixing`.
 
@@ -35,23 +35,42 @@ Nonzero displacement keys then denote Fourier moments in computational coordinat
 not automatically physical real-space correlations.
 
 `h_int` retains the existing density-density dictionary format. Alternatively,
-`BilinearInteraction(terms)` holds `BilinearTerm(g, A, B)` terms for
-`g : (c† A c)(c† B c) :`, with real g and Hermitian operators in the full orbital
-space. Embedding operators selects any orbital subset; no rank-four interaction
-tensor or separate continuum SCF engine is needed. These local, normal-state terms
-use the onsite density rho and the Wick functional
+`BilinearInteraction(terms)` holds `BilinearTerm(g, A, B, displacement=R)` for
+`g sum_x : (c_x† A c_x)(c_{x+R}† B c_{x+R}) :`. Operators are Hermitian in the
+full orbital space; g is real. An omitted displacement is onsite in the model's
+dimension. Displacements are integer tuples matching the Hamiltonian dimension.
+Each term is counted once; the contractions generate both correction directions.
+The representation covers two onsite bilinears separated by a finite displacement,
+not arbitrary products of bond bilinears involving four distinct cells.
 
-`E_int = sum g [Tr(A rho) Tr(B rho) - Tr(A rho B rho)]`,
+With `rho_R,ij = <c_{x+R,j}† c_{x,i}>` and
+`kappa_R,ij = <c_{x+R,j} c_{x,i}>`, each term's Wick energy per cell is
 
-`Sigma = sum g [Tr(B rho) A + Tr(A rho) B - A rho B - B rho A]`.
+`g [Tr(A rho_0) Tr(B rho_0) - Tr(A rho_R B rho_-R)
+    + Tr(kappa_R† A kappa_R B^T)]`.
 
-There is no implicit factor of one half in g. Both energies and EDIIS curvature
-reuse `E_int = Tr(Sigma rho) / 2`, divided by the orbital count for reported
-energies. Reference subtraction applies before this same map. Required density
-entries are the orbital blocks touched by each nonzero term, reduced by existing
-Hermiticity and spatial constraints. Callable Hamiltonians and bilinear terms
-currently support normal states only; dense diagonalization works with both
-FermiSimplex at zero temperature and UniformGrid at positive temperature.
+The normal correction adds Hartree terms at zero displacement,
+`-g A rho_R B` at R and `-g B rho_-R A` at -R. The pairing correction adds
+`g A kappa_R B^T` at R and `g B kappa_-R A^T` at -R. Contributions add when R=0.
+These formulas preserve `Sigma_R = Sigma_-R†` and `Delta_R = -Delta_-R^T`.
+There is no implicit factor of one half in g. Energy and EDIIS curvature reuse
+one half of the normal-plus-pairing correction contraction, divided by the orbital
+count. Reference subtraction applies before this same linear map. Required normal
+and anomalous entries follow the supports of A and B at zero and +/-R and use
+existing Hermiticity, pairing antisymmetry and spatial constraints.
+
+Callable BdG assembly uses `diag(h(k), -h(-k mod 2 pi)^T)`, with Fourier mean-field
+corrections added in the same BZ convention. No implicit physical momentum map is
+introduced. For transformed continuum domains, a wrapper must intertwine this BZ
+inversion with physical momentum reversal; the radial disk wrapper above does not
+and remains a normal-state example. BZ displacement blocks have their existing
+computational Fourier meaning on wrapped domains.
+
+BdG calculations use UniformGrid: positive temperature for fixed filling and SCF,
+or prescribed grids at fixed mu at zero temperature. FermiSimplex remains normal
+and zero-temperature only. Callable BdG filling roots use the Hamiltonian norm at
+the origin as an initial bracket scale and expand by charge evaluations as needed;
+this scale is not asserted to bound the continuous spectrum.
 
 The normal density is `rho_ij = <c_j† c_i>`; observables contract as `Tr(O rho)`.
 In electron-first BdG form, the upper-right density block is
@@ -134,7 +153,7 @@ are empirical indicators; energy and entropy have no stopping targets.
 
 ## Code map and verification
 
-- `hamiltonian.py`, `interaction.py`: callable Hamiltonians and local bilinear terms.
+- `hamiltonian.py`, `interaction.py`: callable Hamiltonians and finite-range bilinear terms.
 - `model.py`, `meanfield.py`, `observables.py`: physical inputs, interaction map and energy.
 - `density/`: filling search, momentum integration and matrix functions.
 - `scf/`: iteration methods and their shared evaluation loop.
@@ -151,4 +170,12 @@ mapped Dirac disk density with its analytic normalized average: maximum entry
 error `6.64e-5` at `tol=5e-4`, below the test's `2e-4` acceptance threshold.
 Callable/TB equivalence tests include complex Fourier moments, fixed filling,
 reference subtraction and finite-temperature SCF.
+Intercell normal/BdG energies are checked against thermal Gaussian states in a
+six-mode Fock space: maximum energy error per orbital `4.17e-17`, with a `2e-12`
+acceptance threshold. The local paired SCF gap differs from its analytic solution
+by `2.08e-9` at `tol=1e-8`. The spinless intercell gap is checked within `2e-7`
+against independently solved gap equations, whose 512/1024-point references agree
+within `2e-13`. Its executable example checks final energy convergence by doubling
+the UniformGrid resolution. These checks cover signs, double counting, anomalous
+energy derivatives and the EDIIS quadratic identity.
 Generated reports, builds and plots stay outside version control.
