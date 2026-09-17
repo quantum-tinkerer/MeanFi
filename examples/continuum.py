@@ -12,16 +12,16 @@ import meanfi as mf
 MASS, CUTOFF, FILLING = 0.2, 0.16, 1.15
 
 
-def hamiltonian(k):
+def hamiltonian(kx, ky):
     """Equal-measure map from BZ coordinates to a disk of radius CUTOFF."""
-    radius = CUTOFF * np.sqrt(k[0] / (2 * np.pi))
-    angle = k[1]
+    radius = CUTOFF * np.sqrt(kx / (2 * np.pi))
+    angle = ky
     z = radius * np.exp(1j * angle) / CUTOFF
     return np.array([[MASS, z.conjugate()], [z, -MASS]])
 
 
 def main():
-    h0 = mf.BlochHamiltonian(hamiltonian, ndim=2, ndof=2)
+    h0 = mf.BlochHamiltonian(hamiltonian)
     interaction = mf.BilinearInteraction(
         [mf.BilinearTerm(0.1, np.diag([1, 0]), np.diag([0, 1]))]
     )

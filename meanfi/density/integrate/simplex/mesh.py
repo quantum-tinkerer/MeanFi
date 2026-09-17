@@ -3,7 +3,7 @@
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from math import comb, factorial
-from inspect import Parameter, Signature
+from functools import wraps
 
 import numpy as np
 from fermisimplex import SpectralMesh
@@ -42,16 +42,10 @@ def _spectral_mesh(
         )
     if isinstance(h, BlochHamiltonian):
 
+        @wraps(h.function)
         def evaluate(*coordinates):
-            return h(2 * np.pi * np.asarray(coordinates))
+            return h(*(2 * np.pi * np.asarray(coordinates)))
 
-        # FermiSimplex infers dimension from positional callback arguments.
-        evaluate.__signature__ = Signature(
-            [
-                Parameter(f"k{axis}", Parameter.POSITIONAL_ONLY)
-                for axis in range(dimension)
-            ]
-        )
         return SpectralMesh(evaluate, root_level=level)
     dense_hamiltonian = {
         key: np.asarray(to_dense(matrix), dtype=np.complex128)

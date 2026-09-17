@@ -142,7 +142,7 @@ class _Evaluator:
     def matrices_at(self, points: np.ndarray):
         if isinstance(self.hamiltonian, BlochHamiltonian):
             return np.asarray(
-                [self.hamiltonian(point) for point in points], dtype=self.dtype
+                [self.hamiltonian(*point) for point in points], dtype=self.dtype
             )
         phases = np.exp(-1j * (points @ self.tb_keys.T))
         if isinstance(self.method, DirectDiagonalization):

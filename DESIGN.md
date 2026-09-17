@@ -16,9 +16,13 @@ and spatial symmetries. It validates stored matrices once and checks callable
 outputs as they are evaluated. Tight-binding inputs retain dense or sparse storage. Public matrix containers share read-only arrays while keeping structural
 mutations outside the model. Use a new model or `dataclasses.replace` for changes.
 
-`h_0` is a tight-binding dictionary or `BlochHamiltonian(function, ndim, ndof)`.
-The callable takes a momentum vector in radians and returns a finite
-Hermitian dense matrix of fixed size. Its captured parameters must remain fixed
+`h_0` is a tight-binding dictionary or `BlochHamiltonian(function)`.
+The callable takes separate momentum coordinates in radians, e.g. `h(kx, ky)`.
+Its required positional arguments determine dimension; one evaluation at the
+origin determines the orbital count. Both are inferred read-only attributes,
+not constructor inputs. Bind physical parameters in a closure or partial; an
+ambiguous signature with variable or optional arguments is rejected. The callable
+returns a finite Hermitian dense matrix whose size remains fixed. Its captured parameters must remain fixed
 throughout a calculation. Integration uses the normalized BZ measure
 `d^d k / (2 pi)^d` on `[0, 2 pi]^d`, including endpoints for simplex integration.
 There are no domain objects or implicit Jacobians. Users can compose a continuum

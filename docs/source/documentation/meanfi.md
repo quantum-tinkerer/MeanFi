@@ -112,8 +112,9 @@ required = model.required_coordinates
 
 `Model(h_0, h_int, filling)` also accepts the following inputs, independently:
 
-- `BlochHamiltonian(function, ndim, ndof)` for a dense callable `function(k)`.
-  The argument is a momentum vector in radians, just like `tb_to_kfunc`.
+- `BlochHamiltonian(function)` for a dense callable `function(kx, ky, ...)`.
+  Coordinates are in radians. Required positional arguments determine dimension;
+  the returned matrix at the origin determines the orbital count.
 - `BilinearInteraction(terms)` for local normal-ordered bilinear products.
   Existing density-density dictionaries continue to work with either Hamiltonian.
 
@@ -156,10 +157,27 @@ bilinear interactions and bilinear pairing channels are not implemented.
 Callable Hamiltonians also currently support normal states only. They work with
 `FermiSimplex` at zero temperature and dense `UniformGrid` at positive temperature
 (or prescribed grids at fixed chemical potential at zero temperature). Callbacks
-must return finite Hermitian matrices of the declared size and keep their
+must return finite Hermitian matrices of the inferred size and keep their
 captured parameters fixed during a calculation. Their boundary values need not
 match, but both BZ endpoints must be defined for simplex integration. Smooth
 integrands generally converge faster.
+
+The callable must expose only required positional momentum arguments. Bind
+physical parameters in a closure or a positional `functools.partial` first;
+optional parameters and `*args` do not specify a unique momentum dimension.
+For example:
+
+```python
+def h(kx, ky):
+    return np.array([[0.2, np.sin(kx) - 1j * np.sin(ky)],
+                     [np.sin(kx) + 1j * np.sin(ky), -0.2]])
+
+h_0 = mf.BlochHamiltonian(h)  # Infers ndim=2 and ndof=2.
+```
+
+`ndim` and `ndof` remain available as read-only attributes. The existing
+`tb_to_kfunc` utility still takes a momentum vector; use an explicit coordinate
+wrapper when converting it, e.g. `BlochHamiltonian(lambda kx: kfunc([kx]))`.
 
 ### Integration domain and normalization
 
