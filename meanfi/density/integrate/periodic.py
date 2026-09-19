@@ -159,6 +159,7 @@ def solve_periodic(
         entries=entries,
         mu=resolved_mu,
         filling=charge,
+        density_filling=integral.charge,
         errors=ErrorValues(
             density_matrix_integration=None
             if density_error is None

@@ -38,6 +38,8 @@ class DensityProblem:
     density_coordinates: DensityCoordinates
     electron_ndof: int | None = None
     sparse_layout: SparseRationalLayout | None = None
+    compute_energy: bool = False
+    defer_energy: bool = False
 
 
 def build_density_problem(
@@ -49,6 +51,7 @@ def build_density_problem(
     tolerances: ErrorTolerances,
     density_coordinates: DensityCoordinates | None = None,
     electron_ndof: int | None = None,
+    compute_energy: bool = False,
 ) -> DensityProblem:
     if hamiltonian_dimension(hamiltonian) == 0:
         require_zero_dim_local_key_only(hamiltonian)
@@ -91,6 +94,7 @@ def build_density_problem(
         coordinates,
         electron_ndof,
         layout,
+        compute_energy,
     )
 
 

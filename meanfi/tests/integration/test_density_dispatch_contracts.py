@@ -288,7 +288,9 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
         simplex_integration, "_zero_temperature_entropy", lambda mesh, mu: 0.0
     )
     monkeypatch.setattr(
-        simplex_integration, "_occupied_band_energy", lambda mesh, mu: -1.0
+        simplex_integration,
+        "integrate_energies",
+        lambda mesh, **kwargs: SimpleNamespace(band_energy=-1.0, evaluations=0, simplices=0),
     )
     monkeypatch.setattr(
         simplex_integration,

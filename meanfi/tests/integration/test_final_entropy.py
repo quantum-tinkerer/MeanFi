@@ -1,4 +1,4 @@
-"""Entropy is optional output, never part of the SCF map or its stopping rule."""
+"""Optional final entropy for density calculations and non-energy mixing."""
 
 from dataclasses import asdict
 
@@ -140,7 +140,12 @@ def test_final_entropy_failure_preserves_valid_result(monkeypatch):
 
     monkeypatch.setattr(problem, "evaluate_density", evaluate)
     with pytest.raises(mf.SolverFailure, match="Final entropy") as caught:
-        mf.solver(_model(), {(): np.zeros((2, 2))}, compute_free_energy=True)
+        mf.solver(
+            _model(),
+            {(): np.zeros((2, 2))},
+            scf=mf.LinearMixing(),
+            compute_free_energy=True,
+        )
     assert caught.value.result.converged
     assert caught.value.result.internal_energy is not None
     assert caught.value.result.entropy is None

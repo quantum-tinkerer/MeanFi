@@ -5,15 +5,16 @@ import numpy as np
 
 from meanfi.errors import ConvergenceError
 from meanfi.results import SCFIteration, SCFResult
-from meanfi.observables import _internal_energy_from_band
-from meanfi.scf.ediis import EDIISPoint, ediis_coefficients
+from meanfi.observables import _internal_energy_from_density
+from meanfi.scf.ediis import ediis_coefficients
+from meanfi.scf.energy import EnergySample, comparison_points, energy_sample
 from meanfi.scf.fixed_point import (
     NoConvergence,
     SolverError,
     SolverFailure,
     iterate_anderson,
 )
-from meanfi.scf.methods import AndersonMixing, LinearMixing, SCFMethod
+from meanfi.scf.methods import AndersonMixing, EnergyDIIS, LinearMixing, SCFMethod
 from meanfi.scf.problem import SCFEvaluation, SCFProblem
 from meanfi.space.state import ActiveDensityState
 from meanfi.tb.ops import _tb_type
@@ -30,22 +31,47 @@ def _format_scf_progress(iteration: SCFIteration) -> str:
         parts.append(f"filling_residual={iteration.errors.filling_residual:.6e}")
     if iteration.errors.charge_integration is not None:
         parts.append(f"charge_error={iteration.errors.charge_integration:.6e}")
-    parts.append(f"internal_energy={iteration.internal_energy:.12g}")
+    if iteration.internal_energy is not None:
+        parts.append(f"internal_energy={iteration.internal_energy:.12g}")
     return " ".join(parts)
 
 
 def _build_result(problem, evaluation, history, *, converged, compute_free_energy):
-    errors = replace(evaluation.density.errors, scf_residual=evaluation.residual_norm)
-    density = replace(
-        evaluation.density, errors=errors, internal_energy=evaluation.internal_energy
+    try:
+        completed = evaluation.density._with_energy()
+    except (
+        ConvergenceError,
+        RuntimeError,
+        np.linalg.LinAlgError,
+        FloatingPointError,
+    ) as exc:
+        partial = SCFResult(
+            density=replace(
+                evaluation.density,
+                _energy_evaluation=None,
+                errors=replace(
+                    evaluation.density.errors, scf_residual=evaluation.residual_norm
+                ),
+            ),
+            mean_field=evaluation.mean_field,
+            history=tuple(history),
+            converged=converged,
+        )
+        raise SolverFailure("Final energy calculation failed", result=partial) from exc
+    energy = _internal_energy_from_density(
+        problem.model, evaluation.output_state, completed, evaluation.mean_field
     )
+    if history:
+        history = [*history[:-1], replace(history[-1], internal_energy=energy)]
+    errors = replace(completed.errors, scf_residual=evaluation.residual_norm)
+    density = replace(completed, errors=errors, internal_energy=energy)
     result = SCFResult(
         density=density,
         mean_field=evaluation.mean_field,
         history=tuple(history),
         converged=converged,
     )
-    if compute_free_energy:
+    if compute_free_energy and density.entropy is None:
         try:
             thermal = problem.evaluate_mean_field(
                 evaluation.mean_field,
@@ -74,14 +100,17 @@ def run_scf_loop(
     verbose: bool = False,
     compute_free_energy: bool = False,
 ) -> SCFResult:
+    problem = replace(
+        problem, compute_entropy=isinstance(scf, EnergyDIIS) and problem.model.kT > 0
+    )
     projected_guess = problem.project_guess(guess)
     try:
         density = problem.evaluate_mean_field(projected_guess, mu_guess=0.0)
     except (ConvergenceError, np.linalg.LinAlgError, FloatingPointError) as exc:
         raise SolverFailure("Initial SCF density evaluation failed") from exc
     state = problem.state_from_density(density.entries)
-    energy = _internal_energy_from_band(
-        problem.model, state, density.band_energy, projected_guess
+    energy = _internal_energy_from_density(
+        problem.model, state, density, projected_guess
     )
     last = SCFEvaluation(
         density=density,
@@ -89,6 +118,7 @@ def run_scf_loop(
         internal_energy=energy,
         mean_field=projected_guess,
     )
+    del density  # Only the current evaluation should retain a deferred mesh.
     history: list[SCFIteration] = []
     tolerance = problem.density_problem.tolerances.scf_residual
 
@@ -122,7 +152,7 @@ def run_scf_loop(
                 residual_norm=problem.model._space.density_norm,
             )
         else:
-            points: list[EDIISPoint] = []
+            samples: list[EnergySample] = []
             for step in range(scf.max_iterations):
                 evaluation = evaluate(params)
                 accept(evaluation)
@@ -133,14 +163,12 @@ def run_scf_loop(
                 if isinstance(scf, LinearMixing):
                     params = params + scf.alpha * evaluation.residual
                 else:
-                    points.append(
-                        EDIISPoint(
-                            evaluation.output_state.values, evaluation.internal_energy
-                        )
-                    )
-                    points = points[-scf.history_size :]
+                    samples.append(energy_sample(problem.model, evaluation))
+                    samples = samples[-scf.history_size :]
+                    points = comparison_points(problem.model, samples)
                     weights = ediis_coefficients(
-                        points, interaction_curvature=problem.interaction_curvature
+                        points,
+                        interaction_curvature=problem.interaction_curvature,
                     )
                     params = weights @ np.stack([point.params for point in points])
     except NoConvergence as exc:

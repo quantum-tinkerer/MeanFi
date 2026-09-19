@@ -357,5 +357,5 @@ def test_ediis_per_orbital_energy_is_invariant_under_independent_copies(
     base, repeated = solve(1), solve(3)
     assert repeated.density.filling == pytest.approx(3 * base.density.filling)
     assert repeated.internal_energy == pytest.approx(base.internal_energy, abs=1e-9)
-    assert repeated.entropy is base.entropy is None
-    assert repeated.free_energy is base.free_energy is None
+    assert repeated.entropy == pytest.approx(base.entropy, abs=1e-9)
+    assert repeated.free_energy == pytest.approx(base.free_energy, abs=1e-9)

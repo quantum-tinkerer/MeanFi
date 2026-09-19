@@ -98,7 +98,10 @@ Finite systems have no momentum integral and ignore grid settings with a warning
 
 SCF stops when the largest active-density residual meets `tol` (default `1e-3`).
 Otherwise, `EnergyDIIS()` chooses a convex combination of previous densities by
-minimizing **internal energy**, then returns to step 1. It never switches methods.
+minimizing an energy surrogate, then returns to step 1. It compares internal
+energies at zero temperature and free energies at finite temperature, using
+exact interaction curvature and linearly interpolated sampled entropy. It never
+switches methods.
 `LinearMixing` and `AndersonMixing` are explicit alternatives through `scf=`.
 
 Iteration exhaustion raises `NoConvergence`; `exception.result` contains the
@@ -110,10 +113,11 @@ last evaluated state. Restarting with another method is a user decision.
 Applying the interaction to that density gives the next correction; the two
 agree to SCF accuracy at convergence.
 
-Entropy is omitted by default. `compute_free_energy=True` evaluates it after
-SCF terminates, also for a valid partial result. Then $F=U-kT\,S$, with energies
-and entropy per cell per physical orbital. Entropy never participates in EDIIS
-or the convergence tests.
+Thermal EDIIS computes entropy alongside density and reuses it in the result.
+Other solvers omit entropy by default; `compute_free_energy=True` evaluates it
+after SCF terminates, also for a valid partial result. Then $F=U-kT\,S$, with
+energies and entropy per cell per physical orbital. Convergence is still
+controlled by the density residual.
 
 ```{toctree}
 :maxdepth: 1

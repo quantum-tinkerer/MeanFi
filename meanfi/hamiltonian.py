@@ -7,22 +7,18 @@ from inspect import Parameter, signature
 
 import numpy as np
 
-from meanfi.tb.ops import _tb_type, add_tb, block_diag
+from meanfi.tb.ops import _tb_type, add_tb, block_diag, to_dense
 from meanfi.tb.bdg import electron_to_bdg_tb
 from meanfi.tb.transforms import tb_to_kfunc
 from meanfi.tb.validate import freeze_tb, tb_dimension, tb_orbital_count
 
 
-def _hamiltonian_matrix(value, *, ndof=None) -> np.ndarray:
+def _square_matrix(value, *, ndof=None) -> np.ndarray:
     matrix = np.asarray(value, dtype=complex)
     if matrix.ndim != 2 or not matrix.shape[0] or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("Callable Hamiltonian must return a nonempty square matrix")
     if ndof is not None and matrix.shape != (ndof, ndof):
         raise ValueError("Callable Hamiltonian matrix shape must remain constant")
-    if not np.all(np.isfinite(matrix)):
-        raise ValueError("Callable Hamiltonian must return finite matrices")
-    if not np.allclose(matrix, matrix.conj().T, atol=1e-8, rtol=0.0):
-        raise ValueError("Callable Hamiltonian must return Hermitian matrices")
     return matrix
 
 
@@ -37,6 +33,8 @@ class BlochHamiltonian:
     in a closure or partial before constructing the Hamiltonian.
 
     Every evaluation must return a finite Hermitian matrix of the same size.
+    The caller is responsible for finite coordinates and finite Hermitian
+    outputs; evaluations check shapes without scanning matrix entries.
     Keep captured parameters fixed during a calculation. Integration uses
     ``[0, 2*pi]^ndim`` with normalized measure; coordinate transformations do not
     insert a Jacobian. BdG uses the partner momentum ``-k mod 2*pi``; a domain
@@ -64,15 +62,15 @@ class BlochHamiltonian:
                 "function must accept only required positional momentum coordinates"
             )
         ndim = len(parameters)
-        matrix = _hamiltonian_matrix(self.function(*np.zeros(ndim)))
+        matrix = _square_matrix(self.function(*np.zeros(ndim)))
         object.__setattr__(self, "ndim", ndim)
         object.__setattr__(self, "ndof", matrix.shape[0])
 
     def __call__(self, *k) -> np.ndarray:
         coordinates = np.asarray(k, dtype=float)
-        if coordinates.shape != (self.ndim,) or not np.all(np.isfinite(coordinates)):
-            raise ValueError("Momentum coordinates must match ndim and be finite")
-        return _hamiltonian_matrix(self.function(*coordinates), ndof=self.ndof)
+        if coordinates.shape != (self.ndim,):
+            raise ValueError("Momentum coordinates must match ndim")
+        return _square_matrix(self.function(*coordinates), ndof=self.ndof)
 
 
 Hamiltonian = _tb_type | BlochHamiltonian
@@ -95,11 +93,17 @@ def add_correction(h: Hamiltonian, correction: _tb_type) -> Hamiltonian:
     correction = freeze_tb(correction)
     if tb_dimension(correction) != h.ndim or tb_orbital_count(correction) != h.ndof:
         raise ValueError("Correction must match the Hamiltonian dimension and size")
-    evaluate_correction = tb_to_kfunc(correction)
+    local = (0,) * h.ndim
+    onsite = to_dense(correction[local]) if set(correction) == {local} else None
+    evaluate_correction = None if onsite is not None else tb_to_kfunc(correction)
 
     @wraps(h.function)
     def corrected(*k):
-        return h(*k) + evaluate_correction(np.asarray(k))
+        # Check shape before addition so broadcasting cannot conceal invalid input.
+        matrix = _square_matrix(h.function(*k), ndof=h.ndof)
+        return matrix + (
+            onsite if onsite is not None else evaluate_correction(np.asarray(k))
+        )
 
     return BlochHamiltonian(corrected)
 

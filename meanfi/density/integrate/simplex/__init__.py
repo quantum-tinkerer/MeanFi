@@ -1,5 +1,7 @@
 """Zero-temperature integration on one mesh shared by charge and density."""
 
+from dataclasses import replace
+
 import numpy as np
 
 from meanfi.density.filling import mu_bracket, solve_mu
@@ -9,7 +11,8 @@ from meanfi.errors import ErrorValues
 from meanfi.results import DensityResult
 from meanfi.tb.ops import to_dense
 from meanfi.hamiltonian import BlochHamiltonian, hamiltonian_dimension
-from .mesh import SimplexEvaluator, _occupied_band_energy, _zero_temperature_entropy
+from .mesh import SimplexEvaluator, _zero_temperature_entropy
+from .energy import integrate_energies
 
 
 def solve_simplex(
@@ -104,7 +107,17 @@ def solve_simplex(
         else:
             entropy = _zero_temperature_entropy(evaluator.mesh, mu)
 
-    return DensityResult(
+    needs_energy = filling is not None or (
+        density.values.size and (compute_entropy or problem.compute_energy)
+    )
+    density_filling = (
+        evaluator.density_trace(mu, density)
+        if needs_energy and density.values.size
+        else density.trace()
+    )
+    statistics = evaluator.statistics(charge_evaluations)
+
+    result = DensityResult(
         entries=density,
         mu=float(mu),
         filling=value,
@@ -117,9 +130,27 @@ def solve_simplex(
             else None,
             filling_residual=None if filling is None else abs(value - filling),
         ),
-        statistics=evaluator.statistics(charge_evaluations),
-        band_energy=_occupied_band_energy(evaluator.mesh, mu=mu)
-        if filling is not None or (compute_entropy and density.values.size)
-        else None,
+        statistics=statistics,
+        density_filling=density_filling,
         entropy=entropy,
     )
+
+    def with_energy():
+        energy = integrate_energies(evaluator.mesh, mu=mu, filling=density_filling)
+        return replace(
+            result,
+            band_energy=energy.band_energy,
+            statistics=replace(
+                statistics,
+                n_kernel_evals=statistics.n_kernel_evals + energy.evaluations,
+                n_energy_evaluations=energy.evaluations,
+                n_energy_simplices=energy.simplices,
+                n_diagonalizations=statistics.n_diagonalizations + energy.evaluations,
+            ),
+        )
+
+    if needs_energy:
+        if problem.defer_energy:
+            return replace(result, _energy_evaluation=with_energy)
+        return with_energy()
+    return result

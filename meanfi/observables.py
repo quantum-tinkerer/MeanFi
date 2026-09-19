@@ -70,9 +70,11 @@ def evaluate_free_energy(model: Model, density: DensityResult) -> float:
     return evaluate_internal_energy(model, density) - model.kT * density.entropy
 
 
-def _internal_energy_from_band(model, state, band_energy, correction):
-    """Use a known interaction correction to recover the bare one-body energy."""
-    one_body = band_energy - correction_expectation(
+def _internal_energy_from_density(model, state, density, correction):
+    """Combine the evaluated one-body energy with the original density functional."""
+    if density.band_energy is None:
+        return None
+    one_body = density.band_energy - correction_expectation(
         model._active_density_from_state(state),
         correction,
         electron_ndof=model._electron_ndof,
@@ -93,8 +95,8 @@ def _with_model_energy(model, density, correction):
     if density.band_energy is not None:
         projected = model._project_mean_field(correction) if correction else correction
         if not tb_entries_changed(correction, projected):
-            energy = _internal_energy_from_band(
-                model, model._density_state(density), density.band_energy, projected
+            energy = _internal_energy_from_density(
+                model, model._density_state(density), density, projected
             )
             return replace(density, internal_energy=energy)
     if isinstance(model._h_0, BlochHamiltonian):

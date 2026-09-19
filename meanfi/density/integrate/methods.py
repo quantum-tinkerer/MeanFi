@@ -46,6 +46,9 @@ class FermiSimplex(IntegrationMethod):
     boundary vertices. Native dyadic construction may overshoot this request.
     Without ``nk``, use integration targets and adaptive refinement.
     ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
+    Energy uses cached vertex eigenvalues and new centroid eigenvalues in a
+    degree-two simplex rule, without refining the density mesh. Density
+    targets do not bound this energy error.
     """
 
     max_refinements: int | None = None

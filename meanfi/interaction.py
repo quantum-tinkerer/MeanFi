@@ -23,7 +23,10 @@ class BilinearTerm:
     ``A`` and ``B`` are Hermitian matrices in the complete orbital space.
     ``displacement`` gives R as an integer tuple; None means onsite in the
     model's dimension. List each term once: both correction directions are
-    generated automatically. There is no implicit factor of one half in g.
+    generated automatically. ``(A, B, R)`` and ``(B, A, -R)`` describe the same
+    interaction. Listing both at full weight doubles it; terms are additive and
+    are not deduplicated. Reversing R without swapping A and B generally gives
+    a different interaction. There is no implicit factor of one half in g.
     Operators are copied into read-only storage. Normal ordering excludes
     one-body terms.
     """

@@ -55,7 +55,14 @@ class AndersonMixing(SCFMethod):
 
 @dataclass(frozen=True, kw_only=True)
 class EnergyDIIS(SCFMethod):
-    """Mix a convex density history by minimizing internal energy.
+    """Mix a convex density history using a thermodynamic-energy surrogate.
+
+    Compare internal energies at zero temperature and free energies at finite
+    temperature, relative to a retained history anchor. Use cheap integrated
+    energies when available, otherwise zero-temperature density response.
+    Both paths include a signed filling correction. Expensive absolute energy
+    is deferred to the final state. The quadratic model uses exact interaction
+    curvature; at finite temperature it linearly interpolates sampled entropies.
 
     Run EDIIS alone until density converges or the iteration budget is exhausted.
     Users can compose separate solver calls to change methods explicitly.

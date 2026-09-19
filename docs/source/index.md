@@ -19,6 +19,7 @@ tutorial/hubbard_1d.md
 tutorial/graphene_example.md
 tutorial/glide_symmetry.md
 tutorial/pwave_superconductivity.md
+tutorial/rhombohedral_graphene.md
 tutorial/strained_graphene.md
 ```
 

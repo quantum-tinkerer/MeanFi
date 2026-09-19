@@ -163,12 +163,20 @@ def test_local_callable_bdg_scf_matches_analytic_gap():
     )
 
 
-def test_intercell_callable_bdg_scf_matches_density_density_chain():
+@pytest.mark.parametrize("split_bond", [False, True])
+def test_intercell_callable_bdg_scf_matches_density_density_chain(split_bond):
     coupling = -1.5
     h = mf.BlochHamiltonian(lambda kx: np.array([[-2 * np.cos(kx)]]))
     interaction = mf.BilinearInteraction(
         [mf.BilinearTerm(coupling, np.eye(1), np.eye(1), displacement=(1,))]
     )
+    if split_bond:
+        interaction = mf.BilinearInteraction(
+            [
+                mf.BilinearTerm(coupling / 2, np.eye(1), np.eye(1), displacement=(r,))
+                for r in (1, -1)
+            ]
+        )
     model = mf.Model(h, interaction, 0.5, kT=0.08, superconducting=True)
     legacy = replace(
         model,

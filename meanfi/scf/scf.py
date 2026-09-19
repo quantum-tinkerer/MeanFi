@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from meanfi.errors import (
     ErrorTolerances,
     ToleranceFunction,
@@ -35,9 +37,11 @@ def solver(
 
     ``tol`` accepts a number or an explicit ErrorTolerances record.
 
-    Entropy and free energy are omitted by default. ``compute_free_energy=True``
-    requests one final evaluation, including valid partial results on failure.
-    SCF uses internal energy.
+    EDIIS compares internal energies at zero temperature and free energies at
+    finite temperature, computing entropy with each thermal density evaluation.
+    Otherwise ``compute_free_energy=True`` requests entropy on the final state,
+    including valid partial results on failure. Expensive simplex energy
+    quadrature is deferred until termination; history energies can be None.
     """
 
     tolerances = resolve_error_tolerances(tol, tolerance_policy)
@@ -53,6 +57,10 @@ def solver(
         tolerances=tolerances,
         density_coordinates=model.required_coordinates,
         electron_ndof=model._ndof if model.superconducting else None,
+        compute_energy=True,
+    )
+    density_problem = replace(
+        density_problem, defer_energy=isinstance(resolved_scf, EnergyDIIS)
     )
     problem = SCFProblem(model, density_problem, max_charge_evaluations)
     return run_scf_loop(

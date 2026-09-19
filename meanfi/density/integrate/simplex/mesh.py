@@ -138,16 +138,6 @@ def _evaluate_charge(
     return result, int(mesh.cached_vertices) - cached_vertices
 
 
-def _occupied_band_energy(
-    mesh: SpectralMesh,
-    *,
-    mu: float,
-) -> float:
-    weights = np.asarray(mesh.occupied_weights(float(mu)))
-    energies = np.asarray(mesh.eigenvalues)
-    return float(np.sum(weights * energies)) / energies.shape[-1]
-
-
 def _zero_temperature_entropy(
     mesh: SpectralMesh, mu: float, eigenvalues: np.ndarray | None = None
 ) -> float:
@@ -293,6 +283,36 @@ class SimplexEvaluator:
             else np.full(coordinates.value_count, result.stopping_error)
         )
         return _DensityEntries(coordinates, result.values, errors)
+
+    def density_trace(self, mu, density):
+        """Read charge on the same density partition, without refining it.
+
+        Selected or symmetry-reduced entries may omit diagonal elements. Read
+        these from cached density previews, rather than infer unknown entries
+        or substitute the independently integrated charge-stage filling.
+        """
+        trace = density.trace()
+        if trace is not None:
+            return trace
+        size = self.problem.density_coordinates.size
+        local = (0,) * self.mesh.ndim
+        diagonal = np.arange(size)
+        coordinates = DensityCoordinates.from_pairs(
+            size=size, keys=[local], pairs_by_key={local: (diagonal, diagonal)}
+        )
+        result = _integrate_density(
+            self.mesh,
+            coordinates,
+            mu=mu,
+            density_atol=1e100,
+            max_refinements=0,
+            num_threads=self.settings.num_threads,
+            prescribed=self.settings.nk is not None,
+        )
+        self.work.density_calls += 1
+        self.work.evaluations += result.stats.evaluations
+        self.work.diagonalizations += result.stats.evaluations
+        return float(np.sum(result.values).real)
 
     def statistics(self, charge_evaluations: int):
         work, mesh = self.work, self.mesh

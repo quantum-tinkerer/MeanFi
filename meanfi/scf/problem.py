@@ -11,7 +11,7 @@ from meanfi.density.density import evaluate_density
 from meanfi.density.problem import DensityProblem
 from meanfi.model import Model
 from meanfi.meanfield import interaction_energy
-from meanfi.observables import _internal_energy_from_band
+from meanfi.observables import _internal_energy_from_density
 from meanfi.results import _DensityEntries, DensityResult
 from meanfi.space.state import ActiveDensityState
 from meanfi.hamiltonian import add_correction
@@ -25,7 +25,7 @@ class SCFEvaluation:
 
     density: DensityResult
     output_state: ActiveDensityState
-    internal_energy: float
+    internal_energy: float | None
     mean_field: _tb_type
     input_state: ActiveDensityState | None = None
 
@@ -48,6 +48,7 @@ class SCFProblem:
     model: Model
     density_problem: DensityProblem
     max_charge_evaluations: int | None = None
+    compute_entropy: bool = False
 
     def project_guess(self, guess: _tb_type) -> _tb_type:
         model = self.model
@@ -68,7 +69,7 @@ class SCFProblem:
         mu_guess: float,
         *,
         mu: float | None = None,
-        compute_entropy: bool = False,
+        compute_entropy: bool | None = None,
     ) -> DensityResult:
         return evaluate_density(
             replace(
@@ -77,7 +78,9 @@ class SCFProblem:
             ),
             filling=self.model.filling if mu is None else None,
             mu=mu,
-            compute_entropy=compute_entropy,
+            compute_entropy=(
+                self.compute_entropy if compute_entropy is None else compute_entropy
+            ),
             max_charge_evaluations=self.max_charge_evaluations,
             mu_guess=mu_guess,
         )
@@ -105,9 +108,7 @@ class SCFProblem:
         correction = model._mean_field_from_state(input_state)
         density = self.evaluate_mean_field(correction, mu_guess)
         output_state = self.state_from_density(density.entries)
-        energy = _internal_energy_from_band(
-            model, output_state, density.band_energy, correction
-        )
+        energy = _internal_energy_from_density(model, output_state, density, correction)
         return SCFEvaluation(
             density=density,
             output_state=output_state,

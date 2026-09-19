@@ -33,6 +33,27 @@ def test_ediis_minimizes_exact_quadratic_energy_on_convex_hull():
     assert coefficients == pytest.approx([0.5, 0.5], abs=1e-8)
 
 
+@pytest.mark.parametrize("scale", [1.0, 1e-6, 1e-9])
+@pytest.mark.parametrize("offset", [0.0, -0.17])
+def test_ediis_resolves_small_energy_differences(scale, offset):
+    # E(x) = offset + scale * (x - 0.3)**2 on [0, 1] has x=0.3 exactly.
+    history = [
+        EDIISPoint(np.array([x]), offset + scale * (x - 0.3) ** 2) for x in [0.0, 1.0]
+    ]
+    coefficients = ediis_coefficients(
+        history,
+        interaction_curvature=lambda difference: float(scale * difference[0] ** 2),
+    )
+    # The absolute tolerance allows the rounding in offset + 1e-9 * energy.
+    assert coefficients == pytest.approx([0.7, 0.3], abs=5e-8)
+
+
+def test_ediis_constant_energy_chooses_latest_point():
+    history = [EDIISPoint(np.array([x]), -0.17) for x in [0.0, 1.0, 2.0]]
+    coefficients = ediis_coefficients(history, interaction_curvature=lambda _: 0.0)
+    np.testing.assert_array_equal(coefficients, [0.0, 0.0, 1.0])
+
+
 def _zero_dimensional_model(*, kT: float = 0.0) -> Model:
     return Model(
         {(): np.diag([-1.0, 1.0]).astype(complex)},
@@ -115,7 +136,7 @@ def test_energy_diis_evaluates_the_tolerance_policy_once_for_the_solve():
     assert result.errors.filling_residual <= requested.filling_residual
 
 
-def test_finite_temperature_default_uses_internal_energy_only():
+def test_finite_temperature_default_reports_free_energy():
     result = solver(
         _zero_dimensional_model(kT=0.2),
         {(): np.zeros((2, 2), dtype=complex)},
@@ -130,8 +151,10 @@ def test_finite_temperature_default_uses_internal_energy_only():
 
     assert result.history
     assert np.isfinite(result.internal_energy)
-    assert result.entropy is None
-    assert result.free_energy is None
+    assert result.entropy > 0
+    assert result.free_energy == pytest.approx(
+        result.internal_energy - 0.2 * result.entropy
+    )
 
 
 def test_energy_diis_supports_periodic_integration():
@@ -174,7 +197,8 @@ def test_energy_diis_uses_cached_occupied_weights_for_periodic_model():
     )
 
     assert np.isfinite(result.internal_energy)
-    assert all(np.isfinite(item.internal_energy) for item in result.history)
+    assert all(item.internal_energy is None for item in result.history[:-1])
+    assert result.history[-1].internal_energy == result.internal_energy
     assert result.errors.scf_residual <= 3e-3
 
 
@@ -306,28 +330,27 @@ def test_ediis_quadratic_history_matches_exact_minimum_with_reference_offset():
     assert abs(exact_energy(mixed) - 17.0) < 1e-12
 
 
-def test_ediis_trajectory_is_independent_of_reported_entropy(monkeypatch):
-    from dataclasses import replace
+def test_thermal_ediis_reuses_entropy_without_a_final_evaluation(monkeypatch):
     import meanfi.scf.problem as scf_problem
 
     model = _zero_dimensional_model(kT=0.2)
     guess = {(): np.zeros((2, 2))}
-    baseline = solver(model, guess, tol=1e-9)
+    calls = []
     evaluate_density = scf_problem.evaluate_density
 
-    def altered_entropy(*args, **kwargs):
-        density = evaluate_density(*args, **kwargs)
-        return replace(density, entropy=1000 * float(np.linalg.norm(density.values)))
+    def counted_density(*args, **kwargs):
+        assert kwargs["compute_entropy"]
+        calls.append(kwargs["mu"])
+        return evaluate_density(*args, **kwargs)
 
-    monkeypatch.setattr(scf_problem, "evaluate_density", altered_entropy)
-    altered = solver(model, guess, tol=1e-9)
-    assert len(baseline.history) > 1
-    assert altered.history == baseline.history
-    np.testing.assert_array_equal(altered.density.values, baseline.density.values)
-    assert altered.internal_energy == baseline.internal_energy
-    assert altered.free_energy != baseline.free_energy
-    assert altered.free_energy == pytest.approx(
-        altered.internal_energy - model.kT * altered.entropy
+    monkeypatch.setattr(scf_problem, "evaluate_density", counted_density)
+    result = solver(model, guess, tol=1e-9, compute_free_energy=True)
+    assert len(result.history) > 1
+    assert len(calls) == len(result.history) + 1  # Initial guess plus iterations.
+    assert all(mu is None for mu in calls)  # No final fixed-mu repeat.
+    assert result.entropy > 0
+    assert result.free_energy == pytest.approx(
+        result.internal_energy - model.kT * result.entropy
     )
 
 
@@ -348,6 +371,8 @@ def test_ediis_does_not_prepare_an_update_after_the_iteration_limit(
     original = engine.ediis_coefficients
 
     def coefficients(points, **kwargs):
+        # This finite-temperature model compares sampled free energies.
+        assert all(np.isfinite(point.energy) for point in points)
         calls.append(len(points))
         return original(points, **kwargs)
 

@@ -7,6 +7,7 @@ import pytest
 
 import meanfi as mf
 from meanfi.meanfield import correction_expectation
+from meanfi.scf.problem import SCFProblem
 from meanfi.tests.fixtures.fermions import annihilators
 from meanfi.tb.bdg import validate_bdg_tb
 from meanfi.tb.validate import validate_hermiticity
@@ -180,3 +181,83 @@ def test_displacement_validation_and_ownership():
     for invalid in ([True], [0.5], ["x"]):
         with pytest.raises(ValueError, match="integers"):
             mf.BilinearTerm(1, np.eye(2), np.eye(2), displacement=invalid)
+
+
+@pytest.mark.parametrize("superconducting", [False, True])
+@pytest.mark.parametrize("same_operators", [False, True])
+@pytest.mark.parametrize("displacement", [(0,), (1,)])
+def test_partner_counting_against_exact_ring(
+    superconducting, same_operators, displacement
+):
+    """One bond, split weights and the legacy dictionary give the same operator."""
+    state, c, density = _ring_gaussian_state(superconducting, 12)
+    a, b = np.diag([1, 0]), np.diag([0, 1])
+    if same_operators:
+        a = b = np.eye(2)
+    g = -0.8
+    opposite = (-displacement[0],)
+    term = mf.BilinearTerm(g, a, b, displacement=displacement)
+    reverse = mf.BilinearTerm(g, b, a, displacement=opposite)
+    legacy = {key: np.zeros((2, 2)) for key in {(0,), displacement, opposite}}
+    legacy[displacement] += g * np.outer(a.diagonal(), b.diagonal())
+    legacy[opposite] += g * np.outer(b.diagonal(), a.diagonal())
+    model = mf.Model(
+        {(0,): np.zeros((2, 2))},
+        mf.BilinearInteraction([term]),
+        1,
+        superconducting=superconducting,
+    )
+    exact = np.trace(state @ _fock_interaction([term], c)).real / 6
+    correction = model.mean_field(density)
+    _, _, other = _ring_gaussian_state(superconducting, 23)
+    direction = {key: other[key] - density[key] for key in density}
+    exact_curvature = mf.evaluate_internal_energy(model, direction)
+    for interaction, factor in [
+        (model.h_int, 1),
+        (mf.BilinearInteraction([reverse]), 1),
+        (
+            mf.BilinearInteraction(
+                [replace(term, coefficient=g / 2), replace(reverse, coefficient=g / 2)]
+            ),
+            1,
+        ),
+        (mf.BilinearInteraction([term, reverse]), 2),
+        (legacy, 1),
+    ]:
+        current = replace(model, h_int=interaction)
+        error = abs(mf.evaluate_internal_energy(current, density) - factor * exact)
+        assert error < 2e-12, f"Exact Fock-space counting error per orbital: {error}"
+        for key, block in current.mean_field(density).items():
+            np.testing.assert_allclose(block, factor * correction[key], atol=2e-14)
+        params = (
+            current._density_state(other).values
+            - current._density_state(density).values
+        )
+        curvature = SCFProblem(current, density_problem=None).interaction_curvature(
+            params
+        )
+        assert curvature == pytest.approx(factor * exact_curvature, abs=2e-14)
+
+
+@pytest.mark.parametrize("superconducting", [False, True])
+def test_opposite_displacements_without_swapping_operators_are_distinct(
+    superconducting,
+):
+    state, c, density = _ring_gaussian_state(superconducting, 12)
+    term = mf.BilinearTerm(-0.8, np.diag([1, 0]), np.diag([0, 1]), displacement=(1,))
+    opposite = replace(term, displacement=(-1,))
+    forward_operator = _fock_interaction([term], c)
+    backward_operator = _fock_interaction([opposite], c)
+    assert np.linalg.norm(forward_operator - backward_operator) > 0.1
+    model = mf.Model(
+        {(0,): np.zeros((2, 2))},
+        mf.BilinearInteraction([term, opposite]),
+        1,
+        superconducting=superconducting,
+    )
+    exact = np.trace(state @ (forward_operator + backward_operator)).real / 6
+    assert mf.evaluate_internal_energy(model, density) == pytest.approx(
+        exact, abs=2e-12
+    )
+    single = replace(model, h_int=mf.BilinearInteraction([term]))
+    assert abs(exact - 2 * mf.evaluate_internal_energy(single, density)) > 1e-5

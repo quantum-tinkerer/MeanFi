@@ -32,6 +32,7 @@ def _density_problem(
     tolerances,
 ):
     electron_ndof = None
+    compute_energy = isinstance(h, Model)
     if isinstance(h, Model):
         model = h
         if interaction is not None or spatial_symmetries:
@@ -75,6 +76,7 @@ def _density_problem(
         integration=integration,
         tolerances=tolerances,
         electron_ndof=electron_ndof,
+        compute_energy=compute_energy,
     )
 
 
@@ -99,10 +101,10 @@ def density_matrix_at_mu(
 
     A Model supplies temperature, normal/BdG structure and required entries.
     ``mean_field`` optionally adds a correction to its bare Hamiltonian.
-    For a Hamiltonian dictionary or BlochHamiltonian, supply exactly one of ``keys`` (full blocks),
-    ``coordinates`` (explicit entries) or ``interaction`` (required entries).
-    Temperature defaults to zero for Hamiltonian inputs. Entropy and free energy are
-    omitted unless ``compute_free_energy=True`` is requested.
+    For a dictionary or BlochHamiltonian, supply exactly one of ``keys`` (full
+    blocks), ``coordinates`` (explicit entries) or ``interaction`` (required
+    entries). Temperature defaults to zero for Hamiltonian inputs. Entropy and
+    free energy are omitted unless ``compute_free_energy=True`` is requested.
     """
     problem = _density_problem(
         h,
@@ -141,8 +143,8 @@ def density_matrix(
 
     A Model supplies filling, temperature and the normal/BdG density layout.
     Override ``keys`` to request complete blocks for analysis or ``to_tb()``.
-    For a Hamiltonian dictionary or BlochHamiltonian, supply filling and exactly one selection mode:
-    ``keys``, ``coordinates`` or ``interaction``. See ``density_matrix_at_mu``.
+    For a dictionary or BlochHamiltonian, supply filling and exactly one selection
+    mode: ``keys``, ``coordinates`` or ``interaction``. See ``density_matrix_at_mu``.
     Set ``compute_free_energy=True`` to also compute entropy and free energy.
     """
     if isinstance(h, Model) and filling is not None:

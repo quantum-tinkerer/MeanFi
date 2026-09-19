@@ -121,7 +121,9 @@ def test_prescribed_filling_reuses_native_spectra_and_preserves_band_energy():
     assert abs(result.band_energy + 2 / np.pi) < 2e-4
     assert error is None
     assert result.errors.charge_integration is None
-    assert info.n_diagonalizations == info.n_kpoints == 129
+    assert info.n_kpoints == 129
+    assert info.n_energy_evaluations == 128
+    assert info.n_diagonalizations == info.n_kpoints + info.n_energy_evaluations
     assert info.charge_evaluations > 1
     assert info.refinements == 0
 

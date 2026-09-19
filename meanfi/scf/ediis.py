@@ -9,10 +9,10 @@ from scipy.optimize import minimize
 
 @dataclass(frozen=True)
 class EDIISPoint:
-    """One evaluated density and its internal energy."""
+    """Density parameters and a comparison energy; its absolute zero is arbitrary."""
 
     params: np.ndarray
-    internal_energy: float
+    energy: float
 
 
 def ediis_coefficients(
@@ -20,10 +20,11 @@ def ediis_coefficients(
     *,
     interaction_curvature: Callable[[np.ndarray], float],
 ) -> np.ndarray:
-    """Minimize internal energy over the convex density history.
+    """Minimize the EDIIS energy model over the convex density history.
 
-    The one-body term is linear in density and the interaction is quadratic,
-    so this is the mixed density's internal energy at every temperature.
+    Comparison energies are prepared once from the retained physical evaluations.
+    The interaction curvature is the quadratic part of the mixed-density energy.
+    Filling corrections belong to comparison construction, not this optimizer.
     """
 
     count = len(history)
@@ -32,14 +33,25 @@ def ediis_coefficients(
     if count == 1:
         return np.ones(1, dtype=float)
 
-    energies = np.asarray([point.internal_energy for point in history], dtype=float)
+    energies = np.asarray([point.energy for point in history], dtype=float)
     curvature = np.zeros((count, count))
     for i, left in enumerate(history):
         for j, right in enumerate(history[:i]):
             difference = left.params - right.params
             curvature[i, j] = curvature[j, i] = interaction_curvature(difference)
 
-    # For a quadratic energy and sum(c) = 1, this equals E(sum(c_i rho_i)).
+    # Only energy differences determine the mixture. Normalize their scale so
+    # SLSQP's absolute stopping tests still resolve nearly degenerate states.
+    energies = energies - np.min(energies)
+    scale = max(np.max(energies), np.max(np.abs(curvature)))
+    if scale == 0:
+        coefficients = np.zeros(count, dtype=float)
+        coefficients[-1] = 1.0
+        return coefficients
+    energies /= scale
+    curvature /= scale
+
+    # Combine the sampled comparison energies with the interaction curvature.
     # Prepare the small history matrix once; optimization needs no model calls.
     def objective(coefficients: np.ndarray) -> float:
         return float(
@@ -84,7 +96,7 @@ def ediis_coefficients(
             best_value = value
 
     recent_best = np.flatnonzero(
-        np.isclose(energies, np.min(energies), rtol=1e-12, atol=1e-14)
+        np.isclose(energies, np.min(energies), rtol=0.0, atol=1e-12)
     )[-1]
     vertex = np.zeros(count, dtype=float)
     vertex[recent_best] = 1.0

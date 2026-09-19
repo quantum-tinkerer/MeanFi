@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
+from collections.abc import Callable
 
 import numpy as np
 
@@ -15,6 +16,10 @@ class IntegrationInfo:
 
     Refinements count local simplex subdivisions or global grid doublings.
     error_estimate_available refers to momentum integration only.
+    n_energy_evaluations counts new centroid eigenvalue evaluations, included
+    in n_kernel_evals and n_diagonalizations. These are not retained by the
+    native mesh cache. n_energy_simplices counts the evaluated energy partition,
+    including previews; n_leaves remains the active mesh count.
     """
 
     n_kpoints: int
@@ -31,6 +36,8 @@ class IntegrationInfo:
     n_leaves: int | None = None
     num_threads: int | None = None
     spectrum_bytes: int = 0
+    n_energy_evaluations: int = 0
+    n_energy_simplices: int = 0
 
 
 def _readonly_vector(values, *, dtype, name: str) -> np.ndarray:
@@ -100,8 +107,13 @@ class DensityResult:
     ``entropy`` and ``band_energy`` are per cell per physical orbital; entropy
     is in units of Boltzmann's constant. The band energy belongs to the input
     quadratic Hamiltonian (with BdG normal ordering),
-    before correcting for interaction double counting. Model-based results
-    retain known ``internal_energy``; ``free_energy`` subtracts ``kT * entropy``.
+    before correcting for interaction double counting. FermiSimplex uses a
+    vertex/centroid spectral-hinge rule plus mu times the integrated density
+    trace. This does not change the stored density.
+    Model-based results retain known ``internal_energy``; ``free_energy`` subtracts
+    ``kT * entropy``.
+    ``density_filling`` is particle count on the density partition when known;
+    ``filling`` can instead report the preceding charge-root result.
     Free energy is also None when entropy was not requested.
     Both are None when the model energy cannot be determined. Selection preserves
     these scalars; unknown real-space entries are never filled to obtain them.
@@ -116,6 +128,16 @@ class DensityResult:
     entropy: float | None = None
     kT: float = 0.0
     internal_energy: float | None = None
+    density_filling: float | None = None
+    _energy_evaluation: Callable[[], DensityResult] | None = field(
+        default=None, repr=False, compare=False
+    )
+
+    def _with_energy(self) -> DensityResult:
+        """Finish a deferred observable on its original mesh, then release it."""
+        if self._energy_evaluation is None:
+            return self
+        return self._energy_evaluation().select(self.coordinates)
 
     @property
     def free_energy(self) -> float | None:
@@ -194,7 +216,7 @@ class SCFIteration:
     step: int
     mu: float
     filling: float
-    internal_energy: float
+    internal_energy: float | None
     errors: ErrorValues
 
 

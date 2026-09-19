@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "FermiSimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@7921df11518f45505bd09ff32497f50d75ba4bce",
+    "FermiSimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@e8d23caa15ef28e4ebb75d74caed146af2e7868e",
     "numpy>=2.0",
     "scipy>=1.13",
     "threadpoolctl>=3.0",
@@ -122,6 +122,7 @@ sphinx-copybutton = "*"
 make = "*"
 
 [tool.pixi.feature.docs.pypi-dependencies]
+numba = ">=0.61"
 sphinx-tippy = "*"
 sphinx-book-theme = ">=1.1.0"
 

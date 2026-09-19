@@ -158,6 +158,30 @@ dimension. For example, a spinless nearest-neighbor density interaction is
 `BilinearTerm(V, np.eye(1), np.eye(1), displacement=(1,))`. List it once: the
 correction automatically includes both displacement directions. Listing the
 reversed term with A and B exchanged would count the same interaction again.
+The list is additive: duplicates are neither removed nor rejected. Reversing
+only the displacement generally gives a distinct interaction when A and B differ.
+For example, coupling orbital 0 in cell x to orbital 1 in cell x+1 differs from
+coupling orbital 0 in cell x to orbital 1 in cell x-1.
+
+For a spinless interaction $V\sum_x n_x n_{x+1}$, these inputs are equivalent:
+
+```python
+one_bond = mf.BilinearInteraction([
+    mf.BilinearTerm(V, np.eye(1), np.eye(1), displacement=(1,))
+])
+split_bond = mf.BilinearInteraction([
+    mf.BilinearTerm(V / 2, np.eye(1), np.eye(1), displacement=(1,)),
+    mf.BilinearTerm(V / 2, np.eye(1), np.eye(1), displacement=(-1,)),
+])
+density_density = {(1,): np.array([[V]]), (-1,): np.array([[V]])}
+```
+
+Using V instead of V/2 in both bilinear terms would double the interaction.
+The density-density dictionary has a one-half factor in its ordered-pair sum
+and requires both transposed displacement partners. Hamiltonian and mean-field
+dictionaries likewise store both Fourier blocks: their partner blocks must not
+be dropped or halved to compensate for the bilinear term convention.
+
 Products of two onsite bilinears in different cells are supported; arbitrary
 four-cell bond-bilinear products require a richer input representation.
 
@@ -185,7 +209,9 @@ fixed-filling restriction remains. No superconducting FermiSimplex path is added
 {download}`Run the intercell superconducting example <../../../examples/intercell_bdg.py>`.
 
 Callbacks must return finite Hermitian matrices of the inferred size and keep their
-captured parameters fixed during a calculation. Their boundary values need not
+captured parameters fixed during a calculation. Users are responsible for finite
+coordinates and finite Hermitian outputs: MeanFi checks shapes on evaluation,
+but does not scan matrix entries. Their boundary values need not
 match, but both BZ endpoints must be defined for simplex integration. Smooth
 integrands generally converge faster.
 
@@ -241,14 +267,32 @@ callable. Nonlocal terms retain the computational BZ displacement convention.
 {download}`Run the disk example and its analytic density check <../../../examples/continuum.py>`.
 
 Use `solution.internal_energy`, or `density_matrix(model).internal_energy`, for
-callable models. MeanFi obtains the bare one-body contribution by subtracting the
-input correction's expectation from the band energy, then adds the interaction
-energy evaluated on the output density. This works before SCF convergence too.
+callable models. Normal FermiSimplex calculations integrate the continuous scalar
+$g(k)=\sum_n\min(\epsilon_n(k)-\mu,0)$ on the finished density mesh. The
+degree-two rule uses cached vertex eigenvalues with weight $1/((d+1)(d+2))$
+and a centroid with weight $(d+1)/(d+2)$. Python deduplicates centroids and
+computes only their missing eigenvalues in batches, without eigenvectors or
+mesh refinement. During EDIIS it runs once at termination, rather than on every
+iteration. It uses the finest complete evaluated partition, including
+density previews, and reuses all retained spectra via exact coordinate keys.
+Temporary charge-error spectra are outside the retained cache.
+`statistics.n_energy_simplices` gives the energy partition size;
+`statistics.n_energy_evaluations` counts genuinely new centroid spectra.
+
+`band_energy` combines this integral with $\mu N$, using the integrated
+density trace and dividing by the orbital count. Total energy subtracts the
+input mean-field correction contracted with the unchanged density and adds its
+interaction energy. EDIIS uses relative comparisons during iteration and
+retains this physical total on the final result;
+its density history and interaction curvature are unchanged. No density
+normalization or projector purification is applied. The formulas also apply
+before self-consistency. Other integration paths retain their band-energy rule.
+
 `evaluate_internal_energy(model, density)` and `evaluate_free_energy` cannot
 reconstruct a callable's one-body energy from finitely many integrated density
 entries and raise; result properties retain already computed energies. A
-selection missing interaction entries or a supplied correction outside the
-interaction space can leave the retained energy unavailable.
+selection missing interaction entries, or a supplied correction outside the
+available interaction support, can leave total energy unavailable.
 
 Integration remains density-driven. A converged density or SCF residual does not
 certify total-energy accuracy or small energy differences; check energy convergence
@@ -349,9 +393,10 @@ new model (or `dataclasses.replace`) to change model parameters.
 ## Solvers
 
 `EnergyDIIS()` is the default for normal and BdG models with every supported
-integration backend. It minimizes the internal energy of convex density
-combinations, using the exact quadratic mean-field interaction. Entropy and
-free energy do not participate in the coefficient optimization.
+integration backend. It compares internal energies at zero temperature and
+free energies at finite temperature. Its mixing model uses exact quadratic
+interaction curvature and linearly interpolated sampled entropies. The thermal
+model is a surrogate, not the exact free energy of every trial mixture.
 EDIIS runs only its own update and raises `NoConvergence` on iteration
 exhaustion. Users can explicitly restart with another method using
 `model.mean_field(failure.result.density)`; see {ref}`the SCF overview <one-solve>`.
@@ -473,14 +518,31 @@ print(meanfi.evaluate_internal_energy(model, density))
 print(meanfi.evaluate_free_energy(model, density))
 ```
 
-Entropy and free energy are omitted by default. Set `compute_free_energy=True`
-on a density function or `solver` to request them. SCF then computes entropy
-once after termination, including a failure with a valid partial state.
-Intermediate evaluations and EDIIS never compute entropy.
+Thermal EDIIS computes entropy with each density evaluation and returns both
+internal and free energy. Other solvers and standalone density calls omit
+entropy by default. Set `compute_free_energy=True` to request it; a solver
+computes missing entropy after termination, including a valid partial failure
+result. Already computed entropy is reused.
+
+EDIIS compares energies relative to the oldest retained history state. When
+integrated energies are already available cheaply, it uses their differences,
+subtracting `kT * entropy` at finite temperature. Each sample includes the signed
+correction `-mu * (density_filling - model.filling)` per physical orbital.
+Normal zero-temperature FermiSimplex instead estimates differences from the
+sampled density response, including one signed filling-mismatch term. No extra
+energy integration or density normalization is performed for mixing.
+
+FermiSimplex evaluates the physical absolute energy once on the final retained
+mesh, including a valid partial result on an iteration-limit failure. Earlier
+`SCFIteration.internal_energy` values are `None` when deferred; the final result
+contains the actual internal energy, never an arbitrary relative comparison.
+`density_filling` records particle count on the density partition when available;
+it may differ from `filling`, which reports the charge-root result.
+
 
 ```python
 solution = meanfi.solver(model, model.random_meanfield(rng=0))
-assert solution.entropy is None and solution.free_energy is None
+print(solution.internal_energy, solution.free_energy)  # Free energy when available.
 ```
 
 At fixed chemical potential, no independent charge evaluation is performed.
@@ -527,7 +589,8 @@ $$
 where $\langle A,B\rangle=\sum_R\operatorname{Tr}(A_R B_{-R})$ is the
 per-cell contraction. Differentiating $N U$ with respect to density gives
 $h_0+W[\delta\rho]$, so the Hamiltonian and energy use the same subtraction.
-`evaluate_internal_energy`, result energy properties and EDIIS use this functional.
+`evaluate_internal_energy` and internal-energy result properties use this functional.
+EDIIS also includes entropy when the temperature is positive.
 `evaluate_free_energy` uses it with the entropy of the actual state: $F=U-kT\,S[\rho]$.
 Neither entropy nor filling is reference-subtracted.
 
