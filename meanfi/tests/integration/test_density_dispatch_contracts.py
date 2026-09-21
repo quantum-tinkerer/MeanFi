@@ -371,7 +371,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
     assert info.density_n_kernel_evals == 0
 
 
-def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one():
+def test_adaptive_simplex_calls_fermisimplex_density_p_api():
     import meanfi.density.integrate.simplex as simplex_integration
 
     coordinates = DensityCoordinates.from_pairs(
@@ -386,7 +386,7 @@ def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one(
     calls = []
 
     class Mesh:
-        def integrate_density_components(self, **kwargs):
+        def integrate_density_components_p(self, **kwargs):
             calls.append(kwargs)
             return "density"
 
@@ -408,9 +408,7 @@ def test_adaptive_simplex_calls_fermisimplex_density_api_with_preview_depth_one(
         "lattice_vectors": ((0,), (1,)),
         "target_error": 1e-3,
         "max_refinements": 12,
-        "preview_depth": 1,
-        "min_refinement_batch_size": 1,
-        "max_refinement_batch_size": 100,
+        "max_degree": 21,
     }
 
 

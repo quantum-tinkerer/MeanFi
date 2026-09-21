@@ -220,3 +220,36 @@ def test_adaptive_simplex_defaults_to_one_thread():
 def test_adaptive_simplex_rejects_nonpositive_num_threads():
     with pytest.raises(ValueError, match="num_threads must be positive"):
         AdaptiveSimplex(num_threads=0)
+
+
+@pytest.mark.parametrize("degree", [0, 1, 4, 22, 2.5])
+def test_adaptive_simplex_rejects_invalid_density_degree(degree):
+    with pytest.raises(ValueError, match="density_max_degree"):
+        AdaptiveSimplex(density_max_degree=degree)
+
+
+@requires_ext
+def test_density_p_refinement_is_reported_separately_from_charge_splits():
+    from meanfi.density.integrate.simplex import density_matrix_at_mu_zero_temp
+
+    _, _, info = density_matrix_at_mu_zero_temp(
+        dimerized_chain(),
+        mu=0.0,
+        keys=[(0,), (1,)],
+        density_atol=1e-5,
+        density_rtol=0.0,
+    )
+    assert info.p_refinements > 0
+    assert info.n_kernel_evals > 0
+
+
+@requires_ext
+def test_density_degree_exhaustion_is_not_silent():
+    with pytest.raises(RuntimeError, match="p-cubature degree or refinement budget"):
+        density_matrix_at_mu(
+            dimerized_chain(),
+            mu=0.0,
+            kT=0.0,
+            keys=[(0,), (1,)],
+            integration=AdaptiveSimplex(density_matrix_tol=1e-8, density_max_degree=2),
+        )

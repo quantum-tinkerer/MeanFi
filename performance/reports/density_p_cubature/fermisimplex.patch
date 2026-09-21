@@ -1,0 +1,688 @@
+diff --git a/cpp/CMakeLists.txt b/cpp/CMakeLists.txt
+index 5570963..7055592 100644
+--- a/cpp/CMakeLists.txt
++++ b/cpp/CMakeLists.txt
+@@ -238,0 +239 @@ set(
++  src/integration/density_p.cpp
+@@ -289,0 +291 @@ if(FERMISIMPLEX_BUILD_TESTING)
++    simplex_cubature
+diff --git a/cpp/include/fermisimplex/integration.h b/cpp/include/fermisimplex/integration.h
+index f51d1d2..bae6aa9 100644
+--- a/cpp/include/fermisimplex/integration.h
++++ b/cpp/include/fermisimplex/integration.h
+@@ -23,0 +24,4 @@ struct IntegrationStats {
++    // Density p-adaptation changes polynomial degree, never geometry.
++    std::int64_t p_refinements = 0;
++    std::int64_t cubature_evaluations = 0;
++    std::uint32_t max_degree = 0;
+@@ -107,0 +112,12 @@ DensityComponentsResult integrate_density_components(
++// Integrates on the fixed active mesh using nested polynomial cubature.
++// Frozen band occupation fractions do not resolve cut-occupation covariance.
++DensityComponentsResult integrate_density_components_p(
++    SpectralMesh &mesh,
++    double mu,
++    std::vector<LatticeVector> lattice_vectors,
++    std::vector<DensityComponent> components,
++    double target_error,
++    std::int64_t max_refinements = -1,
++    std::uint32_t max_degree = 21
++);
++
+diff --git a/cpp/src/integration/density.cpp b/cpp/src/integration/density.cpp
+index 7b2eba6..97cb919 100644
+--- a/cpp/src/integration/density.cpp
++++ b/cpp/src/integration/density.cpp
+@@ -191,0 +192,20 @@ DensityRule::DensityRule(
++DensityRule::Value DensityRule::at_point(
++    const Eigensystem &spectra,
++    std::span<const double> point,
++    std::span<const double> band_weights
++) const {
++    const auto phases = lattice_phases(lattice_vectors_, lattice_vector_count_, point);
++    auto result = Value(output_size_);
++    for (const auto &pair : pairs_) {
++        const auto element = density_element(
++            spectra, band_weights, pair.row, pair.column, ndof_
++        );
++        for (auto i = pair.contribution_begin; i < pair.contribution_end; ++i) {
++            const auto &contribution = contributions_[i];
++            result[contribution.output_index] +=
++                phases[contribution.lattice_vector_index] * element;
++        }
++    }
++    return result;
++}
++
+diff --git a/cpp/src/integration/density.h b/cpp/src/integration/density.h
+index 781622b..8a3c981 100644
+--- a/cpp/src/integration/density.h
++++ b/cpp/src/integration/density.h
+@@ -36,0 +37,6 @@ public:
++    Value at_point(
++        const Eigensystem &spectra,
++        std::span<const double> point,
++        std::span<const double> band_weights
++    ) const;
++
+diff --git a/cpp/src/integration/density_p.cpp b/cpp/src/integration/density_p.cpp
+new file mode 100644
+index 0000000..a2a9a48
+--- /dev/null
++++ b/cpp/src/integration/density_p.cpp
+@@ -0,0 +1,189 @@
++#include <fermisimplex/integration.h>
++
++#include "integration/density.h"
++#include "integration/simplex_cubature.h"
++#include <adaptivesimplex/cut/simplex_moments.h>
++
++#include <algorithm>
++#include <cmath>
++#include <complex>
++#include <limits>
++#include <map>
++#include <numeric>
++#include <queue>
++#include <stdexcept>
++#include <utility>
++#include <vector>
++
++namespace fermisimplex {
++namespace {
++using namespace integration_detail;
++namespace core = adaptivesimplex::core;
++namespace cut = adaptivesimplex::cut;
++using Value = DensityRule::Value;
++
++struct Cell {
++    core::SimplexId id;
++    unsigned level = 0;
++    std::vector<double> occupations;
++    std::vector<std::vector<double>> vertices;
++    std::map<BarycentricNode, Value> samples;
++    Value value;
++    double error = 0;
++};
++
++Value cubature_value(
++    Cell &cell, const Cubature &cubature, SpectralMesh &mesh,
++    const DensityRule &rule, IntegrationStats &stats
++) {
++    const auto &simplex = mesh.geometry().simplices().simplex(cell.id);
++    std::vector<std::complex<long double>> sum(rule.output_size());
++    long double absolute_weight_sum = 0;
++    double sample_max = 0;
++    for (const auto &[node, weight] : cubature) {
++        auto it = cell.samples.find(node);
++        if (it == cell.samples.end()) {
++            const auto denominator = std::accumulate(node.begin(), node.end(), 0U);
++            std::vector<double> point(mesh.ndim(), 0);
++            for (std::size_t v = 0; v < node.size(); ++v) {
++                for (std::size_t axis = 0; axis < point.size(); ++axis) {
++                    point[axis] += cell.vertices[v][axis] * node[v] / denominator;
++                }
++            }
++            auto spectra = mesh.spectrum(point);
++            ++stats.evaluations;
++            ++stats.cubature_evaluations;
++            it = cell.samples.emplace(
++                node, rule.at_point(spectra, point, cell.occupations)
++            ).first;
++        }
++        absolute_weight_sum += std::abs(weight);
++        sample_max = std::max(sample_max, it->second.max_abs());
++        for (std::size_t c = 0; c < sum.size(); ++c) {
++            sum[c] += weight * static_cast<std::complex<long double>>(it->second[c]);
++        }
++    }
++    Value result(rule.output_size());
++    Value correction(rule.output_size());
++    for (std::size_t c = 0; c < sum.size(); ++c) {
++        result[c] = static_cast<std::complex<double>>(sum[c] * static_cast<long double>(simplex.volume));
++        correction[c] = result[c] - cell.value[c];
++        if (!std::isfinite(std::abs(result[c]))) {
++            throw std::runtime_error("non-finite density cubature value");
++        }
++    }
++    // Account for cancellation in the signed higher-order rules. This is a
++    // floating-point floor, not a bound on the quadrature truncation error.
++    const auto roundoff = static_cast<double>(absolute_weight_sum) * sample_max *
++        simplex.volume * 32 * std::numeric_limits<double>::epsilon();
++    cell.error = std::max(correction.max_abs(), roundoff);
++    ++stats.simplex_visits;
++    return result;
++}
++}  // namespace
++
++DensityComponentsResult integrate_density_components_p(
++    SpectralMesh &mesh, double mu, std::vector<LatticeVector> lattice_vectors,
++    std::vector<DensityComponent> components, double target_error,
++    std::int64_t max_refinements, std::uint32_t max_degree
++) {
++    if (!std::isfinite(mu) || !std::isfinite(target_error) || target_error < 0 ||
++        max_refinements < -1 ||
++        (max_degree != 2 && (max_degree < 3 || max_degree > 21 || max_degree % 2 == 0))) {
++        throw std::invalid_argument("invalid density p-cubature options");
++    }
++    DensityRule rule(mesh.ndim(), mesh.ndof(), std::move(lattice_vectors),
++                     std::move(components));
++    DensityComponentsResult result;
++    auto &stats = result.stats;
++    auto &geometry = mesh.geometry();
++    auto &cache = mesh.eigensystems();
++    for (const auto vertex : mesh.active_vertex_ids()) {
++        if (!cache.contains(vertex)) {
++            const auto point = geometry.vertices().dyadic_vertex(vertex).to_point();
++            cache.insert(vertex, mesh.spectrum(point));
++            ++stats.evaluations;
++        }
++    }
++    const unsigned levels = max_degree == 2 ? 1 : (max_degree + 1) / 2;
++    // Construct rules only when first needed; share coefficients across cells.
++    std::vector<Cubature> rules(levels);
++    rules[0] = vertices_centroid(mesh.ndim());
++    std::vector<Cell> cells;
++    cells.reserve(geometry.simplices().n_active());
++    std::priority_queue<std::pair<double, std::size_t>> pending;
++    long double total_error = 0;
++    Value total(rule.output_size());
++    for (const auto id : geometry.simplices().active_simplices()) {
++        const auto &simplex = geometry.simplices().simplex(id);
++        Cell cell{.id = id};
++        cell.occupations.resize(mesh.ndof());
++        bool occupied = false;
++        for (std::size_t band = 0; band < mesh.ndof(); ++band) {
++            const auto moments = cut::simplex_moments(
++                geometry, id,
++                [&](core::VertexId vertex) { return cache.get(vertex).eigenvalues[band]; },
++                cut::LevelOptions{.level = mu, .level_tolerance = mesh.tolerance()}
++            );
++            cell.occupations[band] = moments.kind == cut::SimplexCutKind::on_level ? 0.5 :
++                std::accumulate(moments.barycentric_moments.begin(),
++                                moments.barycentric_moments.end(), 0.0) / simplex.volume;
++            occupied = occupied || cell.occupations[band] != 0;
++        }
++        // Exactly empty in the frozen occupation model: no interior evaluations.
++        if (!occupied) continue;
++        cell.value = Value(rule.output_size());
++        for (std::size_t v = 0; v < simplex.vertex_ids.size(); ++v) {
++            const auto vertex = simplex.vertex_ids[v];
++            const auto point = geometry.vertices().dyadic_vertex(vertex).to_point();
++            cell.vertices.emplace_back(point.begin(), point.end());
++            auto value = rule.at_point(cache.get(vertex), cell.vertices.back(), cell.occupations);
++            for (std::size_t c = 0; c < value.size(); ++c) {
++                cell.value[c] += simplex.volume * value[c] / static_cast<double>(simplex.vertex_ids.size());
++            }
++            BarycentricNode node(simplex.vertex_ids.size(), 0);
++            node[v] = 1;
++            cell.samples.emplace(std::move(node), std::move(value));
++        }
++        cell.value = cubature_value(cell, rules[0], mesh, rule, stats);
++        total += cell.value;
++        total_error += cell.error;
++        if (levels > 1) pending.emplace(cell.error, cells.size());
++        cells.push_back(std::move(cell));
++    }
++    stats.max_degree = 2;
++    while (total_error > target_error && !pending.empty() &&
++           (max_refinements < 0 || stats.p_refinements < max_refinements)) {
++        const auto index = pending.top().second;
++        pending.pop();
++        auto &cell = cells[index];
++        total -= cell.value;
++        total_error -= cell.error;
++        ++cell.level;
++        if (rules[cell.level].empty()) {
++            rules[cell.level] = grundmann_moeller(mesh.ndim(), cell.level);
++        }
++        cell.value = cubature_value(cell, rules[cell.level], mesh, rule, stats);
++        total += cell.value;
++        total_error += cell.error;
++        ++stats.p_refinements;
++        stats.max_degree = std::max(stats.max_degree, 2 * cell.level + 1);
++        if (cell.level + 1 < levels) pending.emplace(cell.error, index);
++    }
++    // Re-sum positive local indicators instead of relying on incremental
++    // subtraction when the target is near floating-point precision.
++    total_error = 0;
++    total = Value(rule.output_size());
++    for (const auto &cell : cells) {
++        total_error += cell.error;
++        total += cell.value;
++    }
++    result.values = total.values();
++    result.stopping_error = static_cast<double>(total_error);
++    stats.target_reached = result.stopping_error <= target_error;
++    stats.cached_vertices = mesh.cached_vertices();
++    stats.active_simplices = mesh.active_simplices();
++    stats.active_vertices = mesh.active_vertices();
++    return result;
++}
++}  // namespace fermisimplex
+diff --git a/cpp/src/integration/simplex_cubature.h b/cpp/src/integration/simplex_cubature.h
+new file mode 100644
+index 0000000..f6b0656
+--- /dev/null
++++ b/cpp/src/integration/simplex_cubature.h
+@@ -0,0 +1,67 @@
++#pragma once
++
++#include <cmath>
++#include <cstddef>
++#include <map>
++#include <numeric>
++#include <vector>
++
++namespace fermisimplex::integration_detail {
++
++// Integer homogeneous barycentric coordinates, reduced by their common gcd.
++// Exact keys reuse coincident nodes across orders, including the centroid.
++using BarycentricNode = std::vector<unsigned>;
++using Cubature = std::map<BarycentricNode, long double>;
++
++inline BarycentricNode canonical_node(BarycentricNode node) {
++    unsigned divisor = 0;
++    for (auto entry : node) divisor = std::gcd(divisor, entry);
++    for (auto &entry : node) entry /= divisor;
++    return node;
++}
++
++// Normalized weights (sum=1). Grundmann & Moeller (1978),
++// doi:10.1137/0715019. Index s is exact through degree 2*s+1.
++// The positive odd barycentric lattices at levels 0..s are nested.
++inline Cubature grundmann_moeller(unsigned dimension, unsigned s) {
++    Cubature result;
++    BarycentricNode node(dimension + 1);
++    for (unsigned t = 0; t <= s; ++t) {
++        const auto denominator = dimension + 1 + 2 * t;
++        auto weight = std::exp(
++            std::lgamma(static_cast<long double>(dimension + 1)) +
++            (2 * s + 1) * std::log(static_cast<long double>(denominator)) -
++            2 * s * std::log(2.L) -
++            std::lgamma(static_cast<long double>(s - t + 1)) -
++            std::lgamma(static_cast<long double>(dimension + 2 + s + t))
++        );
++        if ((s - t) % 2) weight = -weight;
++        const auto enumerate = [&](auto &&self, unsigned axis, unsigned left) -> void {
++            if (axis == dimension) {
++                node[axis] = 2 * left + 1;
++                result[canonical_node(node)] += weight;
++                return;
++            }
++            for (unsigned beta = 0; beta <= left; ++beta) {
++                node[axis] = 2 * beta + 1;
++                self(self, axis + 1, left - beta);
++            }
++        };
++        enumerate(enumerate, 0, t);
++    }
++    return result;
++}
++
++inline Cubature vertices_centroid(unsigned dimension) {
++    Cubature result;
++    const auto count = dimension + 1;
++    for (unsigned i = 0; i < count; ++i) {
++        BarycentricNode vertex(count, 0);
++        vertex[i] = 1;
++        result[vertex] = 1.L / (count * (count + 1));
++    }
++    result[BarycentricNode(count, 1)] = static_cast<long double>(count) / (count + 1);
++    return result;
++}
++
++}  // namespace fermisimplex::integration_detail
+diff --git a/cpp/tests/test_simplex_cubature.cpp b/cpp/tests/test_simplex_cubature.cpp
+new file mode 100644
+index 0000000..eef0344
+--- /dev/null
++++ b/cpp/tests/test_simplex_cubature.cpp
+@@ -0,0 +1,58 @@
++#include "integration/simplex_cubature.h"
++#include <cmath>
++#include <iostream>
++#include <stdexcept>
++#include <vector>
++
++using namespace fermisimplex::integration_detail;
++
++// Check every barycentric monomial through the rule's advertised degree.
++// Exact normalized simplex moment: d! prod(alpha_i!) / (d+sum(alpha_i))!.
++void moments(const Cubature &rule, unsigned d, unsigned degree) {
++    std::vector<unsigned> alpha(d + 1);
++    const auto check = [&]() {
++        unsigned total = 0;
++        long double log_exact = std::lgamma(static_cast<long double>(d + 1));
++        for (auto a : alpha) {
++            total += a;
++            log_exact += std::lgamma(static_cast<long double>(a + 1));
++        }
++        const auto exact = std::exp(log_exact - std::lgamma(static_cast<long double>(d + total + 1)));
++        long double actual = 0;
++        for (const auto &[node, weight] : rule) {
++            const auto denominator = std::accumulate(node.begin(), node.end(), 0U);
++            auto term = weight;
++            for (unsigned i = 0; i <= d; ++i) {
++                term *= std::pow(static_cast<long double>(node[i]) / denominator, alpha[i]);
++            }
++            actual += term;
++        }
++        if (std::abs(actual - exact) > 2e-11L * exact + 1e-15L) {
++            throw std::runtime_error("incorrect simplex monomial moment");
++        }
++    };
++    const auto enumerate = [&](auto &&self, unsigned axis, unsigned left) -> void {
++        if (axis == d) { alpha[axis] = left; check(); return; }
++        for (unsigned i = 0; i <= left; ++i) {
++            alpha[axis] = i;
++            self(self, axis + 1, left - i);
++        }
++    };
++    for (unsigned total = 0; total <= degree; ++total) enumerate(enumerate, 0, total);
++}
++
++int main() {
++    for (unsigned d = 1; d <= 3; ++d) {
++        moments(vertices_centroid(d), d, 2);
++        Cubature previous;
++        for (unsigned s = 0; s <= 10; ++s) {
++            const auto rule = grundmann_moeller(d, s);
++            for (const auto &[node, weight] : previous) {
++                if (!rule.contains(node)) throw std::runtime_error("rules are not nested");
++            }
++            moments(rule, d, 2 * s + 1);
++            previous = rule;
++        }
++    }
++    std::cout << "All simplex cubature moments and nesting passed\n";
++}
+diff --git a/docs/density-p-cubature.md b/docs/density-p-cubature.md
+new file mode 100644
+index 0000000..3633ddf
+--- /dev/null
++++ b/docs/density-p-cubature.md
+@@ -0,0 +1,71 @@
++# Density cubature on the charge mesh
++
++`SpectralMesh.integrate_density_components_p` is an additive alternative to
++`integrate_density_components`. The latter retains its existing h-refinement
++behavior, including `preview_depth=0`, for comparisons and existing callers.
++The new routine never splits simplices. Call `integrate_charge` first to
++resolve occupations; at fixed filling use the converged chemical potential.
++
++For a simplex of dimension d and volume V, the initial approximation is
++
++```
++Q1 = V/(d+1) * sum(f(vertex))
++Q2 = V/((d+1)*(d+2)) * sum(f(vertex)) + V*(d+1)/(d+2)*f(centroid)
++```
++
++Q2 is exact through total degree two (degree three in 1D). This follows from
++the normalized barycentric moments E[lambda_i] = 1/(d+1) and
++E[lambda_i lambda_j] = (1+delta_ij)/((d+1)(d+2)). It need not improve an
++arbitrary integrand. Its initial local indicator is max(abs(Q2-Q1)).
++
++When this is insufficient, the routine promotes the cell with the largest
++indicator to degrees 3, 5, ..., `max_degree` (default and maximum 21).
++The Grundmann–Moeller rule of index s has degree 2s+1. For each t=0,...,s
++and each nonnegative integer tuple beta summing to t, its nodes and
++normalized weights are
++
++```
++lambda_i = (2*beta_i+1)/(d+1+2*t)
++w = (-1)^(s-t) * d! * (d+1+2*t)^(2*s+1)
++    / (2^(2*s) * (s-t)! * (d+1+s+t)!)
++```
++
++These interior node sets are nested. Coincident nodes use exact reduced
++integer barycentric keys. The centroid is reused at every level; vertices
++have zero weight in the higher rules, but supply the initial error estimate.
++Coefficients are constructed once per dimension and requested degree per
++integration call. No fitted tables or external cubature dependency is needed.
++See [Grundmann and Moeller (1978)](https://doi.org/10.1137/0715019).
++
++Each node evaluates sum_b f_b P_b(k) times the real-space Fourier phase,
++where f_b is that band's linear-simplex occupied volume fraction, held fixed
++on the cell. The same formula is used for bulk and cut simplices. It
++preserves the onsite trace of the linear-simplex charge. Empty cells need
++no interior evaluations. An exactly on-level band has half occupation.
++
++Only requested complex components are retained at interior nodes. Vertex
++eigensystems come from the shared charge cache; interior eigensystems are
++released immediately after projection. Samples are reused across polynomial
++orders within a call, not across calls, chemical potentials or component
++selections. The geometry and its persistent vertex cache do not gain any
++interior cubature nodes.
++
++The stopping estimate is the sum over cells of the maximum component-wise
++absolute difference between consecutive rules, with a floating-point floor
++scaled by the absolute weight sum. There is no cancellation of cell errors.
++Signed higher-order weights are accumulated in long double. They can amplify
++roundoff and the result is not guaranteed positive semidefinite.
++The estimate is empirical, not a rigorous error bound, and can miss aliased
++features. It excludes both charge/occupation error and covariance between
++the cut occupation and the varying projector/Fourier phase. Tightening p
++alone cannot remove this cut error. A degeneracy between bands with unequal
++frozen fractions can also make individual-band projectors nonsmooth.
++
++`max_refinements` bounds promotions after initial Q2 evaluation;
++`max_degree=2` limits evaluation to the requested vertices-plus-centroid pair.
++Neither a degree cap nor a budget exhaustion is success unless the estimated
++tolerance is met. `stats.refinements` remains zero;
++`stats.p_refinements` counts order promotions, `stats.max_degree` records the
++largest degree used, and `stats.cubature_evaluations` counts new interior
++spectra. `stats.evaluations` also includes missing charge-mesh vertex spectra.
++The legacy `cached_vertices` count continues to describe persistent spectra.
+diff --git a/python/fermisimplex/mesh.py b/python/fermisimplex/mesh.py
+index d37f823..a1b2765 100644
+--- a/python/fermisimplex/mesh.py
++++ b/python/fermisimplex/mesh.py
+@@ -382,0 +383,40 @@ class SpectralMesh:
++    def integrate_density_components_p(
++        self,
++        *,
++        mu: float,
++        lattice_vectors,
++        components,
++        target_error: float,
++        max_refinements: int | None = None,
++        max_degree: int = 21,
++    ) -> DensityComponentsResult:
++        """Raise cubature degree on the fixed active mesh, without splitting.
++
++        Starts with the degree-two vertices-plus-centroid rule, compared to
++        the vertex average. Subsequent rules have degrees 3, 5, ..., 21 and
++        reuse nested Grundmann-Moeller samples within this call. Only requested
++        density components are retained at interior nodes, not eigensystems.
++        ``max_degree`` is 2 or an odd integer from 3 through 21.
++        ``max_refinements`` limits promotions beyond the initial degree-two
++        estimate. Exhaustion returns ``stats.target_reached == False``.
++
++        Each band's linear-simplex occupied volume fraction is held fixed at
++        every cubature point, including cut simplices. The stopping estimate
++        sums local maximum absolute differences between successive rules; it
++        excludes occupation/geometry error and is not a rigorous bound.
++        The caller must first resolve charge on this mesh.
++        """
++        degree = _positive_integer(max_degree, "max_degree")
++        if degree != 2 and (degree < 3 or degree > 21 or degree % 2 == 0):
++            raise ValueError("max_degree must be 2 or an odd integer in [3, 21]")
++        limit = (-1 if max_refinements is None else
++                 _nonnegative_integer(max_refinements, "max_refinements"))
++        return self._native.integrate_density_components_p(
++            _finite_float(mu, "mu"),
++            _lattice_vector_array(lattice_vectors, self.ndim),
++            _density_component_array(components),
++            _nonnegative_float(target_error, "target_error"),
++            limit,
++            degree,
++        )
++
+diff --git a/python/src/bindings/integration_types.cpp b/python/src/bindings/integration_types.cpp
+index 7ee2e02..e92ab35 100644
+--- a/python/src/bindings/integration_types.cpp
++++ b/python/src/bindings/integration_types.cpp
+@@ -15,0 +16,3 @@ void bind_integration_types(nb::module_ &module) {
++        .def_ro("p_refinements", &IntegrationStats::p_refinements)
++        .def_ro("cubature_evaluations", &IntegrationStats::cubature_evaluations)
++        .def_ro("max_degree", &IntegrationStats::max_degree)
+diff --git a/python/src/bindings/spectral_mesh.cpp b/python/src/bindings/spectral_mesh.cpp
+index 37810b2..0572d56 100644
+--- a/python/src/bindings/spectral_mesh.cpp
++++ b/python/src/bindings/spectral_mesh.cpp
+@@ -428,0 +429,15 @@ void bind_spectral_mesh(nb::module_ &module) {
++        .def(
++            "integrate_density_components_p",
++            [](SpectralMesh &mesh, double mu, LatticeVectorArray lattice_vectors,
++               LatticeVectorArray components, double target_error,
++               std::int64_t max_refinements, std::uint32_t max_degree) {
++                return fermisimplex::integrate_density_components_p(
++                    mesh, mu, copy_lattice_vectors(lattice_vectors),
++                    copy_density_components(components), target_error,
++                    max_refinements, max_degree
++                );
++            },
++            "mu"_a, "lattice_vectors"_a, "components"_a, "target_error"_a,
++            "max_refinements"_a, "max_degree"_a,
++            nb::call_guard<nb::gil_scoped_release>()
++        )
+diff --git a/tests/test_density_p.py b/tests/test_density_p.py
+new file mode 100644
+index 0000000..831fda0
+--- /dev/null
++++ b/tests/test_density_p.py
+@@ -0,0 +1,134 @@
++"""Physical and controller regressions for density cubature on a frozen mesh."""
++
++import numpy as np
++import pytest
++from fermisimplex import SpectralMesh
++
++
++def integrate(mesh, *, keys=None, components=None, **kwargs):
++    keys = [tuple([0] * mesh.ndim)] if keys is None else keys
++    components = (
++        [
++            [k, i, j]
++            for k in range(len(keys))
++            for i in range(mesh.ndof)
++            for j in range(mesh.ndof)
++        ]
++        if components is None
++        else components
++    )
++    return mesh.integrate_density_components_p(
++        mu=kwargs.pop("mu", 0.0),
++        lattice_vectors=keys,
++        components=components,
++        target_error=kwargs.pop("target_error", 1e-7),
++        **kwargs,
++    )
++
++
++@pytest.mark.parametrize("ndim", [1, 2, 3])
++@pytest.mark.parametrize("mu,expected", [(-2.0, 0.0), (0.0, 1.0), (2.0, 2.0)])
++def test_constant_projector_and_empty_cells(ndim, mu, expected):
++    mesh = SpectralMesh({(0,) * ndim: np.diag([-1.0, 1.0])})
++    mesh.estimate_charge_on_current_mesh(mu=mu)
++    n = mesh.active_simplices
++    result = integrate(mesh, mu=mu)
++    assert result.stats.target_reached
++    assert np.trace(result.values.reshape(2, 2)) == pytest.approx(expected)
++    assert result.stats.refinements == result.stats.p_refinements == 0
++    assert result.stats.cubature_evaluations == (0 if expected == 0 else n)
++
++
++def test_half_occupation_and_duplicate_components():
++    mesh = SpectralMesh({(0,): np.zeros((2, 2))})
++    result = integrate(mesh, components=[[0, 0, 0], [0, 0, 0], [0, 1, 0]])
++    np.testing.assert_allclose(result.values, [0.5, 0.5, 0], atol=1e-14)
++
++
++def test_nested_samples_and_fourier_phase():
++    calls = []
++
++    def model(k):
++        calls.append(k)
++        return np.diag([-1.0, 1.0]).astype(complex)
++
++    mesh = SpectralMesh(model)
++    mesh.estimate_charge_on_current_mesh(mu=0.0)
++    calls.clear()
++    before = mesh.points.copy(), mesh.simplices.copy(), mesh.cached_vertices
++    result = integrate(mesh, keys=[(0,), (1,), (-1,)], target_error=1e-9)
++    assert result.stats.target_reached
++    values = result.values.reshape(3, 2, 2)
++    np.testing.assert_allclose(values[0], np.diag([1.0, 0.0]), atol=1e-12)
++    np.testing.assert_allclose(values[1:], 0.0, atol=1e-9)
++    assert result.stats.p_refinements > 0
++    assert len(calls) == len(set(calls)) == result.stats.cubature_evaluations
++    np.testing.assert_array_equal(mesh.points, before[0])
++    np.testing.assert_array_equal(mesh.simplices, before[1])
++    assert mesh.cached_vertices == before[2]
++    assert result.stats.refinements == 0
++
++
++def test_rotating_projector_exact_fourier_coefficients():
++    # H(k)=[[0, exp(-2 pi i k)], [exp(2 pi i k), 0]], energies +/-1.
++    hopping = np.array([[0.0, 1.0], [0.0, 0.0]], complex)
++    mesh = SpectralMesh({(1,): hopping, (-1,): hopping.T.conj()})
++    result = integrate(mesh, keys=[(0,), (1,), (-1,)], target_error=1e-8)
++    assert result.stats.target_reached
++    expected = np.zeros((3, 2, 2), complex)
++    expected[0] = np.eye(2) / 2
++    # Native TB convention is exp(-2 pi i k R), density uses the inverse.
++    expected[1, 0, 1] = -0.5
++    expected[2, 1, 0] = -0.5
++    np.testing.assert_allclose(result.values.reshape(3, 2, 2), expected, atol=1e-8)
++
++
++def test_cut_occupation_trace_preserves_charge_without_refinement():
++    mesh = SpectralMesh(
++        {(0,): np.diag([-0.3, 0.7]), (1,): np.eye(2) * 0.5, (-1,): np.eye(2) * 0.5}
++    )
++    charge = mesh.integrate_charge(mu=0.0, target_error=1e-4)
++    before = mesh.simplices.copy()
++    result = integrate(mesh)
++    assert result.stats.target_reached
++    assert np.trace(result.values.reshape(2, 2)) == pytest.approx(
++        charge.value, abs=1e-12
++    )
++    np.testing.assert_array_equal(mesh.simplices, before)
++
++
++@pytest.mark.parametrize(
++    "budget", [dict(max_degree=2), dict(max_refinements=0), dict(max_refinements=1)]
++)
++def test_exhaustion_does_not_claim_convergence(budget):
++    mesh = SpectralMesh({(0,): np.array([[-1.0]])})
++    result = integrate(mesh, keys=[(1,)], target_error=1e-12, **budget)
++    assert not result.stats.target_reached
++    assert result.stopping_error > 1e-12
++    assert result.stats.refinements == 0
++    if "max_refinements" in budget:
++        assert result.stats.p_refinements <= budget["max_refinements"]
++
++
++@pytest.mark.parametrize("degree", [0, 1, 4, 22, 23, 2.5])
++def test_degree_validation(degree):
++    mesh = SpectralMesh({(0,): np.array([[-1.0]])})
++    with pytest.raises((ValueError, TypeError), match="max_degree"):
++        integrate(mesh, max_degree=degree)
++
++
++def test_frozen_cut_error_is_separate_from_cubature_error():
++    # An affine band gives exact linear charge, but replacing the occupied
++    # subinterval by a fractional weight misses its correlation with exp(ik).
++    def model(k):
++        return np.array([[k]], complex)
++
++    mesh = SpectralMesh(model)
++    mu = 0.37
++    charge = mesh.estimate_charge_on_current_mesh(mu=mu)
++    assert charge.value == pytest.approx(mu)
++    result = integrate(mesh, mu=mu, keys=[(1,)], target_error=1e-9)
++    exact = np.expm1(2j * np.pi * mu) / (2j * np.pi)
++    assert result.stats.target_reached
++    assert result.stopping_error < 1e-9
++    assert abs(result.values[0] - exact) > 0.05

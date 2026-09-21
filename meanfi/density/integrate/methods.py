@@ -13,14 +13,31 @@ class IntegrationMethod:
 
 @dataclass(frozen=True)
 class AdaptiveSimplex(IntegrationMethod):
-    """Adaptive zero-temperature simplicial integration."""
+    """Charge mesh refinement followed by density p-cubature at zero temperature.
+
+    ``density_max_degree`` caps density cubature (2 or odd, up to 21).
+    ``max_refinements`` limits charge splits and density order promotions
+    separately. Density cubature holds cut-band occupation fractions fixed.
+    """
 
     density_matrix_tol: float | None = None
     max_refinements: int | None = None
     num_threads: int | None = 1
     charge_tol: float | None = None
+    density_max_degree: int = 21
 
     def __post_init__(self) -> None:
+        if not isinstance(self.density_max_degree, int) or (
+            self.density_max_degree != 2
+            and (
+                self.density_max_degree < 3
+                or self.density_max_degree > 21
+                or self.density_max_degree % 2 == 0
+            )
+        ):
+            raise ValueError(
+                "density_max_degree must be 2 or an odd integer in [3, 21]"
+            )
         if self.density_matrix_tol is not None and self.density_matrix_tol <= 0:
             raise ValueError("density_matrix_tol must be positive when provided")
         if self.charge_tol is not None and self.charge_tol <= 0:

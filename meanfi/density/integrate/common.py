@@ -184,6 +184,7 @@ def translate_adaptive_info(
         charge_error=getattr(raw_info, "charge_error", None),
     )
     if isinstance(integration, AdaptiveSimplex):
+        kwargs["p_refinements"] = int(getattr(raw_info, "p_refinements", 0))
         kwargs["num_threads"] = getattr(raw_info, "num_threads", None)
         kwargs["band_energy_integration_calls"] = int(
             getattr(raw_info, "band_energy_integration_calls", 0)

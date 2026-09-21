@@ -23,6 +23,7 @@ class DensityIntegrationInfo:
     subdivisions: int
     error_estimate_available: bool
     num_threads: int | None = None
+    p_refinements: int = 0
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class FixedFillingInfo:
     density_rtol: float
     error_estimate_available: bool
     num_threads: int | None = None
+    p_refinements: int = 0
     band_energy: float | None = None
     band_energy_integration_calls: int = 0
     band_energy_n_kernel_evals: int = 0
@@ -74,6 +76,7 @@ class AdaptiveSimplexInfo:
     density_integration_calls: int | None = None
     charge_error: float | None = None
     num_threads: int | None = None
+    p_refinements: int = 0
     band_energy_integration_calls: int = 0
     band_energy_n_kernel_evals: int = 0
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from dataclasses import replace
 
 import numpy as np
 from fermisimplex import SpectralMesh
@@ -16,7 +17,6 @@ from meanfi.tb.ops import _tb_type, to_dense
 
 _ZERO_TEMP_EXT_AVAILABLE = True
 _CHARGE_ERROR_DEPTH = 2
-_DENSITY_PREVIEW_DEPTH = 1
 _MIN_REFINEMENT_BATCH_SIZE = 1
 _MAX_REFINEMENT_BATCH_SIZE = 100
 
@@ -97,22 +97,27 @@ def _integrate_density(
     density_atol: float,
     max_refinements: int | None,
     num_threads: int | None,
+    max_degree: int = 21,
 ):
     key_indices = {key: index for index, key in enumerate(density_coordinates.keys)}
     components = np.asarray(
         [(key_indices[key], row, col) for key, row, col in density_coordinates.entries],
         dtype=np.int64,
     ).reshape((-1, 3))
+    if not hasattr(mesh, "integrate_density_components_p"):
+        raise RuntimeError(
+            "Density p-cubature requires the companion FermiSimplex backend. "
+            "Install its density-p-cubature checkout with "
+            "tools/install_fermisimplex_local.sh."
+        )
     with _native_thread_context(num_threads):
-        return mesh.integrate_density_components(
+        return mesh.integrate_density_components_p(
             mu=float(mu),
             lattice_vectors=density_coordinates.keys,
             components=components,
             target_error=float(density_atol),
             max_refinements=max_refinements,
-            preview_depth=_DENSITY_PREVIEW_DEPTH,
-            min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
-            max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
+            max_degree=max_degree,
         )
 
 
@@ -176,6 +181,7 @@ def _density_info(
         n_leaves=int(stats.active_simplices),
         n_leaf_nodes=int(stats.active_vertices),
         subdivisions=int(stats.refinements),
+        p_refinements=int(stats.p_refinements),
         error_estimate_available=bool(stats.target_reached),
         num_threads=num_threads,
     )
@@ -191,6 +197,8 @@ def density_matrix_at_mu_zero_temp(
     density_rtol: float,
     max_subdivisions: int | None = None,
     num_threads: int | None = None,
+    density_max_degree: int = 21,
+    charge_tol: float | None = None,
 ):
     del density_rtol
     coordinates = _density_coordinates(
@@ -205,26 +213,50 @@ def density_matrix_at_mu_zero_temp(
         )
         return density_matrix, density_matrix_error, density_info
 
+    charge_result = _integrate_charge(
+        mesh,
+        mu=float(mu),
+        charge_tol=float(density_atol if charge_tol is None else charge_tol),
+        max_refinements=max_subdivisions,
+        num_threads=num_threads,
+    )
+    _raise_if_not_converged(
+        charge_result,
+        "Adaptive simplex loop did not converge while resolving charge at fixed mu",
+    )
     result = _integrate_density(
         mesh,
         coordinates,
         mu=float(mu),
         density_atol=float(density_atol),
+        max_degree=density_max_degree,
         max_refinements=max_subdivisions,
         num_threads=num_threads,
     )
     _raise_if_not_converged(
         result,
-        "Adaptive simplex loop did not converge while evaluating density",
+        "Adaptive simplex loop did not converge while evaluating density: "
+        "p-cubature degree or refinement budget exhausted",
     )
     density_matrix, density_matrix_error = _density_result_to_tb(
         result,
         coordinates,
     )
+    density_info = _density_info(result, num_threads=num_threads)
+    charge_work = int(charge_result.stats.evaluations) + int(
+        charge_result.error_stats.hamiltonian_evaluations
+    )
+    density_info = replace(
+        density_info,
+        n_kernel_evals=density_info.n_kernel_evals + charge_work,
+        unique_evals=density_info.unique_evals + charge_work,
+        n_evaluator_evals=density_info.n_evaluator_evals + charge_work,
+        subdivisions=int(charge_result.stats.refinements),
+    )
     return (
         density_matrix,
         density_matrix_error,
-        _density_info(result, num_threads=num_threads),
+        density_info,
     )
 
 
@@ -261,6 +293,7 @@ def _fixed_filling_info(
         n_leaves=int(density_info.n_leaves),
         n_leaf_nodes=int(density_info.n_leaf_nodes),
         subdivisions=int(charge_refinements + density_info.subdivisions),
+        p_refinements=density_info.p_refinements,
         charge_integral_atol=float(charge_tol),
         density_atol=float(density_atol),
         density_rtol=float(density_rtol),
@@ -287,6 +320,7 @@ def density_matrix_zero_temp(
     max_charge_evaluations: int | None,
     max_subdivisions: int | None = None,
     num_threads: int | None = None,
+    density_max_degree: int = 21,
     include_band_energy: bool = False,
 ):
     coordinates = _density_coordinates(
@@ -407,12 +441,14 @@ def density_matrix_zero_temp(
         coordinates,
         mu=float(root.mu),
         density_atol=float(density_atol),
+        max_degree=density_max_degree,
         max_refinements=max_subdivisions,
         num_threads=num_threads,
     )
     _raise_if_not_converged(
         density_result,
-        "Adaptive simplex loop did not converge while evaluating density",
+        "Adaptive simplex loop did not converge while evaluating density: "
+        "p-cubature degree or refinement budget exhausted",
     )
     density_matrix, density_matrix_error = _density_result_to_tb(
         density_result,
