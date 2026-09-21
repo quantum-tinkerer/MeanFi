@@ -44,8 +44,10 @@ $Q_2$ and $Q_1$. Larger degrees use nested Grundmann–Moeller rules of degrees
 3, 5, ..., 21, with analytic coefficients and reused interior samples.
 Only the requested density components are stored at interior nodes.
 
-The controller sums local maximum component differences and promotes the
-largest contributor until the estimated error is below `density_matrix_tol`.
+The controller uses the same error policy as density h-refinement: the maximum
+of the root-sum-square of local correction norms and the norm of the coherently
+summed complex corrections, plus a separate floating-point floor. It promotes
+the largest contributors until this estimate is below `density_matrix_tol`.
 This is a sampled estimate, not a rigorous bound. Geometric splits and order
 promotions are reported separately in the internal integration statistics as `refinements`
 and `p_refinements`.
@@ -55,8 +57,10 @@ and `p_refinements`.
 At every density cubature point the projector of each band is weighted by
 that band's linear-simplex occupied volume fraction. This applies to both
 bulk and cut simplices and preserves the onsite trace of the charge result.
-The cubature estimate excludes charge error and the covariance of occupation
-with the projector or Fourier phase inside cut simplices. Consequently,
+The existing occupied barycentric moments also correct the vertex-linear
+projector/Fourier contribution inside cut simplices. This removes the leading
+occupation correlation error without new diagonalizations. The cubature estimate
+still excludes charge error and higher-order occupation correlation, so
 p-refinement alone cannot remove all metallic density error. Tightening
 `charge_tol` resolves the charge geometry but does not itself certify the
 remaining density error. Unequally occupied degenerate bands can also limit
@@ -81,6 +85,9 @@ initial error pair nor the cut approximation guarantees a universal exponent.
   Set 2 to evaluate only the vertices/vertices-plus-centroid pair.
 - `max_refinements`: caps charge splits and density order promotions separately.
 - `num_threads`: defaults to 1; `None` leaves native thread limits unchanged.
+  With OpenMP available and at least 32 orbitals, requesting more than one
+  thread enables density promotion batches of up to 16 simplices. Smaller
+  Hamiltonians and builds without OpenMP retain serial promotions.
 
 A degree or work limit reached above tolerance raises a nonconvergence error.
 The density controller does not silently fall back to simplex splitting.

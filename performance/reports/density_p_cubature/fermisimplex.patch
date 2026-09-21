@@ -1,13 +1,42 @@
 diff --git a/cpp/CMakeLists.txt b/cpp/CMakeLists.txt
-index 5570963..7055592 100644
+index 5570963..89f9f73 100644
 --- a/cpp/CMakeLists.txt
 +++ b/cpp/CMakeLists.txt
-@@ -238,0 +239 @@ set(
+@@ -122,0 +123,6 @@ endif()
++set(FERMISIMPLEX_DENSITY_OPENMP_ENABLED OFF)
++option(FERMISIMPLEX_ENABLE_DENSITY_OPENMP "Parallel density p-refinement batches" ON)
++if(FERMISIMPLEX_ENABLE_DENSITY_OPENMP)
++  find_package(OpenMP QUIET COMPONENTS CXX)
++endif()
++
+@@ -238,0 +245 @@ set(
 +  src/integration/density_p.cpp
-@@ -289,0 +291 @@ if(FERMISIMPLEX_BUILD_TESTING)
+@@ -284,0 +292,13 @@ target_compile_definitions(
++# Compile only density_p.cpp with OpenMP: leave charge and the generic adaptive
++# engine's existing compilation/threading behavior unchanged. If OpenMP is not
++# available, the same source retains the serial controller.
++if(FERMISIMPLEX_ENABLE_DENSITY_OPENMP AND OpenMP_CXX_FOUND)
++  separate_arguments(_fs_density_openmp_flags NATIVE_COMMAND "${OpenMP_CXX_FLAGS}")
++  set_property(SOURCE src/integration/density_p.cpp APPEND PROPERTY
++    COMPILE_OPTIONS ${_fs_density_openmp_flags})
++  set_property(SOURCE src/integration/density_p.cpp APPEND PROPERTY
++    INCLUDE_DIRECTORIES ${OpenMP_CXX_INCLUDE_DIRS})
++  target_link_libraries(fermisimplex_core PRIVATE "$<LINK_ONLY:OpenMP::OpenMP_CXX>")
++  set(FERMISIMPLEX_DENSITY_OPENMP_ENABLED ON)
++endif()
++
+@@ -289,0 +310 @@ if(FERMISIMPLEX_BUILD_TESTING)
 +    simplex_cubature
+diff --git a/cpp/cmake/fermisimplex-config.cmake.in b/cpp/cmake/fermisimplex-config.cmake.in
+index f7aad72..49c720f 100644
+--- a/cpp/cmake/fermisimplex-config.cmake.in
++++ b/cpp/cmake/fermisimplex-config.cmake.in
+@@ -5,0 +6,3 @@ find_dependency(LAPACK)
++if(@FERMISIMPLEX_DENSITY_OPENMP_ENABLED@)
++  find_dependency(OpenMP COMPONENTS CXX)
++endif()
 diff --git a/cpp/include/fermisimplex/integration.h b/cpp/include/fermisimplex/integration.h
-index f51d1d2..bae6aa9 100644
+index f51d1d2..955459d 100644
 --- a/cpp/include/fermisimplex/integration.h
 +++ b/cpp/include/fermisimplex/integration.h
 @@ -23,0 +24,4 @@ struct IntegrationStats {
@@ -15,9 +44,10 @@ index f51d1d2..bae6aa9 100644
 +    std::int64_t p_refinements = 0;
 +    std::int64_t cubature_evaluations = 0;
 +    std::uint32_t max_degree = 0;
-@@ -107,0 +112,12 @@ DensityComponentsResult integrate_density_components(
+@@ -107,0 +112,13 @@ DensityComponentsResult integrate_density_components(
 +// Integrates on the fixed active mesh using nested polynomial cubature.
-+// Frozen band occupation fractions do not resolve cut-occupation covariance.
++// Cut barycentric moments correct the vertex-linear occupation covariance;
++// higher-order cut and charge-geometry errors remain outside the p estimate.
 +DensityComponentsResult integrate_density_components_p(
 +    SpectralMesh &mesh,
 +    double mu,
@@ -64,25 +94,89 @@ index 781622b..8a3c981 100644
 +        std::span<const double> band_weights
 +    ) const;
 +
+diff --git a/cpp/src/integration/density_error.h b/cpp/src/integration/density_error.h
+new file mode 100644
+index 0000000..2fcb706
+--- /dev/null
++++ b/cpp/src/integration/density_error.h
+@@ -0,0 +1,53 @@
++#pragma once
++
++#include <algorithm>
++#include <cmath>
++
++namespace fermisimplex::integration_detail {
++
++struct DensityGlobalError {
++    template <class Value>
++    using state_type = double;
++
++    bool has_preview = true;
++
++    template <class Value>
++    state_type<Value> zero() const {
++        return 0.0;
++    }
++
++    template <class Value>
++    void add_local_estimate(
++        state_type<Value> &state,
++        const Value &local_estimate
++    ) const {
++        if (has_preview) {
++            const auto error = local_estimate.max_abs();
++            state += error * error;
++        }
++    }
++
++    template <class Value>
++    void remove_local_estimate(
++        state_type<Value> &state,
++        const Value &local_estimate
++    ) const {
++        if (has_preview) {
++            const auto error = local_estimate.max_abs();
++            state -= error * error;
++        }
++    }
++
++    template <class Value>
++    double error(
++        const state_type<Value> &state,
++        const Value &global_correction
++    ) const {
++        return std::max(
++            std::sqrt(std::max(0.0, state)),
++            global_correction.max_abs()
++        );
++    }
++};
++
++}  // namespace fermisimplex::integration_detail
 diff --git a/cpp/src/integration/density_p.cpp b/cpp/src/integration/density_p.cpp
 new file mode 100644
-index 0000000..a2a9a48
+index 0000000..8335d53
 --- /dev/null
 +++ b/cpp/src/integration/density_p.cpp
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,279 @@
 +#include <fermisimplex/integration.h>
 +
 +#include "integration/density.h"
++#include "integration/density_error.h"
++#include <adaptivesimplex/adaptive/refinement_queue.h>
 +#include "integration/simplex_cubature.h"
 +#include <adaptivesimplex/cut/simplex_moments.h>
 +
 +#include <algorithm>
++#include <exception>
++#ifdef _OPENMP
++#include <omp.h>
++#endif
 +#include <cmath>
 +#include <complex>
 +#include <limits>
 +#include <map>
 +#include <numeric>
-+#include <queue>
 +#include <stdexcept>
 +#include <utility>
 +#include <vector>
@@ -101,7 +195,10 @@ index 0000000..a2a9a48
 +    std::vector<std::vector<double>> vertices;
 +    std::map<BarycentricNode, Value> samples;
 +    Value value;
++    Value cut_correction;
++    Value correction;
 +    double error = 0;
++    double roundoff = 0;
 +};
 +
 +Value cubature_value(
@@ -148,7 +245,9 @@ index 0000000..a2a9a48
 +    // floating-point floor, not a bound on the quadrature truncation error.
 +    const auto roundoff = static_cast<double>(absolute_weight_sum) * sample_max *
 +        simplex.volume * 32 * std::numeric_limits<double>::epsilon();
-+    cell.error = std::max(correction.max_abs(), roundoff);
++    cell.correction = std::move(correction);
++    cell.roundoff = roundoff;
++    cell.error = std::max(cell.correction.max_abs(), roundoff);
 +    ++stats.simplex_visits;
 +    return result;
 +}
@@ -183,14 +282,32 @@ index 0000000..a2a9a48
 +    rules[0] = vertices_centroid(mesh.ndim());
 +    std::vector<Cell> cells;
 +    cells.reserve(geometry.simplices().n_active());
-+    std::priority_queue<std::pair<double, std::size_t>> pending;
-+    long double total_error = 0;
++    adaptivesimplex::adaptive::RefinementQueue pending;
++    DensityGlobalError error_policy;
++    double squared_error = 0;
++    Value correction_sum(rule.output_size());
++    long double roundoff_sum = 0;
++    const auto add_error = [&](const Cell &cell) {
++        error_policy.add_local_estimate(squared_error, cell.correction);
++        correction_sum += cell.correction;
++        roundoff_sum += cell.roundoff;
++    };
++    const auto remove_error = [&](const Cell &cell) {
++        error_policy.remove_local_estimate(squared_error, cell.correction);
++        correction_sum -= cell.correction;
++        roundoff_sum -= cell.roundoff;
++    };
++    const auto global_error = [&]() {
++        return std::max(error_policy.error(squared_error, correction_sum),
++                        static_cast<double>(std::max(0.L, roundoff_sum)));
++    };
 +    Value total(rule.output_size());
 +    for (const auto id : geometry.simplices().active_simplices()) {
 +        const auto &simplex = geometry.simplices().simplex(id);
 +        Cell cell{.id = id};
 +        cell.occupations.resize(mesh.ndof());
 +        bool occupied = false;
++        std::vector<double> cut_weights;
 +        for (std::size_t band = 0; band < mesh.ndof(); ++band) {
 +            const auto moments = cut::simplex_moments(
 +                geometry, id,
@@ -201,15 +318,33 @@ index 0000000..a2a9a48
 +                std::accumulate(moments.barycentric_moments.begin(),
 +                                moments.barycentric_moments.end(), 0.0) / simplex.volume;
 +            occupied = occupied || cell.occupations[band] != 0;
++            if (moments.kind == cut::SimplexCutKind::partial) {
++                if (cut_weights.empty()) {
++                    cut_weights.resize(simplex.vertex_ids.size() * mesh.ndof(), 0.0);
++                }
++                const auto average = cell.occupations[band] * simplex.volume /
++                    static_cast<double>(simplex.vertex_ids.size());
++                for (std::size_t v = 0; v < simplex.vertex_ids.size(); ++v) {
++                    cut_weights[v * mesh.ndof() + band] =
++                        moments.barycentric_moments[v] - average;
++                }
++            }
 +        }
 +        // Exactly empty in the frozen occupation model: no interior evaluations.
 +        if (!occupied) continue;
 +        cell.value = Value(rule.output_size());
++        if (!cut_weights.empty()) cell.cut_correction = Value(rule.output_size());
 +        for (std::size_t v = 0; v < simplex.vertex_ids.size(); ++v) {
 +            const auto vertex = simplex.vertex_ids[v];
 +            const auto point = geometry.vertices().dyadic_vertex(vertex).to_point();
 +            cell.vertices.emplace_back(point.begin(), point.end());
 +            auto value = rule.at_point(cache.get(vertex), cell.vertices.back(), cell.occupations);
++            if (!cut_weights.empty()) {
++                cell.cut_correction += rule.at_point(
++                    cache.get(vertex), cell.vertices.back(),
++                    std::span<const double>(cut_weights.data() + v * mesh.ndof(), mesh.ndof())
++                );
++            }
 +            for (std::size_t c = 0; c < value.size(); ++c) {
 +                cell.value[c] += simplex.volume * value[c] / static_cast<double>(simplex.vertex_ids.size());
 +            }
@@ -217,41 +352,85 @@ index 0000000..a2a9a48
 +            node[v] = 1;
 +            cell.samples.emplace(std::move(node), std::move(value));
 +        }
++        // Q_p + integral_cut(L) - fraction*integral_full(L), where L is
++        // the vertex-linear projector including its Fourier phase. Keeping
++        // this degree-independent correction separate leaves p differences
++        // unchanged and requires no new spectral samples.
 +        cell.value = cubature_value(cell, rules[0], mesh, rule, stats);
-+        total += cell.value;
-+        total_error += cell.error;
-+        if (levels > 1) pending.emplace(cell.error, cells.size());
++        add_error(cell);
++        if (levels > 1) pending.push(cells.size(), cell.error);
 +        cells.push_back(std::move(cell));
 +    }
 +    stats.max_degree = 2;
-+    while (total_error > target_error && !pending.empty() &&
++    // Small eigensystems do not consistently amortize parallel scheduling.
++    // MeanFi's default thread limit of one retains the serial controller.
++    int threads = 1;
++#ifdef _OPENMP
++    if (mesh.ndof() >= 32) threads = std::min(omp_get_max_threads(), 16);
++#endif
++    const auto batch_size = threads > 1 ? 16 : 1;
++    while (global_error() > target_error &&
 +           (max_refinements < 0 || stats.p_refinements < max_refinements)) {
-+        const auto index = pending.top().second;
-+        pending.pop();
-+        auto &cell = cells[index];
-+        total -= cell.value;
-+        total_error -= cell.error;
-+        ++cell.level;
-+        if (rules[cell.level].empty()) {
-+            rules[cell.level] = grundmann_moeller(mesh.ndim(), cell.level);
++        const auto remaining = max_refinements < 0 ? -1 : max_refinements - stats.p_refinements;
++        const auto selected = pending.select_for_reduction(
++            global_error() - target_error, remaining, 1, batch_size
++        );
++        if (selected.empty()) break;
++        for (const auto index : selected) {
++            auto &cell = cells[index];
++            remove_error(cell);
++            ++cell.level;
++            if (rules[cell.level].empty()) {
++                rules[cell.level] = grundmann_moeller(mesh.ndim(), cell.level);
++            }
 +        }
-+        cell.value = cubature_value(cell, rules[cell.level], mesh, rule, stats);
-+        total += cell.value;
-+        total_error += cell.error;
-+        ++stats.p_refinements;
-+        stats.max_degree = std::max(stats.max_degree, 2 * cell.level + 1);
-+        if (cell.level + 1 < levels) pending.emplace(cell.error, index);
++        if (selected.size() == 1) {
++            auto &cell = cells[selected.front()];
++            cell.value = cubature_value(cell, rules[cell.level], mesh, rule, stats);
++            add_error(cell);
++            ++stats.p_refinements;
++            stats.max_degree = std::max(stats.max_degree, 2 * cell.level + 1);
++            if (cell.level + 1 < levels) pending.push(selected.front(), cell.error);
++            continue;
++        }
++        std::vector<IntegrationStats> work(selected.size());
++        std::vector<std::exception_ptr> failures(selected.size());
++#ifdef _OPENMP
++#pragma omp parallel for num_threads(threads) schedule(static)
++#endif
++        for (std::int64_t task = 0; task < static_cast<std::int64_t>(selected.size()); ++task) {
++            const auto i = static_cast<std::size_t>(task);
++            try {
++                auto &cell = cells[selected[i]];
++                cell.value = cubature_value(cell, rules[cell.level], mesh, rule, work[i]);
++            } catch (...) {
++                failures[i] = std::current_exception();
++            }
++        }
++        for (std::size_t i = 0; i < selected.size(); ++i) {
++            if (failures[i]) std::rethrow_exception(failures[i]);
++            auto &cell = cells[selected[i]];
++            stats.evaluations += work[i].evaluations;
++            stats.cubature_evaluations += work[i].cubature_evaluations;
++            stats.simplex_visits += work[i].simplex_visits;
++            add_error(cell);
++            ++stats.p_refinements;
++            stats.max_degree = std::max(stats.max_degree, 2 * cell.level + 1);
++            if (cell.level + 1 < levels) pending.push(selected[i], cell.error);
++        }
 +    }
-+    // Re-sum positive local indicators instead of relying on incremental
-+    // subtraction when the target is near floating-point precision.
-+    total_error = 0;
++    // Recompute aggregates to limit cancellation in incremental updates.
++    squared_error = 0;
++    correction_sum = Value(rule.output_size());
++    roundoff_sum = 0;
 +    total = Value(rule.output_size());
 +    for (const auto &cell : cells) {
-+        total_error += cell.error;
++        add_error(cell);
 +        total += cell.value;
++        total += cell.cut_correction;
 +    }
 +    result.values = total.values();
-+    result.stopping_error = static_cast<double>(total_error);
++    result.stopping_error = global_error();
 +    stats.target_reached = result.stopping_error <= target_error;
 +    stats.cached_vertices = mesh.cached_vertices();
 +    stats.active_simplices = mesh.active_simplices();
@@ -259,6 +438,59 @@ index 0000000..a2a9a48
 +    return result;
 +}
 +}  // namespace fermisimplex
+diff --git a/cpp/src/integration/integration.cpp b/cpp/src/integration/integration.cpp
+index 6935371..4dc248f 100644
+--- a/cpp/src/integration/integration.cpp
++++ b/cpp/src/integration/integration.cpp
+@@ -5,0 +6 @@
++#include "integration/density_error.h"
+@@ -25,0 +27 @@ using integration_detail::DensityRule;
++using integration_detail::DensityGlobalError;
+@@ -119,44 +120,0 @@ struct ChargeSimplexError {
+-struct DensityGlobalError {
+-    template <class Value>
+-    using state_type = double;
+-
+-    bool has_preview = true;
+-
+-    template <class Value>
+-    state_type<Value> zero() const {
+-        return 0.0;
+-    }
+-
+-    template <class Value>
+-    void add_local_estimate(
+-        state_type<Value> &state,
+-        const Value &local_estimate
+-    ) const {
+-        if (has_preview) {
+-            const auto error = local_estimate.max_abs();
+-            state += error * error;
+-        }
+-    }
+-
+-    template <class Value>
+-    void remove_local_estimate(
+-        state_type<Value> &state,
+-        const Value &local_estimate
+-    ) const {
+-        if (has_preview) {
+-            const auto error = local_estimate.max_abs();
+-            state -= error * error;
+-        }
+-    }
+-
+-    template <class Value>
+-    double error(
+-        const state_type<Value> &state,
+-        const Value &global_correction
+-    ) const {
+-        return std::max(
+-            std::sqrt(std::max(0.0, state)),
+-            global_correction.max_abs()
+-        );
+-    }
+-};
 diff --git a/cpp/src/integration/simplex_cubature.h b/cpp/src/integration/simplex_cubature.h
 new file mode 100644
 index 0000000..f6b0656
@@ -334,11 +566,14 @@ index 0000000..f6b0656
 +}  // namespace fermisimplex::integration_detail
 diff --git a/cpp/tests/test_simplex_cubature.cpp b/cpp/tests/test_simplex_cubature.cpp
 new file mode 100644
-index 0000000..eef0344
+index 0000000..55df959
 --- /dev/null
 +++ b/cpp/tests/test_simplex_cubature.cpp
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,76 @@
++#include <complex>
 +#include "integration/simplex_cubature.h"
++#include "integration/density_error.h"
++#include <adaptivesimplex/adaptive/dense_value.h>
 +#include <cmath>
 +#include <iostream>
 +#include <stdexcept>
@@ -382,6 +617,21 @@ index 0000000..eef0344
 +}
 +
 +int main() {
++    using Value = adaptivesimplex::adaptive::DenseValue<std::complex<double>>;
++    DensityGlobalError policy;
++    double state = 0;
++    Value positive(2), negative(2), coherent(2), cancelled(2);
++    positive[0] = 3.; negative[0] = -3.; coherent[0] = 6.;
++    policy.add_local_estimate(state, positive);
++    policy.add_local_estimate(state, negative);
++    if (std::abs(policy.error(state, cancelled)-std::sqrt(18.)) > 1e-14 ||
++        policy.error(state, coherent) != 6.) {
++        throw std::runtime_error("statistical/coherent density error mismatch");
++    }
++    policy.remove_local_estimate(state, negative);
++    if (policy.error(state, positive) != 3.) {
++        throw std::runtime_error("density error removal mismatch");
++    }
 +    for (unsigned d = 1; d <= 3; ++d) {
 +        moments(vertices_centroid(d), d, 2);
 +        Cubature previous;
@@ -398,10 +648,10 @@ index 0000000..eef0344
 +}
 diff --git a/docs/density-p-cubature.md b/docs/density-p-cubature.md
 new file mode 100644
-index 0000000..3633ddf
+index 0000000..e8be76f
 --- /dev/null
 +++ b/docs/density-p-cubature.md
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,106 @@
 +# Density cubature on the charge mesh
 +
 +`SpectralMesh.integrate_density_components_p` is an additive alternative to
@@ -441,11 +691,27 @@ index 0000000..3633ddf
 +integration call. No fitted tables or external cubature dependency is needed.
 +See [Grundmann and Moeller (1978)](https://doi.org/10.1137/0715019).
 +
-+Each node evaluates sum_b f_b P_b(k) times the real-space Fourier phase,
-+where f_b is that band's linear-simplex occupied volume fraction, held fixed
-+on the cell. The same formula is used for bulk and cut simplices. It
-+preserves the onsite trace of the linear-simplex charge. Empty cells need
-+no interior evaluations. An exactly on-level band has half occupation.
++Each interior node evaluates sum_b f_b P_b(k) times the real-space Fourier
++phase, where f_b is that band's linear-simplex occupied volume fraction.
++For cut bands, let M_bi be the existing barycentric occupied moments and
++F_b(v_i) the projector times Fourier phase at vertex i. The returned integral is
++
++```
++Q_p + sum_bi [M_bi - f_b*V/(d+1)] F_b(v_i).
++```
++
++Equivalently, integrate the vertex-linear interpolant over the occupied region
++exactly, and apply fraction-weighted p-cubature only to its nonlinear remainder.
++This removes the lowest-order occupation/projector correlation error and is
++exact when F_b is affine on the simplex. The same moments and vertex spectra
++are already available, so there are no additional Hamiltonian evaluations or
++diagonalizations. Partial cells require a small additional component contraction;
++full, empty and on-level bands need no correction. The correction is independent
++of degree, so it cancels from consecutive p differences. The onsite trace remains
++the linear-simplex charge, and exactly on-level bands retain half occupation.
++Higher-order occupation correlation and charge-geometry errors remain outside
++the cubature estimate. A degeneracy between bands with unequal frozen fractions
++can also make individual-band projectors nonsmooth.
 +
 +Only requested complex components are retained at interior nodes. Vertex
 +eigensystems come from the shared charge cache; interior eigensystems are
@@ -454,16 +720,35 @@ index 0000000..3633ddf
 +selections. The geometry and its persistent vertex cache do not gain any
 +interior cubature nodes.
 +
-+The stopping estimate is the sum over cells of the maximum component-wise
-+absolute difference between consecutive rules, with a floating-point floor
-+scaled by the absolute weight sum. There is no cancellation of cell errors.
-+Signed higher-order weights are accumulated in long double. They can amplify
-+roundoff and the result is not guaranteed positive semidefinite.
-+The estimate is empirical, not a rigorous error bound, and can miss aliased
-+features. It excludes both charge/occupation error and covariance between
-+the cut occupation and the varying projector/Fourier phase. Tightening p
-+alone cannot remove this cut error. A degeneracy between bands with unequal
-+frozen fractions can also make individual-band projectors nonsmooth.
++For complex component correction vectors delta_sigma between successive rules,
++the stopping estimate reuses the h-adaptive density policy:
++
++```
++max(sqrt(sum_sigma ||delta_sigma||_infinity^2),
++    ||sum_sigma delta_sigma||_infinity,
++    sum_sigma roundoff_sigma).
++```
++
++The coherent term retains systematic error; the statistical term guards against
++cancellation between cells. This is less conservative than summing local norms,
++but remains empirical and can miss aliased features. AdaptiveSimplex's existing
++RefinementQueue selects the largest local indicators. Signed higher-order weights
++are accumulated in long double, with a floating-point floor scaled by their
++absolute weight sum. Results are not guaranteed positive semidefinite.
++
++Promotions are serial by default. If OpenMP is available, the requested OpenMP
++thread count exceeds one, and the Hamiltonian has at least 32 orbitals, batches
++of up to 16 cells run in parallel. The size threshold reflects the measured
++scheduling overhead for small eigensystems. Cells, accumulators and exceptions
++are private to each worker; global error updates and queue changes are serial.
++The batch cannot exceed the remaining promotion budget. One-cell batches use a
++serial fast path. Python callback exceptions are rethrown on the calling thread.
++Only density_p.cpp is compiled with OpenMP; charge threading stays unchanged.
++Build with `FERMISIMPLEX_ENABLE_DENSITY_OPENMP=OFF` to disable this optional path;
++missing OpenMP also falls back to serial compilation. Control native threads via
++OpenMP or threadpoolctl; MeanFi's `num_threads=1` default keeps promotions serial.
++OpenMP-based BLAS libraries may share the same runtime/thread limit, so benchmark
++thread settings should be recorded and nested oversubscription avoided.
 +
 +`max_refinements` bounds promotions after initial Q2 evaluation;
 +`max_degree=2` limits evaluation to the requested vertices-plus-centroid pair.
@@ -474,10 +759,10 @@ index 0000000..3633ddf
 +spectra. `stats.evaluations` also includes missing charge-mesh vertex spectra.
 +The legacy `cached_vertices` count continues to describe persistent spectra.
 diff --git a/python/fermisimplex/mesh.py b/python/fermisimplex/mesh.py
-index d37f823..a1b2765 100644
+index d37f823..53c07f6 100644
 --- a/python/fermisimplex/mesh.py
 +++ b/python/fermisimplex/mesh.py
-@@ -382,0 +383,40 @@ class SpectralMesh:
+@@ -382,0 +383,49 @@ class SpectralMesh:
 +    def integrate_density_components_p(
 +        self,
 +        *,
@@ -498,11 +783,20 @@ index d37f823..a1b2765 100644
 +        ``max_refinements`` limits promotions beyond the initial degree-two
 +        estimate. Exhaustion returns ``stats.target_reached == False``.
 +
-+        Each band's linear-simplex occupied volume fraction is held fixed at
-+        every cubature point, including cut simplices. The stopping estimate
-+        sums local maximum absolute differences between successive rules; it
-+        excludes occupation/geometry error and is not a rigorous bound.
-+        The caller must first resolve charge on this mesh.
++        Interior samples use fixed band occupation fractions. The existing
++        cut barycentric moments correct the vertex-linear contribution,
++        removing the leading occupation/projector correlation error without
++        new samples. Higher-order cut and charge-geometry errors remain outside
++        the cubature estimate, which is not a rigorous bound.
++
++        The stopping estimate uses the same policy as h-refinement: the maximum
++        of the root-sum-square of local correction norms and the norm of their
++        coherent sum, with a separate floating-point floor. The caller must
++        first resolve charge on this mesh.
++
++        With OpenMP available, multiple requested OpenMP threads enable batches
++        of up to 16 cells for Hamiltonians with at least 32 orbitals. Otherwise
++        promotions remain serial. Worker exceptions propagate to the caller.
 +        """
 +        degree = _positive_integer(max_degree, "max_degree")
 +        if degree != 2 and (degree < 3 or degree > 21 or degree % 2 == 0):
@@ -548,10 +842,10 @@ index 37810b2..0572d56 100644
 +        )
 diff --git a/tests/test_density_p.py b/tests/test_density_p.py
 new file mode 100644
-index 0000000..831fda0
+index 0000000..da76f9d
 --- /dev/null
 +++ b/tests/test_density_p.py
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,224 @@
 +"""Physical and controller regressions for density cubature on a frozen mesh."""
 +
 +import numpy as np
@@ -671,18 +965,108 @@ index 0000000..831fda0
 +        integrate(mesh, max_degree=degree)
 +
 +
-+def test_frozen_cut_error_is_separate_from_cubature_error():
-+    # An affine band gives exact linear charge, but replacing the occupied
-+    # subinterval by a fractional weight misses its correlation with exp(ik).
++@pytest.mark.parametrize("ndim", [1, 2, 3])
++def test_linear_projector_components_are_integrated_exactly_on_cuts(ndim):
++    def h(k):
++        # Lower energy k, with affine diagonal projector components.
++        g = 0.2 + 0.4 * k
++        x = 2 * np.sqrt(g * (1 - g))
++        return np.array([[2 * g - 1, x], [x, 1 - 2 * g]]) + (k + 1) * np.eye(2)
++
++    def h1(k):
++        return h(k)
++
++    def h2(k, y):
++        return h(k)
++
++    def h3(k, y, z):
++        return h(k)
++
++    mesh = SpectralMesh([h1, h2, h3][ndim - 1])
++    mu = 0.37
++    mesh.estimate_charge_on_current_mesh(mu=mu)
++    before = mesh.cached_vertices
++    result = integrate(
++        mesh, mu=mu, components=[[0, 0, 0], [0, 1, 1]], target_error=1e-12
++    )
++    np.testing.assert_allclose(
++        result.values, [0.8 * mu - 0.2 * mu**2, 0.2 * mu + 0.2 * mu**2], atol=2e-14
++    )
++    assert result.stats.target_reached
++    assert result.stats.p_refinements == 0
++    assert mesh.cached_vertices == before
++    occupied_cells = np.any(mesh.eigenvalues[mesh.simplices, 0] < mu, axis=1)
++    assert result.stats.evaluations == np.count_nonzero(occupied_cells)
++
++
++def test_cut_correction_has_no_new_samples_and_removes_linear_error():
 +    def model(k):
 +        return np.array([[k]], complex)
 +
++    errors = []
++    for level in [2, 3, 4, 5]:
++        mesh = SpectralMesh(model, root_level=level)
++        h = 2.0 ** (-level)
++        mu = 0.37 * h
++        charge = mesh.estimate_charge_on_current_mesh(mu=mu)
++        assert charge.value == pytest.approx(mu)
++        result = integrate(mesh, mu=mu, keys=[(1,)], target_error=1e-12)
++        exact = np.expm1(2j * np.pi * mu) / (2j * np.pi)
++        frozen = 0.37 * np.expm1(2j * np.pi * h) / (2j * np.pi)
++        m1 = mu**2 / (2 * h)
++        correction = (m1 - mu / 2) * np.expm1(2j * np.pi * h)
++        assert result.stats.target_reached
++        np.testing.assert_allclose(result.values[0], frozen + correction, atol=1e-12)
++        errors.append(abs(result.values[0] - exact))
++        assert errors[-1] < abs(frozen - exact)
++        assert result.stats.refinements == 0
++    # The cut-cell residual is now O(h^3), rather than O(h^2).
++    assert errors[-1] < errors[-2] / 7
++    # Higher-order occupation error remains outside the cubature estimate.
++    assert errors[-1] > result.stopping_error
++
++
++def test_parallel_large_matrix_is_deterministic_and_respects_budget():
++    threadpoolctl = pytest.importorskip("threadpoolctl")
++    hopping = np.array([[0, 1], [0, 0]], complex)
++    tb = {
++        (1,): np.kron(np.eye(16), hopping),
++        (-1,): np.kron(np.eye(16), hopping.conj().T),
++    }
++    mesh = SpectralMesh(tb)
++    mesh.estimate_charge_on_current_mesh(mu=0.0)
++    geometry = mesh.simplices.copy()
++    request = dict(
++        keys=[(0,), (1,)],
++        components=[[0, 0, 0], [1, 0, 1], [1, 0, 0]],
++        target_error=1e-9,
++    )
++    with threadpoolctl.threadpool_limits(limits=1):
++        serial = integrate(mesh, **request)
++    with threadpoolctl.threadpool_limits(limits=4, user_api="openmp"):
++        parallel = integrate(mesh, **request)
++        repeat = integrate(mesh, **request)
++        limited = integrate(mesh, **{**request, "max_refinements": 1})
++    assert serial.stats.target_reached and parallel.stats.target_reached
++    np.testing.assert_allclose(serial.values, [0.5, -0.5, 0.0], atol=1e-9)
++    np.testing.assert_allclose(parallel.values, serial.values, atol=1e-9)
++    np.testing.assert_array_equal(parallel.values, repeat.values)
++    assert parallel.stats.evaluations == repeat.stats.evaluations
++    assert limited.stats.p_refinements == 1
++    assert not limited.stats.target_reached
++    np.testing.assert_array_equal(mesh.simplices, geometry)
++
++
++def test_parallel_callback_exception_is_propagated():
++    threadpoolctl = pytest.importorskip("threadpoolctl")
++
++    def model(k):
++        if abs(k - 0.125) < 1e-12:
++            raise ValueError("interior sample failed")
++        return -np.eye(32, dtype=complex)
++
 +    mesh = SpectralMesh(model)
-+    mu = 0.37
-+    charge = mesh.estimate_charge_on_current_mesh(mu=mu)
-+    assert charge.value == pytest.approx(mu)
-+    result = integrate(mesh, mu=mu, keys=[(1,)], target_error=1e-9)
-+    exact = np.expm1(2j * np.pi * mu) / (2j * np.pi)
-+    assert result.stats.target_reached
-+    assert result.stopping_error < 1e-9
-+    assert abs(result.values[0] - exact) > 0.05
++    mesh.estimate_charge_on_current_mesh(mu=0.0)
++    with threadpoolctl.threadpool_limits(limits=4, user_api="openmp"):
++        with pytest.raises(ValueError, match="interior sample failed"):
++            integrate(mesh, keys=[(1,)], components=[[0, 0, 0]], target_error=1e-9)

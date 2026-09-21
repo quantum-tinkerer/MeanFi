@@ -1,5 +1,7 @@
 # Density p-cubature experiment
 
+This is the initial experiment. See the [follow-up implementation and validation](../density_p_improvements/README.md) for linear cut correction, the hybrid estimator, selective parallelism, and the current published dependency pin. The bundled companion patch now tracks that follow-up; use commit `813df5a` to reproduce the original backend below.
+
 Implemented on `codex/density-p-cubature` in MeanFi and the companion FermiSimplex
 checkout at `build/deps/fermisimplex`. FermiSimplex commit: `813df5a`, based on
 MeanFi's pinned `7921df1`. AdaptiveSimplex is unchanged at `57df885`.

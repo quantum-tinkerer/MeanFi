@@ -1,0 +1,182 @@
+[
+  {
+    "model": "bulk_2d",
+    "seed": 0,
+    "tolerance": 0.001,
+    "error": 6.92113215196084e-05,
+    "estimate": 0.0009173081926259236,
+    "ref_delta": 2.2629093734911265e-15,
+    "converged": true,
+    "evaluations": 335
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 0,
+    "tolerance": 0.0001,
+    "error": 4.46773398987623e-06,
+    "estimate": 9.393013833994873e-05,
+    "ref_delta": 2.2629093734911265e-15,
+    "converged": true,
+    "evaluations": 706
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 0,
+    "tolerance": 1e-05,
+    "error": 6.447502893483891e-07,
+    "estimate": 9.25779293814548e-06,
+    "ref_delta": 2.2629093734911265e-15,
+    "converged": true,
+    "evaluations": 1228
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 1,
+    "tolerance": 0.001,
+    "error": 5.832521522773845e-05,
+    "estimate": 0.0009759292263944138,
+    "ref_delta": 2.960883838797243e-15,
+    "converged": true,
+    "evaluations": 375
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 1,
+    "tolerance": 0.0001,
+    "error": 3.4431779851000545e-06,
+    "estimate": 9.319607370531436e-05,
+    "ref_delta": 2.960883838797243e-15,
+    "converged": true,
+    "evaluations": 697
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 1,
+    "tolerance": 1e-05,
+    "error": 4.083972444114361e-07,
+    "estimate": 9.548608010146334e-06,
+    "ref_delta": 2.960883838797243e-15,
+    "converged": true,
+    "evaluations": 1267
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 2,
+    "tolerance": 0.001,
+    "error": 6.364487508111543e-05,
+    "estimate": 0.000981461460305577,
+    "ref_delta": 4.884981309637817e-15,
+    "converged": true,
+    "evaluations": 671
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 2,
+    "tolerance": 0.0001,
+    "error": 7.686373345253886e-05,
+    "estimate": 0.00025264140827370825,
+    "ref_delta": 4.884981309637817e-15,
+    "converged": false,
+    "evaluations": 2192
+  },
+  {
+    "model": "bulk_2d",
+    "seed": 2,
+    "tolerance": 1e-05,
+    "error": 7.686373345253886e-05,
+    "estimate": 0.00025264140827370825,
+    "ref_delta": 4.884981309637817e-15,
+    "converged": false,
+    "evaluations": 2192
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 0,
+    "tolerance": 0.001,
+    "error": 8.678475566511589e-05,
+    "estimate": 0.0009631969730310624,
+    "ref_delta": 2.8310687129488263e-15,
+    "converged": true,
+    "evaluations": 448
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 0,
+    "tolerance": 0.0001,
+    "error": 6.249475814052094e-06,
+    "estimate": 9.030640975240183e-05,
+    "ref_delta": 2.8310687129488263e-15,
+    "converged": true,
+    "evaluations": 1036
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 0,
+    "tolerance": 1e-05,
+    "error": 1.4896948478975684e-06,
+    "estimate": 9.957038960253199e-06,
+    "ref_delta": 2.8310687129488263e-15,
+    "converged": true,
+    "evaluations": 1987
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 1,
+    "tolerance": 0.001,
+    "error": 9.764346581902273e-05,
+    "estimate": 0.0008916436828714749,
+    "ref_delta": 4.329869796298374e-15,
+    "converged": true,
+    "evaluations": 454
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 1,
+    "tolerance": 0.0001,
+    "error": 1.3377878236809427e-05,
+    "estimate": 9.545987623846786e-05,
+    "ref_delta": 4.329869796298374e-15,
+    "converged": true,
+    "evaluations": 931
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 1,
+    "tolerance": 1e-05,
+    "error": 1.483629274846895e-06,
+    "estimate": 9.967668625296022e-06,
+    "ref_delta": 4.329869796298374e-15,
+    "converged": true,
+    "evaluations": 1740
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 2,
+    "tolerance": 0.001,
+    "error": 7.720781147296845e-05,
+    "estimate": 0.0009690449475233692,
+    "ref_delta": 2.2467984167436994e-15,
+    "converged": true,
+    "evaluations": 1236
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 2,
+    "tolerance": 0.0001,
+    "error": 4.485467724186735e-05,
+    "estimate": 0.0002789503372666176,
+    "ref_delta": 2.2467984167436994e-15,
+    "converged": false,
+    "evaluations": 3288
+  },
+  {
+    "model": "qwz_2d",
+    "seed": 2,
+    "tolerance": 1e-05,
+    "error": 4.485467724186735e-05,
+    "estimate": 0.0002789503372666176,
+    "ref_delta": 2.2467984167436994e-15,
+    "converged": false,
+    "evaluations": 3288
+  }
+]

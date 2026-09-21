@@ -1,0 +1,405 @@
+{
+  "binary": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/python3.12/site-packages/fermisimplex/_native.cpython-312-x86_64-linux-gnu.so",
+  "records": [
+    {
+      "model": "bulk_2d",
+      "ndof": 2,
+      "threads": 1,
+      "seconds": 0.0016378876753151417,
+      "times": [
+        0.0016551888547837734,
+        0.0016378876753151417,
+        0.0016352469101548195,
+        0.0016360948793590069,
+        0.0016269311308860779,
+        0.0016381088644266129,
+        0.0016456320881843567
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 1,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 1,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.2128446947641313e-06,
+      "estimated_error": 9.777213337974766e-06,
+      "evaluations": 958,
+      "p_refinements": 98,
+      "converged": true
+    },
+    {
+      "model": "bulk_2d",
+      "ndof": 2,
+      "threads": 4,
+      "seconds": 0.001646398101001978,
+      "times": [
+        0.0016594943590462208,
+        0.001655056606978178,
+        0.0016370220109820366,
+        0.001646398101001978,
+        0.0016405778005719185,
+        0.001653475221246481,
+        0.0016277693212032318
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 4,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 4,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.2128446947641313e-06,
+      "estimated_error": 9.777213337974766e-06,
+      "evaluations": 958,
+      "p_refinements": 98,
+      "converged": true
+    },
+    {
+      "model": "bulk_3d",
+      "ndof": 2,
+      "threads": 1,
+      "seconds": 0.01777220005169511,
+      "times": [
+        0.019507016986608505,
+        0.017812108155339956,
+        0.017515572253614664,
+        0.01811281032860279,
+        0.017772107385098934,
+        0.01777220005169511,
+        0.01777066895738244
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 1,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 1,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.632723325479443e-06,
+      "estimated_error": 9.923843376054737e-06,
+      "evaluations": 9846,
+      "p_refinements": 630,
+      "converged": true
+    },
+    {
+      "model": "bulk_3d",
+      "ndof": 2,
+      "threads": 4,
+      "seconds": 0.017815914936363697,
+      "times": [
+        0.017502267379313707,
+        0.018104127142578363,
+        0.017781416419893503,
+        0.017784385941922665,
+        0.017815914936363697,
+        0.01781858177855611,
+        0.017830892000347376
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 4,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 4,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.632723325479443e-06,
+      "estimated_error": 9.923843376054737e-06,
+      "evaluations": 9846,
+      "p_refinements": 630,
+      "converged": true
+    },
+    {
+      "model": "metal_2d",
+      "ndof": 2,
+      "threads": 1,
+      "seconds": 0.004282603971660137,
+      "times": [
+        0.004282603971660137,
+        0.004299299791455269,
+        0.004287094809114933,
+        0.004294086713343859,
+        0.00426510302349925,
+        0.004276909399777651,
+        0.004276243969798088
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 1,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 1,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 4.250172217223902e-06,
+      "estimated_error": 9.950690502327694e-06,
+      "evaluations": 1637,
+      "p_refinements": 155,
+      "converged": true
+    },
+    {
+      "model": "metal_2d",
+      "ndof": 2,
+      "threads": 4,
+      "seconds": 0.0042564780451357365,
+      "times": [
+        0.00428935419768095,
+        0.004248078912496567,
+        0.004298273008316755,
+        0.0042564780451357365,
+        0.0042465622536838055,
+        0.004250418860465288,
+        0.004260253626853228
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 4,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 4,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 4.250172217223902e-06,
+      "estimated_error": 9.950690502327694e-06,
+      "evaluations": 1637,
+      "p_refinements": 155,
+      "converged": true
+    },
+    {
+      "model": "bulk_2d",
+      "ndof": 32,
+      "threads": 1,
+      "seconds": 0.028201227076351643,
+      "times": [
+        0.028237733989953995,
+        0.028131515718996525,
+        0.02807512227445841,
+        0.028294773772358894,
+        0.02871944196522236,
+        0.028201227076351643,
+        0.028181843925267458
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 1,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 1,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.2128446947641313e-06,
+      "estimated_error": 9.777213337974766e-06,
+      "evaluations": 958,
+      "p_refinements": 98,
+      "converged": true
+    },
+    {
+      "model": "bulk_2d",
+      "ndof": 32,
+      "threads": 4,
+      "seconds": 0.021335764788091183,
+      "times": [
+        0.021335764788091183,
+        0.02138724410906434,
+        0.021261083893477917,
+        0.021328400820493698,
+        0.02126394072547555,
+        0.021395523101091385,
+        0.021382567938417196
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 4,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 4,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.2128446947641313e-06,
+      "estimated_error": 9.777213337974766e-06,
+      "evaluations": 958,
+      "p_refinements": 98,
+      "converged": true
+    },
+    {
+      "model": "bulk_2d",
+      "ndof": 64,
+      "threads": 1,
+      "seconds": 0.13880896987393498,
+      "times": [
+        0.1386654619127512,
+        0.13874796126037836,
+        0.13891985593363643,
+        0.14088642178103328,
+        0.13951074704527855,
+        0.13880896987393498,
+        0.13859878620132804
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 1,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 1,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.2128446947641313e-06,
+      "estimated_error": 9.777213337974766e-06,
+      "evaluations": 958,
+      "p_refinements": 98,
+      "converged": true
+    },
+    {
+      "model": "bulk_2d",
+      "ndof": 64,
+      "threads": 4,
+      "seconds": 0.06340037193149328,
+      "times": [
+        0.08560476591810584,
+        0.06796384369954467,
+        0.06277969991788268,
+        0.06265209103003144,
+        0.0631767250597477,
+        0.06480899918824434,
+        0.06340037193149328
+      ],
+      "threadpools": [
+        {
+          "user_api": "openmp",
+          "internal_api": "openmp",
+          "num_threads": 4,
+          "prefix": "libomp",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libomp.so",
+          "version": null
+        },
+        {
+          "user_api": "blas",
+          "internal_api": "openblas",
+          "num_threads": 4,
+          "prefix": "libopenblas",
+          "filepath": "/home/tinkerer/meanfi/.pixi/envs/latest/lib/libopenblasp-r0.3.33.so",
+          "version": "0.3.33",
+          "threading_layer": "openmp",
+          "architecture": "SapphireRapids"
+        }
+      ],
+      "actual_error": 1.2128446947641313e-06,
+      "estimated_error": 9.777213337974766e-06,
+      "evaluations": 958,
+      "p_refinements": 98,
+      "converged": true
+    }
+  ]
+}
