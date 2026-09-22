@@ -46,9 +46,9 @@ class FermiSimplex(IntegrationMethod):
     boundary vertices. Native dyadic construction may overshoot this request.
     Without ``nk``, use integration targets and adaptive refinement.
     ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
-    Adaptive density uses p-cubature on the charge mesh, capped by
-    ``density_max_degree``. Prescribed ``nk`` retains the existing density
-    rule. Energy uses cached vertex eigenvalues and new centroid eigenvalues
+    Adaptive density promotes simplex cubature up to ``density_max_degree``,
+    then bisects unresolved cells on a density-only tree. Prescribed ``nk``
+    retains the existing density rule. Energy uses cached vertex eigenvalues and new centroid eigenvalues
     in a degree-two simplex rule; density targets do not bound its error.
     """
 

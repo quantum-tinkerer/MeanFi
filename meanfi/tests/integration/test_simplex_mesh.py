@@ -11,7 +11,7 @@ from math import factorial
 import numpy as np
 import pytest
 
-from meanfi import FermiSimplex, density_matrix, density_matrix_at_mu
+from meanfi import BlochHamiltonian, FermiSimplex, density_matrix, density_matrix_at_mu
 from meanfi.density.integrate.simplex.mesh import _spectral_mesh
 from meanfi.space.coordinates import DensityCoordinates
 
@@ -319,3 +319,30 @@ def test_selected_simplex_density_does_not_assemble_unrequested_matrix_entries(
     )
     assert selected.coordinates is coordinates
     assert selected.filling == pytest.approx(0.8, abs=1e-8)
+
+
+def test_adaptive_density_hp_bisects_without_changing_charge_filling():
+    mu = 0.37
+    h = BlochHamiltonian(lambda k: np.array([[k / (2 * np.pi)]], complex))
+    result = density_matrix_at_mu(
+        h,
+        mu=mu,
+        keys=[(0,), (1,)],
+        integration=FermiSimplex(
+            initial_nk=3, density_max_degree=2, max_refinements=400
+        ),
+        tol=replace(
+            default_solver_tolerances(1e-4),
+            density_matrix_integration=1e-5,
+            charge_integration=1e-5,
+        ),
+    )
+    assert result.statistics.refinements > 0
+    assert result.statistics.p_refinements == 0
+    assert result.statistics.n_kpoints == 3
+    assert result.statistics.n_leaves > 2
+    assert result.statistics.charge_integration_calls == 1
+    assert result.errors.density_matrix_integration <= 1e-5
+    assert result.to_tb()[(0,)][0, 0] == pytest.approx(mu, abs=1e-12)
+    exact = np.expm1(2j * np.pi * mu) / (2j * np.pi)
+    assert result.to_tb()[(1,)][0, 0] == pytest.approx(exact, abs=1e-5)

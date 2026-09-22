@@ -122,16 +122,19 @@ charge mesh without new diagonalizations.
   five vertices per axis to avoid aliasing the first cosine harmonic. After the
   charge mesh is fixed, density uses nested simplex cubature: a vertex/centroid
   estimate followed by odd-degree rules up to `density_max_degree` (default 21).
-  The global stopping estimate combines incoherent local changes and coherent
-  signed changes; exhausted cells report failure rather than silently accepting
-  a missed target. Cut-band occupation uses the native linear simplex moments.
-  Charge simplices are never split for density. A prescribed `nk` retains its
-  existing density integration behavior and has no integration-error estimate.
-  The p stopping estimate measures changes between rules on a fixed charge
-  mesh. It does not bound higher-order cut-occupation error or detect all
-  aliased projector variation. Gapped bulk cells can exhaust the degree cap
-  even after charge integration has converged. Reaching the target therefore
-  is not a rigorous certificate of the complete density error.
+  A cell that reaches the degree cap while the global target is unmet bisects on
+  a density-only tree, and its children restart at the vertex/centroid rule.
+  Child cut occupations restrict the parent charge-simplex linear energy field,
+  so density bisection preserves the charge result and never alters the charge
+  mesh. The global stopping estimate combines incoherent local changes and
+  coherent signed changes; exhausted budgets report failure. Cut-band
+  occupation uses the native linear simplex moments. A prescribed `nk`
+  retains its existing density integration behavior and has no integration-error
+  estimate.
+  The hp stopping estimate measures changes between rules on the active density
+  cells. It does not bound higher-order cut-occupation error or detect all
+  aliased projector variation. Reaching the target therefore is not a rigorous
+  certificate of the complete density error.
 - `UniformGrid` uses dense diagonalization or sparse finite-temperature AAA.
   Adaptive integration compares coarse and fine grids, starting at four points
   per axis. `nk` prescribes the total point count; `initial_nk` sets the starting

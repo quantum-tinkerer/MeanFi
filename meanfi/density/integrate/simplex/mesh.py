@@ -16,7 +16,6 @@ from meanfi.space.coordinates import DensityCoordinates
 from meanfi.tb.ops import to_dense
 
 _CHARGE_ERROR_DEPTH = 2
-_DENSITY_PREVIEW_DEPTH = 1
 _MIN_REFINEMENT_BATCH_SIZE = 1
 _MAX_REFINEMENT_BATCH_SIZE = 100
 
@@ -81,6 +80,22 @@ def _bounded_refinements(
         )
     per_refinement = 2**dimension * nodes_per_simplex
     available = (max_points - initial) // per_refinement
+    return available if max_refinements is None else min(max_refinements, available)
+
+
+def _bounded_density_bisections(
+    mesh: SpectralMesh,
+    max_refinements: int | None,
+    max_points: int | None,
+) -> int | None:
+    """One density bisection adds at most one temporary midpoint spectrum."""
+    if max_points is None:
+        return max_refinements
+    available = max_points - int(mesh.cached_vertices)
+    if available < 0:
+        raise RuntimeError(
+            f"FermiSimplex already caches more than max_points={max_points} spectra"
+        )
     return available if max_refinements is None else min(max_refinements, available)
 
 
@@ -166,11 +181,16 @@ def _integrate_density(
     prescribed: bool = False,
     max_points: int | None = None,
     max_degree: int = 21,
+    max_h_refinements: int | None = None,
 ):
-    preview_depth = 0 if prescribed else _DENSITY_PREVIEW_DEPTH
-    max_refinements = _bounded_refinements(
-        mesh, max_refinements, max_points, preview_depth=preview_depth
-    )
+    if prescribed:
+        max_refinements = _bounded_refinements(
+            mesh, max_refinements, max_points, preview_depth=0
+        )
+    else:
+        max_h_refinements = _bounded_density_bisections(
+            mesh, max_h_refinements, max_points
+        )
     key_indices = {key: index for index, key in enumerate(density_coordinates.keys)}
     components = np.asarray(
         [(key_indices[key], row, col) for key, row, col in density_coordinates.entries],
@@ -185,10 +205,14 @@ def _integrate_density(
     )
     with _integration_context(num_threads):
         if not prescribed:
-            return mesh.integrate_density_components_p(**common, max_degree=max_degree)
+            return mesh.integrate_density_components_p(
+                **common,
+                max_degree=max_degree,
+                max_h_refinements=max_h_refinements,
+            )
         return mesh.integrate_density_components(
             **common,
-            preview_depth=preview_depth,
+            preview_depth=0,
             min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
             max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
         )
@@ -200,6 +224,7 @@ class _Work:
     diagonalizations: int = 0
     refinements: int = 0
     p_refinements: int = 0
+    density_leaves: int | None = None
     charge_calls: int = 0
     density_calls: int = 0
 
@@ -280,6 +305,7 @@ class SimplexEvaluator:
             prescribed=prescribed,
             max_points=self.settings.max_points,
             max_degree=self.settings.density_max_degree,
+            max_h_refinements=self.remaining_refinements() if not prescribed else 0,
         )
         if not result.stats.target_reached:
             raise RuntimeError(
@@ -292,6 +318,8 @@ class SimplexEvaluator:
         self.work.p_refinements += (
             int(result.stats.p_refinements) if not prescribed else 0
         )
+        if not prescribed:
+            self.work.density_leaves = int(result.stats.active_simplices)
         errors = (
             None
             if prescribed
@@ -337,7 +365,9 @@ class SimplexEvaluator:
         return IntegrationInfo(
             n_kernel_evals=int(work.evaluations),
             n_cached_nodes=int(mesh.cached_vertices),
-            n_leaves=int(mesh.active_simplices),
+            n_leaves=work.density_leaves
+            if work.density_leaves is not None
+            else int(mesh.active_simplices),
             refinements=int(work.refinements),
             p_refinements=int(work.p_refinements),
             error_estimate_available=self.settings.nk is None,

@@ -363,6 +363,7 @@ def test_adaptive_simplex_calls_fermisimplex_p_density_api():
         max_refinements=12,
         num_threads=None,
         max_degree=13,
+        max_h_refinements=7,
     )
 
     assert result == "density"
@@ -375,6 +376,7 @@ def test_adaptive_simplex_calls_fermisimplex_p_density_api():
         "target_error": 1e-3,
         "max_refinements": 12,
         "max_degree": 13,
+        "max_h_refinements": 7,
     }
 
 
