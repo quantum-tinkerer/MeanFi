@@ -180,7 +180,7 @@ def _integrate_density(
     num_threads: int | None,
     prescribed: bool = False,
     max_points: int | None = None,
-    max_degree: int = 21,
+    max_degree: int = 7,
     max_h_refinements: int | None = None,
 ):
     if prescribed:

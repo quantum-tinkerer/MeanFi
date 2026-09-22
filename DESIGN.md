@@ -122,7 +122,7 @@ charge mesh without new diagonalizations.
   five vertices per axis to avoid aliasing the first cosine harmonic. After the
   charge mesh is fixed, density uses nested simplex cubature: Q3-Q1, Q5-Q3,
   Q7-Q5, and subsequent odd-degree differences up to `density_max_degree`
-  (default 21).
+  (default 7).
   A cell that reaches the degree cap while the global target is unmet bisects on
   a density-only tree, and its children restart at the Q3-Q1 comparison.
   Child cut occupations restrict the parent charge-simplex linear energy field,

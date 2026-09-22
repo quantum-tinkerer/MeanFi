@@ -322,6 +322,7 @@ def test_selected_simplex_density_does_not_assemble_unrequested_matrix_entries(
 
 
 def test_density_degree_cap_requires_an_odd_rule_from_three():
+    assert FermiSimplex().density_max_degree == 7
     with pytest.raises(ValueError, match="density_max_degree"):
         FermiSimplex(density_max_degree=2)
     assert FermiSimplex(density_max_degree=3).density_max_degree == 3

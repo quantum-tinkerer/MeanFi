@@ -58,7 +58,7 @@ class FermiSimplex(IntegrationMethod):
     nk: int | None = None
     initial_nk: int | None = None
     max_points: int = 1_048_576
-    density_max_degree: int = 21
+    density_max_degree: int = 7
 
     def __post_init__(self):
         _validate_mesh_settings(self)

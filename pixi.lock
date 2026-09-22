@@ -88,7 +88,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/tzdata-2025c-hc9c84f9_1.conda
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-64:
       - conda: https://prefix.dev/conda-forge/noarch/ca-certificates-2026.5.20-hbd8a1cb_0.conda
@@ -179,7 +179,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/tk-8.6.13-h7142dee_3.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-arm64:
       - conda: https://prefix.dev/conda-forge/noarch/ca-certificates-2026.5.20-hbd8a1cb_0.conda
@@ -269,7 +269,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/tk-8.6.13-h010d191_3.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       win-64:
       - conda: https://prefix.dev/conda-forge/noarch/ca-certificates-2026.5.20-h4c7d964_0.conda
@@ -324,7 +324,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/vs2022_win-64-19.44.35207-ha74f236_39.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
   docs:
     channels:
@@ -542,7 +542,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/wcwidth-0.7.0-pyhd8ed1ab_0.conda
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/02/bf/6f506a37c7f8ecc4576caf9486e303c7af249f6d70447bb51dde9d78cb99/sphinx_book_theme-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/5d/60c9da704aee0f269a6d6bbd0e24ca61ef34effa6fd5863ca46f496e7cea/sphinx_tippy-0.4.3-py3-none-any.whl
@@ -774,7 +774,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/02/bf/6f506a37c7f8ecc4576caf9486e303c7af249f6d70447bb51dde9d78cb99/sphinx_book_theme-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/43/27/72ae94ea5c8f7349ec1c229d4cd058feb799cbd0833ad6d1b47c919b37b7/llvmlite-0.49.0.tar.gz
@@ -1005,7 +1005,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/02/bf/6f506a37c7f8ecc4576caf9486e303c7af249f6d70447bb51dde9d78cb99/sphinx_book_theme-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/0d/58/915cddba90010348ed0444451132fdde9b000bcbaff1582029b5bf115d11/numba-0.67.0-cp312-cp312-macosx_12_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
@@ -1196,7 +1196,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/02/bf/6f506a37c7f8ecc4576caf9486e303c7af249f6d70447bb51dde9d78cb99/sphinx_book_theme-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/54/5d/60c9da704aee0f269a6d6bbd0e24ca61ef34effa6fd5863ca46f496e7cea/sphinx_tippy-0.4.3-py3-none-any.whl
@@ -1754,7 +1754,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/tzdata-2026c-h151e31d_0.conda
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-64:
@@ -1860,7 +1860,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/tk-8.6.13-ha6c374e_4.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-hbc1a06c_7.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-arm64:
@@ -1966,7 +1966,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/tk-8.6.13-hbeba79b_4.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       win-64:
@@ -2035,7 +2035,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/vs2022_win-64-19.44.35207-ha74f236_41.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
   test-py312:
@@ -2141,7 +2141,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-64:
@@ -2253,7 +2253,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/tk-8.6.13-h7142dee_3.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-arm64:
@@ -2364,7 +2364,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/tk-8.6.13-h010d191_3.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       win-64:
@@ -2440,7 +2440,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/vs2022_win-64-19.44.35207-ha74f236_39.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
   test-py313:
@@ -2539,7 +2539,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/tzdata-2026c-h151e31d_0.conda
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-64:
@@ -2646,7 +2646,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/tk-8.6.13-ha6c374e_4.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-hbc1a06c_7.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-arm64:
@@ -2753,7 +2753,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/tk-8.6.13-hbeba79b_4.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       win-64:
@@ -2823,7 +2823,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/vs2022_win-64-19.44.35207-ha74f236_41.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
   test-sparse:
@@ -2978,7 +2978,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/noarch/wheel-0.47.0-pyhd8ed1ab_0.conda
       - conda: https://prefix.dev/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-64:
@@ -3138,7 +3138,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-64/zlib-ng-2.3.3-h8bce59a_1.conda
       - conda: https://prefix.dev/conda-forge/osx-64/zstd-1.5.7-h3eecb57_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       osx-arm64:
@@ -3297,7 +3297,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/zlib-ng-2.3.3-hed4e4f5_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
       win-64:
@@ -3416,7 +3416,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/win-64/zlib-ng-2.3.3-h0261ad2_1.conda
       - conda: https://prefix.dev/conda-forge/win-64/zstd-1.5.7-h534d264_6.conda
       - pypi: .
-      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+      - pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
       - pypi: https://files.pythonhosted.org/packages/0f/7a/ed1015e97fadfde96b2c439390dc5a75542a77982d775baf2ada9f536cac/pytest_ruff-0.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl
 packages:
@@ -16655,14 +16655,14 @@ packages:
 - pypi: .
   name: meanfi
   requires_dist:
-  - fermisimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@7013b82d9e46f3c956dbee06bcc8faf05329d619
+  - fermisimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@a640d01dd2b7e814bffb335d177f400fa86e713a
   - numpy>=2.0
   - scipy>=1.13
   - threadpoolctl>=3.0
   - kwant>=1.4 ; extra == 'kwant'
   - python-mumps ; extra == 'sparse'
   requires_python: '>=3.11,<3.14'
-- pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=7013b82d9e46f3c956dbee06bcc8faf05329d619#7013b82d9e46f3c956dbee06bcc8faf05329d619
+- pypi: git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git?rev=a640d01dd2b7e814bffb335d177f400fa86e713a#a640d01dd2b7e814bffb335d177f400fa86e713a
   name: fermisimplex
   version: 0.2.0
   requires_dist:
