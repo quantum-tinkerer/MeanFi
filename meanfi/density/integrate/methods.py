@@ -46,10 +46,11 @@ class FermiSimplex(IntegrationMethod):
     boundary vertices. Native dyadic construction may overshoot this request.
     Without ``nk``, use integration targets and adaptive refinement.
     ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
-    Adaptive density promotes simplex cubature up to ``density_max_degree``,
-    then bisects unresolved cells on a density-only tree. Prescribed ``nk``
-    retains the existing density rule. Energy uses cached vertex eigenvalues and new centroid eigenvalues
-    in a degree-two simplex rule; density targets do not bound its error.
+    Adaptive density starts with Q3-Q1, promotes odd-degree cubature up to
+    ``density_max_degree``, then bisects unresolved cells on a density-only tree.
+    Prescribed ``nk`` retains the existing density rule. Energy uses cached
+    vertex eigenvalues and new centroid eigenvalues in a degree-two simplex
+    rule; density targets do not bound its error.
     """
 
     max_refinements: int | None = None
@@ -66,11 +67,11 @@ class FermiSimplex(IntegrationMethod):
         if (
             isinstance(degree, bool)
             or not isinstance(degree, Integral)
-            or (degree != 2 and (degree < 3 or degree > 21 or degree % 2 == 0))
+            or degree < 3
+            or degree > 21
+            or degree % 2 == 0
         ):
-            raise ValueError(
-                "density_max_degree must be 2 or an odd integer in [3, 21]"
-            )
+            raise ValueError("density_max_degree must be an odd integer in [3, 21]")
 
 
 @dataclass(frozen=True, kw_only=True)

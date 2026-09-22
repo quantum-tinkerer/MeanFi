@@ -120,10 +120,11 @@ charge mesh without new diagonalizations.
 - `FermiSimplex` integrates normal zero-temperature densities adaptively, refining
   charge before density with no return to charge refinement. Its default seed has
   five vertices per axis to avoid aliasing the first cosine harmonic. After the
-  charge mesh is fixed, density uses nested simplex cubature: a vertex/centroid
-  estimate followed by odd-degree rules up to `density_max_degree` (default 21).
+  charge mesh is fixed, density uses nested simplex cubature: Q3-Q1, Q5-Q3,
+  Q7-Q5, and subsequent odd-degree differences up to `density_max_degree`
+  (default 21).
   A cell that reaches the degree cap while the global target is unmet bisects on
-  a density-only tree, and its children restart at the vertex/centroid rule.
+  a density-only tree, and its children restart at the Q3-Q1 comparison.
   Child cut occupations restrict the parent charge-simplex linear energy field,
   so density bisection preserves the charge result and never alters the charge
   mesh. The global stopping estimate combines incoherent local changes and

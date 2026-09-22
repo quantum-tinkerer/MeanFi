@@ -321,6 +321,12 @@ def test_selected_simplex_density_does_not_assemble_unrequested_matrix_entries(
     assert selected.filling == pytest.approx(0.8, abs=1e-8)
 
 
+def test_density_degree_cap_requires_an_odd_rule_from_three():
+    with pytest.raises(ValueError, match="density_max_degree"):
+        FermiSimplex(density_max_degree=2)
+    assert FermiSimplex(density_max_degree=3).density_max_degree == 3
+
+
 def test_adaptive_density_hp_bisects_without_changing_charge_filling():
     mu = 0.37
     h = BlochHamiltonian(lambda k: np.array([[k / (2 * np.pi)]], complex))
@@ -329,7 +335,7 @@ def test_adaptive_density_hp_bisects_without_changing_charge_filling():
         mu=mu,
         keys=[(0,), (1,)],
         integration=FermiSimplex(
-            initial_nk=3, density_max_degree=2, max_refinements=400
+            initial_nk=3, density_max_degree=3, max_refinements=400
         ),
         tol=replace(
             default_solver_tolerances(1e-4),
