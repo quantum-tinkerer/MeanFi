@@ -108,14 +108,30 @@ search caches charge samples and accepts any sample meeting the filling target;
 `mu_tol` is the chemical-potential step tolerance. Charge-integration error and
 density trace are separate quantities and never add root acceptance tests.
 
-At fixed mu there is no root search or independent charge-error calculation.
-Filling comes from available density information or remains `None`. Empty requests
-skip unnecessary work. `density_filling` records charge on the density partition;
+At fixed mu there is no root search. Adaptive FermiSimplex prepares the charge
+mesh at the supplied mu using the density target before p-density
+integration so cut simplices are resolved; no independent charge error is
+reported in the result. Empty requests skip this work. Filling comes from
+available density information or remains `None`. When selected density omits
+the local trace, the native occupied weights provide that trace on the same
+charge mesh without new diagonalizations.
 `filling` can instead report the preceding charge-root result.
 
 - `FermiSimplex` integrates normal zero-temperature densities adaptively, refining
   charge before density with no return to charge refinement. Its default seed has
-  five vertices per axis to avoid aliasing the first cosine harmonic.
+  five vertices per axis to avoid aliasing the first cosine harmonic. After the
+  charge mesh is fixed, density uses nested simplex cubature: a vertex/centroid
+  estimate followed by odd-degree rules up to `density_max_degree` (default 21).
+  The global stopping estimate combines incoherent local changes and coherent
+  signed changes; exhausted cells report failure rather than silently accepting
+  a missed target. Cut-band occupation uses the native linear simplex moments.
+  Charge simplices are never split for density. A prescribed `nk` retains its
+  existing density integration behavior and has no integration-error estimate.
+  The p stopping estimate measures changes between rules on a fixed charge
+  mesh. It does not bound higher-order cut-occupation error or detect all
+  aliased projector variation. Gapped bulk cells can exhaust the degree cap
+  even after charge integration has converged. Reaching the target therefore
+  is not a rigorous certificate of the complete density error.
 - `UniformGrid` uses dense diagonalization or sparse finite-temperature AAA.
   Adaptive integration compares coarse and fine grids, starting at four points
   per axis. `nk` prescribes the total point count; `initial_nk` sets the starting

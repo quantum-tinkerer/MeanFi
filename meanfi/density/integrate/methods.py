@@ -46,9 +46,10 @@ class FermiSimplex(IntegrationMethod):
     boundary vertices. Native dyadic construction may overshoot this request.
     Without ``nk``, use integration targets and adaptive refinement.
     ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
-    Energy uses cached vertex eigenvalues and new centroid eigenvalues in a
-    degree-two simplex rule, without refining the density mesh. Density
-    targets do not bound this energy error.
+    Adaptive density uses p-cubature on the charge mesh, capped by
+    ``density_max_degree``. Prescribed ``nk`` retains the existing density
+    rule. Energy uses cached vertex eigenvalues and new centroid eigenvalues
+    in a degree-two simplex rule; density targets do not bound its error.
     """
 
     max_refinements: int | None = None
@@ -56,10 +57,20 @@ class FermiSimplex(IntegrationMethod):
     nk: int | None = None
     initial_nk: int | None = None
     max_points: int = 1_048_576
+    density_max_degree: int = 21
 
     def __post_init__(self):
         _validate_mesh_settings(self)
         _positive_integer("num_threads", self.num_threads, allow_none=True)
+        degree = self.density_max_degree
+        if (
+            isinstance(degree, bool)
+            or not isinstance(degree, Integral)
+            or (degree != 2 and (degree < 3 or degree > 21 or degree % 2 == 0))
+        ):
+            raise ValueError(
+                "density_max_degree must be 2 or an odd integer in [3, 21]"
+            )
 
 
 @dataclass(frozen=True, kw_only=True)

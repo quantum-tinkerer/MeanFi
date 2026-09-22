@@ -165,6 +165,7 @@ def _integrate_density(
     num_threads: int | None,
     prescribed: bool = False,
     max_points: int | None = None,
+    max_degree: int = 21,
 ):
     preview_depth = 0 if prescribed else _DENSITY_PREVIEW_DEPTH
     max_refinements = _bounded_refinements(
@@ -175,13 +176,18 @@ def _integrate_density(
         [(key_indices[key], row, col) for key, row, col in density_coordinates.entries],
         dtype=np.int64,
     ).reshape((-1, 3))
+    common = dict(
+        mu=float(mu),
+        lattice_vectors=density_coordinates.keys,
+        components=components,
+        target_error=float(density_atol),
+        max_refinements=max_refinements,
+    )
     with _integration_context(num_threads):
+        if not prescribed:
+            return mesh.integrate_density_components_p(**common, max_degree=max_degree)
         return mesh.integrate_density_components(
-            mu=float(mu),
-            lattice_vectors=density_coordinates.keys,
-            components=components,
-            target_error=float(density_atol),
-            max_refinements=max_refinements,
+            **common,
             preview_depth=preview_depth,
             min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
             max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
@@ -193,6 +199,7 @@ class _Work:
     evaluations: int = 0
     diagonalizations: int = 0
     refinements: int = 0
+    p_refinements: int = 0
     charge_calls: int = 0
     density_calls: int = 0
 
@@ -216,7 +223,7 @@ class SimplexEvaluator:
         limit = self.settings.max_refinements
         return None if limit is None else limit - self.work.refinements
 
-    def charge(self, mu: float, *, adaptive: bool):
+    def charge(self, mu: float, *, adaptive: bool, target_error: float | None = None):
         self.work.charge_calls += 1
         if not adaptive:
             result, evaluations = _evaluate_charge(
@@ -228,7 +235,9 @@ class SimplexEvaluator:
         result = _integrate_charge(
             self.mesh,
             mu=mu,
-            charge_tol=self.problem.tolerances.charge_integration,
+            charge_tol=self.problem.tolerances.charge_integration
+            if target_error is None
+            else target_error,
             max_refinements=self.remaining_refinements(),
             num_threads=self.settings.num_threads,
             max_points=self.settings.max_points,
@@ -264,10 +273,13 @@ class SimplexEvaluator:
             density_atol=0.0
             if prescribed
             else self.problem.tolerances.density_matrix_integration,
-            max_refinements=self.remaining_refinements(),
+            max_refinements=self.remaining_refinements()
+            if prescribed
+            else self.settings.max_refinements,
             num_threads=self.settings.num_threads,
             prescribed=prescribed,
             max_points=self.settings.max_points,
+            max_degree=self.settings.density_max_degree,
         )
         if not result.stats.target_reached:
             raise RuntimeError(
@@ -277,6 +289,9 @@ class SimplexEvaluator:
         self.work.evaluations += result.stats.evaluations
         self.work.diagonalizations += result.stats.evaluations
         self.work.refinements += result.stats.refinements
+        self.work.p_refinements += (
+            int(result.stats.p_refinements) if not prescribed else 0
+        )
         errors = (
             None
             if prescribed
@@ -285,15 +300,18 @@ class SimplexEvaluator:
         return _DensityEntries(coordinates, result.values, errors)
 
     def density_trace(self, mu, density):
-        """Read charge on the same density partition, without refining it.
+        """Read the density trace without refining the charge mesh.
 
-        Selected or symmetry-reduced entries may omit diagonal elements. Read
-        these from cached density previews, rather than infer unknown entries
-        or substitute the independently integrated charge-stage filling.
+        Selected entries may omit diagonal elements. For adaptive integration,
+        their trace is the occupied volume on the frozen charge mesh.
         """
         trace = density.trace()
         if trace is not None:
             return trace
+        if self.settings.nk is None:
+            # Trace of an occupied projector is its occupation. The p rule
+            # integrates this constant exactly on every charge-mesh simplex.
+            return float(np.sum(self.mesh.occupied_weights(float(mu))))
         size = self.problem.density_coordinates.size
         local = (0,) * self.mesh.ndim
         diagonal = np.arange(size)
@@ -321,6 +339,7 @@ class SimplexEvaluator:
             n_cached_nodes=int(mesh.cached_vertices),
             n_leaves=int(mesh.active_simplices),
             refinements=int(work.refinements),
+            p_refinements=int(work.p_refinements),
             error_estimate_available=self.settings.nk is None,
             num_threads=self.settings.num_threads,
             requested_nk=self.settings.nk,

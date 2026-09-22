@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "FermiSimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@e8d23caa15ef28e4ebb75d74caed146af2e7868e",
+    "FermiSimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@c2b2471c94d016172bfb58d27f20e8dba5ed5831",
     "numpy>=2.0",
     "scipy>=1.13",
     "threadpoolctl>=3.0",

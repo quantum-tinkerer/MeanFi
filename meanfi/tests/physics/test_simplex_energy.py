@@ -89,7 +89,7 @@ def test_centers_are_deduplicated_and_vertex_spectra_reused(monkeypatch):
     assert result.evaluations == 1
 
 
-def test_selected_density_trace_uses_cached_previews_without_refining():
+def test_selected_density_trace_uses_occupied_weights_without_refining():
     from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
     from meanfi.density.problem import build_density_problem
     from meanfi.space.coordinates import DensityCoordinates
@@ -115,14 +115,9 @@ def test_selected_density_trace_uses_cached_previews_without_refining():
     before = evaluator.work.diagonalizations, evaluator.mesh.active_simplices
     trace = evaluator.density_trace(0.1, density)
     assert before == (evaluator.work.diagonalizations, evaluator.mesh.active_simplices)
-    complete = evaluator.mesh.integrate_density_matrix(
-        mu=0.1,
-        lattice_vectors=[(0,)],
-        target_error=1e100,
-        max_refinements=0,
-        preview_depth=1,
+    assert trace == pytest.approx(
+        float(np.sum(evaluator.mesh.occupied_weights(0.1))), abs=1e-14
     )
-    assert trace == pytest.approx(np.trace(complete.matrices[0]).real, abs=1e-14)
 
 
 @pytest.mark.parametrize("dimension", [0, 1, 2, 3, 4])

@@ -27,6 +27,7 @@ class IntegrationInfo:
     requested_nk: int | None = None
     n_diagonalizations: int = 0
     refinements: int = 0
+    p_refinements: int = 0
     charge_evaluations: int = 0
     charge_integration_calls: int = 0
     density_integration_calls: int = 0
