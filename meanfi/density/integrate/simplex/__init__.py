@@ -86,9 +86,7 @@ def solve_simplex(
     if filling is None and adaptive and problem.density_coordinates.value_count:
         # The p rule controls smooth projector variation, but cut occupations
         # require the charge stage to resolve the Fermi-surface geometry.
-        evaluator.charge(
-            mu, adaptive=True, target_error=tolerances.density_matrix_integration
-        )
+        charge = evaluator.charge(mu, adaptive=True)
 
     density = evaluator.density(mu)
     value = (
@@ -133,7 +131,7 @@ def solve_simplex(
             if density.errors is None
             else float(np.max(density.errors, initial=0.0)),
             charge_integration=float(charge.stopping_error)
-            if filling is not None and charge is not None
+            if charge is not None
             else None,
             filling_residual=None if filling is None else abs(value - filling),
         ),

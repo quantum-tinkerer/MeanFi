@@ -248,7 +248,7 @@ class SimplexEvaluator:
         limit = self.settings.max_refinements
         return None if limit is None else limit - self.work.refinements
 
-    def charge(self, mu: float, *, adaptive: bool, target_error: float | None = None):
+    def charge(self, mu: float, *, adaptive: bool):
         self.work.charge_calls += 1
         if not adaptive:
             result, evaluations = _evaluate_charge(
@@ -260,9 +260,7 @@ class SimplexEvaluator:
         result = _integrate_charge(
             self.mesh,
             mu=mu,
-            charge_tol=self.problem.tolerances.charge_integration
-            if target_error is None
-            else target_error,
+            charge_tol=self.problem.tolerances.charge_integration,
             max_refinements=self.remaining_refinements(),
             num_threads=self.settings.num_threads,
             max_points=self.settings.max_points,

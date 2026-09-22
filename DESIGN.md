@@ -109,9 +109,9 @@ search caches charge samples and accepts any sample meeting the filling target;
 density trace are separate quantities and never add root acceptance tests.
 
 At fixed mu there is no root search. Adaptive FermiSimplex prepares the charge
-mesh at the supplied mu using the density target before p-density
-integration so cut simplices are resolved; no independent charge error is
-reported in the result. Empty requests skip this work. Filling comes from
+mesh at the supplied mu using the separate charge target before p-density
+integration so cut simplices are resolved; its charge error is reported.
+Empty requests skip this work. Filling comes from
 available density information or remains `None`. When selected density omits
 the local trace, the native occupied weights provide that trace on the same
 charge mesh without new diagonalizations.

@@ -163,7 +163,7 @@ def test_adaptive_simplex_charge_mesh_storage_limit_is_checked():
             tol=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=1e-3,
-                charge_integration=1.0,
+                charge_integration=1e-3,
             ),
         )
 
@@ -254,9 +254,9 @@ def test_fixed_mu_prepares_charge_mesh_only_for_requested_density(monkeypatch, e
     calls = []
     original_charge = SimplexEvaluator.charge
 
-    def record_charge(self, mu, *, adaptive, target_error=None):
-        calls.append((mu, adaptive, target_error))
-        return original_charge(self, mu, adaptive=adaptive, target_error=target_error)
+    def record_charge(self, mu, *, adaptive):
+        calls.append((mu, adaptive))
+        return original_charge(self, mu, adaptive=adaptive)
 
     monkeypatch.setattr(SimplexEvaluator, "charge", record_charge)
     coordinates = DensityCoordinates.from_entries(
@@ -267,17 +267,15 @@ def test_fixed_mu_prepares_charge_mesh_only_for_requested_density(monkeypatch, e
         mu=0.2,
         coordinates=coordinates,
         integration=FermiSimplex(max_points=10000),
-        tol=replace(default_solver_tolerances(1e-3), charge_integration=1e-15),
+        tol=replace(default_solver_tolerances(1e-3), charge_integration=1e-4),
     )
     assert result.filling is None
-    assert result.errors.charge_integration is None
+    assert (result.errors.charge_integration is None) == empty
+    if not empty:
+        assert result.errors.charge_integration <= 1e-4
     assert result.errors.filling_residual is None
     assert result.statistics.charge_integration_calls == (0 if empty else 1)
-    assert calls == (
-        []
-        if empty
-        else [(0.2, True, default_solver_tolerances(1e-3).density_matrix_integration)]
-    )
+    assert calls == ([] if empty else [(0.2, True)])
     assert result.statistics.density_integration_calls == (0 if empty else 1)
     if empty:
         assert result.statistics.n_diagonalizations == 0
@@ -288,7 +286,7 @@ def test_fixed_mu_prepares_charge_mesh_only_for_requested_density(monkeypatch, e
 def test_fixed_mu_filling_uses_available_density_trace():
     result = density_matrix_at_mu(_chain(), mu=0.2, keys=[(0,)])
     assert result.filling == result.to_tb()[(0,)][0, 0].real
-    assert result.errors.charge_integration is None
+    assert result.errors.charge_integration is not None
     assert result.statistics.charge_integration_calls == 1
     assert abs(result.filling - (1 - np.arccos(0.1) / np.pi)) < 2e-4
 
