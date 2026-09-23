@@ -203,6 +203,79 @@ def test_fixed_mu_simplex_reports_cut_error_separately_from_p_error():
     assert actual_error <= result.errors.density_cut_estimate + 1e-4
 
 
+def test_fixed_mu_cut_budget_avoids_unneeded_density_refinement():
+    from meanfi import density_matrix_at_mu
+    from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
+
+    sx = np.array([[0, 1], [1, 0]], complex)
+    sz = np.diag([1.0, -1.0]).astype(complex)
+    hopping = 0.5 * sz - 0.5j * sx
+    hamiltonian = {
+        (0, 0): 1.5 * sz + 0.7 * sx,
+        (1, 0): hopping,
+        (-1, 0): hopping.conj().T,
+        (0, 1): -0.7 * np.eye(2),
+        (0, -1): -0.7 * np.eye(2),
+    }
+    mu = -0.9665
+    requested = replace(
+        default_solver_tolerances(1e-3),
+        charge_integration=1e-3,
+        density_matrix_integration=1e-6,
+    )
+    integration = FermiSimplex(density_max_degree=7, max_refinements=10000)
+    result = density_matrix_at_mu(
+        hamiltonian,
+        mu=mu,
+        kT=0.0,
+        keys=[(0, 0)],
+        integration=integration,
+        tol=requested,
+    )
+    cut_error = result.errors.density_cut_estimate
+    p_error = result.errors.density_matrix_integration
+    assert cut_error > 2 * requested.density_matrix_integration
+    assert requested.density_matrix_integration < p_error <= 0.5 * cut_error
+
+    problem = build_density_problem(
+        hamiltonian,
+        kT=0.0,
+        keys=[(0, 0)],
+        integration=integration,
+        tolerances=requested,
+    )
+    strict = SimplexEvaluator(problem)
+    strict.charge(mu, adaptive=True)
+    strict_density = strict.density(
+        mu, target_error=requested.density_matrix_integration
+    )
+    assert result.statistics.p_refinements < strict.work.p_refinements
+    assert result.statistics.n_kernel_evals < strict.work.evaluations
+
+    # The y occupation is analytic for E_±(x,y) = -1.4 cos(2πy) ± r(x).
+    # Midpoint integration in x agrees to <3e-8 when doubled from 8192 nodes.
+    x = (np.arange(2**15) + 0.5) / 2**15
+    hx = 0.7 - np.sin(2 * np.pi * x)
+    hz = 1.5 + np.cos(2 * np.pi * x)
+    radius = np.hypot(hx, hz)
+    occupied_lower = np.arccos(np.clip((-radius - mu) / 1.4, -1, 1)) / np.pi
+    occupied_upper = np.arccos(np.clip((radius - mu) / 1.4, -1, 1)) / np.pi
+    total = occupied_lower + occupied_upper
+    difference = occupied_upper - occupied_lower
+    reference = np.array(
+        [
+            np.mean((total + difference * hz / radius) / 2),
+            np.mean(difference * hx / (2 * radius)),
+            np.mean(difference * hx / (2 * radius)),
+            np.mean((total - difference * hz / radius) / 2),
+        ]
+    )
+    actual_error = np.max(np.abs(result.entries.values - reference))
+    strict_error = np.max(np.abs(strict_density.values - reference))
+    assert actual_error < cut_error
+    assert actual_error <= strict_error + p_error
+
+
 def test_custom_charge_policy_is_retained_without_mesh_overrides():
     tolerances = replace(default_solver_tolerances(1e-3), charge_integration=1e-2)
     problem = build_density_problem(

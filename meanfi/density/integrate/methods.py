@@ -48,6 +48,8 @@ class FermiSimplex(IntegrationMethod):
     ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
     Adaptive density starts with Q3-Q1, promotes odd-degree cubature up to
     ``density_max_degree``, then bisects unresolved cells on a density-only tree.
+    Its effective density target is at least half the charge step's sampled
+    density-cut estimate. The two achieved errors remain separate diagnostics.
     Prescribed ``nk`` retains the existing density rule. Energy uses cached
     vertex eigenvalues and new centroid eigenvalues in a degree-two simplex
     rule; density targets do not bound its error.

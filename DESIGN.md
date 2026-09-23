@@ -117,9 +117,12 @@ the child affine occupation count differs from the reported charge-mesh cut.
 The comparison follows the union of occupation ranks uncertain in the root or
 child inertia certificates and uses no new Hamiltonian samples. It estimates Fermi-surface
 placement error in each normal density entry; it is sampled, not certified,
-because curvature and frozen Schur reduction are approximate. The density
-matrix tolerance still controls p-quadrature independently, and no automatic
-stopping floor is imposed from this diagnostic.
+because curvature and frozen Schur reduction are approximate. Adaptive
+density p/h quadrature uses the effective target
+`max(density_matrix_integration, density_cut_estimate / 2)`. This keeps the
+projector-integration estimate below the sampled cut uncertainty without
+spending much work beneath it. The achieved p/h and cut estimates remain
+separate; this budget is not a certificate of total density error.
 Empty requests skip this work. Filling comes from
 available density information or remains `None`. When selected density omits
 the local trace, the native occupied weights provide that trace on the same

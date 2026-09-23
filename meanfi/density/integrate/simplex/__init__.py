@@ -88,7 +88,10 @@ def solve_simplex(
         # require the charge stage to resolve the Fermi-surface geometry.
         charge = evaluator.charge(mu, adaptive=True)
 
-    density = evaluator.density(mu)
+    density_target = tolerances.density_matrix_integration
+    if adaptive and charge is not None and problem.density_coordinates.value_count:
+        density_target = max(density_target, 0.5 * charge.density_cut_error)
+    density = evaluator.density(mu, target_error=density_target)
     value = (
         density.trace()
         if filling is None

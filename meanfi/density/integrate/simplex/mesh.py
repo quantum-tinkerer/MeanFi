@@ -282,20 +282,23 @@ class SimplexEvaluator:
         self.work.refinements += result.stats.refinements
         return result
 
-    def density(self, mu: float):
+    def density(self, mu: float, *, target_error: float | None = None):
         coordinates = self.problem.density_coordinates
         prescribed = self.settings.nk is not None
         if not coordinates.value_count:
             return _DensityEntries(
                 coordinates, np.empty(0, complex), None if prescribed else np.empty(0)
             )
+        density_target = (
+            self.problem.tolerances.density_matrix_integration
+            if target_error is None
+            else target_error
+        )
         result = _integrate_density(
             self.mesh,
             coordinates,
             mu=mu,
-            density_atol=0.0
-            if prescribed
-            else self.problem.tolerances.density_matrix_integration,
+            density_atol=0.0 if prescribed else density_target,
             max_refinements=self.remaining_refinements()
             if prescribed
             else self.settings.max_refinements,
