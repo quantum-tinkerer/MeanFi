@@ -91,11 +91,6 @@ def solve_simplex(
     cut_estimate = None
     if charge is not None and problem.density_coordinates.value_count:
         cut_estimate = float(charge.density_cut_error)
-        # Adaptive accumulation can leave a roundoff-sized negative remainder
-        # when the nonnegative cut estimate is zero.
-        roundoff = 32 * np.finfo(float).eps * max(1.0, abs(charge.value))
-        if -roundoff <= cut_estimate < 0.0:
-            cut_estimate = 0.0
         if not np.isfinite(cut_estimate) or cut_estimate < 0.0:
             raise ValueError(f"Invalid density cut estimate: {cut_estimate}")
 
