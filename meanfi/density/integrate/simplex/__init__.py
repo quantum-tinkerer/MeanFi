@@ -88,9 +88,20 @@ def solve_simplex(
         # require the charge stage to resolve the Fermi-surface geometry.
         charge = evaluator.charge(mu, adaptive=True)
 
+    cut_estimate = None
+    if charge is not None and problem.density_coordinates.value_count:
+        cut_estimate = float(charge.density_cut_error)
+        # Adaptive accumulation can leave a roundoff-sized negative remainder
+        # when the nonnegative cut estimate is zero.
+        roundoff = 32 * np.finfo(float).eps * max(1.0, abs(charge.value))
+        if -roundoff <= cut_estimate < 0.0:
+            cut_estimate = 0.0
+        if not np.isfinite(cut_estimate) or cut_estimate < 0.0:
+            raise ValueError(f"Invalid density cut estimate: {cut_estimate}")
+
     density_target = tolerances.density_matrix_integration
-    if adaptive and charge is not None and problem.density_coordinates.value_count:
-        density_target = max(density_target, 0.5 * charge.density_cut_error)
+    if adaptive and cut_estimate is not None:
+        density_target = max(density_target, 0.5 * cut_estimate)
     density = evaluator.density(mu, target_error=density_target)
     value = (
         density.trace()
@@ -133,9 +144,7 @@ def solve_simplex(
             density_matrix_integration=None
             if density.errors is None
             else float(np.max(density.errors, initial=0.0)),
-            density_cut_estimate=float(charge.density_cut_error)
-            if charge is not None and density.values.size
-            else None,
+            density_cut_estimate=cut_estimate if density.values.size else None,
             charge_integration=float(charge.stopping_error)
             if charge is not None
             else None,

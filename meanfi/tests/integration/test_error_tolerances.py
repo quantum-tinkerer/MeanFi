@@ -1,4 +1,5 @@
 from dataclasses import FrozenInstanceError, replace
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -201,6 +202,42 @@ def test_fixed_mu_simplex_reports_cut_error_separately_from_p_error():
     assert result.errors.density_matrix_integration <= 1e-3
     assert result.errors.density_cut_estimate > 0
     assert actual_error <= result.errors.density_cut_estimate + 1e-4
+
+
+@pytest.mark.parametrize("native_cut_error", [-1e-17, -1e-3])
+def test_fixed_mu_cut_estimate_handles_only_roundoff_negative_values(
+    monkeypatch, native_cut_error
+):
+    from meanfi import density_matrix_at_mu
+    from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
+
+    original_charge = SimplexEvaluator.charge
+
+    def charge_with_roundoff(self, mu, *, adaptive):
+        result = original_charge(self, mu, adaptive=adaptive)
+        return SimpleNamespace(
+            value=result.value,
+            dcharge_dmu=result.dcharge_dmu,
+            stopping_error=result.stopping_error,
+            density_cut_error=native_cut_error,
+        )
+
+    monkeypatch.setattr(SimplexEvaluator, "charge", charge_with_roundoff)
+
+    def calculate():
+        return density_matrix_at_mu(
+            {(0,): np.diag([-1.0, 1.0])}, mu=0.0, keys=[(0,)]
+        )
+
+    if native_cut_error < -1e-14:
+        with pytest.raises(ValueError, match="Invalid density cut estimate"):
+            calculate()
+    else:
+        result = calculate()
+        assert result.errors.density_cut_estimate == 0.0
+        np.testing.assert_allclose(
+            result.entries.values.reshape(2, 2), np.diag([1.0, 0.0]), atol=1e-12
+        )
 
 
 def test_fixed_mu_cut_budget_avoids_unneeded_density_refinement():

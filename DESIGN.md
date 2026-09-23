@@ -123,6 +123,9 @@ density p/h quadrature uses the effective target
 projector-integration estimate below the sampled cut uncertainty without
 spending much work beneath it. The achieved p/h and cut estimates remain
 separate; this budget is not a certificate of total density error.
+MeanFi rounds a negative cut estimate to zero only within floating-point
+accumulation error of zero; a materially negative or non-finite value is invalid.
+
 Empty requests skip this work. Filling comes from
 available density information or remains `None`. When selected density omits
 the local trace, the native occupied weights provide that trace on the same
