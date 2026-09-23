@@ -20,6 +20,9 @@ class IntegrationInfo:
     in n_kernel_evals and n_diagonalizations. These are not retained by the
     native mesh cache. n_energy_simplices counts the evaluated energy partition,
     including previews; n_leaves remains the active mesh count.
+    Counts describe one density evaluation, not all SCF iterations. For
+    adaptive FermiSimplex, n_kpoints counts active charge-mesh vertices;
+    transient density cubature points contribute to n_kernel_evals instead.
     """
 
     n_kpoints: int
@@ -104,7 +107,8 @@ class DensityResult:
 
     Fixed-filling results retain the charge-stage filling and root residual.
     At fixed mu, filling is derived from available density data or is None.
-    The independent charge-integration estimate is unavailable at fixed mu.
+    Adaptive FermiSimplex also reports a charge-integration estimate at fixed
+    mu when density entries are requested.
     ``entropy`` and ``band_energy`` are per cell per physical orbital; entropy
     is in units of Boltzmann's constant. The band energy belongs to the input
     quadratic Hamiltonian (with BdG normal ordering),
@@ -228,6 +232,8 @@ class SCFResult:
     ``mean_field`` is the input correction that produced ``density``. The next
     correction is ``model.mean_field(result.density)``; on nonconvergence it may
     differ substantially from the input correction.
+    ``density.statistics`` describes the final density evaluation, not the
+    cumulative work of every SCF iteration.
     """
 
     density: DensityResult
