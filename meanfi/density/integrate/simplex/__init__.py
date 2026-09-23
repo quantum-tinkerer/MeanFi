@@ -130,6 +130,9 @@ def solve_simplex(
             density_matrix_integration=None
             if density.errors is None
             else float(np.max(density.errors, initial=0.0)),
+            density_cut_estimate=float(charge.density_cut_error)
+            if charge is not None and density.values.size
+            else None,
             charge_integration=float(charge.stopping_error)
             if charge is not None
             else None,

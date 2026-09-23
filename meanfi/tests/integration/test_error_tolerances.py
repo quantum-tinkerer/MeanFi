@@ -174,6 +174,35 @@ def test_explicit_density_target_supplies_omitted_charge_target(method, kT):
     assert problem.tolerances.charge_integration == 5e-7
 
 
+def test_fixed_mu_simplex_reports_cut_error_separately_from_p_error():
+    from meanfi import density_matrix_at_mu
+
+    hopping = np.array([[0.5]])
+    hamiltonian = {
+        (0,): np.array([[0.1]]),
+        (1,): hopping,
+        (-1,): hopping,
+    }
+    result = density_matrix_at_mu(
+        hamiltonian,
+        mu=0.0,
+        kT=0.0,
+        keys=[(0,)],
+        integration=FermiSimplex(max_refinements=500),
+        tol=replace(
+            default_solver_tolerances(1e-3),
+            charge_integration=2e-3,
+            density_matrix_integration=1e-3,
+        ),
+    )
+    exact_charge = np.arccos(0.1) / np.pi
+    actual_error = abs(result.entries.values[0].real - exact_charge)
+    assert result.errors.charge_integration <= 2e-3
+    assert result.errors.density_matrix_integration <= 1e-3
+    assert result.errors.density_cut_estimate > 0
+    assert actual_error <= result.errors.density_cut_estimate + 1e-4
+
+
 def test_custom_charge_policy_is_retained_without_mesh_overrides():
     tolerances = replace(default_solver_tolerances(1e-3), charge_integration=1e-2)
     problem = build_density_problem(

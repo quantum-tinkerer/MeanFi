@@ -110,7 +110,16 @@ density trace are separate quantities and never add root acceptance tests.
 
 At fixed mu there is no root search. Adaptive FermiSimplex prepares the charge
 mesh at the supplied mu using the separate charge target before p-density
-integration so cut simplices are resolved; its charge error is reported.
+integration so cut simplices are resolved; its charge error is reported. The
+charge traversal also reports `density_cut_estimate`: on temporary child
+simplices it adds the shifted-cut uncertainty width to the exact volume where
+the child affine occupation count differs from the reported charge-mesh cut.
+The comparison follows the union of occupation ranks uncertain in the root or
+child inertia certificates and uses no new Hamiltonian samples. It estimates Fermi-surface
+placement error in each normal density entry; it is sampled, not certified,
+because curvature and frozen Schur reduction are approximate. The density
+matrix tolerance still controls p-quadrature independently, and no automatic
+stopping floor is imposed from this diagnostic.
 Empty requests skip this work. Filling comes from
 available density information or remains `None`. When selected density omits
 the local trace, the native occupied weights provide that trace on the same

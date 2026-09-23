@@ -45,11 +45,15 @@ class ErrorValues:
     """Achieved scalar errors; ``None`` means unavailable or inapplicable.
 
     Entropy combines integration and matrix-function estimates, per physical
-    orbital, when both are available. It has no accuracy target.
+    orbital, when both are available. It has no accuracy target. The sampled
+    density-cut estimate is separate from the p-quadrature estimate and has no
+    automatic tolerance target.
     """
 
     scf_residual: float | None = None
     density_matrix_integration: float | None = None
+    # Sampled error from placing the occupation cut on the charge mesh.
+    density_cut_estimate: float | None = None
     filling_residual: float | None = None
     charge_integration: float | None = None
     band_energy_integration: float | None = None
