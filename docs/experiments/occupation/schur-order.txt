@@ -1,0 +1,5 @@
+safe-sector maximum margin excess=2.33147e-15
+h=0.2 Schur error=7.89422e-06 allowance=4.3452e-05
+h=0.1 Schur error=9.93361e-07 allowance=5.3615e-06
+h=0.05 Schur error=1.24584e-07 allowance=6.65813e-07
+h=0.025 Schur error=1.5599e-08 allowance=8.29532e-08

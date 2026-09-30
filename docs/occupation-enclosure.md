@@ -16,6 +16,145 @@ The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
 
+## Approximation order and probe degree
+
+The approximation is **quadratic**, with a generally **cubic local matrix
+error**. The degree-four validation lattice controls quartic residuals; it does
+not turn the approximation into a fourth-order method. In the Schur bound,
+only the squared solve residual is generically quartic. The other leading
+terms remain cubic, and the reported affine-band charge is generally second
+order. Earlier tests checked cubic Schur convergence and quartic gap coverage;
+those are different statements.
+
+### Reconstructing and rotating matrices
+
+At a mesh vertex the cache retains eigenvalues `E_i` and eigenvectors `U_i`.
+Reconstruction forms `K_i = U_i diag(E_i-mu) U_i†`, the full `N × N` matrix in
+the original orbital basis. It recovers the matrix from cached spectra without
+another call to the Hamiltonian. One dense product is required per vertex.
+
+Rotation expresses each quadratic control in the first vertex's eigenbasis:
+`C_ij -> U_0† C_ij U_0`. This is a common basis for all controls, preserving
+matrix spectra while exposing candidate safe and active states. Each rotation
+requires two dense products. The anchor control is already diagonal and is
+filled directly from cached eigenvalues. This is a basis change, with no new
+eigensystem computation. Reduction to the smaller active matrix happens later.
+
+### Quadratic interpolation and dimension
+
+Let `lambda_0,...,lambda_d` be barycentric coordinates on a `d`-simplex:
+`k = sum_i lambda_i k_i`, `sum_i lambda_i = 1`, `lambda_i >= 0`.
+For `K = H-mu I`, the matrix polynomial is
+
+`K2(lambda) = sum_i lambda_i^2 C_ii + 2 sum_(i<j) lambda_i lambda_j C_ij`,
+
+where `C_ii = K(k_i)` and
+`C_ij = 2 K((k_i+k_j)/2) - (C_ii+C_jj)/2`.
+
+It exactly matches every vertex and edge midpoint, including every quadratic
+cross term. There are `binomial(d+2,2)` interpolation nodes: 3, 6, 10 in
+1D, 2D, 3D. These nodes are chosen by quadratic simplex interpolation, with
+no fitted locations or model parameters. For a smooth matrix Hamiltonian on
+shape-regular cells, `||K-K2|| = O(h^3)`, where `h` is cell diameter.
+
+The additional probes have barycentric coordinates `alpha/4` for all integer
+vectors `alpha >= 0` with `sum alpha_i = 4`, excluding interpolation nodes.
+The total count is `binomial(d+4,4)`. This construction generalizes to any `d`;
+**the implemented probe enumeration and verified factors 2,4,8 cover 1D–3D**.
+Higher dimensions require a complete enumeration there and a corresponding
+bound; no general-d proof of `2**d` is claimed. Spatial dimension `d` is
+independent of the number of bands `N`.
+
+### Where cubic and quartic errors enter
+
+In the local anchor basis, the active/safe coupling vanishes at the anchor.
+With a uniform safe gap, its affine approximation gives `X = D0^-1 B1 = O(h)`.
+The coupling interpolation defect `b = O(h^2)`, safe-block variation
+`d = O(h)`, and Hamiltonian interpolation remainder `eta = O(h^3)` give
+
+`epsilon = eta + 2*b*x + d*x^2 + (b+d*x)^2/Delta`.
+
+The first three contributions are generally cubic. The last is quartic because
+it bounds a quadratic solve residual, squared. It follows from the exact Schur
+identity `S = Y - F† D^-1 F`, with `F = B-DX`, not from fitting a fourth-degree
+polynomial. Computing this final scalar term is cheap once `b,d,x,Delta` exist.
+It remains necessary to make the bound valid at finite cell size.
+
+### Measured orders
+
+The repeatable check in `performance/occupation_orders.py` uses exact polynomial
+extrema and the analytically soluble matrix
+
+`H_h(t) = [[h*t-.37*h, .4*h*t], [.4*h*t, 2+.3*h*t]]`, `0 <= t <= 1`.
+
+This represents a physical interval of width `h`. Its safe block is positive,
+its reduced polynomial is `P(x) = x-.37*h-.16*x^2/2`, and its exact Schur
+complement is `S(x) = x-.37*h-.16*x^2/(2+.3*x)`.
+The maximum error and squared-residual correction occur at `x=h`.
+The code checks the production allowance against the exact expression within
+`2e-12`, well below the smallest leading error. Its native quartic contribution
+is recovered from the production allowance by subtracting the analytic other
+terms. Charge is multiplied by `h` to report error in physical occupied length.
+
+| Quantity | Observed order from h=.05 to .025 |
+| --- | ---: |
+| Actual Schur error | 2.995 |
+| Production model allowance | 3.005 |
+| Squared-residual bound | 4.000 |
+| Exact squared-residual correction | 3.995 |
+| Reported affine-charge error in physical length | 2.014 |
+
+At `h=.025`, the actual Schur error is `1.8680e-7`, the full allowance is
+`1.8820e-7`, its quartic contribution is `7.0313e-10`, and the physical charge
+error is `1.1768e-5`. The separate native three-band test directly evaluates
+its implemented polynomial against exact Schur solves: errors are
+`7.89422e-6, 9.93361e-7, 1.24584e-7, 1.55990e-8` for
+`h=.2,.1,.05,.025`, again cubic.
+
+Scalar interpolation tests give order 3.000 for `H(k)=k^3` near zero,
+4.000 for `H(k)=k^4` near zero, and 3.029 for that same quartic near `k=.7`.
+The fourth-order special case occurs because the cubic Taylor coefficient
+vanishes at zero. Quartic polynomial degree does not generally imply an
+`O(h^4)` error when approximated by a quadratic.
+
+![Interpolation nodes and separate error orders](experiments/occupation/orders.svg)
+
+### Bisections and the cost choice
+
+Halving physical cell width reduces an `O(h^3)` term by about 8 and an `O(h^4)`
+term by about 16 in the asymptotic regime. If two methods had the same initial
+error and constants, reducing that error by a factor R would need roughly
+`log2(R)/3` versus `log2(R)/4` width halvings. This hypothetical 25% reduction
+in levels is **not a measured benefit of the current probes**. In dimensions
+above one, a single longest-edge bisection does not generally halve diameter.
+
+Only persistent refinement rebuilds the model on smaller cells. Temporary
+bisection of the fixed polynomial leaves its model allowance unchanged and
+only improves the occupation integration. Its subcell width is not the `h`
+that enters the cubic/quartic model estimates.
+
+The current method already makes the cheaper quadratic/cubic-error choice.
+The extra probes buy protection against quartic hidden pockets, with the same
+generic order. They can increase the refinement count: on the frozen 2D paper
+input at target `.01`, the earlier quadratic implementation used 1,496
+refinement steps and the stronger probe/allowance version uses 1,750 (+17%).
+This is a historical implementation comparison, not an isolated probe ablation.
+The original estimator used 1,259. The previous probe set falsely certified
+all nine quartic triangle pockets in the saved sweep; the current set claims
+none of them gapped. Thus the demonstrated gain is improved gap checking,
+not fewer bisections from fourth-order convergence.
+
+A genuinely fourth-order model would require a consistent cubic matrix/Schur
+approximation and its own remainder analysis. That has not been implemented
+or benchmarked. It would not by itself change the reported affine-charge
+formula's general second-order accuracy.
+
+Reproduce with `PYTHONPATH=/path/to/9f06d36/python python
+performance/occupation_orders.py --output orders.json`, and run the native
+`fermisimplex_occupation_model_tests` executable. Data:
+[orders](experiments/occupation/orders.json),
+[native Schur check](experiments/occupation/schur-order.txt).
+
 ## Larger-band follow-up and optimization
 
 The 49% figure was the total time ratio for a 192-band **1D** tight-binding
