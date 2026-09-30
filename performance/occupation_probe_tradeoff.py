@@ -6,6 +6,7 @@ The timings include mesh construction and exclude one warmup per case.
 """
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -160,6 +161,52 @@ def hidden_quartic_pockets():
     return rows
 
 
+def run_surface(models, repeats, case_index=None):
+    selected = {"cosine", "disk", "annulus", "mixed_36", "sphere"}
+    cases_by_name = {
+        name: (model, mu) for name, model, mu, *_ in cases(models) if name in selected
+    }
+    rows = []
+    for index, (name, (model, mu)) in enumerate(cases_by_name.items()):
+        if case_index is not None and index != case_index:
+            continue
+        samples = []
+        batch = 1
+        for repetition in range(repeats + 1):
+            signal.alarm(30)
+            start = perf_counter()
+            for _ in range(batch):
+                result = SpectralMesh(model, root_level=0).fermi_surface(
+                    mu=mu, min_feature_size=0.2, max_evaluations=10000
+                )
+            elapsed = (perf_counter() - start) / batch
+            samples.append(elapsed)
+            if repetition == 0:
+                batch = max(1, min(1000, int(0.04 / max(elapsed, 1e-6))))
+            signal.alarm(0)
+        arrays = (result.points, result.cells, result.cell_bands)
+        rows.append(
+            dict(
+                model=name,
+                feature_size=0.2,
+                seconds=median(samples[1:]),
+                timing_samples=samples[1:],
+                batch=batch,
+                completed=result.completed,
+                coverage_certified=result.coverage_certified,
+                geometry_sha256=hashlib.sha256(
+                    b"".join(array.tobytes() for array in arrays)
+                ).hexdigest(),
+                points=len(result.points),
+                cells=len(result.cells),
+                evaluations=result.stats.evaluations,
+                terminal_visible=result.stats.terminal_visible_simplices,
+                terminal_inconclusive=result.stats.terminal_inconclusive_simplices,
+            )
+        )
+    return rows
+
+
 def alarm(*_):
     raise TimeoutError("30 second case limit")
 
@@ -171,6 +218,7 @@ if __name__ == "__main__":
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--case-index", type=int)
     parser.add_argument("--root-level", type=int, default=2)
+    parser.add_argument("--surface", action="store_true")
     args = parser.parse_args()
     cpu = min(os.sched_getaffinity(0))
     os.sched_setaffinity(0, {cpu})
@@ -180,7 +228,13 @@ if __name__ == "__main__":
     spec.loader.exec_module(models)
     result = dict(
         cpu=cpu,
-        charge=run(models, args.repeats, args.case_index, args.root_level),
-        hidden_quartic_pockets=hidden_quartic_pockets(),
+        **(
+            dict(surface=run_surface(models, args.repeats, args.case_index))
+            if args.surface
+            else dict(
+                charge=run(models, args.repeats, args.case_index, args.root_level),
+                hidden_quartic_pockets=hidden_quartic_pockets(),
+            )
+        ),
     )
     args.output.write_text(json.dumps(result, indent=2) + "\n")

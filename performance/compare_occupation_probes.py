@@ -1,4 +1,4 @@
-"""Alternate separate builds for probe-degree and vertex-evaluation comparisons.
+"""Compare separate occupation builds with alternating timed runs.
 
 Run without concurrent builds/tests. Workers pin one CPU and one BLAS thread.
 No option in this driver changes the installed production occupation algorithm.
@@ -16,16 +16,21 @@ from tempfile import TemporaryDirectory
 def compare(args):
     rows = []
     directory = Path(__file__).parent
-    if args.experiment == "probes":
+    if args.experiment in ("probes", "surface"):
         builds = [("cubic", args.comparison), ("quartic", args.quartic)]
         # Eight 1D/2D models at two targets, a 192-band model, and two 3D
         # models at three targets, plus four coupled matrix sizes at two targets.
         # occupation_probe_tradeoff.cases defines them.
-        cases = args.case_indices if args.case_indices is not None else list(range(31))
+        count = 5 if args.experiment == "surface" else 31
+        cases = (
+            args.case_indices if args.case_indices is not None else list(range(count))
+        )
     else:
         builds = [("reconstruct", args.comparison), ("evaluate", args.quartic)]
         cases = [(n, "tb") for n in (12, 36, 96, 192, 384, 768)]
         cases += [(n, rep) for rep in ("callable", "callable_dense") for n in (36, 192)]
+        if args.case_indices is not None:
+            cases = [cases[index] for index in args.case_indices]
     if args.comparison_label:
         builds[0] = (args.comparison_label, builds[0][1])
     if args.quartic_label:
@@ -42,7 +47,7 @@ def compare(args):
                         OPENBLAS_NUM_THREADS="1",
                         OMP_NUM_THREADS="1",
                     )
-                    if args.experiment == "probes":
+                    if args.experiment in ("probes", "surface"):
                         command = [
                             sys.executable,
                             str(directory / "occupation_probe_tradeoff.py"),
@@ -53,6 +58,8 @@ def compare(args):
                             "--root-level",
                             str(args.root_level),
                         ]
+                        if args.experiment == "surface":
+                            command.append("--surface")
                     else:
                         n, representation = case
                         command = [
@@ -81,10 +88,15 @@ def compare(args):
                         check=True,
                         timeout=180,
                     )
-                    if args.experiment == "probes":
+                    if args.experiment in ("probes", "surface"):
                         result = json.loads(worker_output.read_text())
-                        row = result["charge"][0]
-                        row["hidden_quartic_pockets"] = result["hidden_quartic_pockets"]
+                        row = result[
+                            "surface" if args.experiment == "surface" else "charge"
+                        ][0]
+                        if "hidden_quartic_pockets" in result:
+                            row["hidden_quartic_pockets"] = result[
+                                "hidden_quartic_pockets"
+                            ]
                         row["cpu"] = result["cpu"]
                     else:
                         row = json.loads(result.stdout)
@@ -102,7 +114,9 @@ def compare(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--experiment", choices=("probes", "evaluation"), required=True)
+    parser.add_argument(
+        "--experiment", choices=("probes", "evaluation", "surface"), required=True
+    )
     parser.add_argument(
         "--comparison",
         type=Path,

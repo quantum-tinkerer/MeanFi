@@ -11,7 +11,8 @@ with an explicit remainder contract; adaptive calculations no longer use it.
 
 Base: MeanFi `54eab84`, FermiSimplex `13aeda0`, AdaptiveSimplex `5ea4787`, paper
 `b3735fe`. The previous experimental implementation is FermiSimplex `98c5009`.
-Current native pin: [23b6ac1](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/23b6ac13ceeabe46d887b6b5540f4604e8b87795).
+Current native pin: [df720a2](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/df720a2f9cf2e194e04a32d6770d4c10a6b5f90e).
+The scalar-cut follow-up compares this revision with `23b6ac1`.
 The review cleanup below compares `8430c4d` with `cf266b7`; `23b6ac1` only
 formats a benchmark. The preceding
 direct-evaluation and dimension-general probes follow-up compares `cf266b7`
@@ -19,6 +20,118 @@ with `9f06d36`.
 The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
+
+## Stable scalar cuts and surface queries
+
+This follow-up implements the four findings from the second review. The
+quadratic matrix model, quartic probes, Schur allowance and subdivision rule
+are unchanged. There is one production occupation algorithm.
+
+- **Consistent constant-band classification.** Constant and varying bands
+  classify energies relative to `mu` with the same tolerance. For constant
+  `H=100` and `mu=100+5e-13`, the charge and exact interval are now both one;
+  the previous interval was `[.5,.5]`. The analogous empty case is now zero.
+  Both converge without refinement, including with a larger user tolerance.
+- **Stable derivatives.** Scalar affine charge and its derivative use
+  nonnegative recurrences on sorted vertex energies. The derivative is a
+  normalized B-spline evaluated by the Cox-de Boor recurrence. Repeated knots
+  work directly; nearby off-level knots remain distinct. For
+  `H(x,y,z)=x+1e-8*(y+z)` at `mu=.5`, the derivative now agrees with the exact
+  value one to `1.2e-16`, replacing `0.832667` on the initial mesh. The bounded
+  filling solve needs four charge calls instead of eleven, with residual
+  `1.7e-16` instead of `5.1e-11`. Regressions
+  also cover finer meshes, 4D and energies just outside a band endpoint.
+- **Scalar cuts omit unused moments.** Charge, shifted bounds and occupied-cut
+  disagreement share the new affine-cut helper. Its cumulative fraction and
+  derivative each require `O(d^2)` work and `O(d)` workspace. Density weights
+  continue to use AdaptiveSimplex's barycentric moments. The level-tolerance
+  convention agrees with geometric clipping, including near-level vertices.
+- **Surface extraction requests sign bounds.** The same model and polynomial
+  traversal serve charge integration and surface classification. A private
+  compile-time distinction omits charge integrals and cut interpolation for
+  the sign query. This adds no user-facing selector or alternative algorithm.
+
+The scalar rule was compared with independent geometric clipping on 350
+simplices in dimensions 1–7, including energies near the level tolerance.
+Repeated-knot cases were compared with exact Beta distributions through 12D,
+over bandwidths `1e-10`, `1`, and `1e10`. Maximum absolute volume and
+bandwidth-scaled derivative errors were both **4.5e-16** (rounded upward),
+below the documented `2e-12` tolerance. Full-mesh anisotropic affine references
+in 3D/4D have charge and derivative errors below `1e-12`.
+
+All **218 native Python tests**, **12 C++ test groups**, and **737 MeanFi
+test-directory checks** pass; 43 MeanFi checks are skipped and 35 slow checks
+are deselected. The separate Ruff check includes all MeanFi source files.
+The cubic/quartic sweep retains zero false gap claims and encloses all 549
+interval charges at both temporary depths. The measured second/cubic/quartic
+orders are unchanged.
+
+### Runtime
+
+Before/after Release builds use the same pinned AdaptiveSimplex and one CPU
+and BLAS thread. Each case has one warmup per process and two alternating
+rounds, each with three measured samples. Timings include mesh construction.
+The following are medians of all six samples for each build:
+
+| Operation | Before, ms | After, ms | Runtime reduction |
+| --- | ---: | ---: | ---: |
+| Cosine adaptive charge, target `1e-5` | 0.115 | 0.088 | 23% |
+| Disk adaptive charge, target `1e-4` | 19.58 | 16.03 | 18% |
+| Annulus adaptive charge, target `1e-4` | 155.6 | 128.1 | 18% |
+| Dirac adaptive charge, target `1e-4` | 34.21 | 28.91 | 16% |
+| Cosine surface, feature size `.2` | 0.096 | 0.074 | 24% |
+| Disk surface, feature size `.2` | 2.66 | 2.05 | 23% |
+| Annulus surface, feature size `.2` | 12.63 | 9.99 | 21% |
+| Mixed 36-band surface, feature size `.2` | 4.39 | 4.32 | 2% |
+
+Charge refinement counts agree in every measured case. Actual charge errors
+agree to roundoff and remain covered by the reported indicators. All five
+surface cases, including the sphere, produce byte-identical points, cells
+and band labels, with matching classification and evaluation counts.
+The repeated sphere surface benchmark is **34% faster**. Its timings shift
+between two regimes, so both the first comparison and three-round repeat
+(fifteen samples per build) are retained.
+
+The band-count sweep is approximately unchanged at larger matrices:
+
+| Bands | Runtime change |
+| ---: | ---: |
+| 12 | -6.2% |
+| 36 | -2.0% |
+| 96, repeat | -1.3% |
+| 192 | +0.6% |
+| 384 | +2.5% |
+| 768 | +0.4% |
+
+The first 96-band comparison measured +7.8%; its three-round repeat measured
+-1.3%. The cheap 192-band callable similarly changed from +4.6% to -1.0% on
+repeat. Dense callable timings measured +1.9% at 36 bands and +2.8% at 192.
+These variations limit precision of the small differences. The cleanup adds
+no higher power of band count: dense matrix work still scales cubically, while
+each scalar band cut has quadratic cost in spatial dimension. Substantial
+large-band speedups are not established by this change.
+
+Data: [charge](experiments/occupation/scalar-cut-charge.json),
+[surfaces](experiments/occupation/scalar-cut-surfaces.json),
+[band scaling](experiments/occupation/scalar-cut-scaling.json),
+[sphere repeat](experiments/occupation/scalar-cut-sphere-repeat.json),
+[scaling repeat](experiments/occupation/scalar-cut-scaling-repeat.json),
+[regressions and validation](experiments/occupation/scalar-cut-validation.json).
+Use `performance/compare_occupation_probes.py` with
+`--comparison /path/to/23b6ac1/python --quartic /path/to/df720a2/python`,
+`--comparison-label before --quartic-label after`, and the latter checkout's
+`benchmarks/occupation_enclosure.py` as `--models`. Select:
+
+- `--experiment probes --case-indices 1 3 5 7 9 11 13 15 16 17 20` for charge;
+- `--experiment surface` for surface extraction;
+- `--experiment evaluation` for band-count and Hamiltonian-oracle scaling.
+
+Supply `--output` for the desired JSON file. The defaults are two rounds and
+three samples per process. Repeat the sphere with `--experiment surface
+--case-indices 4 --rounds 3 --repeats 5`; repeat the noisy scaling cases with
+`--experiment evaluation --case-indices 2 7 --rounds 3 --repeats 5`.
+The polynomial-gap and approximation-order scripts
+listed below reproduce the numerical checks.
 
 ## Review cleanup
 
