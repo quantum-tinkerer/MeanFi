@@ -1,0 +1,140 @@
+[
+  {
+    "dimension": 1,
+    "method": "occupation",
+    "target": 1e+100,
+    "reference_checks": {
+      "mu": -0.10178761851911117,
+      "bracket_density_error": 1.999833043714967e-17,
+      "eigenpair_residual": 6.661338147750939e-16,
+      "filling_error": 3.552713678800501e-15
+    },
+    "seconds": 0.0013888980029150844,
+    "timing_samples": [
+      0.0016162769752554595,
+      0.001375019026454538,
+      0.0013888980029150844
+    ],
+    "actual_error": 1.4735607677821196,
+    "estimated_error": 3.4067641176893737,
+    "covered": true,
+    "refinements": 0,
+    "vertices": 5,
+    "hamiltonian_evaluations": 17,
+    "eigensystems": 5
+  },
+  {
+    "dimension": 1,
+    "method": "occupation",
+    "target": 0.01,
+    "reference_checks": {
+      "mu": -0.10178761851911117,
+      "bracket_density_error": 1.999833043714967e-17,
+      "eigenpair_residual": 6.661338147750939e-16,
+      "filling_error": 3.552713678800501e-15
+    },
+    "seconds": 0.007406769029330462,
+    "timing_samples": [
+      0.007516638026572764,
+      0.007375515007879585,
+      0.007406769029330462
+    ],
+    "actual_error": 0.005844070700360859,
+    "estimated_error": 0.009413741749925195,
+    "covered": true,
+    "refinements": 16,
+    "vertices": 21,
+    "hamiltonian_evaluations": 129,
+    "eigensystems": 21
+  },
+  {
+    "dimension": 1,
+    "method": "occupation",
+    "target": 0.001,
+    "reference_checks": {
+      "mu": -0.10178761851911117,
+      "bracket_density_error": 1.999833043714967e-17,
+      "eigenpair_residual": 6.661338147750939e-16,
+      "filling_error": 3.552713678800501e-15
+    },
+    "seconds": 0.013885230990126729,
+    "timing_samples": [
+      0.013885230990126729,
+      0.01394107803935185,
+      0.013711848005186766
+    ],
+    "actual_error": 0.0006479812560709064,
+    "estimated_error": 0.0009919452764164324,
+    "covered": true,
+    "refinements": 36,
+    "vertices": 41,
+    "hamiltonian_evaluations": 269,
+    "eigensystems": 41
+  },
+  {
+    "dimension": 2,
+    "method": "occupation",
+    "target": 1e+100,
+    "reference_checks": {
+      "mu": -0.011453966220873446,
+      "alternate_mu": -0.011453966220873427,
+      "axis_exchange_density_difference": 2.220446049250313e-16,
+      "quadrature_error_estimate": 7.525990322001042e-12,
+      "filling_error": 3.552713678800501e-15,
+      "reference_accuracy_target": 1e-08
+    },
+    "seconds": 0.059587620955426246,
+    "timing_samples": [
+      0.059587620955426246,
+      0.05977319198427722,
+      0.05893051397288218
+    ],
+    "actual_error": 0.5526068160585762,
+    "estimated_error": 13.89245267555961,
+    "covered": true,
+    "refinements": 0,
+    "vertices": 25,
+    "hamiltonian_evaluations": 409,
+    "eigensystems": 25
+  },
+  {
+    "dimension": 2,
+    "method": "occupation",
+    "target": 0.01,
+    "reference_checks": {
+      "mu": -0.011453966220873446,
+      "alternate_mu": -0.011453966220873427,
+      "axis_exchange_density_difference": 2.220446049250313e-16,
+      "quadrature_error_estimate": 7.525990322001042e-12,
+      "filling_error": 3.552713678800501e-15,
+      "reference_accuracy_target": 1e-08
+    },
+    "seconds": 2.371807271032594,
+    "timing_samples": [
+      2.4145274739712477,
+      2.3574764090008102,
+      2.371807271032594
+    ],
+    "actual_error": 0.002717470642989994,
+    "estimated_error": 0.009991024361491714,
+    "covered": true,
+    "refinements": 1750,
+    "vertices": 1053,
+    "hamiltonian_evaluations": 43437,
+    "eigensystems": 1053
+  },
+  {
+    "dimension": 2,
+    "method": "occupation",
+    "target": 0.001,
+    "reference_checks": {
+      "mu": -0.011453966220873446,
+      "alternate_mu": -0.011453966220873427,
+      "axis_exchange_density_difference": 2.220446049250313e-16,
+      "quadrature_error_estimate": 7.525990322001042e-12,
+      "filling_error": 3.552713678800501e-15,
+      "reference_accuracy_target": 1e-08
+    },
+    "failure": "Adaptive simplex loop did not converge"
+  }
+]

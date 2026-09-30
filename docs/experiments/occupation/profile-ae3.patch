@@ -1,0 +1,41 @@
+diff --git a/cpp/src/integration/integration.cpp b/cpp/src/integration/integration.cpp
+index 493215c..bc29e2c 100644
+--- a/cpp/src/integration/integration.cpp
++++ b/cpp/src/integration/integration.cpp
+@@ -1,0 +2 @@
++#include <fermisimplex/occupation_profile.h>
+@@ -134 +135 @@ auto charge_integrand(
+-        [&mesh](std::span<const double> point) { return mesh.spectrum(point); },
++        [&mesh](std::span<const double> point) { occupation_profile::Region timer("vertex_spectrum"); return mesh.spectrum(point); },
+diff --git a/cpp/src/occupation/enclosure.cpp b/cpp/src/occupation/enclosure.cpp
+index ed92f6f..98286d8 100644
+--- a/cpp/src/occupation/enclosure.cpp
++++ b/cpp/src/occupation/enclosure.cpp
+@@ -1,0 +2 @@
++#include <fermisimplex/occupation_profile.h>
+@@ -190,0 +192 @@ OccupationEnclosure enclose_occupation(const SpectralMesh &mesh,
++    occupation_profile::Region timer("enclosure");
+@@ -220,0 +223 @@ OccupationEnclosure enclose_occupation(const SpectralMesh &mesh,
++    occupation_profile::Region integration_timer("polynomial_integration");
+diff --git a/cpp/src/occupation/model.cpp b/cpp/src/occupation/model.cpp
+index 0e22046..5840c41 100644
+--- a/cpp/src/occupation/model.cpp
++++ b/cpp/src/occupation/model.cpp
+@@ -2,0 +3 @@
++#include <fermisimplex/occupation_profile.h>
+@@ -15,0 +17 @@ Matrix from_spectrum(const Eigensystem &spectrum, double mu) {
++    occupation_profile::Region timer("reconstruct_vertices");
+@@ -35,0 +38 @@ Interpolant interpolate(const SpectralMesh &mesh,
++    occupation_profile::Region timer("interpolate");
+@@ -49,0 +53 @@ Interpolant interpolate(const SpectralMesh &mesh,
++        occupation_profile::Region timer("probe_hamiltonians");
+@@ -105,0 +110 @@ Sectors sign_sectors(const Polynomial &polynomial, double allowance,
++    occupation_profile::Region timer("sign_sectors");
+@@ -183,0 +189 @@ Model build_model(const SpectralMesh &mesh,
++    occupation_profile::Region timer("build_model");
+@@ -189,0 +196 @@ Model build_model(const SpectralMesh &mesh,
++    { occupation_profile::Region timer("rotate_full_controls");
+@@ -200,0 +208 @@ Model build_model(const SpectralMesh &mesh,
++    }
+@@ -208,0 +217 @@ Model build_model(const SpectralMesh &mesh,
++    occupation_profile::Region reduction_timer("schur_reduction");

@@ -1,0 +1,67 @@
+{
+  "commit": "ae3ce87da2832533a35592ff69fe74088ee41bf4",
+  "worker": {
+    "variant": "current",
+    "bands": 192,
+    "representation": "tb",
+    "family": "spectators",
+    "target": 1e-05,
+    "cpu": 0,
+    "batch": 1,
+    "repeats": 7,
+    "timing_samples": [
+      0.2500071149552241,
+      0.3054481190047227,
+      0.27365223300876096,
+      0.2601457679993473,
+      0.256029105046764,
+      0.24939330900087953,
+      0.26198494498385116
+    ],
+    "seconds": 0.2601457679993473,
+    "actual_error": 9.310467206091744e-06,
+    "estimated_error": 9.77598688245429e-06,
+    "vertices": 15,
+    "refinements": 10,
+    "simplex_visits": 24,
+    "hamiltonians": 87,
+    "eigensystems": 15,
+    "initial_active_dimension_sum": 12
+  },
+  "calls": 9,
+  "accumulated_seconds": {
+    "build_model": 1.60572,
+    "enclosure": 1.60711,
+    "interpolate": 0.766733,
+    "polynomial_integration": 0.00120989,
+    "probe_hamiltonians": 0.0995382,
+    "reconstruct_vertices": 0.310783,
+    "rotate_full_controls": 0.55855,
+    "schur_reduction": 0.14728,
+    "sign_sectors": 0.128506,
+    "vertex_spectrum": 0.766211
+  },
+  "inclusive_seconds_per_call": {
+    "build_model": 0.17841333333333334,
+    "enclosure": 0.17856777777777777,
+    "interpolate": 0.08519255555555555,
+    "polynomial_integration": 0.0001344322222222222,
+    "probe_hamiltonians": 0.0110598,
+    "reconstruct_vertices": 0.03453144444444444,
+    "rotate_full_controls": 0.06206111111111111,
+    "schur_reduction": 0.016364444444444445,
+    "sign_sectors": 0.014278444444444446,
+    "vertex_spectrum": 0.08513455555555555
+  },
+  "exclusive_seconds_per_call": {
+    "vertex_spectrum": 0.08513455555555555,
+    "probe_hamiltonians": 0.0110598,
+    "reconstruct_vertices": 0.03453144444444444,
+    "rotate_full_controls": 0.06206111111111111,
+    "schur_reduction": 0.016364444444444445,
+    "polynomial_integration": 0.0001344322222222222,
+    "other_interpolation": 0.03960131111111111,
+    "sector_and_model_overhead": 0.014795222222222237
+  },
+  "note": "The sign_sectors timer includes calls nested in polynomial_integration. The exclusive sector_and_model_overhead is the build_model residual after interpolation, rotation, and reduction; it includes small uninstrumented model work."
+}
