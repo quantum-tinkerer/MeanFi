@@ -11,8 +11,9 @@ with an explicit remainder contract; adaptive calculations no longer use it.
 
 Base: MeanFi `54eab84`, FermiSimplex `13aeda0`, AdaptiveSimplex `5ea4787`, paper
 `b3735fe`. The previous experimental implementation is FermiSimplex `98c5009`.
-Current native pin: [660de6c](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/660de6c7c447672fe3dab636c6544db485d184f1).
-The tolerance and subdivision follow-up compares this revision with `df720a2`.
+Current native pin: [0b45519](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/0b45519f97e09911bb818dce70c4183b0a304588).
+The charge-slope and surface follow-up compares this revision with `660de6c`.
+The tolerance and subdivision follow-up compares `660de6c` with `df720a2`.
 The scalar-cut follow-up below compares `df720a2` with `23b6ac1`.
 The review cleanup below compares `8430c4d` with `cf266b7`; `23b6ac1` only
 formats a benchmark. The preceding
@@ -22,9 +23,112 @@ The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
 
+## Consistent charge slopes and cached crossing witnesses
+
+This follow-up implements all three review findings. The quartic remainder
+probes and matrix allowance remain part of the single production algorithm.
+The native [design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/0b45519f97e09911bb818dce70c4183b0a304588/docs/occupation-enclosure.md)
+describes the shared occupation rules.
+
+1. **Include rounding error for constant tight-binding matrices.** Their charge
+   interval uses the physical signs of the cached eigenvalues. The cut indicator
+   includes the difference from the tolerance-rounded reported occupation. An
+   energy exactly equal to `mu` retains exact half occupation. A loose level
+   tolerance can impose an error that subdivision cannot remove; it no longer
+   silently passes the charge stopping test.
+2. **Differentiate the reported charge.** Charge and slope now use one recurrence
+   in one pass. Snapped vertices stay on the level as `mu` changes. A rounded
+   full/empty band therefore has zero slope. The derivative applies between
+   changes of snapping classification; at zero tolerance, exact knots use the
+   left derivative. Fraction-only enclosure calculations omit derivative work.
+   Cost remains `O(d^2)` with `O(d)` storage, independently of band count.
+3. **Use cached strict crossings before constructing the surface model.** Each
+   vertex has an occupation interval that excludes/includes its near-level
+   bands. If the largest lower count exceeds the smallest upper count, a
+   continuous Hamiltonian must cross the level. Classification can then proceed
+   without additional matrix evaluation or rotation. Merely touching the level
+   does not supply this witness. Ambiguous cells and hidden pockets retain the
+   full quartic checks. The rule works in every dimension.
+
+### Accuracy and filling solves
+
+For constant `H=[.0005]`, `mu=0` and level tolerance `.001`, the reported charge
+is `.5` but its physical value is zero. The enclosure is now `[0,0]` and both
+error indicators are `.5`; previously both errors were reported as zero.
+For `diag(-.0005,.0005)`, the total charge is correct but the density is
+`[.5,.5]` instead of `[1,0]`. The cut indicator now reports the full unit sum
+of absolute density errors, despite cancellation of charge error. A truly
+on-level constant band still has zero error and half occupation.
+
+For `H=w*(x+2*y)`, the reported root-mesh charge near the snapped vertex at
+energy `w` is `Q(t)=t/6+t^2/12`, where `t=mu/w`. Its scaled derivative is
+`w*Q'=(1+t)/6`. The actual MeanFi filling solve gives:
+
+| Band scale / level tolerance | Old scaled slope | Correct slope | Calls before → after | Final filling error |
+| --- | ---: | ---: | ---: | ---: |
+| `w=1`, tolerance `.05`, `t=1.025` | .5041667 | .3375 | 24 → 6 | 5.6e-17 |
+| `w=1e-8`, default tolerance `1e-14`, `t=1.00000025` | .500000042 | .333333375 | 14 → 4 | 5.3e-15 |
+
+The charge values are unchanged. Tests compare exact affine slopes through
+dimension 12, including repeated and tightly clustered energies. Maximum
+scaled error is **8.9e-16** against exact references and **2.4e-10** against
+central differences (tolerance `2e-9`). Surface tests in 1D through 5D require
+zero additional Hamiltonian calls for strict cached crossings, while retaining
+probes for near-level gaps, contacts and hidden quartic pockets.
+
+**263 native Python tests, all 14 C++ test groups, and 739 MeanFi checks pass**;
+43 MeanFi checks are skipped and 35 slow checks deselected. Ruff and the
+dependency lock check pass.
+The polynomial sweep retains zero false gap claims across 549 intervals and
+18 triangles at depths 2 and 6. All 549 exact interval charges are enclosed;
+endpoints and the measured approximation orders are unchanged.
+
+### Runtime
+
+Separate Release builds use the same pinned AdaptiveSimplex, one CPU and one
+BLAS thread. Each case has a warmup followed by two alternating rounds of
+three samples per build. The 36- and 192-band repeats use three rounds of five
+samples. No builds or test suites run during timing.
+
+| Surface case | Before, ms | After, ms | Runtime change |
+| --- | ---: | ---: | ---: |
+| Cosine | .0641 | .0378 | -41% |
+| Disk | 1.810 | .886 | -51% |
+| Annulus | 8.496 | 4.684 | -45% |
+| Mixed 36 bands | 4.336 | 2.849 | -34% |
+| Sphere | 353.11 | 53.15 | -85% |
+
+All surface coordinates, cells and band labels are byte-identical. Charge
+runtime is broadly unchanged: the 1D/2D adaptive cases range from -6.7% to +4.0%.
+Initial-mesh sphere and shell comparisons give -19.5% and -1.3%, respectively.
+The band sweep gives -0.3%, +0.4%, +0.3%, +1.9% and -0.3% at 12, 36, 96, 192
+and 384 bands, using repeats at 36 and 192. These changes do not introduce a
+higher power of matrix size: the model still requires `O(N^3)` work and
+`O(N^2)` storage. The surface shortcut removes model work when a crossing is
+already established.
+
+Host timing remains variable. The initial 36- and 192-band comparisons gave
++5.5% and -4.0%, versus +0.4% and +1.9% on repeat. Both sets of samples are
+retained; these small changes do not establish a general charge speedup or
+slowdown. All measured charge values, error estimates, refinement counts and
+matrix-operation counts agree with the previous build.
+
+Raw results: [surfaces](experiments/occupation/vertex-witness-surfaces.json),
+[charge](experiments/occupation/vertex-witness-charge.json),
+[band sweep](experiments/occupation/vertex-witness-scaling.json),
+[repeats](experiments/occupation/vertex-witness-scaling-repeat.json), and
+[numerical validation](experiments/occupation/vertex-witness-validation.json).
+Reproduce timings with `performance/compare_occupation_probes.py`, setting
+`--comparison` to a separate `660de6c` build and `--quartic` to the current
+build. Regressions are in native `test_charge_derivative.py`,
+`test_occupation_enclosure.py`, `test_affine_cut.cpp`,
+`test_surface_classification.cpp`, and MeanFi's
+`test_fixed_filling_contracts.py`. The existing `occupation_polynomial_gaps.py`
+and `occupation_orders.py` reproduce the gap and convergence checks.
+
 ## Consistent occupation cuts and cheaper subdivision
 
-The three changes from the latest review retain the quartic probes, matrix
+The three changes from the preceding review retain the quartic probes, matrix
 allowances and one production algorithm. The concise native
 [design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/660de6c7c447672fe3dab636c6544db485d184f1/docs/occupation-enclosure.md)
 describes their relationship to the enclosure.

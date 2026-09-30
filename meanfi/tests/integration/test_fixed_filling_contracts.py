@@ -3,6 +3,7 @@ from meanfi import default_solver_tolerances
 import numpy as np
 import pytest
 import scipy.sparse as sp
+from fermisimplex import SpectralMesh
 
 from meanfi import (
     UniformGrid,
@@ -70,6 +71,39 @@ def test_nonpositive_derivative_fixed_filling_root_falls_back_to_bracketing():
     assert root.derivative == -1.0
     assert abs(root.charge - 0.7) <= 1e-6
     assert abs(root.mu - np.log(0.7 / 0.3)) <= 1e-5
+
+
+@pytest.mark.parametrize(
+    "width,tolerance,level,guess",
+    [(1.0, 0.05, 1.025, 1.04), (1e-8, 1e-14, 1.00000025, 1.0000005)],
+)
+def test_fixed_filling_uses_the_slope_of_the_reported_snapped_charge(
+    width, tolerance, level, guess
+):
+    mesh = SpectralMesh(
+        lambda x, y: np.array([[width * (x + 2 * y)]]),
+        root_level=0,
+        tolerance=tolerance,
+    )
+
+    def evaluate(mu):
+        charge = mesh.estimate_charge_on_current_mesh(mu=mu)
+        return charge.value, charge.dcharge_dmu
+
+    # Exact root of the reported charge in the region where the vertex at
+    # energy `width` is snapped. The old unsnapped slope needed 14--24 calls.
+    filling = level / 6 + level**2 / 12
+    root = solve_mu(
+        evaluate_charge=evaluate,
+        initial_bracket=lambda: (0, 3 * width),
+        filling=filling,
+        mu_guess=guess * width,
+        filling_tol=1e-12,
+        mu_tol=1e-18 * width,
+        max_charge_evaluations=8,
+    )
+    assert abs(root.residual) <= 1e-12
+    assert abs(root.mu / width - level) < 1e-10
 
 
 def test_explicit_density_tolerance_sets_charge_but_preserves_filling_residual():
