@@ -174,6 +174,13 @@ Known deferred issue: FermiSimplex `nk` currently selects a prescribed mesh. The
 intended contract is an adaptive point budget. This change is outside this branch;
 its tutorial uses tolerance-driven integration without `nk`.
 
+The experimental `FermiSimplex(charge_method="quadratic")` selects a shared
+quadratic Schur occupation enclosure for adaptive charge integration. Its sign
+test and charge interval use the same error allowance; polynomial subdivision
+adds no Hamiltonian samples. The default remains `"legacy"` for comparisons.
+The sampling assumptions, algorithm and numerical comparisons are documented
+in [the experiment design](docs/occupation-enclosure.md).
+
 ## Energy comparisons and final observables
 
 `scf/energy.py` constructs comparisons from density parameters, generating fields,

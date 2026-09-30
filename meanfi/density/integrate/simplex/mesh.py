@@ -126,6 +126,7 @@ def _integrate_charge(
     max_refinements: int | None,
     num_threads: int | None,
     max_points: int | None = None,
+    charge_method: str = "legacy",
 ):
     max_refinements = _bounded_refinements(
         mesh, max_refinements, max_points, preview_depth=0
@@ -136,6 +137,7 @@ def _integrate_charge(
             target_error=float(charge_tol),
             max_refinements=max_refinements,
             error_depth=_CHARGE_ERROR_DEPTH,
+            method=charge_method,
             min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
             max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
         )
@@ -264,6 +266,7 @@ class SimplexEvaluator:
             max_refinements=self.remaining_refinements(),
             num_threads=self.settings.num_threads,
             max_points=self.settings.max_points,
+            charge_method=self.settings.charge_method,
         )
         if not result.stats.target_reached:
             raise RuntimeError(

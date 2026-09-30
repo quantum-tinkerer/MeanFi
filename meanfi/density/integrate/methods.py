@@ -46,6 +46,9 @@ class FermiSimplex(IntegrationMethod):
     boundary vertices. Native dyadic construction may overshoot this request.
     Without ``nk``, use integration targets and adaptive refinement.
     ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
+    ``charge_method="quadratic"`` selects the experimental shared occupation
+    enclosure for adaptive fixed-filling charge calculations. Its interpolation
+    remainder is sampled. ``"legacy"`` retains the recursive estimator.
     Adaptive density starts with Q3-Q1, promotes odd-degree cubature up to
     ``density_max_degree``, then bisects unresolved cells on a density-only tree.
     Its effective density target is at least half the charge step's sampled
@@ -61,10 +64,13 @@ class FermiSimplex(IntegrationMethod):
     initial_nk: int | None = None
     max_points: int = 1_048_576
     density_max_degree: int = 7
+    charge_method: str = "legacy"
 
     def __post_init__(self):
         _validate_mesh_settings(self)
         _positive_integer("num_threads", self.num_threads, allow_none=True)
+        if self.charge_method not in ("legacy", "quadratic"):
+            raise ValueError("charge_method must be 'legacy' or 'quadratic'")
         degree = self.density_max_degree
         if (
             isinstance(degree, bool)
