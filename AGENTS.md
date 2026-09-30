@@ -1,5 +1,11 @@
 # AI coding guidelines
 
+## Recorded user decision (2026-09-30)
+
+- Use one occupation/charge algorithm on the experimental branch. Do not add
+  opt-in selection or preserve the previous implementation for compatibility;
+  benchmark it from its historical commit instead.
+
 Use a concise design document to explain the goal, the algorithm, its assumptions, and how the main concepts fit together. Let it guide planning and implementation, and keep it current as the code evolves. The code should make those concepts and relationships easy to recognize. Prioritize clarity and correctness in the code, keep the central logic visible, and leave implementation details in the code.
 
 ## Design and structure

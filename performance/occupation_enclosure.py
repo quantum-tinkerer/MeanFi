@@ -1,4 +1,4 @@
-"""Compare the charge methods on the paper's frozen 36-orbital input.
+"""Measure the charge algorithm on the paper's frozen 36-orbital input.
 
 No SCF iterations. The 1D reference is analytic; 2D uses the paper's saved
 axis-exchanged quadrature reference and preserves its error diagnostics.
@@ -45,50 +45,48 @@ def compare(paper, repeats):
             }
         )
         for target in (1e100, 1e-2, 1e-3):
-            for method in ("legacy", "quadratic"):
-                row = dict(
-                    dimension=dimension,
-                    method=method,
-                    target=target,
-                    reference_checks=checks,
-                )
-                times = []
-                try:
-                    for _ in range(repeats):
-                        signal.alarm(30)
-                        mesh = SpectralMesh(h, root_level=2)
-                        start = perf_counter()
-                        result = mesh.integrate_charge(
-                            mu=mu,
-                            target_error=target,
-                            method=method,
-                            error_depth=2,
-                            max_refinements=2000,
-                        )
-                        times.append(perf_counter() - start)
-                        signal.alarm(0)
-                    error = float(abs(result.value - np.trace(reference)))
-                    row.update(
-                        seconds=median(times),
-                        timing_samples=times,
-                        actual_error=error,
-                        estimated_error=result.stopping_error,
-                        covered=error <= result.stopping_error + 1e-10,
-                        refinements=result.stats.refinements,
-                        vertices=mesh.active_vertices,
-                        hamiltonian_evaluations=result.stats.evaluations
-                        + result.error_stats.hamiltonian_evaluations,
-                        eigensystems=result.stats.evaluations
-                        + result.error_stats.full_eigensystems
-                        + result.error_stats.reduced_eigensystems
-                        + result.error_stats.norm_eigensystems,
+            row = dict(
+                dimension=dimension,
+                method="occupation",
+                target=target,
+                reference_checks=checks,
+            )
+            times = []
+            try:
+                for _ in range(repeats):
+                    signal.alarm(30)
+                    mesh = SpectralMesh(h, root_level=2)
+                    start = perf_counter()
+                    result = mesh.integrate_charge(
+                        mu=mu,
+                        target_error=target,
+                        error_depth=2,
+                        max_refinements=2000,
                     )
-                except (RuntimeError, TimeoutError) as error:
-                    row["failure"] = str(error)
-                finally:
+                    times.append(perf_counter() - start)
                     signal.alarm(0)
-                print(json.dumps(row), flush=True)
-                rows.append(row)
+                error = float(abs(result.value - np.trace(reference)))
+                row.update(
+                    seconds=median(times),
+                    timing_samples=times,
+                    actual_error=error,
+                    estimated_error=result.stopping_error,
+                    covered=error <= result.stopping_error + 1e-10,
+                    refinements=result.stats.refinements,
+                    vertices=mesh.active_vertices,
+                    hamiltonian_evaluations=result.stats.evaluations
+                    + result.error_stats.hamiltonian_evaluations,
+                    eigensystems=result.stats.evaluations
+                    + result.error_stats.full_eigensystems
+                    + result.error_stats.reduced_eigensystems
+                    + result.error_stats.norm_eigensystems,
+                )
+            except (RuntimeError, TimeoutError) as error:
+                row["failure"] = str(error)
+            finally:
+                signal.alarm(0)
+            print(json.dumps(row), flush=True)
+            rows.append(row)
     return rows
 
 

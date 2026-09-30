@@ -422,7 +422,6 @@ def test_adaptive_simplex_calls_fermisimplex_charge_apis():
                 "target_error": 1e-4,
                 "max_refinements": 7,
                 "error_depth": 2,
-                "method": "legacy",
                 "min_refinement_batch_size": 1,
                 "max_refinement_batch_size": 100,
             },

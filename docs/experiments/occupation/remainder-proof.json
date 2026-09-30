@@ -1,0 +1,26 @@
+[
+  {
+    "dimension": 1,
+    "probes": 2,
+    "factor": 2,
+    "certified_upper_bound": "14/9",
+    "leaves": 4,
+    "depth": 2
+  },
+  {
+    "dimension": 2,
+    "probes": 9,
+    "factor": 4,
+    "certified_upper_bound": "4",
+    "leaves": 12,
+    "depth": 4
+  },
+  {
+    "dimension": 3,
+    "probes": 25,
+    "factor": 8,
+    "certified_upper_bound": "71/9",
+    "leaves": 27,
+    "depth": 6
+  }
+]

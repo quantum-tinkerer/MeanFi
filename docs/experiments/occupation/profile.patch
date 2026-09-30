@@ -1,0 +1,41 @@
+diff --git a/cpp/src/integration/integration.cpp b/cpp/src/integration/integration.cpp
+index efba3f7..ab36074 100644
+--- a/cpp/src/integration/integration.cpp
++++ b/cpp/src/integration/integration.cpp
+@@ -1,0 +2 @@
++#include <fermisimplex/occupation_profile.h>
+@@ -163,0 +165 @@ auto charge_integrand(
++                occupation_profile::Region timer("vertex_spectrum");
+@@ -193,0 +196 @@ auto charge_integrand(
++            occupation_profile::Region timer("legacy_charge_and_error");
+diff --git a/cpp/src/occupation/enclosure.cpp b/cpp/src/occupation/enclosure.cpp
+index fb70f19..adf1fb1 100644
+--- a/cpp/src/occupation/enclosure.cpp
++++ b/cpp/src/occupation/enclosure.cpp
+@@ -1,0 +2 @@
++#include <fermisimplex/occupation_profile.h>
+@@ -143,0 +145 @@ OccupationEnclosure enclose_occupation(const SpectralMesh &mesh,
++    occupation_profile::Region timer("enclosure");
+@@ -172,0 +175 @@ OccupationEnclosure enclose_occupation(const SpectralMesh &mesh,
++    occupation_profile::Region integration_timer("polynomial_integration");
+diff --git a/cpp/src/occupation/model.cpp b/cpp/src/occupation/model.cpp
+index c7a4263..4dde7b2 100644
+--- a/cpp/src/occupation/model.cpp
++++ b/cpp/src/occupation/model.cpp
+@@ -2,0 +3 @@
++#include <fermisimplex/occupation_profile.h>
+@@ -15,0 +17 @@ Matrix from_spectrum(const Eigensystem &spectrum, double mu) {
++    occupation_profile::Region timer("reconstruct_vertices");
+@@ -35,0 +38 @@ Interpolant interpolate(const SpectralMesh &mesh,
++    occupation_profile::Region timer("interpolate");
+@@ -49,0 +53 @@ Interpolant interpolate(const SpectralMesh &mesh,
++        occupation_profile::Region timer("probe_hamiltonians");
+@@ -96,0 +101 @@ Sectors sign_sectors(const Polynomial &polynomial, double allowance,
++    occupation_profile::Region timer("sign_sectors");
+@@ -167,0 +173 @@ Model build_model(const SpectralMesh &mesh,
++    occupation_profile::Region timer("build_model");
+@@ -171 +177 @@ Model build_model(const SpectralMesh &mesh,
+-    auto full = interpolation.polynomial.rotated(anchor.eigenvectors);
++    auto full = [&] { occupation_profile::Region timer("rotate_full_controls"); return interpolation.polynomial.rotated(anchor.eigenvectors); }();
+@@ -179,0 +186 @@ Model build_model(const SpectralMesh &mesh,
++    occupation_profile::Region reduction_timer("schur_reduction");

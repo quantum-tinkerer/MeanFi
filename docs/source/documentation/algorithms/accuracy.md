@@ -88,12 +88,12 @@ it does not independently certify its approximation accuracy. Likewise, a
 small integration estimate can miss structure absent from the sampled mesh.
 Choose a representative starting mesh or compare with a denser calculation
 when checking a new model.
+
 ## Experimental quadratic occupation enclosure
 
-`FermiSimplex(charge_method="quadratic")` uses a shared reduced matrix model
+`FermiSimplex` uses a shared reduced matrix model
 for occupation tests and charge-error intervals during the fixed-filling solve.
-The default `"legacy"` keeps the recursive estimator. The new interpolation
-remainder is sampled, so hidden features can still be missed. Its cubic local
+The interpolation remainder is sampled, so hidden features can still be missed. Its cubic local
 matrix allowance does not imply cubic charge convergence or rigorous error
 certification. The experiment and numerical comparisons are described in
 `docs/occupation-enclosure.md` in the repository.
