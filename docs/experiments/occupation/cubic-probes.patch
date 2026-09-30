@@ -1,0 +1,11 @@
+--- a/cpp/src/occupation/probes.h
++++ b/cpp/src/occupation/probes.h
+@@ -12,7 +12,7 @@
+     static thread_local std::map<std::size_t, std::vector<Weights>> rules;
+     if (const auto found = rules.find(vertices); found != rules.end())
+         return found->second;
+-    constexpr unsigned degree = 4;
++    constexpr unsigned degree = 3;
+     std::vector<Weights> probes;
+     Weights weights(vertices);
+     const auto visit = [&](auto &&self, std::size_t axis, unsigned remaining,

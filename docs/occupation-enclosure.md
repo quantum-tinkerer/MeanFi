@@ -11,7 +11,9 @@ with an explicit remainder contract; adaptive calculations no longer use it.
 
 Base: MeanFi `54eab84`, FermiSimplex `13aeda0`, AdaptiveSimplex `5ea4787`, paper
 `b3735fe`. The previous experimental implementation is FermiSimplex `98c5009`.
-Current native implementation: [9f06d36](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/9f06d36c74f6c9c88f3dcc77ef4b173155c3f5b4).
+Current native implementation: [cf266b7](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/cf266b72c57dd7d80035e01b56e180422ef05245).
+The direct-evaluation and dimension-general probes follow-up compares it with
+`9f06d36`; its measurements appear first below.
 The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
@@ -29,9 +31,16 @@ those are different statements.
 ### Reconstructing and rotating matrices
 
 At a mesh vertex the cache retains eigenvalues `E_i` and eigenvectors `U_i`.
-Reconstruction forms `K_i = U_i diag(E_i-mu) U_i†`, the full `N × N` matrix in
-the original orbital basis. It recovers the matrix from cached spectra without
-another call to the Hamiltonian. One dense product is required per vertex.
+The previous implementation reconstructed `K_i = U_i diag(E_i-mu) U_i†`, the
+full `N × N` matrix in the original orbital basis. This avoided another call
+to the Hamiltonian, but required one dense product per vertex, costing `O(N^3)`.
+
+The current implementation evaluates `H(k_i)-mu I` directly. A tight-binding
+sum with `M` hopping matrices costs `O(M N^2)` to evaluate; for fixed `M` this
+is cheaper asymptotically. General user callables can be expensive, so direct
+evaluation is not a universal speedup. It adds repeated vertex calls without
+retaining a second full matrix per cached vertex. All inputs follow this one
+path. The isolated measurements below include an expensive callable.
 
 Rotation expresses each quadratic control in the first vertex's eigenbasis:
 `C_ij -> U_0† C_ij U_0`. This is a common basis for all controls, preserving
@@ -59,11 +68,22 @@ shape-regular cells, `||K-K2|| = O(h^3)`, where `h` is cell diameter.
 
 The additional probes have barycentric coordinates `alpha/4` for all integer
 vectors `alpha >= 0` with `sum alpha_i = 4`, excluding interpolation nodes.
-The total count is `binomial(d+4,4)`. This construction generalizes to any `d`;
-**the implemented probe enumeration and verified factors 2,4,8 cover 1D–3D**.
-Higher dimensions require a complete enumeration there and a corresponding
-bound; no general-d proof of `2**d` is claimed. Spatial dimension `d` is
-independent of the number of bands `N`.
+The total count is `binomial(d+4,4)`. The implementation now enumerates these
+integer compositions in every dimension, with no dimension-specific probe
+lists. Geometry-only weights are cached by vertex count. The remainder factor
+is the single formula `min(2**d,32)`. Exact rational subdivision establishes
+factors 2,4,8,16 through dimension four. A Bernstein coefficient of degree four
+has support on at most four vertices; cardinal polynomials with support outside
+those vertices contribute zero. Bounding all coefficient rows on four vertices
+therefore proves a uniform factor 32 in every higher dimension. The proof
+script and its exact output are linked below. This covers matrix polynomials
+through degree four, in exact arithmetic; arbitrary functions remain sampled.
+
+Spatial dimension `d` is independent of the number of bands `N`. This change
+does not make high spatial dimensions cheap: the quartic node count grows as
+`O(d^4)` and the mesh has its own dimensional cost. End-to-end tests cover exact
+affine occupied volumes in 4D and 5D to `1e-12`, and a hidden quartic 4D face
+pocket. Probe completeness and symmetry are checked through 8D.
 
 ### Where cubic and quartic errors enter
 
@@ -81,6 +101,13 @@ polynomial. Computing this final scalar term is cheap once `b,d,x,Delta` exist.
 It remains necessary to make the bound valid at finite cell size.
 
 ### Measured orders
+
+**Charge error is the quantity that matters for the requested accuracy.** Its
+generic second-order behavior at regular Fermi crossings is separate from the
+cubic matrix allowance used to bound it. The quartic entry below is one smaller
+correction inside that allowance. These powers refer to different quantities
+with different units; they are not three estimates of the same error. Near
+degenerate crossings or closing safe gaps these asymptotic orders need not hold.
 
 The repeatable check in `performance/occupation_orders.py` uses exact polynomial
 extrema and the analytically soluble matrix
@@ -155,7 +182,201 @@ performance/occupation_orders.py --output orders.json`, and run the native
 [orders](experiments/occupation/orders.json),
 [native Schur check](experiments/occupation/schur-order.txt).
 
-## Larger-band follow-up and optimization
+## Direct evaluation versus reconstruction
+
+FermiSimplex `cf266b7` evaluates vertex matrices directly; `9f06d36` reconstructs
+them from cached eigensystems. In 1D–3D their quartic sample locations and
+remainder factors are identical. The new implementation also caches the
+general probe weights instead of creating individual weight vectors at each
+visit. No eigensystems or full Hamiltonian matrices are added to the cache.
+
+For the same 1D mixed-band problem, both builds use 15 vertex eigensystems,
+10 persistent refinements and 24 simplex visits. Work counters report 87
+Hamiltonian evaluations before this change and 135 afterwards. The 48 added
+calls replace 48 spectral reconstructions. All actual charge errors remain
+`9.310467e-6` and indicators about `9.775987e-6`.
+
+Two alternating process rounds, each with three warmed batch timings, give:
+
+| Bands | Reconstruct, seconds | Evaluate, seconds | Runtime change |
+| ---: | ---: | ---: | ---: |
+| 12 | .000702 | .000692 | -1.5% |
+| 36 | .005210 | .005389 | +3.4% |
+| 96 | .04574 | .03976 | -13.1% |
+| 192 | .24564 | .21639 | -11.9% |
+| 384 | 1.57664 | 1.34904 | -14.4% |
+| 768 | 13.11457 | 11.43256 | -12.8% |
+
+The direct-evaluation savings remain roughly 12–14% at 96–768 bands. The
+observed powers from 192 to 768 bands are 2.87 before and 2.86 after; from
+384 to 768 they are 3.06 and 3.08. This agrees with the unchanged `O(N^3)`
+dense eigensystem/rotation work at fixed physics and dimension. Removing
+reconstruction changes its coefficient, not the scaling power.
+
+The cost of the Hamiltonian matters. A cheap Python callback giving the same
+matrix is 6.2% slower at 36 bands and 8.0% faster at 192. An intentionally
+expensive callback that assembles the same Hamiltonian in another basis and
+performs two dense basis transformations on every call is 6.6% slower at 36
+bands and **13.4% slower at 192** (`.36070 -> .40913` seconds). This separates
+oracle cost from physical difficulty. Direct evaluation is therefore a choice
+favoring inexpensive Hamiltonian assembly at larger matrix size, not a
+universal optimization.
+
+A second sweep compares both implementations across the analytic models.
+Reported charges agree within `4.5e-16`, and refinement counts are unchanged.
+Scalar callbacks expose the cost of extra evaluations: the 1D pocket takes
+20.9% longer, the disk 6.0%, and the annulus 5.0% in a repeated timing check.
+The two-band Dirac case takes 4.5% longer. Scalar spectral reconstruction was
+just a cached eigenvalue read, so there was no cubic matrix product to save.
+There is deliberately no separate scalar implementation. Initial annulus
+timings varied almost twofold between process rounds; the repeated comparison
+uses four alternating rounds with five measurements each. Both raw runs are
+retained. Shared-host absolute times vary between runs; compare paired builds.
+
+Keeping the original matrix alongside every cached eigensystem could avoid
+both costs, but would add another `N x N` complex matrix per cached vertex,
+roughly doubling the dominant vertex-cache storage. The implementation uses
+one direct-evaluation path with no extra matrix cache or cost-based selector.
+
+Reproduce with `performance/compare_occupation_probes.py --experiment evaluation
+--comparison /path/to/9f06d36/python --quartic /path/to/cf266b7/python
+--models /path/to/cf266b7/benchmarks/occupation_enclosure.py
+--output evaluation-comparison.json`. Run without concurrent builds or tests.
+These fresh ratios compare reconstruction with direct evaluation; the old
+estimator timing table later in this report was measured separately and
+should not be combined with these absolute times.
+
+Data: [band scaling and counters](experiments/occupation/evaluation-comparison.json),
+[analytic models](experiments/occupation/evaluation-model-comparison.json),
+[annulus repeat](experiments/occupation/evaluation-annulus-repeat.json).
+For the analytic sweep use `--experiment probes` with the same reconstruction
+and direct-evaluation packages and labels `--comparison-label reconstruct
+--quartic-label evaluate`. Add `--case-indices 9 --rounds 4 --repeats 5` for
+the annulus repeat. The current order check also passes:
+[direct-evaluation order data](experiments/occupation/orders-direct.json).
+
+## Cubic versus quartic probes: controlled comparison
+
+Both builds use the same quadratic matrix model, safe-sector logic, direct
+Hamiltonian evaluation, remainder factor, temporary depth and stopping rule.
+The comparison build changes only the lattice degree from four to three;
+[the one-line patch](experiments/occupation/cubic-probes.patch) is kept outside
+the production implementation. Cubic factors were also checked by the exact
+proof script. This is an isolated probe comparison, not a separately optimized
+cubic algorithm. The branch ships only quartic probes.
+
+The cubic grid uses integer compositions `alpha/3`; the quadratic midpoint
+samples are still required. The quartic grid already includes those midpoints.
+
+| Spatial dimension | Quadratic interpolation nodes | Extra cubic probes | Extra quartic probes | Total cubic / quartic samples |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 3 | 2 | 2 | 5 / 5 |
+| 2 | 6 | 7 | 9 | 13 / 15 |
+| 3 | 10 | 16 | 25 | 26 / 35 |
+| 4 | 15 | 30 | 55 | 45 / 70 |
+| 5 | 21 | 50 | 105 | 71 / 126 |
+
+In general the cubic total is `binomial(d+2,2)+binomial(d+3,3)-(d+1)`;
+the quartic total is `binomial(d+4,4)`. Thus the extra protection becomes more
+expensive as spatial dimension grows. At fixed spatial dimension, changing
+probe degree does not change the dense matrix scaling exponent in band count.
+
+### Charge accuracy, runtime and persistent refinement
+
+Timing uses two process rounds with alternating build order, three warmed,
+batched timings per round, one pinned CPU and one BLAS thread. Medians below
+include mesh construction. All references are analytic. Tiny 1D differences
+are timing noise; sample counts are identical there.
+
+| Model / target | Cubic time, ms | Quartic time, ms | Change | Refinements cubic / quartic | Actual charge error cubic / quartic |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Cosine / `1e-5` | .129 | .130 | +0.8% | 12 / 12 | `5.639e-6` / `5.639e-6` |
+| Mixed 192 bands / `1e-5` | 217.8 | 214.3 | -1.6% | 10 / 10 | `9.310e-6` / `9.310e-6` |
+| Disk / `1e-4` | 25.46 | 27.59 | +8.4% | 349 / 349 | `9.262e-5` / `9.262e-5` |
+| Annulus / `1e-4` | 195.66 | 214.21 | +9.5% | 2602 / 2645 | `6.745e-5` / `6.663e-5` |
+| Dirac / `1e-4` | 43.85 | 45.94 | +4.8% | 456 / 456 | `6.891e-5` / `6.891e-5` |
+| 3D sphere, initial mesh | 35.39 | 41.58 | +17.5% | 0 / 0 | `.05312` / `.05312` |
+| 3D shell, initial mesh | 64.96 | 74.64 | +14.9% | 0 / 0 | `.07909` / `.07909` |
+
+Every completed case (19 per build, covering eleven models) had actual charge
+error inside the reported indicator. This means `abs(Q-Qreference) <= indicator`
+with `1e-12` roundoff slack; it does not mean identical indicators. For example,
+the mixed 192-band indicator is `9.650e-6` with cubic probes and `9.776e-6` with
+quartic probes, about 1.3% larger, with the same actual error. The annulus
+indicators are both approximately `1e-4`; the actual errors differ by 1.2%.
+
+The 3D adaptive sphere and shell attempts at targets `.01` and `.001` all
+reached the deliberately bounded 600-refinement cap. They provide no completed
+adaptive timing comparison at those targets. The 3D times above measure the
+same initial mesh only. None of these measurements is an SCF run.
+
+There is no fourth-order bisection saving: eight of the nine completed adaptive
+cases used the same number of persistent refinements. The annulus used 43 more
+with quartic probes (+1.7%). Stronger sampled allowances can require more
+refinement, because they expose uncertainty the cubic probes underestimated.
+
+### Gap claims and underestimated remainders
+
+The existing sweep contains 549 scalar interval polynomials (degrees three
+and four), including 270 true gaps, plus 18 triangle pockets. Both rules cover
+all 549 exact occupied interval lengths. However, cubic probes underestimate
+the true matrix interpolation remainder in 18 quartic interval cases; their
+worst allowance is only 83.7% of the exact maximum defect. Quartic probes cover
+all 549 exact defects. Correct charge coverage in these particular cases does
+not repair the insufficient cubic remainder bound.
+
+| Crossing cases | Cubic false gap claims | Quartic false gap claims |
+| --- | ---: | ---: |
+| 279 interval pockets | 0 | 0 |
+| 9 cubic triangle pockets | 0 | 0 |
+| 9 quartic triangle pockets | 9 | 0 |
+| Quartic 3D interior and 4D face pockets | 2 | 0 |
+| **Total, 299 crossings** | **11** | **0** |
+
+The higher-dimensional witnesses have Hamiltonian value `-.00290625` inside
+a simplex whose vertices all have value `.001`. The cubic samples also all
+have value `.001`, so they falsely report a gap; quartic samples detect the
+negative pocket. These tests express polynomial modes invisible to the cubic
+lattice, rather than fitted probe locations. Every one of the 270 true gaps
+was eventually established by both methods, with median refinement counts
+2.5 (cubic) and 3 (quartic), and at most 6 for either.
+
+**Keep quartic probes.** They improve polynomial gap protection for moderate
+cost in the tested 1D–3D problems. They do not establish a uniform bound for
+arbitrary smooth Hamiltonians; a feature invisible to every sample can still
+be missed. They also do not improve the generic `O(h^2)` reported charge error
+or the `O(h^3)` matrix model allowance. The separate `O(h^4)` Schur correction
+remains a cheap, necessary scalar term in both builds.
+
+### Reproduction and validation
+
+Build FermiSimplex `cf266b7` in Release mode. For the cubic experiment, apply
+the linked patch to a separate checkout and build it separately. Run:
+
+```sh
+python performance/compare_occupation_probes.py --experiment probes \
+  --comparison /path/to/cubic/python --quartic /path/to/quartic/python \
+  --models /path/to/quartic/benchmarks/occupation_enclosure.py \
+  --output probe-comparison.json
+```
+
+The driver uses separate Python processes to prevent extension-module reuse.
+Run without concurrent builds or tests. For each build, run
+`performance/occupation_polynomial_gaps.py --output gaps.json` with its own
+`PYTHONPATH`. The native proof script accepts `--degree 3` or `--degree 4`;
+this comparison option does not change the production library.
+
+Results: [probe timings and errors](experiments/occupation/probe-comparison.json),
+[cubic gaps](experiments/occupation/cubic-general-gaps.json),
+[quartic gaps](experiments/occupation/quartic-general-gaps.json),
+[general quartic proof](experiments/occupation/proof-general-quartic.json),
+[cubic proof](experiments/occupation/proof-general-cubic.json).
+
+Validation after implementation: 796 MeanFi tests passed, 43 skipped and 35
+performance tests deselected; 183 native Python tests and all 11 C++ groups
+passed. `pixi lock --check` accepts the updated immutable dependency pin.
+
+## Larger-band follow-up and optimization at 9f06d36
 
 The 49% figure was the total time ratio for a 192-band **1D** tight-binding
 model. Its probe locations did not change. With one active band and additional

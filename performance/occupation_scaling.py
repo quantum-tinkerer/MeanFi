@@ -44,6 +44,20 @@ def run(args):
         def model(x):
             return sum(a * np.exp(-2j * np.pi * k[0] * x) for k, a in tb.items())
 
+    elif args.representation == "callable_dense":
+        # Same physical Hamiltonian, assembled in another orbital basis and
+        # transformed on every call. This measures an expensive O(N^3) oracle.
+        rng = np.random.default_rng(149)
+        basis, _ = np.linalg.qr(
+            rng.normal(size=(args.bands, args.bands))
+            + 1j * rng.normal(size=(args.bands, args.bands))
+        )
+        inner = {k: basis.conj().T @ a @ basis for k, a in tb.items()}
+
+        def model(x):
+            matrix = sum(a * np.exp(-2j * np.pi * k[0] * x) for k, a in inner.items())
+            return basis @ matrix @ basis.conj().T
+
     options = (
         {}
         if args.variant == "current"
@@ -108,7 +122,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--family", choices=("spectators", "replicas"), default="spectators"
     )
-    parser.add_argument("--representation", choices=("tb", "callable"), required=True)
+    parser.add_argument(
+        "--representation", choices=("tb", "callable", "callable_dense"), required=True
+    )
     parser.add_argument("--repeats", type=int, default=7)
     parser.add_argument("--batch-seconds", type=float, default=0.04)
     print(json.dumps(run(parser.parse_args())))

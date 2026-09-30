@@ -1,0 +1,330 @@
+[
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08229949703672901,
+    "batch": 1,
+    "timing_samples": [
+      0.08298954099882394,
+      0.08291087701218203,
+      0.08229949703672901,
+      0.08181221300037578,
+      0.08179508295143023
+    ],
+    "actual_error": 6.890769187828383e-05,
+    "estimated_error": 9.985338495586323e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 11689,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": true,
+        "negative_witness": -0.00290625,
+        "remainder": 1.4210854715202004e-14
+      }
+    ],
+    "cpu": 0,
+    "build": "reconstruct",
+    "round": 0
+  },
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08753291802713647,
+    "batch": 1,
+    "timing_samples": [
+      0.0873313809861429,
+      0.08753291802713647,
+      0.08786695299204439,
+      0.0875579200219363,
+      0.087390304019209
+    ],
+    "actual_error": 6.890769187783974e-05,
+    "estimated_error": 9.985338495543554e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 14521,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001421
+      }
+    ],
+    "cpu": 0,
+    "build": "evaluate",
+    "round": 0
+  },
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08610638102982193,
+    "batch": 1,
+    "timing_samples": [
+      0.08611274301074445,
+      0.0860306000104174,
+      0.08606535097351298,
+      0.08610638102982193,
+      0.08614574698731303
+    ],
+    "actual_error": 6.890769187783974e-05,
+    "estimated_error": 9.985338495543554e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 14521,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001421
+      }
+    ],
+    "cpu": 0,
+    "build": "evaluate",
+    "round": 1
+  },
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08416136901360005,
+    "batch": 1,
+    "timing_samples": [
+      0.08416367502650246,
+      0.08416136901360005,
+      0.08414846798405051,
+      0.08407095295842737,
+      0.08416692801984027
+    ],
+    "actual_error": 6.890769187828383e-05,
+    "estimated_error": 9.985338495586323e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 11689,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": true,
+        "negative_witness": -0.00290625,
+        "remainder": 1.4210854715202004e-14
+      }
+    ],
+    "cpu": 0,
+    "build": "reconstruct",
+    "round": 1
+  },
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08196822600439191,
+    "batch": 1,
+    "timing_samples": [
+      0.08193257398670539,
+      0.08200060902163386,
+      0.08218354900600389,
+      0.08188589900964871,
+      0.08196822600439191
+    ],
+    "actual_error": 6.890769187828383e-05,
+    "estimated_error": 9.985338495586323e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 11689,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": true,
+        "negative_witness": -0.00290625,
+        "remainder": 1.4210854715202004e-14
+      }
+    ],
+    "cpu": 0,
+    "build": "reconstruct",
+    "round": 2
+  },
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08650867803953588,
+    "batch": 1,
+    "timing_samples": [
+      0.0865967029822059,
+      0.08628903899807483,
+      0.08645723899826407,
+      0.0869070990011096,
+      0.08650867803953588
+    ],
+    "actual_error": 6.890769187783974e-05,
+    "estimated_error": 9.985338495543554e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 14521,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001421
+      }
+    ],
+    "cpu": 0,
+    "build": "evaluate",
+    "round": 2
+  },
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08594895002897829,
+    "batch": 1,
+    "timing_samples": [
+      0.08664613199653104,
+      0.08585608296561986,
+      0.08590838697273284,
+      0.08594895002897829,
+      0.08600479696178809
+    ],
+    "actual_error": 6.890769187783974e-05,
+    "estimated_error": 9.985338495543554e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 14521,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001421
+      }
+    ],
+    "cpu": 0,
+    "build": "evaluate",
+    "round": 3
+  },
+  {
+    "model": "dirac",
+    "dimension": 2,
+    "target": 0.0001,
+    "reference": 1.1583362697409256,
+    "refinement_cap": 3000,
+    "seconds": 0.08222042198758572,
+    "batch": 1,
+    "timing_samples": [
+      0.08223398099653423,
+      0.08205607201671228,
+      0.08276345004560426,
+      0.08217972901184112,
+      0.08222042198758572
+    ],
+    "actual_error": 6.890769187828383e-05,
+    "estimated_error": 9.985338495586323e-05,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 361,
+    "refinements": 456,
+    "hamiltonians": 11689,
+    "eigensystems": 581,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": true,
+        "negative_witness": -0.00290625,
+        "remainder": 1.4210854715202004e-14
+      }
+    ],
+    "cpu": 0,
+    "build": "reconstruct",
+    "round": 3
+  }
+]

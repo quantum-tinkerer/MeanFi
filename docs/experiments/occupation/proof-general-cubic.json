@@ -1,0 +1,43 @@
+{
+  "degree": 3,
+  "finite_dimension_checks": [
+    {
+      "degree": 3,
+      "dimension": 1,
+      "probes": 2,
+      "factor": 2,
+      "certified_upper_bound": "45/32",
+      "leaves": 4,
+      "depth": 2
+    },
+    {
+      "degree": 3,
+      "dimension": 2,
+      "probes": 7,
+      "factor": 4,
+      "certified_upper_bound": "15/4",
+      "leaves": 6,
+      "depth": 3
+    },
+    {
+      "degree": 3,
+      "dimension": 3,
+      "probes": 16,
+      "factor": 8,
+      "certified_upper_bound": "57/8",
+      "leaves": 6,
+      "depth": 3
+    },
+    {
+      "degree": 3,
+      "dimension": 4,
+      "probes": 30,
+      "factor": 16,
+      "certified_upper_bound": "9",
+      "leaves": 1,
+      "depth": 0
+    }
+  ],
+  "universal_bernstein_bound": "9",
+  "conclusion": "min(2**dimension,32) bounds the sampled polynomial residual in every dimension"
+}
