@@ -11,8 +11,9 @@ with an explicit remainder contract; adaptive calculations no longer use it.
 
 Base: MeanFi `54eab84`, FermiSimplex `13aeda0`, AdaptiveSimplex `5ea4787`, paper
 `b3735fe`. The previous experimental implementation is FermiSimplex `98c5009`.
-Current native pin: [df720a2](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/df720a2f9cf2e194e04a32d6770d4c10a6b5f90e).
-The scalar-cut follow-up compares this revision with `23b6ac1`.
+Current native pin: [660de6c](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/660de6c7c447672fe3dab636c6544db485d184f1).
+The tolerance and subdivision follow-up compares this revision with `df720a2`.
+The scalar-cut follow-up below compares `df720a2` with `23b6ac1`.
 The review cleanup below compares `8430c4d` with `cf266b7`; `23b6ac1` only
 formats a benchmark. The preceding
 direct-evaluation and dimension-general probes follow-up compares `cf266b7`
@@ -20,6 +21,117 @@ with `9f06d36`.
 The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
+
+## Consistent occupation cuts and cheaper subdivision
+
+The three changes from the latest review retain the quartic probes, matrix
+allowances and one production algorithm. The concise native
+[design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/660de6c7c447672fe3dab636c6544db485d184f1/docs/occupation-enclosure.md)
+describes their relationship to the enclosure.
+
+1. **Use the reported cut in the density indicator.** Apply the mesh level
+   tolerance once to the root simplex's relative band energies, replacing
+   near-level values by zero. Temporary polynomial cells and density-only
+   children restrict that field without reapplying the tolerance. Include
+   disagreement from removed safe bands too. Matrix certification and shifted
+   charge bounds retain their independent roundoff allowance.
+2. **Restrict only the affected polynomial controls.** Edge bisection copies
+   unchanged controls and uses midpoint averages for controls incident on the
+   replaced vertex. This removes the general barycentric transformation and
+   its temporary identity weights. It works in every dimension.
+3. **Borrow unchanged frames.** If the center is already diagonal, the bounds
+   read the original polynomial directly. A changed frame owns its rotated
+   polynomial. This removes a full control-table copy on the unchanged path;
+   with 192 active bands in 3D, that copy held about 5.9 MB.
+
+### Accuracy
+
+For `H(x)=diag(x-.0005,x-.9995)`, `mu=0`, and level tolerance `.001`, the
+reported density is `[0,1]` while the exact diagonal density is `[.0005,.9995]`.
+The total charge errors cancel. The cut indicator now reports
+**.001000000000512**, covering the sum of the two absolute errors, instead of
+`5.12e-13`. A larger user level tolerance still rounds the reported cut; this
+fix makes its error visible. Tests cover 1D/2D, tolerances `1e-6` and `1e-3`,
+and temporary depths 0, 2 and 6. A fully reduced two-band example now reports
+the safe bands' unit total occupation error instead of zero.
+
+Density-only subdivision also preserves that root cut. For `H(x)=x-.37`,
+level tolerance `.05` and density target `1e-5`, the old density trace drifted
+from `.37` to `.34765625`. The new trace remains `.37`; its first Fourier
+component has error **1.75e-8** (rounded upward), down from `.0223`.
+The same check after shifting both Hamiltonian and chemical potential by 100
+has zero trace drift. This corrected example uses 138 density subdivisions
+instead of 131; the earlier calculation stopped with the wrong cut.
+
+All 15 new tolerance regressions fail on the historical build and pass on the
+new build. **233 native Python tests, 13 C++ test groups, and 737 MeanFi
+test-directory checks pass**; 43 MeanFi checks are skipped and 35 slow checks
+are deselected. Ruff and the dependency lock check pass. Polynomial bisection
+in 1D through 8D agrees at common physical points to **4.5e-16**, below its
+`2e-14` tolerance. The cubic/quartic sweep retains zero false gap claims across
+549 intervals and 18 triangles, with all 549 exact interval charges enclosed
+at both depths. Charge endpoints are identical to the previous build, and the
+measured approximation orders are unchanged.
+
+### Runtime
+
+Release builds use the same compiler and pinned AdaptiveSimplex, one CPU and
+one BLAS thread. Each case has a warmup followed by two alternating rounds
+of three samples per build. No builds or test suites run during timing.
+
+| Adaptive charge case | Before, ms | After, ms | Runtime change |
+| --- | ---: | ---: | ---: |
+| Cosine | 0.169 | 0.154 | -9% |
+| Pocket | 0.389 | 0.381 | -2% |
+| Disk | 30.63 | 26.88 | -12% |
+| Annulus | 241.39 | 172.43 | -29% |
+| Dirac | 28.31 | 25.60 | -10% |
+| Mixed 12 bands | 0.624 | 0.604 | -3% |
+| Mixed 36 bands, repeat | 8.947 | 8.871 | -1% |
+
+Initial-mesh sphere and shell charge evaluations improve by 7% and 23%.
+Adaptive coupled models with 2, 12, 36 and 96 bands change by -2.9%, +3.5%,
+-3.4% and +2.4%. The separate band sweep changes by -1.4%, -0.8%, -4.0%,
+-0.5% and +0.8% at 12, 36, 96, 192 and 384 bands; the 384-band value is a
+repeat. Larger-matrix runtime is approximately unchanged. The full calculation
+still scales cubically with band count; these changes remove allocation and
+subdivision work without adding a higher power of matrix size.
+
+Cosine, disk, annulus and sphere surfaces are 14%, 9%, 14% and 15% faster;
+the mixed 36-band surface changes by -1%. Cosine and mixed surface values are
+repeats. All surface coordinates, cells and band labels are byte-identical.
+Every measured charge case retains its refinement counts, Hamiltonian calls,
+eigensystem counts, temporary cell tree, charge error and stopping indicator.
+
+Host timing shifts remain substantial: the initial mixed-36 charge comparison
+showed +20%, while its three-round/five-sample repeat gives -1%. The analogous
+surface comparisons changed from +13% to -14% (cosine) and -1% (mixed 36).
+The 384-band comparison changed from +3.3% to +0.8% on repeat. Both sets of
+samples are retained; the small differences do not establish a universal
+speedup or slowdown.
+
+Data: [charge](experiments/occupation/cut-tolerance-charge.json),
+[coupled models](experiments/occupation/cut-tolerance-coupled.json),
+[surfaces](experiments/occupation/cut-tolerance-surfaces.json),
+[band scaling](experiments/occupation/cut-tolerance-scaling.json),
+[charge repeat](experiments/occupation/cut-tolerance-charge-repeat.json),
+[surface repeats](experiments/occupation/cut-tolerance-surfaces-repeat.json),
+[scaling repeat](experiments/occupation/cut-tolerance-scaling-repeat.json),
+[accuracy](experiments/occupation/cut-tolerance-validation.json).
+Reproduce with `performance/compare_occupation_probes.py`, pointing
+`--comparison` to `df720a2/python`, `--quartic` to `660de6c/python`, and
+`--models` to the latter checkout's `benchmarks/occupation_enclosure.py`.
+Use labels `before` and `after`, an output path, and:
+
+- `--experiment probes --case-indices 1 3 5 7 9 11 13 15 17 20` for charge;
+- `--experiment probes --root-level 0 --case-indices 24 26 28 30` for coupled models;
+- `--experiment surface` for surfaces;
+- `--experiment evaluation --case-indices 0 1 2 3 4` for band scaling.
+
+Repeats use `--rounds 3 --repeats 5`, with probe case 13, surface cases 0 and 3,
+or evaluation case 4. The polynomial and approximation-order scripts below
+reproduce their accuracy checks; native regression tests reproduce the cut
+tolerance and density-subdivision examples.
 
 ## Stable scalar cuts and surface queries
 
