@@ -105,7 +105,7 @@ def run(args):
         simplex_visits=result.stats.simplex_visits,
         hamiltonians=result.stats.evaluations + stats.hamiltonian_evaluations,
         eigensystems=result.stats.evaluations
-        + stats.full_eigensystems
+        + getattr(stats, "full_eigensystems", 0)  # historical estimator builds only
         + stats.reduced_eigensystems
         + stats.norm_eigensystems,
         initial_active_dimension_sum=stats.initial_active_dimension_sum,

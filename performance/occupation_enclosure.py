@@ -77,7 +77,6 @@ def compare(paper, repeats):
                     hamiltonian_evaluations=result.stats.evaluations
                     + result.error_stats.hamiltonian_evaluations,
                     eigensystems=result.stats.evaluations
-                    + result.error_stats.full_eigensystems
                     + result.error_stats.reduced_eigensystems
                     + result.error_stats.norm_eigensystems,
                 )

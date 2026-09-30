@@ -275,7 +275,6 @@ class SimplexEvaluator:
         )
         self.work.diagonalizations += (
             result.stats.evaluations
-            + stats.full_eigensystems
             + stats.reduced_eigensystems
             + stats.norm_eigensystems
         )

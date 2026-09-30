@@ -19,8 +19,9 @@ def compare(args):
     if args.experiment == "probes":
         builds = [("cubic", args.comparison), ("quartic", args.quartic)]
         # Eight 1D/2D models at two targets, a 192-band model, and two 3D
-        # models at three targets. occupation_probe_tradeoff.cases defines them.
-        cases = args.case_indices if args.case_indices is not None else list(range(23))
+        # models at three targets, plus four coupled matrix sizes at two targets.
+        # occupation_probe_tradeoff.cases defines them.
+        cases = args.case_indices if args.case_indices is not None else list(range(31))
     else:
         builds = [("reconstruct", args.comparison), ("evaluate", args.quartic)]
         cases = [(n, "tb") for n in (12, 36, 96, 192, 384, 768)]
@@ -49,6 +50,8 @@ def compare(args):
                             str(case),
                             "--output",
                             str(worker_output),
+                            "--root-level",
+                            str(args.root_level),
                         ]
                     else:
                         n, representation = case
@@ -114,4 +117,5 @@ if __name__ == "__main__":
     parser.add_argument("--rounds", type=int, default=2)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--case-indices", type=int, nargs="+")
+    parser.add_argument("--root-level", type=int, default=2)
     compare(parser.parse_args())

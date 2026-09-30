@@ -1,4 +1,4 @@
-"""Compare separate cubic/quartic builds on identical problems and tolerances.
+"""Compare separate occupation builds on identical problems and tolerances.
 
 Set PYTHONPATH to the chosen build. There is no production algorithm selector.
 References are analytic occupied lengths/volumes, with 1e-12 slack for roundoff.
@@ -17,6 +17,27 @@ from time import perf_counter
 import numpy as np
 
 from fermisimplex import SpectralMesh
+
+
+def coupled_model(size):
+    # Scaled independent pairs have the same analytic occupied fraction.
+    # A dense complex basis makes the matrix arithmetic representative;
+    # distinct scales remove the center's accidental degeneracies.
+    scales = np.diag(np.linspace(1, 1.37, size // 2))
+    rng = np.random.default_rng(149)
+    basis, _ = np.linalg.qr(
+        rng.normal(size=(size, size)) + 1j * rng.normal(size=(size, size))
+    )
+    onsite = basis @ np.kron(scales, np.diag([-0.2, 0.8])) @ basis.conj().T
+    slope = (
+        basis @ np.kron(scales, np.array([[1.0, 0.2], [0.2, -1.0]])) @ basis.conj().T
+    )
+
+    def model(x):
+        return onsite + x * slope
+
+    reference = size / 2 * (1 - np.sqrt(1 - 4 * 1.04 * 0.16) / 1.04)
+    return model, reference
 
 
 def cases(models):
@@ -40,8 +61,13 @@ def cases(models):
         for target in (1e100, 1e-2, 1e-3):
             yield name, model, 0, reference, 3, target, 600
 
+    for size in (2, 12, 36, 96):
+        model, reference = coupled_model(size)
+        for target in (1e100, 1e-5 * size / 2):
+            yield f"coupled_{size}", model, 0, reference, 1, target, 3000
 
-def run(models, repeats, case_index=None):
+
+def run(models, repeats, case_index=None, root_level=2):
     rows = []
     for index, (name, model, mu, reference, dimension, target, cap) in enumerate(
         cases(models)
@@ -54,6 +80,7 @@ def run(models, repeats, case_index=None):
             target=target,
             reference=reference,
             refinement_cap=cap,
+            root_level=root_level,
         )
         times = []
         try:
@@ -62,7 +89,7 @@ def run(models, repeats, case_index=None):
                 signal.alarm(30)
                 start = perf_counter()
                 for _ in range(batch):
-                    mesh = SpectralMesh(model, root_level=2)
+                    mesh = SpectralMesh(model, root_level=root_level)
                     result = mesh.integrate_charge(
                         mu=mu, target_error=target, error_depth=2, max_refinements=cap
                     )
@@ -85,9 +112,12 @@ def run(models, repeats, case_index=None):
                 refinements=result.stats.refinements,
                 hamiltonians=result.stats.evaluations + stats.hamiltonian_evaluations,
                 eigensystems=result.stats.evaluations
-                + stats.full_eigensystems
                 + stats.reduced_eigensystems
                 + stats.norm_eigensystems,
+                center_eigensystems=stats.reduced_eigensystems,
+                micro_simplices=stats.micro_simplices,
+                terminal_simplices=stats.terminal_simplices,
+                initial_active_dimension_sum=stats.initial_active_dimension_sum,
             )
         except (RuntimeError, TimeoutError) as error:
             signal.alarm(0)
@@ -140,6 +170,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--case-index", type=int)
+    parser.add_argument("--root-level", type=int, default=2)
     args = parser.parse_args()
     cpu = min(os.sched_getaffinity(0))
     os.sched_setaffinity(0, {cpu})
@@ -149,7 +180,7 @@ if __name__ == "__main__":
     spec.loader.exec_module(models)
     result = dict(
         cpu=cpu,
-        charge=run(models, args.repeats, args.case_index),
+        charge=run(models, args.repeats, args.case_index, args.root_level),
         hidden_quartic_pockets=hidden_quartic_pockets(),
     )
     args.output.write_text(json.dumps(result, indent=2) + "\n")

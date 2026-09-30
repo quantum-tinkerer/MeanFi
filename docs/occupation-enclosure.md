@@ -11,12 +11,137 @@ with an explicit remainder contract; adaptive calculations no longer use it.
 
 Base: MeanFi `54eab84`, FermiSimplex `13aeda0`, AdaptiveSimplex `5ea4787`, paper
 `b3735fe`. The previous experimental implementation is FermiSimplex `98c5009`.
-Current native implementation: [cf266b7](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/cf266b72c57dd7d80035e01b56e180422ef05245).
-The direct-evaluation and dimension-general probes follow-up compares it with
-`9f06d36`; its measurements appear first below.
+Current native pin: [23b6ac1](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/23b6ac13ceeabe46d887b6b5540f4604e8b87795).
+The review cleanup below compares `8430c4d` with `cf266b7`; `23b6ac1` only
+formats a benchmark. The preceding
+direct-evaluation and dimension-general probes follow-up compares `cf266b7`
+with `9f06d36`.
 The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
+
+## Review cleanup
+
+The quartic lattice, remainder factor, Schur allowance and subdivision rule
+are retained. Five changes remove unnecessary work or stale implementation
+details:
+
+1. **Constant occupation has zero derivative.** When `mu` lies strictly outside
+   a band's vertex-energy range, skip its divided-difference derivative.
+   For `H(x,y)=1e-8*(x+y)` and `mu=1`, the former calculation returned
+   `dQ/dmu=1.1102230246251565`; the result is now exactly zero. Both charges are
+   exactly one. Vertex energies are collected once for charge and derivative.
+   Endpoint conventions are retained.
+2. **Accumulate probe residuals directly.** Subtract the quadratic controls
+   into each evaluated Hamiltonian, avoiding a separate interpolated matrix
+   and difference copy. Reuse the row-sum workspace for matrix norm bounds.
+3. **Share the root center frame.** The block sign proof and affine bounds use
+   one center eigensystem and rotation. Child restrictions still use the
+   original polynomial frame. A coupled two-band regression at depth zero
+   requires one center eigensystem instead of two.
+4. **Integrate only terminal temporary cells.** Compute affine band bounds
+   first to decide subdivision; evaluate shifted volumes and cut disagreement
+   only for retained cells. In the coupled 96-band adaptive example, 106
+   temporary cells contain 62 terminal cells, removing 44 discarded parent
+   integrations. Center eigensystems fall from 23 to 20.
+5. **Remove unused diagnostics.** Delete `full_eigensystems`,
+   `conservative_fallbacks` and `schur_failures` from the native API and current
+   consumers. Update benchmark descriptions to describe the single enclosure.
+   The historical-build benchmark still reads old full-eigensystem counts
+   when those builds provide them.
+
+### Runtime and accuracy
+
+These measurements compare `cf266b7` with `8430c4d`, both using quartic probes.
+Release builds use the same compiler and pinned AdaptiveSimplex. Each worker
+pins one CPU and one BLAS thread; measurements include mesh construction and
+exclude warmup. Two alternating rounds supply six samples per build; targeted
+repeats use three rounds and fifteen samples. Tables use pooled medians.
+
+| Adaptive problem | Before, ms | After, ms | Runtime reduction |
+| --- | ---: | ---: | ---: |
+| 1D cosine, target `1e-5` | 0.248 | 0.201 | 19% |
+| 1D pocket, target `1e-5` | 0.479 | 0.423 | 12% |
+| 2D disk, target `1e-4` | 50.9 | 38.1 | 25% |
+| 2D annulus, target `1e-4`, repeat | 210.8 | 157.3 | 25% |
+| 2D Dirac, target `1e-4` | 45.5 | 33.8 | 26% |
+| Mixed 12 bands, target `1e-5` | 0.798 | 0.644 | 19% |
+| Coupled 96 bands, target `4.8e-4`, repeat | 152.2 | 147.9 | 3% |
+
+Coupled examples are analytically soluble scaled copies of
+`[[x-.2,.2*x],[.2*x,.8-x]]` in a dense complex basis, with 2, 12, 36 and 96
+bands. Their initial root keeps every band active. Initial-mesh timings improve
+by 6–10%; adaptive timings improve by 3–11%. These cases exercise the center
+reuse, whereas the mixed-band family often reduces to a scalar active model.
+
+The band-count sweep with target `1e-5` gives:
+
+| Bands | Before, ms | After, ms | Runtime change |
+| ---: | ---: | ---: | ---: |
+| 12 | 0.702 | 0.645 | -8.0% |
+| 36 | 5.07 | 4.89 | -3.5% |
+| 96 | 39.5 | 38.9 | -1.7% |
+| 192 | 219.7 | 211.1 | -3.9% |
+| 384 | 1352.2 | 1357.1 | +0.4% |
+| 768 | 11445.3 | 10983.7 | -4.0% |
+
+The 36/192-band cheap and dense callable versions improve by 1–2%. These
+small large-matrix changes should be read as roughly unchanged to slightly
+faster: the separate broad run measured +2.5% at 192 bands. Dense rotations
+and eigensystems still dominate large matrices. The cleanup removes constant
+amounts of work and adds no higher power of band count; the remaining dense
+matrix operations retain their cubic scaling.
+
+Host timings sometimes shifted almost twofold within a comparison. The initial
+annulus and adaptive coupled-96 runs crossed such shifts; their raw results
+are retained, and the table uses targeted repeats. Paired repeat rounds show
+annulus reductions of 23–27% and coupled-96 reductions of 1–3%. No claim of a
+universal speedup follows from these measurements.
+
+All completed before/after cases keep the same refinement counts, vertices,
+Hamiltonian calls and temporary-cell trees. Actual charge errors agree to
+roundoff, and each remains below its reported stopping indicator plus `1e-12`.
+The four tight 3D sphere/shell cases still hit the same 600-refinement cap in
+both builds; they do not demonstrate convergence at those targets.
+
+The cubic/quartic sweep still has **zero false gap claims**, with all **549
+interval charges enclosed** at both temporary depths. Charge endpoints differ
+by at most `6.7e-16`; sampled remainders differ by at most `1.7e-16`. Hidden
+quartic pockets in 3D and 4D remain unresolved as gaps. The smallest-cell
+measured orders remain 2.014 for physical charge error, 2.995 for Schur error,
+and 4.000 for its squared-residual allowance. Sampling assumptions are unchanged.
+
+Validation: **202 native Python tests**, **11 C++ test groups**, and **796
+MeanFi tests** pass (43 skipped, 35 slow checks deselected). New analytic tests
+cover narrow occupied/empty/partial bands and endpoints; charge and
+bandwidth-scaled derivative errors are below `1e-12`. The lockfile check and
+benchmark smoke checks also pass.
+
+Raw results: [models](experiments/occupation/cleanup-models.json),
+[active matrices](experiments/occupation/cleanup-active.json),
+[band scaling](experiments/occupation/cleanup-scaling.json),
+[annulus repeat](experiments/occupation/cleanup-annulus-repeat.json),
+[coupled repeat](experiments/occupation/cleanup-coupled-repeat.json),
+[validation and numerical differences](experiments/occupation/cleanup-validation.json).
+
+To reproduce, build the two pinned native commits and run:
+
+```sh
+python performance/compare_occupation_probes.py --experiment probes \
+  --comparison /path/to/cf266b7/python --quartic /path/to/8430c4d/python \
+  --comparison-label before --quartic-label after \
+  --models /path/to/8430c4d/benchmarks/occupation_enclosure.py \
+  --case-indices 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 \
+  --output cleanup-models.json
+# Coupled cases: --case-indices 23 24 25 26 27 28 29 30 --root-level 0.
+# Band/oracle sweep: --experiment evaluation, omitting --case-indices.
+# Targeted repeats: --case-indices 7, or 30 with --root-level 0;
+# use --rounds 3 --repeats 5.
+PYTHONPATH=/path/to/8430c4d/python python performance/occupation_polynomial_gaps.py \
+  --output cleanup-gaps.json
+PYTHONPATH=/path/to/8430c4d/python python performance/occupation_orders.py \
+  --output cleanup-orders.json
+```
 
 ## Approximation order and probe degree
 
@@ -727,7 +852,7 @@ explicit regression demonstrates.
 
 Interpolate `K=H-mu I` by a quadratic Bernstein matrix polynomial. Its nodes are
 vertices and edge midpoints; validate at the remaining degree-four lattice
-nodes. Use `eta=2**dimension*max_defect+roundoff`. Explicit uniform remainders
+nodes. Use `eta=min(2**dimension,32)*max_defect+roundoff`. Explicit uniform remainders
 can replace the sampled allowance for inspection.
 
 In a vertex eigenbasis, bound negative and positive safe sectors with margin
@@ -834,7 +959,7 @@ Follow-up data: [small-band timings](experiments/occupation/optimization-small.j
 Original [charge](experiments/occupation/charge.json) and
 [paper](experiments/occupation/paper.json) measurements are retained.
 
-Validation: **796 MeanFi checks passed** (43 skipped, 35 slow checks deselected),
+Earlier validation for `9f06d36`: **796 MeanFi checks passed** (43 skipped, 35 slow checks deselected),
 **180 FermiSimplex Python tests passed**, and **all 10 native test groups passed**.
 Tests include exact 1D/2D/3D volumes, cubic Schur convergence, complex matrices,
 quartic interior failures, flat-band half occupation, cut cancellation and the

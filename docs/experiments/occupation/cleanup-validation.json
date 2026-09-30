@@ -1,0 +1,1267 @@
+{
+  "baseline_native": "cf266b72c57dd7d80035e01b56e180422ef05245",
+  "current_native": "8430c4d5cb0638f076aac04707d84293aa4b1593",
+  "gap_checks": {
+    "intervals": {
+      "cases": 549,
+      "false_gap_claims": {
+        "depth2": 0,
+        "depth6": 0
+      },
+      "maximum_charge_endpoint_change": 6.661338147750939e-16,
+      "maximum_sampled_remainder_change": 1.6653345369377348e-16,
+      "charge_covered": {
+        "depth2": 549,
+        "depth6": 549
+      }
+    },
+    "triangles": {
+      "cases": 18,
+      "false_gap_claims": {
+        "depth2": 0,
+        "depth6": 0
+      },
+      "maximum_charge_endpoint_change": 0.0,
+      "maximum_sampled_remainder_change": 2.710505431213761e-20
+    }
+  },
+  "orders": {
+    "interpolation": [
+      {
+        "degree": 3,
+        "origin": 0.0,
+        "h": 0.4,
+        "exact_error": 0.003079201435678008,
+        "sampled_allowance": 0.006000000000014213
+      },
+      {
+        "degree": 3,
+        "origin": 0.0,
+        "h": 0.2,
+        "exact_error": 0.000384900179459751,
+        "sampled_allowance": 0.0007500000000142111,
+        "exact_error_order": 3.0,
+        "sampled_allowance_order": 2.9999999999760814
+      },
+      {
+        "degree": 3,
+        "origin": 0.0,
+        "h": 0.1,
+        "exact_error": 4.811252243246888e-05,
+        "sampled_allowance": 9.375000001421088e-05,
+        "exact_error_order": 3.0,
+        "sampled_allowance_order": 2.9999999998086486
+      },
+      {
+        "degree": 3,
+        "origin": 0.0,
+        "h": 0.05,
+        "exact_error": 6.01406530405861e-06,
+        "sampled_allowance": 1.1718750014210858e-05,
+        "exact_error_order": 3.0,
+        "sampled_allowance_order": 2.9999999984691894
+      },
+      {
+        "degree": 3,
+        "origin": 0.0,
+        "h": 0.025,
+        "exact_error": 7.517581630073262e-07,
+        "sampled_allowance": 1.4648437642108552e-06,
+        "exact_error_order": 3.0,
+        "sampled_allowance_order": 2.999999987753514
+      },
+      {
+        "degree": 4,
+        "origin": 0.0,
+        "h": 0.4,
+        "exact_error": 0.0028262522398439754,
+        "sampled_allowance": 0.005400000000014216
+      },
+      {
+        "degree": 4,
+        "origin": 0.0,
+        "h": 0.2,
+        "exact_error": 0.00017664076499024846,
+        "sampled_allowance": 0.0003375000000142112,
+        "exact_error_order": 4.0,
+        "sampled_allowance_order": 3.99999999994305
+      },
+      {
+        "degree": 4,
+        "origin": 0.0,
+        "h": 0.1,
+        "exact_error": 1.1040047811890529e-05,
+        "sampled_allowance": 2.1093750014210876e-05,
+        "exact_error_order": 4.0,
+        "sampled_allowance_order": 3.999999999088803
+      },
+      {
+        "degree": 4,
+        "origin": 0.0,
+        "h": 0.05,
+        "exact_error": 6.900029882431581e-07,
+        "sampled_allowance": 1.318359389210856e-06,
+        "exact_error_order": 4.0,
+        "sampled_allowance_order": 3.99999998542085
+      },
+      {
+        "degree": 4,
+        "origin": 0.0,
+        "h": 0.025,
+        "exact_error": 4.312518676519738e-08,
+        "sampled_allowance": 8.23974751483548e-08,
+        "exact_error_order": 4.0,
+        "sampled_allowance_order": 3.9999997667336222
+      },
+      {
+        "degree": 4,
+        "origin": 0.7,
+        "h": 0.4,
+        "exact_error": 0.011442515497965003,
+        "sampled_allowance": 0.022200000000021026
+      },
+      {
+        "degree": 4,
+        "origin": 0.7,
+        "h": 0.2,
+        "exact_error": 0.001253968299668028,
+        "sampled_allowance": 0.0024375000000143032,
+        "exact_error_order": 3.1898314635864735,
+        "sampled_allowance_order": 3.187085552593396
+      },
+      {
+        "degree": 4,
+        "origin": 0.7,
+        "h": 0.1,
+        "exact_error": 0.00014572865999140292,
+        "sampled_allowance": 0.0002835937500141328,
+        "exact_error_order": 3.1051443365974682,
+        "sampled_allowance_order": 3.1035045756904296
+      },
+      {
+        "degree": 4,
+        "origin": 0.7,
+        "h": 0.05,
+        "exact_error": 1.7527666548270937e-05,
+        "sampled_allowance": 3.413085938930305e-05,
+        "exact_error_order": 3.055578787005339,
+        "sampled_allowance_order": 3.0546770920876276
+      },
+      {
+        "degree": 4,
+        "origin": 0.7,
+        "h": 0.025,
+        "exact_error": 2.147938395121624e-06,
+        "sampled_allowance": 4.183959975145868e-06,
+        "exact_error_order": 3.0286094222381283,
+        "sampled_allowance_order": 3.0281357853015254
+      }
+    ],
+    "coupled": [
+      {
+        "h": 0.4,
+        "interpolation_allowance": 3.095312295637559e-14,
+        "schur_error": 0.0007245283018867927,
+        "model_allowance": 0.0008140800000364264,
+        "cubic_part": 0.0007680000000361041,
+        "native_quartic_bound": 4.6080000000322326e-05,
+        "exact_quartic_correction": 4.347169811320755e-05,
+        "physical_charge_error": 0.0034565506846313265
+      },
+      {
+        "h": 0.2,
+        "interpolation_allowance": 3.0094749453867093e-14,
+        "schur_error": 9.320388349514568e-05,
+        "model_allowance": 9.888000003262577e-05,
+        "cubic_part": 9.600000003255053e-05,
+        "native_quartic_bound": 2.880000000075243e-06,
+        "exact_quartic_correction": 2.796116504854369e-06,
+        "physical_charge_error": 0.0008044556162309924,
+        "schur_error_order": 2.958580072620019,
+        "model_allowance_order": 3.041419926968513,
+        "native_quartic_bound_order": 3.9999999999723994,
+        "exact_quartic_correction_order": 3.9585800726200193,
+        "physical_charge_error_order": 2.1032483492805985
+      },
+      {
+        "h": 0.1,
+        "interpolation_allowance": 2.959476214319434e-14,
+        "schur_error": 1.1822660098522173e-05,
+        "model_allowance": 1.2180000030808432e-05,
+        "cubic_part": 1.2000000030790397e-05,
+        "native_quartic_bound": 1.80000000018035e-07,
+        "exact_quartic_correction": 1.7733990147783255e-07,
+        "physical_charge_error": 0.00019374803503891674,
+        "schur_error_order": 2.978835390001958,
+        "model_allowance_order": 3.021164606824871,
+        "native_quartic_bound_order": 3.999999999893142,
+        "exact_quartic_correction_order": 3.9788353900019575,
+        "physical_charge_error_order": 2.053831147274718
+      },
+      {
+        "h": 0.05,
+        "interpolation_allowance": 2.9362836471314605e-14,
+        "schur_error": 1.4888337468982637e-06,
+        "model_allowance": 1.5112500299574913e-06,
+        "cubic_part": 1.50000002995303e-06,
+        "native_quartic_bound": 1.1250000004461215e-08,
+        "exact_quartic_correction": 1.1166253101736974e-08,
+        "physical_charge_error": 4.7525082387214757e-05,
+        "schur_error_order": 2.989300111342791,
+        "model_allowance_order": 3.0106998637078752,
+        "native_quartic_bound_order": 3.9999999995724456,
+        "exact_quartic_correction_order": 3.9893001113427915,
+        "physical_charge_error_order": 2.0274206459065285
+      },
+      {
+        "h": 0.025,
+        "interpolation_allowance": 2.8973965897223264e-14,
+        "schur_error": 1.8679950186799513e-07,
+        "model_allowance": 1.8820315426551792e-07,
+        "cubic_part": 1.8750002926442998e-07,
+        "native_quartic_bound": 7.031250010879409e-10,
+        "exact_quartic_correction": 7.004981320049814e-10,
+        "physical_charge_error": 1.176791074069053e-05,
+        "schur_error_order": 2.994620148989347,
+        "model_allowance_order": 3.0053796552706395,
+        "native_quartic_bound_order": 3.999999998339831,
+        "exact_quartic_correction_order": 3.994620148989347,
+        "physical_charge_error_order": 2.0138309189222903
+      }
+    ]
+  },
+  "comparisons": {
+    "cleanup-models": [
+      {
+        "case": [
+          "cosine",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 4.643939746917886e-05,
+          "after": 4.0515339396034295e-05
+        },
+        "runtime_change_percent": -12.75653517485078,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 2.0816681711721685e-17,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 10,
+          "after": 10
+        },
+        "terminal_simplices": {
+          "before": 6,
+          "after": 6
+        }
+      },
+      {
+        "case": [
+          "cosine",
+          1e-05,
+          null
+        ],
+        "seconds": {
+          "after": 0.0002007608612378438,
+          "before": 0.00024807602996147716
+        },
+        "runtime_change_percent": -19.072849856143193,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 12,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 70,
+          "before": 70
+        },
+        "terminal_simplices": {
+          "after": 42,
+          "before": 42
+        }
+      },
+      {
+        "case": [
+          "pocket",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 7.568610948510468e-05,
+          "after": 7.114753748711971e-05
+        },
+        "runtime_change_percent": -5.996571932235694,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -1.3877787807814457e-17,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 7,
+          "after": 7
+        },
+        "terminal_simplices": {
+          "before": 4,
+          "after": 4
+        }
+      },
+      {
+        "case": [
+          "pocket",
+          1e-05,
+          null
+        ],
+        "seconds": {
+          "after": 0.0004228660535383304,
+          "before": 0.0004793431754002259
+        },
+        "runtime_change_percent": -11.782189621191563,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -4.336808689942018e-19,
+        "covered_before_and_after": true,
+        "refinements": 13,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 77,
+          "before": 77
+        },
+        "terminal_simplices": {
+          "after": 46,
+          "before": 46
+        }
+      },
+      {
+        "case": [
+          "disk",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.0012733484059789142,
+          "after": 0.001076897748554564
+        },
+        "runtime_change_percent": -15.427879479169281,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -2.7755575615628914e-17,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 107,
+          "after": 107
+        },
+        "terminal_simplices": {
+          "before": 57,
+          "after": 57
+        }
+      },
+      {
+        "case": [
+          "disk",
+          0.0001,
+          null
+        ],
+        "seconds": {
+          "after": 0.03810171049553901,
+          "before": 0.05086493203998543
+        },
+        "runtime_change_percent": -25.09237903711957,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -1.2847795743953228e-17,
+        "covered_before_and_after": true,
+        "refinements": 349,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 8795,
+          "before": 8795
+        },
+        "terminal_simplices": {
+          "after": 4663,
+          "before": 4663
+        }
+      },
+      {
+        "case": [
+          "annulus",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.0026544287490348024,
+          "after": 0.0021789879829157144
+        },
+        "runtime_change_percent": -17.911227275999288,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -5.551115123125783e-17,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 714,
+          "after": 714
+        },
+        "terminal_simplices": {
+          "before": 372,
+          "after": 372
+        }
+      },
+      {
+        "case": [
+          "annulus",
+          0.0001,
+          null
+        ],
+        "seconds": {
+          "after": 0.2251060020062141,
+          "before": 0.21003968847799115
+        },
+        "runtime_change_percent": 7.173079353429768,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -1.2671612890924333e-17,
+        "covered_before_and_after": true,
+        "refinements": 2645,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 66211,
+          "before": 66211
+        },
+        "terminal_simplices": {
+          "after": 35060,
+          "before": 35060
+        }
+      },
+      {
+        "case": [
+          "dirac",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.0010867497670308999,
+          "after": 0.0009327604366262676
+        },
+        "runtime_change_percent": -14.169713679842344,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 5.273559366969494e-16,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 286,
+          "after": 286
+        },
+        "terminal_simplices": {
+          "before": 150,
+          "after": 150
+        }
+      },
+      {
+        "case": [
+          "dirac",
+          0.0001,
+          null
+        ],
+        "seconds": {
+          "after": 0.033812968467827886,
+          "before": 0.04549093049718067
+        },
+        "runtime_change_percent": -25.67096760106179,
+        "actual_error_change": 4.440892098500626e-16,
+        "estimated_error_change": 8.561131404488664e-17,
+        "covered_before_and_after": true,
+        "refinements": 456,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 13292,
+          "before": 13292
+        },
+        "terminal_simplices": {
+          "after": 7022,
+          "before": 7022
+        }
+      },
+      {
+        "case": [
+          "mixed_12",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.000156320200537601,
+          "after": 0.00014759778136097897
+        },
+        "runtime_change_percent": -5.579841342721381,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 2.220446049250313e-16,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 10,
+          "after": 10
+        },
+        "terminal_simplices": {
+          "before": 6,
+          "after": 6
+        }
+      },
+      {
+        "case": [
+          "mixed_12",
+          1e-05,
+          null
+        ],
+        "seconds": {
+          "after": 0.0006438934789551092,
+          "before": 0.0007980239200773404
+        },
+        "runtime_change_percent": -19.314012681135384,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -2.0816681711721685e-17,
+        "covered_before_and_after": true,
+        "refinements": 10,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 60,
+          "before": 60
+        },
+        "terminal_simplices": {
+          "after": 36,
+          "before": 36
+        }
+      },
+      {
+        "case": [
+          "mixed_36",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.0012238726255115275,
+          "after": 0.0011833920399658383
+        },
+        "runtime_change_percent": -3.3075815817655063,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 10,
+          "after": 10
+        },
+        "terminal_simplices": {
+          "before": 6,
+          "after": 6
+        }
+      },
+      {
+        "case": [
+          "mixed_36",
+          1e-05,
+          null
+        ],
+        "seconds": {
+          "after": 0.00493809550036011,
+          "before": 0.005168241353073557
+        },
+        "runtime_change_percent": -4.453078658499166,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -5.551115123125783e-17,
+        "covered_before_and_after": true,
+        "refinements": 10,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 60,
+          "before": 60
+        },
+        "terminal_simplices": {
+          "after": 36,
+          "before": 36
+        }
+      },
+      {
+        "case": [
+          "mixed_36_callable",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.0013649197292882795,
+          "after": 0.0013300530235089052
+        },
+        "runtime_change_percent": -2.5544876399108962,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 10,
+          "after": 10
+        },
+        "terminal_simplices": {
+          "before": 6,
+          "after": 6
+        }
+      },
+      {
+        "case": [
+          "mixed_36_callable",
+          1e-05,
+          null
+        ],
+        "seconds": {
+          "after": 0.0058017768363545965,
+          "before": 0.005960636500579615
+        },
+        "runtime_change_percent": -2.6651459824730273,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 2.7755575615628914e-17,
+        "covered_before_and_after": true,
+        "refinements": 10,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 60,
+          "before": 60
+        },
+        "terminal_simplices": {
+          "after": 36,
+          "before": 36
+        }
+      },
+      {
+        "case": [
+          "mixed_192",
+          1e-05,
+          null
+        ],
+        "seconds": {
+          "before": 0.2155579355021473,
+          "after": 0.22102313049254008
+        },
+        "runtime_change_percent": 2.5353717447986757,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 60,
+          "after": 60
+        },
+        "terminal_simplices": {
+          "before": 36,
+          "after": 36
+        }
+      },
+      {
+        "case": [
+          "sphere",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "after": 0.03323348000412807,
+          "before": 0.04277827148325741
+        },
+        "runtime_change_percent": -22.312242052288134,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -2.7755575615628914e-17,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "after": 0,
+          "before": 0
+        },
+        "micro_simplices": {
+          "after": 6468,
+          "before": 6468
+        },
+        "terminal_simplices": {
+          "after": 3300,
+          "before": 3300
+        }
+      },
+      {
+        "case": [
+          "sphere",
+          0.01,
+          null
+        ],
+        "unchanged_failure": "Adaptive simplex loop did not converge"
+      },
+      {
+        "case": [
+          "sphere",
+          0.001,
+          null
+        ],
+        "unchanged_failure": "Adaptive simplex loop did not converge"
+      },
+      {
+        "case": [
+          "shell",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.07832879503257573,
+          "after": 0.06103283152333461
+        },
+        "runtime_change_percent": -22.081232708926514,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 32268,
+          "after": 32268
+        },
+        "terminal_simplices": {
+          "before": 16296,
+          "after": 16296
+        }
+      },
+      {
+        "case": [
+          "shell",
+          0.01,
+          null
+        ],
+        "unchanged_failure": "Adaptive simplex loop did not converge"
+      },
+      {
+        "case": [
+          "shell",
+          0.001,
+          null
+        ],
+        "unchanged_failure": "Adaptive simplex loop did not converge"
+      }
+    ],
+    "cleanup-active": [
+      {
+        "case": [
+          "coupled_2",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 8.010952938895891e-05,
+          "after": 7.566440175042671e-05
+        },
+        "runtime_change_percent": -5.54881257253379,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 8,
+          "after": 7
+        },
+        "micro_simplices": {
+          "before": 7,
+          "after": 7
+        },
+        "terminal_simplices": {
+          "before": 4,
+          "after": 4
+        }
+      },
+      {
+        "case": [
+          "coupled_2",
+          1e-05,
+          null
+        ],
+        "seconds": {
+          "after": 0.0006022807965810234,
+          "before": 0.000667069376571677
+        },
+        "runtime_change_percent": -9.712420066954163,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -7.45931094670027e-17,
+        "covered_before_and_after": true,
+        "refinements": 12,
+        "center_eigensystems": {
+          "after": 7,
+          "before": 8
+        },
+        "micro_simplices": {
+          "after": 74,
+          "before": 74
+        },
+        "terminal_simplices": {
+          "after": 44,
+          "before": 44
+        }
+      },
+      {
+        "case": [
+          "coupled_12",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.0005039776298297076,
+          "after": 0.00045531513954534433
+        },
+        "runtime_change_percent": -9.655684578858414,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 8.881784197001252e-16,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 8,
+          "after": 7
+        },
+        "micro_simplices": {
+          "before": 7,
+          "after": 7
+        },
+        "terminal_simplices": {
+          "before": 4,
+          "after": 4
+        }
+      },
+      {
+        "case": [
+          "coupled_12",
+          6.000000000000001e-05,
+          null
+        ],
+        "seconds": {
+          "after": 0.003023899954066358,
+          "before": 0.0033891911120412666
+        },
+        "runtime_change_percent": -10.778122150653768,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 16,
+        "center_eigensystems": {
+          "after": 7,
+          "before": 8
+        },
+        "micro_simplices": {
+          "after": 96,
+          "before": 96
+        },
+        "terminal_simplices": {
+          "after": 57,
+          "before": 57
+        }
+      },
+      {
+        "case": [
+          "coupled_36",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.003989051623648265,
+          "after": 0.0036369087239209977
+        },
+        "runtime_change_percent": -8.827734834005696,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 3.552713678800501e-15,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 8,
+          "after": 7
+        },
+        "micro_simplices": {
+          "before": 7,
+          "after": 7
+        },
+        "terminal_simplices": {
+          "before": 4,
+          "after": 4
+        }
+      },
+      {
+        "case": [
+          "coupled_36",
+          0.00018,
+          null
+        ],
+        "seconds": {
+          "after": 0.019061480983509682,
+          "before": 0.020051685016369447
+        },
+        "runtime_change_percent": -4.938258465816714,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -7.181755190543981e-16,
+        "covered_before_and_after": true,
+        "refinements": 16,
+        "center_eigensystems": {
+          "after": 13,
+          "before": 15
+        },
+        "micro_simplices": {
+          "after": 98,
+          "before": 98
+        },
+        "terminal_simplices": {
+          "after": 58,
+          "before": 58
+        }
+      },
+      {
+        "case": [
+          "coupled_96",
+          1e+100,
+          null
+        ],
+        "seconds": {
+          "before": 0.033688801020616665,
+          "after": 0.030602058017393574
+        },
+        "runtime_change_percent": -9.162519619900056,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 7.105427357601002e-15,
+        "covered_before_and_after": true,
+        "refinements": 0,
+        "center_eigensystems": {
+          "before": 8,
+          "after": 7
+        },
+        "micro_simplices": {
+          "before": 7,
+          "after": 7
+        },
+        "terminal_simplices": {
+          "before": 4,
+          "after": 4
+        }
+      },
+      {
+        "case": [
+          "coupled_96",
+          0.00048000000000000007,
+          null
+        ],
+        "seconds": {
+          "after": 0.1133947224880103,
+          "before": 0.15382086249883287
+        },
+        "runtime_change_percent": -26.2813114905849,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 7.7021722333370235e-16,
+        "covered_before_and_after": true,
+        "refinements": 16,
+        "center_eigensystems": {
+          "after": 20,
+          "before": 23
+        },
+        "micro_simplices": {
+          "after": 106,
+          "before": 106
+        },
+        "terminal_simplices": {
+          "after": 62,
+          "before": 62
+        }
+      }
+    ],
+    "cleanup-scaling": [
+      {
+        "case": [
+          12,
+          1e-05,
+          "tb"
+        ],
+        "seconds": {
+          "before": 0.0007016434208612498,
+          "after": 0.0006452864193191602
+        },
+        "runtime_change_percent": -8.032142804519237,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -2.0816681711721685e-17,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          36,
+          1e-05,
+          "tb"
+        ],
+        "seconds": {
+          "after": 0.004889209498122165,
+          "before": 0.005068563091547483
+        },
+        "runtime_change_percent": -3.5385490953918297,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -5.551115123125783e-17,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          96,
+          1e-05,
+          "tb"
+        ],
+        "seconds": {
+          "before": 0.03951642502215691,
+          "after": 0.03886293349205516
+        },
+        "runtime_change_percent": -1.6537212810504354,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          192,
+          1e-05,
+          "tb"
+        ],
+        "seconds": {
+          "after": 0.21109340799739584,
+          "before": 0.2196708720002789
+        },
+        "runtime_change_percent": -3.9046888305119376,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          384,
+          1e-05,
+          "tb"
+        ],
+        "seconds": {
+          "before": 1.3521819210145622,
+          "after": 1.3570884785149246
+        },
+        "runtime_change_percent": 0.3628622320790198,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          768,
+          1e-05,
+          "tb"
+        ],
+        "seconds": {
+          "after": 10.983703539008275,
+          "before": 11.445305826986441
+        },
+        "runtime_change_percent": -4.033114492142031,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          36,
+          1e-05,
+          "callable"
+        ],
+        "seconds": {
+          "before": 0.005988127335311017,
+          "after": 0.0058538939079476725
+        },
+        "runtime_change_percent": -2.2416595347228507,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 2.7755575615628914e-17,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          192,
+          1e-05,
+          "callable"
+        ],
+        "seconds": {
+          "after": 0.23161832700134255,
+          "before": 0.23368825248326175
+        },
+        "runtime_change_percent": -0.8857636016887382,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          36,
+          1e-05,
+          "callable_dense"
+        ],
+        "seconds": {
+          "before": 0.007872677640989423,
+          "after": 0.007710601286297398
+        },
+        "runtime_change_percent": -2.058719562556044,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10
+      },
+      {
+        "case": [
+          192,
+          1e-05,
+          "callable_dense"
+        ],
+        "seconds": {
+          "after": 0.3980756664823275,
+          "before": 0.4045806840003934
+        },
+        "runtime_change_percent": -1.6078418410255924,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 0.0,
+        "covered_before_and_after": true,
+        "refinements": 10
+      }
+    ],
+    "cleanup-annulus-repeat": [
+      {
+        "case": [
+          "annulus",
+          0.0001,
+          null
+        ],
+        "seconds": {
+          "before": 0.21075012400979176,
+          "after": 0.15726711502065882
+        },
+        "runtime_change_percent": -25.37745077988568,
+        "actual_error_change": 0.0,
+        "estimated_error_change": -1.2671612890924333e-17,
+        "covered_before_and_after": true,
+        "refinements": 2645,
+        "center_eigensystems": {
+          "before": 0,
+          "after": 0
+        },
+        "micro_simplices": {
+          "before": 66211,
+          "after": 66211
+        },
+        "terminal_simplices": {
+          "before": 35060,
+          "after": 35060
+        }
+      }
+    ],
+    "cleanup-coupled-repeat": [
+      {
+        "case": [
+          "coupled_96",
+          0.00048000000000000007,
+          null
+        ],
+        "seconds": {
+          "before": 0.15221801202278584,
+          "after": 0.14791202096967027
+        },
+        "runtime_change_percent": -2.828831487085115,
+        "actual_error_change": 0.0,
+        "estimated_error_change": 7.7021722333370235e-16,
+        "covered_before_and_after": true,
+        "refinements": 16,
+        "center_eigensystems": {
+          "before": 23,
+          "after": 20
+        },
+        "micro_simplices": {
+          "before": 106,
+          "after": 106
+        },
+        "terminal_simplices": {
+          "before": 62,
+          "after": 62
+        }
+      }
+    ]
+  },
+  "narrow_band_derivative": {
+    "before": {
+      "charge": 1.0,
+      "derivative": 1.1102230246251565
+    },
+    "after": {
+      "charge": 1.0,
+      "derivative": 0.0
+    }
+  },
+  "validation": {
+    "native_python_passed": 202,
+    "native_cpp_groups_passed": 11,
+    "meanfi_passed": 796,
+    "meanfi_skipped": 43,
+    "meanfi_slow_deselected": 35,
+    "lockfile_check": "passed"
+  }
+}

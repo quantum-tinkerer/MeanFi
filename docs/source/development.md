@@ -50,7 +50,7 @@ belong in ignored `build/` or CI artifacts, not in version control.
 ## FermiSimplex release prerequisite
 
 MeanFi pins FermiSimplex commit
-`cf266b72c57dd7d80035e01b56e180422ef05245` for the density, charge and band-energy
+`23b6ac13ceeabe46d887b6b5540f4604e8b87795` for the density, charge and band-energy
 API used by the simplex adapter, including the shared quadratic occupation
 enclosure. Checkout and direct-wheel installations use
 this immutable source dependency.

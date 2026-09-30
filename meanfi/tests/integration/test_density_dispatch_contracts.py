@@ -277,7 +277,6 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
         ),
         error_stats=SimpleNamespace(
             hamiltonian_evaluations=3,
-            full_eigensystems=0,
             reduced_eigensystems=0,
             norm_eigensystems=0,
         ),

@@ -1,0 +1,278 @@
+[
+  {
+    "model": "coupled_96",
+    "dimension": 1,
+    "target": 0.00048000000000000007,
+    "reference": 21.310463455752075,
+    "refinement_cap": 3000,
+    "root_level": 0,
+    "seconds": 0.15277355298167095,
+    "batch": 1,
+    "timing_samples": [
+      0.15519610198680311,
+      0.15320996200898662,
+      0.15277355298167095,
+      0.1524377329624258,
+      0.15221801202278584
+    ],
+    "actual_error": 0.000204446099825617,
+    "estimated_error": 0.0002773262999454726,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 18,
+    "refinements": 16,
+    "hamiltonians": 183,
+    "eigensystems": 43,
+    "center_eigensystems": 23,
+    "micro_simplices": 106,
+    "terminal_simplices": 62,
+    "initial_active_dimension_sum": 912,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001421
+      }
+    ],
+    "cpu": 0,
+    "build": "before",
+    "round": 0
+  },
+  {
+    "model": "coupled_96",
+    "dimension": 1,
+    "target": 0.00048000000000000007,
+    "reference": 21.310463455752075,
+    "refinement_cap": 3000,
+    "root_level": 0,
+    "seconds": 0.14791202096967027,
+    "batch": 1,
+    "timing_samples": [
+      0.14791202096967027,
+      0.14784684201003984,
+      0.1479095360264182,
+      0.14801086898660287,
+      0.14798160904319957
+    ],
+    "actual_error": 0.000204446099825617,
+    "estimated_error": 0.0002773262999462428,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 18,
+    "refinements": 16,
+    "hamiltonians": 183,
+    "eigensystems": 40,
+    "center_eigensystems": 20,
+    "micro_simplices": 106,
+    "terminal_simplices": 62,
+    "initial_active_dimension_sum": 912,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001422
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001422
+      }
+    ],
+    "cpu": 0,
+    "build": "after",
+    "round": 0
+  },
+  {
+    "model": "coupled_96",
+    "dimension": 1,
+    "target": 0.00048000000000000007,
+    "reference": 21.310463455752075,
+    "refinement_cap": 3000,
+    "root_level": 0,
+    "seconds": 0.15037207101704553,
+    "batch": 1,
+    "timing_samples": [
+      0.15070965402992442,
+      0.15046573500148952,
+      0.1500779549824074,
+      0.15037207101704553,
+      0.14955676498357207
+    ],
+    "actual_error": 0.000204446099825617,
+    "estimated_error": 0.0002773262999462428,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 18,
+    "refinements": 16,
+    "hamiltonians": 183,
+    "eigensystems": 40,
+    "center_eigensystems": 20,
+    "micro_simplices": 106,
+    "terminal_simplices": 62,
+    "initial_active_dimension_sum": 912,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001422
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001422
+      }
+    ],
+    "cpu": 0,
+    "build": "after",
+    "round": 1
+  },
+  {
+    "model": "coupled_96",
+    "dimension": 1,
+    "target": 0.00048000000000000007,
+    "reference": 21.310463455752075,
+    "refinement_cap": 3000,
+    "root_level": 0,
+    "seconds": 0.15227500395849347,
+    "batch": 1,
+    "timing_samples": [
+      0.15424460399663076,
+      0.15334028599318117,
+      0.15227500395849347,
+      0.14768202300183475,
+      0.0814824040280655
+    ],
+    "actual_error": 0.000204446099825617,
+    "estimated_error": 0.0002773262999454726,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 18,
+    "refinements": 16,
+    "hamiltonians": 183,
+    "eigensystems": 43,
+    "center_eigensystems": 23,
+    "micro_simplices": 106,
+    "terminal_simplices": 62,
+    "initial_active_dimension_sum": 912,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001421
+      }
+    ],
+    "cpu": 0,
+    "build": "before",
+    "round": 1
+  },
+  {
+    "model": "coupled_96",
+    "dimension": 1,
+    "target": 0.00048000000000000007,
+    "reference": 21.310463455752075,
+    "refinement_cap": 3000,
+    "root_level": 0,
+    "seconds": 0.08124064700677991,
+    "batch": 1,
+    "timing_samples": [
+      0.08556605700869113,
+      0.08308602398028597,
+      0.08004082599654794,
+      0.08104791596997529,
+      0.08124064700677991
+    ],
+    "actual_error": 0.000204446099825617,
+    "estimated_error": 0.0002773262999454726,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 18,
+    "refinements": 16,
+    "hamiltonians": 183,
+    "eigensystems": 43,
+    "center_eigensystems": 23,
+    "micro_simplices": 106,
+    "terminal_simplices": 62,
+    "initial_active_dimension_sum": 912,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001421
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001421
+      }
+    ],
+    "cpu": 0,
+    "build": "before",
+    "round": 2
+  },
+  {
+    "model": "coupled_96",
+    "dimension": 1,
+    "target": 0.00048000000000000007,
+    "reference": 21.310463455752075,
+    "refinement_cap": 3000,
+    "root_level": 0,
+    "seconds": 0.07850607903674245,
+    "batch": 1,
+    "timing_samples": [
+      0.07815354998456314,
+      0.07825074100401253,
+      0.07850607903674245,
+      0.09334138501435518,
+      0.08224925101967528
+    ],
+    "actual_error": 0.000204446099825617,
+    "estimated_error": 0.0002773262999462428,
+    "covered": true,
+    "target_reached": true,
+    "vertices": 18,
+    "refinements": 16,
+    "hamiltonians": 183,
+    "eigensystems": 40,
+    "center_eigensystems": 20,
+    "micro_simplices": 106,
+    "terminal_simplices": 62,
+    "initial_active_dimension_sum": 912,
+    "hidden_quartic_pockets": [
+      {
+        "dimension": 3,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.03125000000001422
+      },
+      {
+        "dimension": 4,
+        "false_gap": false,
+        "negative_witness": -0.00290625,
+        "remainder": 0.06250000000001422
+      }
+    ],
+    "cpu": 0,
+    "build": "after",
+    "round": 2
+  }
+]
