@@ -47,8 +47,8 @@ class ErrorValues:
     Entropy combines integration and matrix-function estimates, per physical
     orbital, when both are available. It has no accuracy target. The sampled
     density-cut estimate is separate from the p-quadrature estimate. Adaptive
-    FermiSimplex uses it to avoid refining p/h quadrature far below the
-    estimated cut error.
+    FermiSimplex always honors the requested quadrature target; the cut estimate
+    reports remaining occupation uncertainty without relaxing that target.
     """
 
     scf_residual: float | None = None

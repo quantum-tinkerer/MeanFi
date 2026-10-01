@@ -11,8 +11,9 @@ with an explicit remainder contract; adaptive calculations no longer use it.
 
 Base: MeanFi `54eab84`, FermiSimplex `13aeda0`, AdaptiveSimplex `5ea4787`, paper
 `b3735fe`. The previous experimental implementation is FermiSimplex `98c5009`.
-Current native pin: [a62d810](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/a62d810f114f7a4b56c2da52744f023506fc8350).
-The constant-spectrum roundoff fix compares this revision with `0b45519`.
+Current native pin: [06bc121](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/06bc1213a939a78ccbb9dbbba1575a79d5804dd9).
+The density accuracy fix compares this revision with `a62d810`.
+The constant-spectrum roundoff fix compares `a62d810` with `0b45519`.
 The charge-slope and surface follow-up compares `0b45519` with `660de6c`.
 The tolerance and subdivision follow-up compares `660de6c` with `df720a2`.
 The scalar-cut follow-up below compares `df720a2` with `23b6ac1`.
@@ -23,6 +24,31 @@ with `9f06d36`.
 The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
+
+## Fixed occupation and independent density accuracy
+
+Charge integration and density quadrature have separate accuracy targets. With
+the default policy, both targets are `tol/5`; the filling residual uses
+`tol/10`. The density-cut indicator reports uncertainty in the occupied
+regions and never changes the density quadrature target. Density quadrature
+refines until its own estimate meets the requested target, even when the cut
+indicator is larger. The reported estimates remain separate because scalar
+charge cancellation can hide errors in individual density components.
+
+For a cell with fixed occupation `n`, the native enclosure compares the
+reported, tolerance-snapped cuts directly with `n` full bands and the remaining
+empty bands. This uses the matrix sign proof that already tightens the charge
+bounds, instead of retaining uncertainty from looser affine row bounds.
+Tolerance-induced half occupations still contribute their disagreement.
+Unresolved cells retain the ordinary spatial cut-disagreement calculation.
+No additional Hamiltonian samples are needed.
+
+This removes a 2D insulating plateau: a spurious cut estimate of `0.106175`
+previously raised a requested density target of `2e-5` to `0.0530875`. The
+actual operator error was `1.9112e-3`. The fixed cut estimate is zero and
+quadrature at the requested target gives error `1.4963e-6` against an
+independently converged reference. Both corrections are used by the single
+production algorithm; there is no method selector.
 
 ## Constant spectra and eigensolver roundoff
 

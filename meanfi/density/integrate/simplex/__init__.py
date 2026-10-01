@@ -94,10 +94,7 @@ def solve_simplex(
         if not np.isfinite(cut_estimate) or cut_estimate < 0.0:
             raise ValueError(f"Invalid density cut estimate: {cut_estimate}")
 
-    density_target = tolerances.density_matrix_integration
-    if adaptive and cut_estimate is not None:
-        density_target = max(density_target, 0.5 * cut_estimate)
-    density = evaluator.density(mu, target_error=density_target)
+    density = evaluator.density(mu, target_error=tolerances.density_matrix_integration)
     value = (
         density.trace()
         if filling is None

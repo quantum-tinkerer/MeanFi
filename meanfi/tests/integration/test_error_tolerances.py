@@ -205,9 +205,7 @@ def test_fixed_mu_simplex_reports_cut_error_separately_from_p_error():
 
 
 @pytest.mark.parametrize("native_cut_error", [-1e-17, -1e-3, np.nan])
-def test_fixed_mu_rejects_invalid_native_cut_estimate(
-    monkeypatch, native_cut_error
-):
+def test_fixed_mu_rejects_invalid_native_cut_estimate(monkeypatch, native_cut_error):
     from meanfi import density_matrix_at_mu
     from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
 
@@ -225,17 +223,14 @@ def test_fixed_mu_rejects_invalid_native_cut_estimate(
     monkeypatch.setattr(SimplexEvaluator, "charge", charge_with_invalid_cut)
 
     def calculate():
-        return density_matrix_at_mu(
-            {(0,): np.diag([-1.0, 1.0])}, mu=0.0, keys=[(0,)]
-        )
+        return density_matrix_at_mu({(0,): np.diag([-1.0, 1.0])}, mu=0.0, keys=[(0,)])
 
     with pytest.raises(ValueError, match="Invalid density cut estimate"):
         calculate()
 
 
-def test_fixed_mu_cut_budget_avoids_unneeded_density_refinement():
+def test_fixed_mu_density_target_is_independent_of_cut_uncertainty():
     from meanfi import density_matrix_at_mu
-    from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
 
     sx = np.array([[0, 1], [1, 0]], complex)
     sz = np.diag([1.0, -1.0]).astype(complex)
@@ -265,22 +260,8 @@ def test_fixed_mu_cut_budget_avoids_unneeded_density_refinement():
     cut_error = result.errors.density_cut_estimate
     p_error = result.errors.density_matrix_integration
     assert cut_error > 2 * requested.density_matrix_integration
-    assert requested.density_matrix_integration < p_error <= 0.5 * cut_error
-
-    problem = build_density_problem(
-        hamiltonian,
-        kT=0.0,
-        keys=[(0, 0)],
-        integration=integration,
-        tolerances=requested,
-    )
-    strict = SimplexEvaluator(problem)
-    strict.charge(mu, adaptive=True)
-    strict_density = strict.density(
-        mu, target_error=requested.density_matrix_integration
-    )
-    assert result.statistics.p_refinements < strict.work.p_refinements
-    assert result.statistics.n_kernel_evals < strict.work.evaluations
+    assert p_error <= requested.density_matrix_integration
+    assert result.statistics.p_refinements > 0
 
     # The y occupation is analytic for E_±(x,y) = -1.4 cos(2πy) ± r(x).
     # Midpoint integration in x agrees to <3e-8 when doubled from 8192 nodes.
@@ -301,9 +282,7 @@ def test_fixed_mu_cut_budget_avoids_unneeded_density_refinement():
         ]
     )
     actual_error = np.max(np.abs(result.entries.values - reference))
-    strict_error = np.max(np.abs(strict_density.values - reference))
     assert actual_error < cut_error
-    assert actual_error <= strict_error + p_error
 
 
 def test_custom_charge_policy_is_retained_without_mesh_overrides():

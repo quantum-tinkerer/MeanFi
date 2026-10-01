@@ -8,7 +8,7 @@ Numerical methods then use the resolved targets directly.
 | Target | Default for `tol=t` | Meaning |
 | --- | --- | --- |
 | `scf_residual` | $t$ | Largest change in the active density at self-consistency |
-| `density_matrix_integration` | $t/5$ | Requested error in an integrated density entry; adaptive FermiSimplex relaxes p/h work when its cut estimate dominates |
+| `density_matrix_integration` | $t/5$ | Requested quadrature error after integrating the density entries |
 | `filling_residual` | $t/10$ | $|N(\mu)-N_{\mathrm{target}}|$ in the charge solve |
 | `charge_integration` | $t/5$ | Estimated integration error of the charge calculation |
 | `matrix_function_tol` | $t/40$ | AAA's density matrix-function approximation target |
@@ -33,31 +33,38 @@ relationships through its single `tol` argument.
 Root finding uses `filling_residual` directly. AAA uses `matrix_function_tol`
 directly, without hidden tightening by filling tolerance or matrix size.
 
-## Cut-limited simplex density budget
+## Independent simplex error targets
 
 For adaptive zero-temperature FermiSimplex calculations, the charge step first
-refines the Fermi-surface mesh and estimates the density error associated with
-its occupation cut, `density_cut_estimate`. Density cubature then uses
+refines the Fermi-surface mesh to `charge_integration`. It also estimates density
+error from the approximate occupied regions, `density_cut_estimate`. Smooth
+projector quadrature then refines to its own requested target:
 
 \[
-  t_{\mathrm{p}}=\max\!\left(t_{\mathrm{density}},
-                 \tfrac12\,\widehat e_{\mathrm{cut}}\right).
+  t_{\mathrm{quad}}=t_{\mathrm{density}}.
 \]
 
-The factor of one half keeps the estimated projector-quadrature error smaller
-than the estimated cut error, while avoiding much more quadrature work once
-the cut dominates. The charge estimate is evaluated at the chosen chemical
-potential for both fixed-filling and fixed-chemical-potential calculations.
-The original `density_matrix_integration` target remains independently
-configurable; it is a tighter limit when the cut estimate is small. Prescribed
-`nk` calculations do not estimate the cut and retain their existing density
-rule. Density-only bisection keeps the charge mesh's affine occupation cut.
+The cut estimate never relaxes this target. With the default policy both charge
+and density targets are `tol/5`. A larger cut estimate indicates remaining
+occupation uncertainty; making quadrature more accurate cannot remove that
+uncertainty. The two estimates remain visible separately.
 
-The reported `errors.density_matrix_integration` is the achieved p/h estimate,
-not the effective target; it can exceed the requested density tolerance when
-the cut-limited budget applies. `errors.density_cut_estimate` is reported
-separately. Their sum is not a certified total-density error: the cut estimate
-uses sampled curvature and may miss unresolved structure.
+When a cell has a fixed number of occupied bands, the cut estimate compares its
+reported occupations directly with those known full and empty bands. It retains
+any discrepancy from tolerance-induced half occupations. Fixed occupation does
+not make the projectors constant, so smooth insulating densities still require
+quadrature.
+
+These rules apply at both fixed filling and fixed chemical potential.
+Density-only bisection preserves the charge mesh's affine occupation cuts.
+Prescribed `nk` calculations retain their density rule without adaptive error
+estimates.
+
+The reported `errors.density_matrix_integration` is the achieved quadrature
+estimate and meets the requested target when adaptive integration succeeds.
+`errors.density_cut_estimate` is reported separately. Their sum is not a
+certified total-density error: the occupation model uses sampled remainders,
+and the quadrature estimate also depends on the sampled density.
 
 ## What the reported errors mean
 

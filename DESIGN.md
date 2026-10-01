@@ -180,7 +180,7 @@ test and charge interval use the same error allowance; polynomial subdivision
 adds no Hamiltonian samples. Charge integration and surface classification use
 this single algorithm; historical builds supply benchmark comparisons.
 The sampling assumptions, algorithm and numerical comparisons are documented
-in [the experiment design](docs/occupation-enclosure.md).
+in [the experiment design](https://gitlab.kwant-project.org/qt/meanfi/-/blob/codex/occupation-enclosure/docs/occupation-enclosure.md).
 
 ## Energy comparisons and final observables
 
