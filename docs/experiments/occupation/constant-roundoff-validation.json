@@ -1,0 +1,246 @@
+{
+  "before": [
+    {
+      "case": "flat_rank_one",
+      "exact_charge": 1.5,
+      "reported_charge": 1.5,
+      "interval": [
+        3.0,
+        3.0
+      ],
+      "charge_indicator": 1.5,
+      "cut_indicator": 1.5,
+      "model_error": 0.0,
+      "fixed_occupation": true,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 6,
+      "surface_completed": true,
+      "surface_certified": true,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "flat_complex_rank_one",
+      "exact_charge": 1.5,
+      "reported_charge": 1.5,
+      "interval": [
+        2.0,
+        2.0
+      ],
+      "charge_indicator": 0.5,
+      "cut_indicator": 1.5,
+      "model_error": 0.0,
+      "fixed_occupation": true,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 6,
+      "surface_completed": true,
+      "surface_certified": true,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "nearby_positive_gap",
+      "exact_charge": 0.0,
+      "reported_charge": 1.0,
+      "interval": [
+        0.0,
+        0.0
+      ],
+      "charge_indicator": 1.0,
+      "cut_indicator": 1.0,
+      "model_error": 0.0,
+      "fixed_occupation": true,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 6,
+      "surface_completed": true,
+      "surface_certified": true,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "nearby_negative_gap",
+      "exact_charge": 3.0,
+      "reported_charge": 2.0,
+      "interval": [
+        3.0,
+        3.0
+      ],
+      "charge_indicator": 1.0,
+      "cut_indicator": 1.0,
+      "model_error": 0.0,
+      "fixed_occupation": true,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 6,
+      "surface_completed": true,
+      "surface_certified": true,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "exact_diagonal_flat",
+      "exact_charge": 1.5,
+      "reported_charge": 1.5,
+      "interval": [
+        1.5,
+        1.5
+      ],
+      "charge_indicator": 0.0,
+      "cut_indicator": 0.0,
+      "model_error": 0.0,
+      "fixed_occupation": false,
+      "charge_converged": true,
+      "charge_cells_before": 1,
+      "charge_cells_after": 1,
+      "surface_completed": false,
+      "surface_certified": false,
+      "surface_cells": 0,
+      "surface_mesh_cells": 2
+    },
+    {
+      "case": "resolved_level_rounding",
+      "exact_charge": 0.0,
+      "reported_charge": 0.5,
+      "interval": [
+        0.0,
+        0.0
+      ],
+      "charge_indicator": 0.5,
+      "cut_indicator": 0.5,
+      "model_error": 0.0,
+      "fixed_occupation": true,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 6,
+      "surface_completed": true,
+      "surface_certified": true,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    }
+  ],
+  "after": [
+    {
+      "case": "flat_rank_one",
+      "exact_charge": 1.5,
+      "reported_charge": 1.5,
+      "interval": [
+        0.0,
+        3.0
+      ],
+      "charge_indicator": 1.5,
+      "cut_indicator": 1.5,
+      "model_error": 2.2737367544323206e-13,
+      "fixed_occupation": false,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 1,
+      "surface_completed": true,
+      "surface_certified": false,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "flat_complex_rank_one",
+      "exact_charge": 1.5,
+      "reported_charge": 1.5,
+      "interval": [
+        0.0,
+        3.0
+      ],
+      "charge_indicator": 1.5,
+      "cut_indicator": 1.5,
+      "model_error": 2.2737367544323206e-13,
+      "fixed_occupation": false,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 1,
+      "surface_completed": true,
+      "surface_certified": false,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "nearby_positive_gap",
+      "exact_charge": 0.0,
+      "reported_charge": 1.0,
+      "interval": [
+        0.0,
+        3.0
+      ],
+      "charge_indicator": 2.0,
+      "cut_indicator": 2.0,
+      "model_error": 2.273736754432326e-13,
+      "fixed_occupation": false,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 1,
+      "surface_completed": true,
+      "surface_certified": false,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "nearby_negative_gap",
+      "exact_charge": 3.0,
+      "reported_charge": 2.0,
+      "interval": [
+        0.0,
+        3.0
+      ],
+      "charge_indicator": 2.0,
+      "cut_indicator": 2.0,
+      "model_error": 2.273736754432315e-13,
+      "fixed_occupation": false,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 1,
+      "surface_completed": true,
+      "surface_certified": false,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "exact_diagonal_flat",
+      "exact_charge": 1.5,
+      "reported_charge": 1.5,
+      "interval": [
+        1.5,
+        1.5
+      ],
+      "charge_indicator": 0.0,
+      "cut_indicator": 0.0,
+      "model_error": 0.0,
+      "fixed_occupation": false,
+      "charge_converged": true,
+      "charge_cells_before": 1,
+      "charge_cells_after": 1,
+      "surface_completed": true,
+      "surface_certified": false,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    },
+    {
+      "case": "resolved_level_rounding",
+      "exact_charge": 0.0,
+      "reported_charge": 0.5,
+      "interval": [
+        0.0,
+        0.0
+      ],
+      "charge_indicator": 0.5,
+      "cut_indicator": 0.5,
+      "model_error": 0.0,
+      "fixed_occupation": true,
+      "charge_converged": false,
+      "charge_cells_before": 1,
+      "charge_cells_after": 1,
+      "surface_completed": true,
+      "surface_certified": true,
+      "surface_cells": 0,
+      "surface_mesh_cells": 1
+    }
+  ]
+}

@@ -11,8 +11,9 @@ with an explicit remainder contract; adaptive calculations no longer use it.
 
 Base: MeanFi `54eab84`, FermiSimplex `13aeda0`, AdaptiveSimplex `5ea4787`, paper
 `b3735fe`. The previous experimental implementation is FermiSimplex `98c5009`.
-Current native pin: [0b45519](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/0b45519f97e09911bb818dce70c4183b0a304588).
-The charge-slope and surface follow-up compares this revision with `660de6c`.
+Current native pin: [a62d810](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/commit/a62d810f114f7a4b56c2da52744f023506fc8350).
+The constant-spectrum roundoff fix compares this revision with `0b45519`.
+The charge-slope and surface follow-up compares `0b45519` with `660de6c`.
 The tolerance and subdivision follow-up compares `660de6c` with `df720a2`.
 The scalar-cut follow-up below compares `df720a2` with `23b6ac1`.
 The review cleanup below compares `8430c4d` with `cf266b7`; `23b6ac1` only
@@ -22,6 +23,79 @@ with `9f06d36`.
 The pre-optimization version is `ae3ce87`; earlier tables explicitly describe
 that revision. The larger-band follow-up below measures both revisions.
 No new dependencies, long SCF runs, or changes to the deferred `nk` behavior.
+
+## Constant spectra and eigensolver roundoff
+
+The constant-matrix shortcut now retains numerical uncertainty near the Fermi
+level. It caches `64*N*machine_epsilon*||H||_1` when constructing a constant
+tight-binding model, independently of the user level tolerance. An eigenvalue
+within that allowance of `mu` contributes an occupation interval `[0,1]`.
+Neither a tiny numerical sign nor an accidentally exact zero can establish
+its occupation. This is a numerical safeguard, not an interval-arithmetic
+certificate; see the native
+[design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/a62d810f114f7a4b56c2da52744f023506fc8350/docs/occupation-enclosure.md).
+
+A structurally diagonal constant matrix has known eigenvalues: read and sort
+its stored diagonal directly, retaining the corresponding permutation basis.
+Its allowance is zero, so an exactly on-level entry keeps exact half
+occupation. Resolved nonzero energies still contribute any discrepancy caused
+by the user's larger level tolerance. Structure and matrix scale are checked
+once; enclosure queries perform no additional matrix scans or diagonalizations.
+
+For `H=ones((4,4))` at `mu=0`, the exact spectrum is `[0,0,0,4]` and the
+half-filled charge is **1.5**. On this build, roundoff places the computed zero
+eigenvalues between `-9.9e-16` and `-1.2e-32`:
+
+| Quantity | Before | After |
+| --- | ---: | ---: |
+| Reported charge | 1.5 | 1.5 |
+| Charge enclosure | `[3,3]` | `[0,3]` |
+| Strict gap claimed | yes | no |
+| Empty surface certified | yes | no |
+| Charge cells after failing target `1e-6`, cap 5 | 6 | 1 |
+
+The wider interval is intentional. An exact zero and a small nonzero energy
+cannot generally be distinguished from these floating-point eigenvalues.
+The nearby matrices `H +/- 1e-14*I` have exact charges 0 or 3; replacing all
+uncertain bands by half occupation would wrongly exclude those possibilities.
+If the retained uncertainty exceeds the requested charge tolerance, constant
+integration now fails on the current mesh. Spatial refinement cannot reduce
+that uncertainty or a constant tolerance-rounding error. Constant surfaces
+likewise stop on the current cells, retaining unresolved spectra as inconclusive.
+Quartic probes and the algorithm for varying Hamiltonians are unchanged.
+
+### Verification and runtime
+
+**328 native Python tests, all 14 C++ groups, and 739 MeanFi checks pass**;
+43 MeanFi checks are skipped and 35 slow checks deselected. The 65 new native
+regressions cover real/complex rank-one matrices, 3–12 bands, energy scales
+`1e-8`–`1e8`, three mesh tolerances, nearby strict gaps, exact diagonal flat
+bands, and immediate termination for irreducible errors. Diagonal eigenvalues
+spanning `-1e-200` to `1e200` remain exact, and their integrated diagonal density
+agrees with `[0,.5,1]` to `1e-12`. The existing larger-tolerance regressions
+continue to expose the `.5` scalar charge error and unit cancelling density
+error. Ruff and the dependency lock check pass.
+
+Separate Release builds use the same pinned dependencies, one CPU and one BLAS
+thread. Two alternating rounds with three samples give charge runtime changes
+of +0.2% for the disk and -2.2% for mixed 36 bands. At 192 and 384 bands the
+changes are **-1.9% and +0.8%**. The cosine charge and mixed-36 surface initially
+showed +8.7% and +7.9%; three-round/five-sample repeats give +0.3% and -0.8%.
+The disk surface gives -9.1%. These measurements show no consistent slowdown;
+all measured values, refinement counts, operation counts and surface geometry
+for varying Hamiltonians remain unchanged. The added constant-model setup is
+`O(N^2)` once, and each constant enclosure remains `O(N)`. The general model's
+matrix-size scaling is unchanged.
+
+Raw results: [validation](experiments/occupation/constant-roundoff-validation.json),
+[charge](experiments/occupation/constant-roundoff-charge.json),
+[charge repeat](experiments/occupation/constant-roundoff-charge-repeat.json),
+[band sweep](experiments/occupation/constant-roundoff-scaling.json),
+[surfaces](experiments/occupation/constant-roundoff-surfaces.json), and
+[surface repeat](experiments/occupation/constant-roundoff-surface-repeat.json).
+The native `tests/test_constant_occupation.py` reproduces the numerical checks;
+the existing comparison driver reproduces timings using a separate `0b45519`
+build as `--comparison` and the current build as `--quartic`.
 
 ## Consistent charge slopes and cached crossing witnesses
 

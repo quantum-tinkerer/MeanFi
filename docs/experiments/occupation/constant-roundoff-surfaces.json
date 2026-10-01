@@ -1,0 +1,178 @@
+[
+  {
+    "model": "disk",
+    "feature_size": 0.2,
+    "seconds": 0.0005200868247795785,
+    "timing_samples": [
+      0.0004864050873980057,
+      0.0005520646309218647,
+      0.0005200868247795785
+    ],
+    "batch": 57,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "903173ec3be46abaa3b236b93c8abed344fdde99e99a5fa75ab04c308490c192",
+    "points": 14,
+    "cells": 14,
+    "evaluations": 22,
+    "terminal_visible": 14,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "before",
+    "round": 0
+  },
+  {
+    "model": "disk",
+    "feature_size": 0.2,
+    "seconds": 0.00048789315096998834,
+    "timing_samples": [
+      0.0005385621510147346,
+      0.00048789315096998834,
+      0.00048148362207630615
+    ],
+    "batch": 53,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "903173ec3be46abaa3b236b93c8abed344fdde99e99a5fa75ab04c308490c192",
+    "points": 14,
+    "cells": 14,
+    "evaluations": 22,
+    "terminal_visible": 14,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "after",
+    "round": 0
+  },
+  {
+    "model": "disk",
+    "feature_size": 0.2,
+    "seconds": 0.00048247930636553435,
+    "timing_samples": [
+      0.00048247930636553435,
+      0.00048707765218212594,
+      0.0004813597342759675
+    ],
+    "batch": 49,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "903173ec3be46abaa3b236b93c8abed344fdde99e99a5fa75ab04c308490c192",
+    "points": 14,
+    "cells": 14,
+    "evaluations": 22,
+    "terminal_visible": 14,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "after",
+    "round": 1
+  },
+  {
+    "model": "disk",
+    "feature_size": 0.2,
+    "seconds": 0.0005465371626885418,
+    "timing_samples": [
+      0.0005465371626885418,
+      0.0005538862647621759,
+      0.0004906300609760291
+    ],
+    "batch": 49,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "903173ec3be46abaa3b236b93c8abed344fdde99e99a5fa75ab04c308490c192",
+    "points": 14,
+    "cells": 14,
+    "evaluations": 22,
+    "terminal_visible": 14,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "before",
+    "round": 1
+  },
+  {
+    "model": "mixed_36",
+    "feature_size": 0.2,
+    "seconds": 0.0015968233043246944,
+    "timing_samples": [
+      0.00154324239069272,
+      0.0015968233043246944,
+      0.0019655179146312826
+    ],
+    "batch": 23,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "ccc66d11d85b8e34116eb5505be6196544e8ed2fa66c7e5844ef39c3b537cfc9",
+    "points": 2,
+    "cells": 2,
+    "evaluations": 7,
+    "terminal_visible": 2,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "after",
+    "round": 0
+  },
+  {
+    "model": "mixed_36",
+    "feature_size": 0.2,
+    "seconds": 0.0015208515925967897,
+    "timing_samples": [
+      0.0015208515925967897,
+      0.0015191290453499691,
+      0.0015279840921390462
+    ],
+    "batch": 22,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "ccc66d11d85b8e34116eb5505be6196544e8ed2fa66c7e5844ef39c3b537cfc9",
+    "points": 2,
+    "cells": 2,
+    "evaluations": 7,
+    "terminal_visible": 2,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "before",
+    "round": 0
+  },
+  {
+    "model": "mixed_36",
+    "feature_size": 0.2,
+    "seconds": 0.0015031231371474198,
+    "timing_samples": [
+      0.0014982021821197122,
+      0.0015031231371474198,
+      0.0015112042257731612
+    ],
+    "batch": 22,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "ccc66d11d85b8e34116eb5505be6196544e8ed2fa66c7e5844ef39c3b537cfc9",
+    "points": 2,
+    "cells": 2,
+    "evaluations": 7,
+    "terminal_visible": 2,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "before",
+    "round": 1
+  },
+  {
+    "model": "mixed_36",
+    "feature_size": 0.2,
+    "seconds": 0.001673501202215751,
+    "timing_samples": [
+      0.001673501202215751,
+      0.0017880332656204701,
+      0.0014890774657639364
+    ],
+    "batch": 15,
+    "completed": true,
+    "coverage_certified": true,
+    "geometry_sha256": "ccc66d11d85b8e34116eb5505be6196544e8ed2fa66c7e5844ef39c3b537cfc9",
+    "points": 2,
+    "cells": 2,
+    "evaluations": 7,
+    "terminal_visible": 2,
+    "terminal_inconclusive": 0,
+    "cpu": 0,
+    "build": "after",
+    "round": 1
+  }
+]
