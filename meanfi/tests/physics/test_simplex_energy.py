@@ -27,9 +27,7 @@ def coordinate_function(function, dimension):
 
 def prepared_mesh(function, level=0):
     mesh = SpectralMesh(function, root_level=level)
-    mesh.integrate_density_matrix(
-        mu=0, lattice_vectors=[(0,) * mesh.ndim], target_error=1e-8, preview_depth=0
-    )
+    mesh.estimate_charge_on_current_mesh(mu=0)
     return mesh
 
 
@@ -299,21 +297,18 @@ def test_fivefold_energy_against_converged_independent_quadrature():
 
 
 @pytest.mark.parametrize("dimension", [1, 2, 3, 4])
-def test_energy_uses_complete_preview_partition_without_exporting_vectors(
+def test_energy_uses_retained_partition_without_exporting_vectors(
     monkeypatch, dimension
 ):
     from fractions import Fraction
 
     mesh = SpectralMesh(
         coordinate_function(lambda x: np.diag([-1 - x[0] ** 2, 2.0]), dimension),
-        root_level=0,
+        root_level=1,
     )
-    mesh.integrate_density_matrix(
-        mu=0, lattice_vectors=[(0,) * dimension], target_error=1e-8, preview_depth=1
-    )
+    mesh.estimate_charge_on_current_mesh(mu=0)
     snapshot = mesh.evaluated_snapshot(include_eigenvectors=False)
-    assert snapshot.preview_vertices > 0
-    assert snapshot.partition_simplices > mesh.active_simplices
+    assert snapshot.partition_simplices == mesh.active_simplices
     keys = [
         tuple(Fraction(int(n), 1 << int(level)) for n in row)
         for row, level in zip(snapshot.dyadic_numerators, snapshot.dyadic_levels)
@@ -343,17 +338,20 @@ def test_energy_uses_complete_preview_partition_without_exporting_vectors(
     assert mesh.cached_vertices == cached
 
 
-def test_preview_q2_improves_quartic_integral_on_unchanged_active_mesh():
+def test_density_only_refinement_keeps_the_retained_energy_partition():
     mesh = SpectralMesh(lambda x: np.diag([-1 - x**4, 2.0]), root_level=0)
-    mesh.integrate_density_matrix(
-        mu=0, lattice_vectors=[(0,)], target_error=1e-8, preview_depth=0
-    )
-    coarse = integrate_energies(mesh, mu=0, filling=1)
+    mesh.estimate_charge_on_current_mesh(mu=0)
+    before = integrate_energies(mesh, mu=0, filling=1)
     active = mesh.simplices.copy()
-    mesh.integrate_density_matrix(
-        mu=0, lattice_vectors=[(0,)], target_error=1e-8, preview_depth=1
+    density = mesh.integrate_density_matrix(
+        mu=0,
+        lattice_vectors=[(1,)],
+        target_error=1e-5,
+        max_degree=3,
     )
-    fine = integrate_energies(mesh, mu=0, filling=1)
+    assert density.stats.refinements > 0
+    assert density.stats.target_reached
+    after = integrate_energies(mesh, mu=0, filling=1)
     np.testing.assert_array_equal(mesh.simplices, active)
-    exact = -0.6
-    assert abs(fine.band_energy - exact) < abs(coarse.band_energy - exact) / 10
+    assert after.band_energy == before.band_energy
+    assert after.simplices == before.simplices

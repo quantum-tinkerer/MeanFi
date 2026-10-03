@@ -27,6 +27,12 @@ The sparse CI coverage job runs the complete suite, including the heavier
 `perf_slow` numerical-reference checks. Local `tests` tasks omit that group;
 `tests-perf-slow` runs it separately.
 
+The rhombohedral-graphene tutorial executes its setup during the docs build,
+but marks the four-point SCF cell `skip-execution` because it exceeds the
+routine build budget. Run that cell interactively for the full study. The
+physics tests independently check its compiled Hamiltonian, interactions and
+exact density limits; published docs do not present an unexecuted SCF result.
+
 The test task writes coverage and test reports to ignored `build/test-reports/`.
 CI also builds the source distribution and wheel, installs the wheel into a
 separate environment, then checks its import location and an exact density
@@ -49,11 +55,10 @@ belong in ignored `build/` or CI artifacts, not in version control.
 
 ## FermiSimplex release prerequisite
 
-MeanFi pins FermiSimplex commit
-`df720a2f9cf2e194e04a32d6770d4c10a6b5f90e` for the density, charge and band-energy
-API used by the simplex adapter, including the shared quadratic occupation
-enclosure. Checkout and direct-wheel installations use
-this immutable source dependency.
+MeanFi pins an immutable FermiSimplex commit in `pyproject.toml` and `pixi.lock`.
+It provides the shared occupation enclosure, certificate reuse, adaptive
+polynomial density cubature and retained spectral snapshots used by the adapter.
+Checkout and direct-wheel installations use this same source dependency.
 
 [PyPI rejects direct URL dependencies][direct-urls]. Before publishing MeanFi
 there, replace the Git requirement with a compatible FermiSimplex release,

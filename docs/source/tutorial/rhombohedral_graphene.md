@@ -148,8 +148,14 @@ model = mf.Model(h0, interaction, filling=20)
 The same loose tolerances apply to every solve. The fixed random seed makes
 runs reproducible; it does not prescribe a spin, valley or layer ordering.
 Different initial guesses can converge to different self-consistent states.
+The four-point SCF study below is left unexecuted in the documentation build:
+it can take more than 30 minutes. Run this cell interactively to generate the
+band plots. The build executes the model setup above, and the test suite checks
+the Hamiltonian, interactions and density integration against exact limits.
 
 ```{code-cell} ipython3
+:tags: [skip-execution]
+
 parameter_points = [(-0.012, 10.0), (-0.015, 10.0), (-0.015, 5.0), (-0.019, 5.0)]
 tol = replace(
     mf.default_solver_tolerances(5e-3),
@@ -174,7 +180,7 @@ plot_bands(solutions)
 plt.show()
 ```
 
-The plots show the full Hamiltonian's bands nearest half filling, colored by
+The resulting plots show the full Hamiltonian's bands nearest half filling, colored by
 outer-surface polarization, without assuming spin or valley conservation.
 `result.mean_field`, `result.density` and `result.internal_energy` are available
 as usual. EDIIS uses relative energies during iteration; absolute energy is

@@ -203,21 +203,16 @@ def _integrate_density(
         mu=float(mu),
         lattice_vectors=density_coordinates.keys,
         components=components,
-        target_error=float(density_atol),
-        max_refinements=max_refinements,
     )
     with _integration_context(num_threads):
-        if not prescribed:
-            return mesh.integrate_density_components_p(
-                **common,
-                max_degree=max_degree,
-                max_h_refinements=max_h_refinements,
-            )
+        if prescribed:
+            return mesh.estimate_density_on_current_mesh(**common)
         return mesh.integrate_density_components(
             **common,
-            preview_depth=0,
-            min_refinement_batch_size=_MIN_REFINEMENT_BATCH_SIZE,
-            max_refinement_batch_size=_MAX_REFINEMENT_BATCH_SIZE,
+            target_error=float(density_atol),
+            max_refinements=max_refinements,
+            max_degree=max_degree,
+            max_h_refinements=max_h_refinements,
         )
 
 

@@ -336,7 +336,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
     assert result.statistics.density_integration_calls == 0
 
 
-def test_adaptive_simplex_calls_fermisimplex_p_density_api():
+def test_adaptive_simplex_calls_fermisimplex_density_api():
     from meanfi.density.integrate.simplex import mesh as native_mesh
 
     coordinates = DensityCoordinates.from_pairs(
@@ -350,7 +350,7 @@ def test_adaptive_simplex_calls_fermisimplex_p_density_api():
     calls = []
 
     class Mesh:
-        def integrate_density_components_p(self, **kwargs):
+        def integrate_density_components(self, **kwargs):
             calls.append(kwargs)
             return "density"
 

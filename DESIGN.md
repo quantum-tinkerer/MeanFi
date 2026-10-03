@@ -119,14 +119,13 @@ The comparison follows the union of occupation ranks uncertain in the root or
 child inertia certificates and uses no new Hamiltonian samples. It estimates Fermi-surface
 placement error in each normal density entry; it is sampled, not certified,
 because curvature and frozen Schur reduction are approximate. Adaptive
-density p/h quadrature uses the effective target
-`max(density_matrix_integration, density_cut_estimate / 2)`. This keeps the
-projector-integration estimate below the sampled cut uncertainty without
-spending much work beneath it. The achieved p/h and cut estimates remain
-separate; this budget is not a certificate of total density error.
+density p/h quadrature always uses the requested `density_matrix_integration`
+target. The cut estimate does not relax that target. The achieved quadrature
+and cut estimates remain separate diagnostics; neither alone certifies the
+total density error.
 FermiSimplex rounds a negative cut estimate to zero only within floating-point
 accumulation error of zero and rejects a materially negative or non-finite
-value. MeanFi validates the returned estimate before using it as a budget.
+value. MeanFi validates the returned estimate before reporting it.
 
 Empty requests skip this work. Filling comes from
 available density information or remains `None`. When selected density omits
@@ -189,7 +188,7 @@ corrections while their sign margins remain positive. Cut cells reuse their safe
 subspaces too; their small reduced models and charge intervals are rebuilt.
 The cache belongs to one fixed Hamiltonian and adds no method selector.
 The sampling assumptions, algorithm and numerical comparisons are documented
-in [the experiment design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/codex/occupation-enclosure/docs/occupation-enclosure.md).
+in [the occupation design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/main/docs/occupation-enclosure.md).
 
 ## Energy comparisons and final observables
 

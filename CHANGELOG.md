@@ -18,6 +18,11 @@ MeanFi 2.0 redesigns the calculation API. Updating from 1.x requires code change
 
 ### Changed
 
+- Use the canonical FermiSimplex density API with degree refinement and automatic
+  density-only bisection. Keep prescribed-mesh queries separate from adaptation.
+- Build the graphene tutorial setup in CI; leave its long four-point SCF study
+  for interactive execution, retaining the bounded physics tests.
+
 - Reuse FermiSimplex safe-subspace certificates across chemical-potential
   corrections and discover its OpenMP runtime once per process.
 - Set the default filling residual to one tenth of the charge-integration
