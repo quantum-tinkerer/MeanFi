@@ -113,7 +113,7 @@ def test_explicit_density_tolerance_sets_charge_but_preserves_filling_residual()
         charge_integration=None,
     )
     assert tolerances.charge_integration == pytest.approx(1e-8)
-    assert tolerances.filling_residual == pytest.approx(1e-4)
+    assert tolerances.filling_residual == pytest.approx(2e-5)
 
 
 def test_periodic_grid_accepts_finite_temperature_fixed_filling_controls():

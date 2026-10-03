@@ -17,8 +17,9 @@ class ErrorTolerances:
     """Absolute targets accepted as ``tol`` by density calculations and SCF.
 
     Omitted ``charge_integration`` takes ``density_matrix_integration``.
-    ``mu_tol`` limits root-search steps; only the filling residual establishes
-    charge convergence. Energy and entropy have no accuracy targets.
+    ``mu_tol`` switches small Newton steps to a bracketed solve; only the
+    filling residual establishes charge convergence. Energy and entropy have
+    no accuracy targets.
     """
 
     scf_residual: float
@@ -75,12 +76,13 @@ ToleranceFunction = Callable[[float], ErrorTolerances]
 
 
 def default_solver_tolerances(tol: float) -> ErrorTolerances:
-    """Assign the same simple tolerance budgets to every calculation."""
+    """Assign integration budgets and a tighter filling solve to every calculation."""
+    charge_tol = tol / 5
     return ErrorTolerances(
         scf_residual=tol,
         density_matrix_integration=tol / 5,
-        charge_integration=tol / 5,
-        filling_residual=tol / 10,
+        charge_integration=charge_tol,
+        filling_residual=charge_tol / 10,
         matrix_function_tol=tol / 40,
     )
 

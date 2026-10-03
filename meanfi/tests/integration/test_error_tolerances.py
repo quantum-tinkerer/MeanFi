@@ -1,4 +1,4 @@
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError, asdict, replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -29,7 +29,7 @@ def test_default_solver_tolerances_define_the_public_error_hierarchy():
     assert tolerances == ErrorTolerances(
         scf_residual=1e-3,
         density_matrix_integration=2e-4,
-        filling_residual=1e-4,
+        filling_residual=2e-5,
         charge_integration=2e-4,
         matrix_function_tol=2.5e-5,
     )
@@ -76,12 +76,16 @@ def test_explicit_integration_tolerances_are_effective_internal_requests(
         ),
     )
 
-    assert problem.tolerances == ErrorTolerances(
-        scf_residual=1e-4,
-        density_matrix_integration=5e-7,
-        filling_residual=1e-5,
-        charge_integration=charge_tolerance,
-        matrix_function_tol=2.5e-6,
+    assert asdict(problem.tolerances) == pytest.approx(
+        asdict(
+            ErrorTolerances(
+                scf_residual=1e-4,
+                density_matrix_integration=5e-7,
+                filling_residual=2e-6,
+                charge_integration=charge_tolerance,
+                matrix_function_tol=2.5e-6,
+            )
+        )
     )
 
 
@@ -399,10 +403,10 @@ def test_simplex_filling_residual_is_independent_of_charge_target():
     result = density_matrix(
         {(0,): np.zeros((1, 1))},
         keys=[(0,)],
-        filling=0.50005,
+        filling=0.500002,
         tol=replace(default_solver_tolerances(1e-3), charge_integration=1e-12),
     )
     assert result.mu == 0
     assert result.filling == 0.5
-    assert result.errors.filling_residual == pytest.approx(5e-5)
+    assert result.errors.filling_residual == pytest.approx(2e-6)
     assert result.errors.charge_integration == 0

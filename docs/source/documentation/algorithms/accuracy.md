@@ -9,13 +9,13 @@ Numerical methods then use the resolved targets directly.
 | --- | --- | --- |
 | `scf_residual` | $t$ | Largest change in the active density at self-consistency |
 | `density_matrix_integration` | $t/5$ | Requested quadrature error after integrating the density entries |
-| `filling_residual` | $t/10$ | $|N(\mu)-N_{\mathrm{target}}|$ in the charge solve |
+| `filling_residual` | $t/50$ | $|N(\mu)-N_{\mathrm{target}}|$ in the charge solve |
 | `charge_integration` | $t/5$ | Estimated integration error of the charge calculation |
 | `matrix_function_tol` | $t/40$ | AAA's density matrix-function approximation target |
-| `mu_tol` | $10^{-10}$ | Smallest useful root-search step, in energy units |
+| `mu_tol` | $10^{-10}$ | Newton-step threshold for switching to a bracketed solve, in energy units |
 
-`mu_tol` does not replace the filling-residual condition. Reaching a step limit
-without meeting that condition is a convergence failure. There is no separate
+`mu_tol` does not replace the filling-residual condition. Reaching
+floating-point resolution without meeting that condition is a convergence failure. There is no separate
 energy or entropy tolerance.
 
 To adjust one target, pass a complete record:
@@ -30,8 +30,9 @@ result = meanfi.density_matrix(model, tol=targets)
 An omitted `charge_integration` in a new `ErrorTolerances` record follows
 `density_matrix_integration`. A custom `tolerance_policy` may define other
 relationships through its single `tol` argument.
-Root finding uses `filling_residual` directly. AAA uses `matrix_function_tol`
-directly, without hidden tightening by filling tolerance or matrix size.
+Root finding uses `filling_residual` directly. Its default is one tenth of
+`charge_integration`, so the filling solve adds little error to the charge
+integration budget. AAA uses `matrix_function_tol` directly, without hidden tightening by filling tolerance or matrix size.
 
 ## Independent simplex error targets
 

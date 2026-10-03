@@ -140,7 +140,9 @@ def test_finite_filling_accepts_bracket_endpoint_within_evaluation_budget(
     budget,
     expected_mu,
 ):
-    from meanfi import density_matrix
+    from dataclasses import replace
+
+    from meanfi import default_solver_tolerances, density_matrix
 
     energies = np.array([-1.0, 1.0])
     result = density_matrix(
@@ -149,6 +151,7 @@ def test_finite_filling_accepts_bracket_endpoint_within_evaluation_budget(
         kT=0.2,
         keys=[()],
         max_charge_evaluations=budget,
+        tol=replace(default_solver_tolerances(1e-3), filling_residual=1e-4),
     )
     expected = np.diag(expit((expected_mu - energies) / 0.2))
     error = np.max(np.abs(result.to_tb()[()] - expected))
@@ -156,3 +159,19 @@ def test_finite_filling_accepts_bracket_endpoint_within_evaluation_budget(
     assert result.mu == expected_mu
     assert result.errors.filling_residual <= 1e-4
     assert result.statistics.charge_evaluations == budget
+
+
+@pytest.mark.parametrize("use_derivative", [False, True])
+def test_filling_target_controls_accuracy_after_small_mu_steps(use_derivative):
+    root = solve_mu(
+        evaluate_charge=lambda mu: (np.exp(mu), np.exp(mu)),
+        initial_bracket=lambda: (-2.0, 2.0),
+        filling=0.7,
+        mu_guess=0.0,
+        filling_tol=4e-13,
+        mu_tol=1e-3,
+        max_charge_evaluations=25,
+        use_derivative=use_derivative,
+    )
+    assert abs(root.charge - 0.7) <= 4e-13
+    assert abs(root.mu - np.log(0.7)) < 1e-12

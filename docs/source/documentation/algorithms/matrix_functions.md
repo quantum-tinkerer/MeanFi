@@ -42,7 +42,11 @@ $$
 $$
 
 The sampled check estimates this scalar error; it is not a rigorous bound over
-the entire interval. An accepted fit can be reused on a nearby spectral
+the entire interval. Charge sums the physical diagonal entries, so its
+approximation error can be as large as the number of orbitals times this
+scalar error. For a tight filling solve on a large sparse matrix, choose
+`matrix_function_tol` below the filling budget per orbital.
+An accepted fit can be reused on a nearby spectral
 interval after checking it there.
 
 MUMPS factors $A-z_pI$ once per pole and extracts requested inverse entries.

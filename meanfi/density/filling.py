@@ -269,7 +269,9 @@ class _ChargeRootSolver:
         root = brentq(
             residual,
             *bracket.pair,
-            xtol=self.mu_xtol,
+            # Charge acceptance stops the search through _AcceptedSample.
+            # A fixed energy-step floor can stop too early for tight filling.
+            xtol=np.finfo(float).tiny,
             rtol=np.finfo(float).eps * 4.0,
             maxiter=_BRENT_MAXITER,
             disp=False,

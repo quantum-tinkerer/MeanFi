@@ -18,6 +18,12 @@ MeanFi 2.0 redesigns the calculation API. Updating from 1.x requires code change
 
 ### Changed
 
+- Reuse FermiSimplex safe-subspace certificates across chemical-potential
+  corrections and discover its OpenMP runtime once per process.
+- Set the default filling residual to one tenth of the charge-integration
+  target. Small chemical-potential steps switch to a bracketed solve without
+  stopping before the filling target is met.
+
 - `Model` owns validated inputs, temperature and filling. Use its `mean_field`,
   `hamiltonian_from_meanfield` and `random_meanfield` methods to construct calculations.
 - `density_matrix` returns `DensityResult`; `density_matrix_at_mu` evaluates a

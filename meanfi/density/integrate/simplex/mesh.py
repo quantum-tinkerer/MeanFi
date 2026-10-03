@@ -7,7 +7,7 @@ from functools import wraps
 
 import numpy as np
 from fermisimplex import SpectralMesh
-from threadpoolctl import threadpool_limits
+from threadpoolctl import ThreadpoolController
 
 from meanfi.hamiltonian import BlochHamiltonian, Hamiltonian, hamiltonian_dimension
 from meanfi.density.problem import DensityProblem
@@ -18,6 +18,9 @@ from meanfi.tb.ops import to_dense
 _CHARGE_ERROR_DEPTH = 2
 _MIN_REFINEMENT_BATCH_SIZE = 1
 _MAX_REFINEMENT_BATCH_SIZE = 100
+# FermiSimplex's native extension is loaded above. Discover its OpenMP runtime
+# once; rescanning shared libraries on every integration dominates tiny meshes.
+_NATIVE_THREADS = ThreadpoolController().select(user_api="openmp")
 
 
 def _spectral_mesh(
@@ -102,7 +105,7 @@ def _bounded_density_bisections(
 def _native_thread_context(num_threads: int | None):
     if num_threads is None:
         return nullcontext()
-    return threadpool_limits(limits=int(num_threads), user_api="openmp")
+    return _NATIVE_THREADS.limit(limits=int(num_threads))
 
 
 @contextmanager

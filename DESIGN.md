@@ -105,7 +105,8 @@ a valid failed result; that pass may repeat matrix work.
 
 Fixed filling first solves `N(mu) = filling`, then evaluates density. The root
 search caches charge samples and accepts any sample meeting the filling target;
-`mu_tol` is the chemical-potential step tolerance. Charge-integration error and
+`mu_tol` switches small Newton steps to the bracketed root solve; that solve
+continues until the filling target is met or floating-point resolution is reached. Charge-integration error and
 density trace are separate quantities and never add root acceptance tests.
 
 At fixed mu there is no root search. Adaptive FermiSimplex prepares the charge
@@ -152,6 +153,10 @@ charge mesh without new diagonalizations.
   cells. It does not bound higher-order cut-occupation error or detect all
   aliased projector variation. Reaching the target therefore is not a rigorous
   certificate of the complete density error.
+  OpenMP runtimes are discovered once after the native extension loads. Each
+  integration temporarily applies its thread limit through that controller and
+  restores the previous limit on exit. Repeated calls do not scan loaded
+  libraries; unrelated runtimes loaded later are outside this controller.
 - `UniformGrid` uses dense diagonalization or sparse finite-temperature AAA.
   Adaptive integration compares coarse and fine grids, starting at four points
   per axis. `nk` prescribes the total point count; `initial_nk` sets the starting
@@ -166,8 +171,8 @@ charge mesh without new diagonalizations.
   sampled spectra or an initial norm scale, expanding by charge evaluations.
 
 All tolerance dependencies live in `errors.py`: `tol` for SCF, `tol/5` for density
-and charge integration, `tol/10` for filling residual, and `tol/40` for matrix
-functions. Explicit `ErrorTolerances` bypass the policy. Backends do not tighten
+and charge integration, `charge_integration/10` (`tol/50`) for filling residual,
+and `tol/40` for matrix functions. Explicit `ErrorTolerances` bypass the policy. Backends do not tighten
 targets. Error estimates are empirical; energy and entropy have no stopping targets.
 
 Known deferred issue: FermiSimplex `nk` currently selects a prescribed mesh. The
@@ -179,8 +184,12 @@ quadratic Schur occupation enclosure for adaptive charge integration. Its sign
 test and charge interval use the same error allowance; polynomial subdivision
 adds no Hamiltonian samples. Charge integration and surface classification use
 this single algorithm; historical builds supply benchmark comparisons.
+The native mesh retains scalar safe-subspace certificates across chemical-potential
+corrections while their sign margins remain positive. Cut cells reuse their safe
+subspaces too; their small reduced models and charge intervals are rebuilt.
+The cache belongs to one fixed Hamiltonian and adds no method selector.
 The sampling assumptions, algorithm and numerical comparisons are documented
-in [the experiment design](https://gitlab.kwant-project.org/qt/meanfi/-/blob/codex/occupation-enclosure/docs/occupation-enclosure.md).
+in [the experiment design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/codex/occupation-enclosure/docs/occupation-enclosure.md).
 
 ## Energy comparisons and final observables
 

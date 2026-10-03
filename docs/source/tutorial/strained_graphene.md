@@ -22,6 +22,8 @@ The lattice construction and band plotting are in
 ## Build the sparse model
 
 ```{code-cell} ipython3
+from dataclasses import replace
+
 import kwant
 import matplotlib.pyplot as plt
 import meanfi
@@ -53,6 +55,17 @@ integration = meanfi.UniformGrid(nk=2**2, matrix_function=meanfi.RationalFOE())
 estimate integration error. Sparse rational evaluation needs the optional sparse
 solver dependencies. We use default EDIIS with `tol=1e-2` for a quick qualitative
 calculation; tighter tolerances can noticeably change the magnetization and gap.
+The rational approximation must be more accurate than the filling budget per
+orbital, since charge sums all diagonal entries. We reserve one tenth of that
+budget for the matrix-function approximation:
+
+```{code-cell} ipython3
+targets = meanfi.default_solver_tolerances(1e-2)
+targets = replace(
+    targets,
+    matrix_function_tol=targets.filling_residual / (10 * h_0[(0, 0)].shape[0]),
+)
+```
 
 ## Noninteracting bands
 
@@ -74,7 +87,7 @@ guess_builder = utils.build_interacting_syst(
     bare_builder, lattice, staggered_field
 )
 guess = utils.builder_to_tb(guess_builder, sparse=True)
-result = meanfi.solver(model, guess, integration=integration, tol=1e-2)
+result = meanfi.solver(model, guess, integration=integration, tol=targets)
 print(f"SCF residual: {result.errors.scf_residual:.2e}")
 print(f"Chemical potential: {result.mu:.6f} t")
 ```
