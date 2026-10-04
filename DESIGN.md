@@ -179,8 +179,8 @@ intended contract is an adaptive point budget. This change is outside this branc
 its tutorial uses tolerance-driven integration without `nk`.
 
 `FermiSimplex` uses a shared
-Schur occupation enclosure with a quadratic reduced model and degree-six
-residual Gram envelopes for adaptive charge integration. Its sign
+Schur occupation enclosure with a quadratic reduced model and two constant
+residual matrix bounds for adaptive charge integration. Its sign
 test and charge interval use the same error allowance; polynomial subdivision
 adds no Hamiltonian samples. Charge integration and surface classification use
 this single algorithm; historical builds supply benchmark comparisons.
@@ -188,8 +188,9 @@ The native mesh retains scalar safe-subspace certificates across chemical-potent
 corrections while their sign margins remain positive. Cut cells reuse their safe
 subspaces too; their small reduced models and charge intervals are rebuilt.
 The cache belongs to one fixed Hamiltonian and adds no method selector.
-The native implementation solves safe blocks at vertices and retains the
-residual matrices in separate occupied/empty envelopes. It rebuilds these
+The native implementation uses a direct norm allowance when the Schur correction
+is already below interpolation uncertainty. Otherwise it solves safe blocks at
+vertices and bounds their residuals with constant occupied/empty matrices. It rebuilds these
 mu-dependent bounds while reusing valid sign certificates.
 The sampling assumptions, algorithm and numerical comparisons are documented
 in [the occupation design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/main/docs/occupation-enclosure.md).

@@ -1277,7 +1277,11 @@ All 549 interval charge checks enclosed their analytic occupied length.
 An arbitrary compact bump between every probe still defeats sampling, as an
 explicit regression demonstrates.
 
-## Algorithm and assumptions
+## Historical frozen-inverse algorithm and assumptions
+
+This section describes the benchmarked historical implementation. The current
+algorithm and its constant residual matrix bounds are specified in the
+[native occupation design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/main/docs/occupation-enclosure.md).
 
 Interpolate `K=H-mu I` by a quadratic Bernstein matrix polynomial. Its nodes are
 vertices and edge midpoints; validate at the remaining degree-four lattice
