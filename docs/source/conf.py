@@ -66,7 +66,7 @@ myst_enable_extensions = [
     "colon_fence",
 ]
 nb_execution_mode = "force"
-nb_execution_timeout = 1800
+nb_execution_timeout = -1
 nb_execution_raise_on_error = True
 nb_execution_excludepatterns = []
 autodoc_typehints = "none"

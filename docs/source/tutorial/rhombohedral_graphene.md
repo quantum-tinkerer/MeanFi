@@ -148,18 +148,15 @@ model = mf.Model(h0, interaction, filling=20)
 The same loose tolerances apply to every solve. The fixed random seed makes
 runs reproducible; it does not prescribe a spin, valley or layer ordering.
 Different initial guesses can converge to different self-consistent states.
-The four-point SCF study below is left unexecuted in the documentation build:
-it can take more than 30 minutes. Run this cell interactively to generate the
-band plots. The build executes the model setup above, and the test suite checks
-the Hamiltonian, interactions and density integration against exact limits.
+The charge and smooth density tolerances are chosen for this qualitative phase
+comparison; the SCF and filling residual targets remain 0.005.
 
 ```{code-cell} ipython3
-:tags: [skip-execution]
-
 parameter_points = [(-0.012, 10.0), (-0.015, 10.0), (-0.015, 5.0), (-0.019, 5.0)]
 tol = replace(
     mf.default_solver_tolerances(5e-3),
-    charge_integration=2e-2,
+    charge_integration=1e-1,
+    density_matrix_integration=5e-3,
     filling_residual=5e-3,
 )
 solutions = []

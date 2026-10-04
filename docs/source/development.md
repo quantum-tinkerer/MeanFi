@@ -27,11 +27,12 @@ The sparse CI coverage job runs the complete suite, including the heavier
 `perf_slow` numerical-reference checks. Local `tests` tasks omit that group;
 `tests-perf-slow` runs it separately.
 
-The rhombohedral-graphene tutorial executes its setup during the docs build,
-but marks the four-point SCF cell `skip-execution` because it exceeds the
-routine build budget. Run that cell interactively for the full study. The
-physics tests independently check its compiled Hamiltonian, interactions and
-exact density limits; published docs do not present an unexecuted SCF result.
+The rhombohedral-graphene tutorial executes all four SCF calculations and
+renders their bands during the docs build. Documentation execution has no time
+limit. If a build runs longer than ten minutes, inspect the active calculation
+and its progress before proceeding; do not skip cells or relax tolerances to
+hide a regression. The tutorial uses one validated tolerance policy and random
+start for every parameter point.
 
 The test task writes coverage and test reports to ignored `build/test-reports/`.
 CI also builds the source distribution and wheel, installs the wheel into a

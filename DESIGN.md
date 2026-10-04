@@ -118,7 +118,7 @@ the child affine occupation count differs from the reported charge-mesh cut.
 The comparison follows the union of occupation ranks uncertain in the root or
 child inertia certificates and uses no new Hamiltonian samples. It estimates Fermi-surface
 placement error in each normal density entry; it is sampled, not certified,
-because curvature and frozen Schur reduction are approximate. Adaptive
+because its Hamiltonian interpolation remainder is sampled. Adaptive
 density p/h quadrature always uses the requested `density_matrix_integration`
 target. The cut estimate does not relax that target. The achieved quadrature
 and cut estimates remain separate diagnostics; neither alone certifies the
@@ -179,7 +179,8 @@ intended contract is an adaptive point budget. This change is outside this branc
 its tutorial uses tolerance-driven integration without `nk`.
 
 `FermiSimplex` uses a shared
-quadratic Schur occupation enclosure for adaptive charge integration. Its sign
+Schur occupation enclosure with a quadratic reduced model and degree-six
+residual Gram envelopes for adaptive charge integration. Its sign
 test and charge interval use the same error allowance; polynomial subdivision
 adds no Hamiltonian samples. Charge integration and surface classification use
 this single algorithm; historical builds supply benchmark comparisons.
@@ -187,6 +188,9 @@ The native mesh retains scalar safe-subspace certificates across chemical-potent
 corrections while their sign margins remain positive. Cut cells reuse their safe
 subspaces too; their small reduced models and charge intervals are rebuilt.
 The cache belongs to one fixed Hamiltonian and adds no method selector.
+The native implementation solves safe blocks at vertices and retains the
+residual matrices in separate occupied/empty envelopes. It rebuilds these
+mu-dependent bounds while reusing valid sign certificates.
 The sampling assumptions, algorithm and numerical comparisons are documented
 in [the occupation design](https://gitlab.kwant-project.org/qt/lineartetrahedron/-/blob/main/docs/occupation-enclosure.md).
 
@@ -263,3 +267,13 @@ remain imported helpers. Numba compilation is shown inline
 and required only by this tutorial and the documentation environment, not MeanFi.
 There are no tutorial threadpool controls. Generated reports and exploratory
 performance experiments stay outside the MR.
+
+## Executable graphene tutorial
+
+All four graphene SCF points run during the documentation build. Use the same
+seed 81, guess scale 0.025, EDIIS, and tolerance policy throughout: charge 0.1,
+density quadrature 0.005, filling residual 0.005, SCF residual 0.005. These are
+tutorial-specific settings checked against independent neutral densities and
+qualitative phase signatures; they do not change the library tolerance policy.
+Documentation execution has no time bound. A build exceeding ten minutes calls
+for investigation rather than skipped calculations or relaxed accuracy.
