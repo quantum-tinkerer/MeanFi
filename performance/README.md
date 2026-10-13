@@ -3,7 +3,8 @@
 One script measures the core operations through the public API:
 
 - Selected density entries with FermiSimplex, dense UniformGrid and optional sparse RationalFOE.
-- Fixed-filling searches with dense and sparse UniformGrid, including all charge probes.
+- Fixed-filling searches with FermiSimplex and dense and sparse UniformGrid,
+  including all charge probes.
 - A complete EDIIS solve at zero and finite temperature.
 
 ```bash

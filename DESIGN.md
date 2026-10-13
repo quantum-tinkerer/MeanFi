@@ -117,6 +117,10 @@ accepted as the final density. The outer loop still requires the adaptive
 charge stopping error and filling residual to meet their separate targets
 before evaluating density. Invalid charge values, failed brackets, and exhausted
 work budgets still raise. Prescribed meshes retain strict root acceptance.
+If charge integration leaves the mesh unchanged and the filling still fails,
+raise a convergence error: repeating the same frozen search cannot improve it.
+This includes genuinely flat bands whose occupation jump skips the target;
+the fallback does not introduce fractional occupation of degenerate states.
 
 At fixed mu there is no root search. Adaptive FermiSimplex prepares the charge
 mesh at the supplied mu using the separate charge target before p-density

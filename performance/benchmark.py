@@ -84,22 +84,14 @@ def density_benchmarks(size, repeat, sparse, initial_nk):
                 thermal,
             )
         )
-    filling = float(thermal[:size].real.sum())
     records = []
     for name, hamiltonian, temperature, integration, expected in cases:
         kwargs = dict(kT=temperature, coordinates=coordinates, integration=integration)
+        filling = float(expected[:size].real.sum())
         calculations = [
-            ("fixed-mu", lambda: mf.density_matrix_at_mu(hamiltonian, mu, **kwargs))
+            ("fixed-mu", lambda: mf.density_matrix_at_mu(hamiltonian, mu, **kwargs)),
+            ("fixed-filling", lambda: mf.density_matrix(hamiltonian, filling, **kwargs)),
         ]
-        if temperature > 0:
-            # The converged thermal reference supplies both density and filling
-            # at a known mu. No reference root search enters the timing.
-            calculations.append(
-                (
-                    "fixed-filling",
-                    lambda: mf.density_matrix(hamiltonian, filling, **kwargs),
-                )
-            )
         for constraint, calculate in calculations:
             record = measure(
                 f"density/{name}/{constraint}/N={size}", calculate, expected, repeat
