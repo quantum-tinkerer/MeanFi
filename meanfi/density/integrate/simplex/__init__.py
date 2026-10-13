@@ -74,6 +74,7 @@ def solve_simplex(
                 mu_tol=mu_tol,
                 max_charge_evaluations=remaining,
                 use_derivative=True,
+                allow_inexact=adaptive,
             )
             charge_evaluations += root.charge_evaluations
             mu = mu_guess = root.mu
