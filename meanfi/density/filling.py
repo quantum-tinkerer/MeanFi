@@ -63,6 +63,7 @@ class FixedFillingSolve:
     residual: float
     derivative: float | None
     charge_evaluations: int
+    converged: bool = True
 
 
 @dataclass(frozen=True)
@@ -135,6 +136,7 @@ class _ChargeRootSolver:
         mu_xtol: float,
         max_charge_evaluations: int | None,
         use_derivative: bool,
+        allow_inexact: bool = False,
     ) -> None:
         self.evaluate_charge = evaluate_charge
         self.filling = float(filling)
@@ -142,6 +144,7 @@ class _ChargeRootSolver:
         self.mu_xtol = float(mu_xtol)
         self.max_charge_evaluations = max_charge_evaluations
         self.use_derivative = bool(use_derivative)
+        self.allow_inexact = bool(allow_inexact)
         self.charge_evaluations = 0
         self.cache: dict[float, _ChargeSample] = {}
         self.last: _ChargeSample | None = None
@@ -165,6 +168,13 @@ class _ChargeRootSolver:
             )
         except _AcceptedSample as exc:
             return self._result(exc.sample)
+        if self.allow_inexact:
+            # A flat interpolated band can skip the target charge. Stay next
+            # to that jump, rather than returning an old, equally close plateau.
+            closest = min(
+                (bracket.lower, bracket.upper), key=lambda sample: abs(sample.residual)
+            )
+            return self._result(closest, converged=False)
         self._fail(
             "root search ended before satisfying the filling tolerance",
             self.best or final,
@@ -280,13 +290,16 @@ class _ChargeRootSolver:
         bracket.update(sample)
         return sample
 
-    def _result(self, sample: _ChargeSample) -> FixedFillingSolve:
+    def _result(
+        self, sample: _ChargeSample, *, converged: bool = True
+    ) -> FixedFillingSolve:
         return FixedFillingSolve(
             mu=sample.mu,
             charge=sample.charge,
             residual=sample.residual,
             derivative=sample.derivative if self.use_derivative else None,
             charge_evaluations=self.charge_evaluations,
+            converged=converged,
         )
 
     def _fail(self, reason: str, sample: _ChargeSample | None) -> None:
@@ -338,6 +351,7 @@ def solve_mu(
     mu_tol: float,
     max_charge_evaluations: int | None,
     use_derivative: bool = True,
+    allow_inexact: bool = False,
 ) -> FixedFillingSolve:
     """Test the chemical-potential guess, then bracket and solve only if needed.
 
@@ -345,6 +359,10 @@ def solve_mu(
     `dN/dmu` estimate. Only `filling_tol` controls root acceptance; integration
     and matrix-function accuracy belong to their own stages. The charge
     function must be monotone nondecreasing over the expanded bracket.
+    ``allow_inexact`` returns a provisional bracket endpoint if a completed
+    search cannot meet the filling target. Its ``converged`` flag is false;
+    the caller must refine and recheck it before accepting a physical result.
+    Invalid evaluations, bracketing failures and work limits still raise.
     """
     _validate_root_inputs(
         filling=filling,
@@ -360,6 +378,7 @@ def solve_mu(
         mu_xtol=mu_tol,
         max_charge_evaluations=max_charge_evaluations,
         use_derivative=use_derivative,
+        allow_inexact=allow_inexact,
     )
     try:
         return solver.solve(initial_bracket=initial_bracket, mu_guess=mu_guess)

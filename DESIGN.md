@@ -109,6 +109,19 @@ search caches charge samples and accepts any sample meeting the filling target;
 continues until the filling target is met or floating-point resolution is reached. Charge-integration error and
 density trace are separate quantities and never add root acceptance tests.
 
+For adaptive FermiSimplex, the frozen-mesh filling search proposes a chemical
+potential. If a flat interpolated band skips the target, the completed search
+returns the closest endpoint of its final bracket with `converged=False`.
+That provisional result only starts adaptive charge integration; it is never
+accepted as the final density. The outer loop still requires the adaptive
+charge stopping error and filling residual to meet their separate targets
+before evaluating density. Invalid charge values, failed brackets, and exhausted
+work budgets still raise. Prescribed meshes retain strict root acceptance.
+If charge integration leaves the mesh unchanged and the filling still fails,
+raise a convergence error: repeating the same frozen search cannot improve it.
+This includes genuinely flat bands whose occupation jump skips the target;
+the fallback does not introduce fractional occupation of degenerate states.
+
 At fixed mu there is no root search. Adaptive FermiSimplex prepares the charge
 mesh at the supplied mu using the separate charge target before p-density
 integration so cut simplices are resolved; its charge error is reported. The

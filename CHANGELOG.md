@@ -31,6 +31,10 @@ MeanFi 2.0 redesigns the calculation API. Updating from 1.x requires code change
 - Set the default filling residual to one tenth of the charge-integration
   target. Small chemical-potential steps switch to a bracketed solve without
   stopping before the filling target is met.
+- Let adaptive FermiSimplex refine a provisional chemical potential when a
+  frozen-mesh occupation jump skips the requested filling. Final charge and
+  filling tolerances still apply; an unchanged mesh with unresolved filling
+  raises a convergence error instead of retrying indefinitely.
 
 - `Model` owns validated inputs, temperature and filling. Use its `mean_field`,
   `hamiltonian_from_meanfield` and `random_meanfield` methods to construct calculations.

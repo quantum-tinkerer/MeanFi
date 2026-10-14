@@ -7,7 +7,7 @@ import numpy as np
 from meanfi.density.filling import mu_bracket, solve_mu
 from meanfi.density.kpoint.zero_dim import evaluate_zero_dim
 from meanfi.density.problem import DensityProblem
-from meanfi.errors import ErrorValues
+from meanfi.errors import ConvergenceError, ErrorValues
 from meanfi.results import DensityResult
 from meanfi.tb.ops import to_dense
 from meanfi.hamiltonian import BlochHamiltonian, hamiltonian_dimension
@@ -74,14 +74,26 @@ def solve_simplex(
                 mu_tol=mu_tol,
                 max_charge_evaluations=remaining,
                 use_derivative=True,
+                allow_inexact=adaptive,
             )
             charge_evaluations += root.charge_evaluations
             mu = mu_guess = root.mu
             if not adaptive:
                 break
+            refinements_before = evaluator.work.refinements
             charge = evaluator.charge(mu, adaptive=True)
             if abs(charge.value - filling) <= tolerances.filling_residual:
                 break
+            if evaluator.work.refinements == refinements_before:
+                # Repeating the same frozen search on an unchanged mesh cannot
+                # improve this result (for example, a genuinely flat band).
+                raise ConvergenceError(
+                    "Adaptive fixed-filling search stalled on an unchanged mesh: "
+                    f"mu={mu}, charge={charge.value}, filling={filling}, "
+                    f"filling_tol={tolerances.filling_residual}, "
+                    f"charge_error={charge.stopping_error}. "
+                    "The requested filling remains unresolved."
+                )
 
     if filling is None and adaptive and problem.density_coordinates.value_count:
         # The p rule controls smooth projector variation, but cut occupations
