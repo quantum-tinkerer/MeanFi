@@ -115,11 +115,3 @@ The [design document](https://gitlab.kwant-project.org/qt/meanfi/-/blob/main/DES
   year = {2024}
 }
 ```
-
-For a continuum model, attach its constant physical momentum measure to the
-coordinate map: `BlochHamiltonian(h).transform(coordinates, measure=w)`. Returned
-densities, filling, energies and integral errors include w. Interaction couplings
-stay in physical units. Scalar tol applies to occupation fractions; explicit
-ErrorTolerances records use absolute physical units. Variable Jacobians are not
-supported. Density quadrature error and the density-cut estimate are separate;
-the latter remains a diagnostic, not an independently controlled tolerance.

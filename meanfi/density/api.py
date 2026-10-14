@@ -19,12 +19,6 @@ from meanfi.space.space import ActiveSCFSpace
 from meanfi.tb.validate import validate_tb_dict, validate_hermiticity
 
 
-def _momentum_measure(h):
-    if isinstance(h, Model):
-        return h.momentum_measure
-    return h.measure if isinstance(h, BlochHamiltonian) else 1.0
-
-
 def _density_problem(
     h,
     *,
@@ -121,9 +115,7 @@ def density_matrix_at_mu(
         spatial_symmetries=spatial_symmetries,
         mean_field=mean_field,
         integration=integration,
-        tolerances=resolve_error_tolerances(
-            tol, tolerance_policy, measure=_momentum_measure(h)
-        ),
+        tolerances=resolve_error_tolerances(tol, tolerance_policy),
     )
     result = evaluate_density(problem, mu=mu, compute_entropy=compute_free_energy)
     return _with_model_energy(h, result, mean_field) if isinstance(h, Model) else result
@@ -163,9 +155,7 @@ def density_matrix(
         if not isinstance(h, Model):
             raise ValueError("filling is required for a Hamiltonian input")
         filling = h.filling
-    tolerances = resolve_error_tolerances(
-        tol, tolerance_policy, measure=_momentum_measure(h)
-    )
+    tolerances = resolve_error_tolerances(tol, tolerance_policy)
     problem = _density_problem(
         h,
         kT=kT,

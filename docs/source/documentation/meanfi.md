@@ -115,11 +115,6 @@ required = model.required_coordinates
 - `BlochHamiltonian(function)` for a dense callable `function(kx, ky, ...)`.
   Coordinates are in radians. Required positional arguments determine dimension;
   the returned matrix at the origin determines the orbital count.
-  Use `BlochHamiltonian(h).transform(coordinates, measure=w)` for a constant-measure
-  continuum map. Physical density, filling, energy and integral-error outputs
-  include `w`; couplings and Hamiltonian energies retain their physical units.
-  Scalar `tol` remains an occupation-fraction target. Explicit `ErrorTolerances`
-  use absolute physical integral units, with `mu_tol` in energy units.
 - `BilinearInteraction(terms)` for finite-range normal-ordered bilinear products.
   Existing density-density dictionaries continue to work with either Hamiltonian.
 

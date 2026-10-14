@@ -106,7 +106,6 @@ class _DensityEntries:
 class DensityResult:
     """Density entries and metadata of the complete evaluated state.
 
-    Integral outputs include the physical measure of a transformed Hamiltonian.
     Fixed-filling results retain the charge-stage filling and root residual.
     At fixed mu, filling is derived from available density data or is None.
     Adaptive FermiSimplex also reports a charge-integration estimate at fixed
@@ -139,31 +138,6 @@ class DensityResult:
     _energy_evaluation: Callable[[], DensityResult] | None = field(
         default=None, repr=False, compare=False
     )
-
-    def _scaled_measure(self, measure: float) -> DensityResult:
-        """Convert normalized integral outputs without changing spectral units."""
-
-        def scaled(value):
-            return None if value is None else measure * value
-
-        pending = self._energy_evaluation
-        return replace(
-            self,
-            entries=_DensityEntries(
-                self.coordinates,
-                self.values * measure,
-                None if self.entry_errors is None else self.entry_errors * measure,
-            ),
-            filling=scaled(self.filling),
-            density_filling=scaled(self.density_filling),
-            band_energy=scaled(self.band_energy),
-            internal_energy=scaled(self.internal_energy),
-            entropy=scaled(self.entropy),
-            errors=self.errors.scaled(measure),
-            _energy_evaluation=None
-            if pending is None
-            else lambda: pending()._scaled_measure(measure),
-        )
 
     def _with_energy(self) -> DensityResult:
         """Finish a deferred observable on its original mesh, then release it."""

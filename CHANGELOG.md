@@ -31,9 +31,6 @@ MeanFi 2.0 redesigns the calculation API. Updating from 1.x requires code change
 - Set the default filling residual to one tenth of the charge-integration
   target. Small chemical-potential steps switch to a bracketed solve without
   stopping before the filling target is met.
-- Add `BlochHamiltonian.transform(coordinates, measure=...)` for constant-measure
-  domain maps. Density, filling, energy and error outputs use the physical measure;
-  continuum interaction coefficients no longer need a hidden momentum weight.
 - Replace FermiSimplex `initial_nk` with exact `initial_grid_level`; UniformGrid
   retains `initial_nk`. The selected simplex starting level is reported in statistics.
 - Let adaptive FermiSimplex refine a provisional chemical potential when a

@@ -23,19 +23,11 @@ Captured parameters must remain fixed during a calculation. Evaluations check
 shapes without scanning entries; finite Hermitian values are the caller's responsibility.
 
 Integration uses normalized measure `d^d k / (2 pi)^d` on `[0, 2 pi]^d`.
-`BlochHamiltonian.transform(coordinates, measure=w)` composes a constant-measure
-coordinate map and carries its total physical measure. Returned density entries,
-charge, energies, entropy and integral-error estimates carry w; chemical potential,
-temperature and Hamiltonian matrix values do not. Couplings stay in physical units.
-The maximum filling is w times the electron orbital count. Reference densities use
-that same measure; random-guess scale remains a normalized occupation fraction.
-Corrections and BdG wrapping preserve the measure. Maps with variable Jacobians
-remain unsupported; multiplying the Hamiltonian by a Jacobian changes the physics.
-Scalar tol applies the occupation-fraction policy and scales its density/charge
-budgets by w. An explicit ErrorTolerances record supplies absolute physical targets;
-mu_tol remains an energy step. One density boundary converts these targets and
-filling to normalized backend units and rescales results, including deferred energy,
-back to physical units. The integration algorithms and work counts are unchanged. Displacement keys denote Fourier moments in computational
+There are no domain objects or implicit Jacobians. Compose a continuum Hamiltonian
+with an equal-measure map, such as the tutorial's concentric square-to-disk map.
+A varying Jacobian requires weighted integration, which is not supported; multiplying
+the Hamiltonian by it changes the problem. Filling and couplings must share the
+chosen normalization. Displacement keys denote Fourier moments in computational
 coordinates, not automatically physical correlations on the transformed domain.
 
 `h_int` accepts the existing density-density dictionary or
@@ -177,9 +169,11 @@ charge mesh without new diagonalizations.
   integration temporarily applies its thread limit through that controller and
   restores the previous limit on exit. Repeated calls do not scan loaded
   libraries; unrelated runtimes loaded later are outside this controller.
+- Adaptive `FermiSimplex` starts at exact dyadic `initial_grid_level` (default 2),
+  with `2**L+1` vertices per axis at level L. Statistics report the resolved level.
 - `UniformGrid` uses dense diagonalization or sparse finite-temperature AAA.
   Adaptive integration compares coarse and fine grids, starting at four points
-  per axis. `nk` prescribes the total point count; `initial_grid_level` sets the dyadic starting
+  per axis. `nk` prescribes the total point count; `initial_nk` sets the starting
   count. Prescribed grids have no integration-error estimate.
 - Sparse AAA requires prescribed grids for periodic systems. It approximates the
   Fermi function, factors each pole once per matrix and mu, and obtains requested

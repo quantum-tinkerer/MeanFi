@@ -44,9 +44,7 @@ def solver(
     quadrature is deferred until termination; history energies can be None.
     """
 
-    tolerances = resolve_error_tolerances(
-        tol, tolerance_policy, measure=model.momentum_measure
-    )
+    tolerances = resolve_error_tolerances(tol, tolerance_policy)
     resolved_scf = scf if scf is not None else EnergyDIIS()
     if not isinstance(resolved_scf, (AndersonMixing, EnergyDIIS, LinearMixing)):
         raise TypeError("scf must be LinearMixing, EnergyDIIS, or AndersonMixing")
