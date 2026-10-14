@@ -62,11 +62,9 @@ MeanFi 2.0.0b1 requires exactly FermiSimplex 0.2.0b1. Its distribution metadata
 uses that version requirement, without a Git URL, so pip installs the matching
 published package and can use its platform wheel.
 
-While FermiSimplex 0.2.0b1 is unpublished, the Pixi-only development requirements
-pin its beta source commit. The lock file uses that commit for reproducible CI;
-it does not change the dependency in MeanFi's wheel. After FermiSimplex is on
-PyPI, remove the `fermisimplex` entry from `[tool.pixi.pypi-dependencies]` and run
-`pixi lock` to use the published distributions in the development environment.
+The Pixi development environment and lock file use the same published beta.
+FermiSimplex supplies wheels for Python 3.11–3.13 on Linux x86-64, Windows AMD64,
+and Intel/Apple Silicon macOS. No Git source override is needed.
 Do not restore a Git URL in `[project.dependencies]`:
 [PyPI rejects direct URL dependencies][direct-urls].
 
@@ -84,7 +82,7 @@ For a local, unpublished package check:
 python -m build
 python -m twine check dist/*
 python -m venv build/beta-env
-build/beta-env/bin/python -m pip install --find-links /path/to/fermisimplex/wheelhouse "meanfi==2.0.0b1" --find-links dist
+build/beta-env/bin/python -m pip install --only-binary=:all: --find-links dist "meanfi==2.0.0b1"
 build/beta-env/bin/python -m pip check
 ```
 

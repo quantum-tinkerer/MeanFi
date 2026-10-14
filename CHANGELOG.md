@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0b1] - Unreleased
+## [2.0.0b1] - 2026-10-15
 
 MeanFi 2.0 redesigns the calculation API. Updating from 1.x requires code changes.
 This first beta pins FermiSimplex 0.2.0b1 so the installation uses the matching

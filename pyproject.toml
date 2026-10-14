@@ -151,8 +151,6 @@ twine = ">=6"
 
 [tool.pixi.pypi-dependencies]
 meanfi = { path = ".", editable = true }
-# Development/CI bootstrap until the matching beta is available on PyPI.
-fermisimplex = { git = "https://gitlab.kwant-project.org/qt/lineartetrahedron.git", rev = "a73c1c4aae8d28d4f9c22f9edf6be9a27affc1fd" }
 
 
 [tool.pixi.environments]
