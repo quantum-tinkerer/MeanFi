@@ -90,8 +90,10 @@ error estimation. For example, `UniformGrid(nk=4)` uses $2\times2$ points in two
 dimensions; other requests round up to an isotropic $n^d$ grid. FermiSimplex
 counts boundary vertices and its mesh construction can overshoot `nk`.
 
-Without `nk`, `initial_nk` sets the starting mesh: defaults are $5^d$ simplex
-vertices or $4^d$ grid points. These are starting sizes, not accuracy guarantees.
+Without `nk`, FermiSimplex uses `initial_grid_level` (default 2): level $L$ has
+$2^L+1$ vertices per axis, including both boundary faces. Its actual starting
+level is reported in `statistics.initial_grid_level`. UniformGrid retains
+`initial_nk`, defaulting to $4^d$ points. These settings do not specify accuracy.
 Finite systems have no momentum integral and ignore grid settings with a warning.
 
 ## 5. Check convergence and update the density

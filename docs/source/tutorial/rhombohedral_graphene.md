@@ -76,15 +76,18 @@ def disk_hamiltonian(parameters):
     cutoff = parameters.cutoff
 
     @njit
-    def h(k1, k2):
-        qx, qy = compiled_disk_coordinates(k1, k2, cutoff)
+    def h(qx, qy):
         return constant + qx * hx + qy * hy
 
-    return h
+    @njit
+    def coordinates(k1, k2):
+        return compiled_disk_coordinates(k1, k2, cutoff)
+
+    return mf.BlochHamiltonian(h).transform(coordinates, measure=parameters.measure)
 
 
 parameters = Graphene()
-h0 = mf.BlochHamiltonian(disk_hamiltonian(parameters))
+h0 = disk_hamiltonian(parameters)
 ```
 
 MeanFi infers dimension and orbital count from the function and its matrix.
@@ -101,8 +104,9 @@ $$
 
 `BilinearTerm(g, A, B)` represents $g:(c^\dagger A c)(c^\dagger B c):$.
 The spin operators below use Pauli matrices without a factor of $1/2$.
-Because our density is a disk average, the paper's couplings must be multiplied
-by $w=(\sqrt3/2)\Lambda^2/(4\pi)$. Both valleys are already in the Hamiltonian.
+The transformation carries $w=(\sqrt3/2)\Lambda^2/(4\pi)$, so returned
+densities already use the physical momentum measure. The couplings below stay
+in the paper's units. Both valleys are already in the Hamiltonian.
 
 The complete interaction construction is:
 
@@ -112,7 +116,7 @@ PAULI = np.array([[[0, 1], [1, 0]], [[0, -1j], [1j, 0]], [[1, 0], [0, -1]]])
 VALLEYS = (np.diag([1.0, 0.0]), np.diag([0.0, 1.0]))
 
 
-def graphene_interaction(*, sites, u, v, hund, measure):
+def graphene_interaction(*, sites, u, v, hund):
     """Embed each sublattice's four-flavor operators in the full orbital space."""
     plus, minus = [np.kron(p, IDENTITY) for p in VALLEYS]
     terms = []
@@ -123,12 +127,12 @@ def graphene_interaction(*, sites, u, v, hund, measure):
             return np.kron(projector, operator)
 
         number = embed(np.eye(4))
-        terms.append(mf.BilinearTerm(measure * u / 2, number, number))
-        terms.append(mf.BilinearTerm(measure * v, embed(plus), embed(minus)))
+        terms.append(mf.BilinearTerm(u / 2, number, number))
+        terms.append(mf.BilinearTerm(v, embed(plus), embed(minus)))
         for spin in PAULI:
             terms.append(
                 mf.BilinearTerm(
-                    -measure * hund,
+                    -hund,
                     embed(np.kron(VALLEYS[0], spin)),
                     embed(np.kron(VALLEYS[1], spin)),
                 )
@@ -138,14 +142,15 @@ def graphene_interaction(*, sites, u, v, hund, measure):
 
 ```{code-cell} ipython3
 interaction = graphene_interaction(
-    sites=10, u=40.0, v=-8.0, hund=parameters.hund, measure=parameters.measure,
+    sites=10, u=40.0, v=-8.0, hund=parameters.hund,
 )
-model = mf.Model(h0, interaction, filling=20)
+model = mf.Model(h0, interaction, filling=20 * parameters.measure)
 ```
 
 ## Solve the parameter points
 
-The same loose tolerances apply to every solve. The fixed random seed makes
+The same loose occupation-fraction tolerances apply to every solve. Explicit
+absolute targets are converted by the physical momentum measure below. The fixed random seed makes
 runs reproducible; it does not prescribe a spin, valley or layer ordering.
 Different initial guesses can converge to different self-consistent states.
 The charge and smooth density tolerances are chosen for this qualitative phase
@@ -162,14 +167,16 @@ tol = replace(
 solutions = []
 for delta, hund in parameter_points:
     p = Graphene(delta=delta, hund=hund)
-    h0 = mf.BlochHamiltonian(disk_hamiltonian(p))
+    h0 = disk_hamiltonian(p)
     interaction = graphene_interaction(
-        sites=10, u=40.0, v=-8.0, hund=hund, measure=p.measure,
+        sites=10, u=40.0, v=-8.0, hund=hund,
     )
-    model = mf.Model(h0, interaction, filling=20)
+    model = mf.Model(h0, interaction, filling=20 * p.measure)
     guess = model.random_meanfield(rng=81, scale=0.025)
     result = mf.solver(
-        model, guess, integration=mf.FermiSimplex(), scf=mf.EnergyDIIS(), tol=tol,
+        model, guess, integration=mf.FermiSimplex(), scf=mf.EnergyDIIS(),
+        tol=replace(tol, **{name: value * p.measure for name, value in vars(tol).items()
+                           if name != "mu_tol"}),
     )
     solutions.append((p, result))
 

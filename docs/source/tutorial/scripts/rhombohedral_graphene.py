@@ -26,7 +26,7 @@ def disk_coordinates(k1, k2, cutoff):
     return radius * np.cos(angle), radius * np.sin(angle)
 
 
-def graphene_interaction(*, sites, u, v, hund, measure):
+def graphene_interaction(*, sites, u, v, hund):
     """Embed each sublattice's four-flavor operators in the full orbital space."""
     plus, minus = [np.kron(p, IDENTITY) for p in VALLEYS]
     terms = []
@@ -37,12 +37,12 @@ def graphene_interaction(*, sites, u, v, hund, measure):
             return np.kron(projector, operator)
 
         number = embed(np.eye(4))
-        terms.append(mf.BilinearTerm(measure * u / 2, number, number))
-        terms.append(mf.BilinearTerm(measure * v, embed(plus), embed(minus)))
+        terms.append(mf.BilinearTerm(u / 2, number, number))
+        terms.append(mf.BilinearTerm(v, embed(plus), embed(minus)))
         for spin in PAULI:
             terms.append(
                 mf.BilinearTerm(
-                    -measure * hund,
+                    -hund,
                     embed(np.kron(VALLEYS[0], spin)),
                     embed(np.kron(VALLEYS[1], spin)),
                 )
@@ -127,9 +127,9 @@ class Graphene:
         cartesian = self.affine_hamiltonian()
 
         def h(k1, k2):
-            return cartesian(*disk_coordinates(k1, k2, self.cutoff))
+            return disk_coordinates(k1, k2, self.cutoff)
 
-        return mf.BlochHamiltonian(h)
+        return mf.BlochHamiltonian(cartesian).transform(h, measure=self.measure)
 
     def model(self):
         interaction = graphene_interaction(
@@ -137,12 +137,11 @@ class Graphene:
             u=self.u,
             v=self.v,
             hund=self.hund,
-            measure=self.measure,
         )
         return mf.Model(
             self.bloch_hamiltonian(),
             interaction,
-            filling=4 * self.layers,
+            filling=4 * self.layers * self.measure,
         )
 
     def seed(self, name, *, amplitude=0.025, random_seed=81):

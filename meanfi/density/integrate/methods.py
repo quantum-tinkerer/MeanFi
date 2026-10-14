@@ -27,11 +27,12 @@ class IntegrationMethod:
     """Base class for Brillouin-zone integration strategies."""
 
 
-def _validate_mesh_settings(method):
+def _validate_mesh_settings(method, *, initial_name="initial_nk", minimum=1):
     _positive_integer("nk", method.nk, allow_none=True)
-    _positive_integer("initial_nk", method.initial_nk, allow_none=True)
-    if method.nk is not None and method.initial_nk is not None:
-        raise ValueError("nk and initial_nk are mutually exclusive")
+    initial = getattr(method, initial_name)
+    _positive_integer(initial_name, initial, allow_none=True, minimum=minimum)
+    if method.nk is not None and initial is not None:
+        raise ValueError(f"nk and {initial_name} are mutually exclusive")
     _positive_integer("max_points", method.max_points)
     _positive_integer(
         "max_refinements", method.max_refinements, allow_none=True, minimum=0
@@ -45,7 +46,8 @@ class FermiSimplex(IntegrationMethod):
     ``nk`` requests a total number of native mesh vertices, including distinct
     boundary vertices. Native dyadic construction may overshoot this request.
     Without ``nk``, use integration targets and adaptive refinement.
-    ``initial_nk`` sets the starting size; the default is 5**dimension vertices.
+    ``initial_grid_level`` sets the dyadic starting level (default 2). Level L
+    has 2**L intervals and 2**L+1 vertices per axis; zero is valid.
     Adaptive charge uses a shared quadratic occupation enclosure. Its
     interpolation remainder is sampled.
     Adaptive density starts with Q3-Q1, promotes odd-degree cubature up to
@@ -60,12 +62,12 @@ class FermiSimplex(IntegrationMethod):
     max_refinements: int | None = None
     num_threads: int | None = 1
     nk: int | None = None
-    initial_nk: int | None = None
+    initial_grid_level: int | None = None
     max_points: int = 1_048_576
     density_max_degree: int = 7
 
     def __post_init__(self):
-        _validate_mesh_settings(self)
+        _validate_mesh_settings(self, initial_name="initial_grid_level", minimum=0)
         _positive_integer("num_threads", self.num_threads, allow_none=True)
         degree = self.density_max_degree
         if (

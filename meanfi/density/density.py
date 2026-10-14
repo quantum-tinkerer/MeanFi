@@ -8,7 +8,8 @@ from dataclasses import replace
 
 import numpy as np
 
-from meanfi.errors import ConvergenceError, ErrorValues
+from meanfi.errors import ConvergenceError, ErrorValues, scale_tolerances
+from meanfi.hamiltonian import BlochHamiltonian
 
 from meanfi.density.integrate.methods import FermiSimplex
 from meanfi.density.integrate.simplex import solve_simplex
@@ -28,7 +29,12 @@ def evaluate_density(
 ) -> DensityResult:
     if (mu is None) == (filling is None):
         raise ValueError("Provide exactly one of mu and filling")
-    size = problem.electron_ndof or problem.density_coordinates.size
+    measure = (
+        problem.hamiltonian.measure
+        if isinstance(problem.hamiltonian, BlochHamiltonian)
+        else 1.0
+    )
+    size = (problem.electron_ndof or problem.density_coordinates.size) * measure
     if filling is not None and (not math.isfinite(filling) or not 0 <= filling <= size):
         raise ValueError(
             "filling must be finite and between zero and the orbital count"
@@ -64,15 +70,24 @@ def evaluate_density(
             if isinstance(problem.integration, FermiSimplex)
             else solve_periodic
         )
+        normalized = (
+            problem
+            if measure == 1.0
+            else replace(
+                problem, tolerances=scale_tolerances(problem.tolerances, 1.0 / measure)
+            )
+        )
         result = evaluate(
-            problem,
+            normalized,
             mu=mu,
-            filling=filling,
+            filling=None if filling is None else filling / measure,
             mu_tol=problem.tolerances.mu_tol,
             max_charge_evaluations=max_charge_evaluations,
             mu_guess=mu_guess,
             compute_entropy=compute_entropy,
         )
+        if measure != 1.0:
+            result = result._scaled_measure(measure)
         return replace(result, kT=problem.kT)
     except (ConvergenceError, NotImplementedError):
         raise

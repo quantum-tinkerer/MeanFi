@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 import numpy as np
@@ -14,7 +14,10 @@ class ConvergenceError(RuntimeError):
 
 @dataclass(frozen=True, kw_only=True)
 class ErrorTolerances:
-    """Absolute targets accepted as ``tol`` by density calculations and SCF.
+    """Absolute targets in the Hamiltonian's physical momentum measure.
+
+    Scalar ``tol`` is an occupation fraction; its policy scales the integral
+    budgets by the measure. Explicit records already use physical units.
 
     Omitted ``charge_integration`` takes ``density_matrix_integration``.
     ``mu_tol`` switches small Newton steps to a bracketed solve; only the
@@ -71,8 +74,35 @@ class ErrorValues:
                 raise ValueError(f"{name} must be a non-negative finite number")
             object.__setattr__(self, name, number)
 
+    def scaled(self, measure: float) -> ErrorValues:
+        """Convert integral errors to a different constant momentum measure."""
+        return replace(
+            self,
+            **{
+                name: None if value is None else measure * value
+                for name, value in self.__dict__.items()
+            },
+        )
+
 
 ToleranceFunction = Callable[[float], ErrorTolerances]
+
+
+def scale_tolerances(targets: ErrorTolerances, measure: float) -> ErrorTolerances:
+    """Scale density, charge and integrated matrix-function budgets, not energy."""
+    return replace(
+        targets,
+        **{
+            name: measure * getattr(targets, name)
+            for name in (
+                "scf_residual",
+                "density_matrix_integration",
+                "charge_integration",
+                "filling_residual",
+                "matrix_function_tol",
+            )
+        },
+    )
 
 
 def default_solver_tolerances(tol: float) -> ErrorTolerances:
@@ -90,6 +120,8 @@ def default_solver_tolerances(tol: float) -> ErrorTolerances:
 def resolve_error_tolerances(
     tol: float | ErrorTolerances,
     tolerance_policy: ToleranceFunction,
+    *,
+    measure: float = 1.0,
 ) -> ErrorTolerances:
     """Accept explicit targets or apply the scalar tolerance policy once."""
     if isinstance(tol, ErrorTolerances):
@@ -107,4 +139,4 @@ def resolve_error_tolerances(
     tolerances = tolerance_policy(tol)
     if not isinstance(tolerances, ErrorTolerances):
         raise TypeError("tolerance_policy must return ErrorTolerances")
-    return tolerances
+    return scale_tolerances(tolerances, measure)

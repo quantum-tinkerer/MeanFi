@@ -1,7 +1,9 @@
 """Hamiltonian representations on the normalized Brillouin zone."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, KW_ONLY
 from functools import wraps
 from inspect import Parameter, signature
 
@@ -37,15 +39,22 @@ class BlochHamiltonian:
     outputs; evaluations check shapes without scanning matrix entries.
     Keep captured parameters fixed during a calculation. Integration uses
     ``[0, 2*pi]^ndim`` with normalized measure; coordinate transformations do not
-    insert a Jacobian. BdG uses the partner momentum ``-k mod 2*pi``; a domain
+    insert a Jacobian automatically. ``transform`` carries a constant physical
+    measure explicitly. BdG uses the partner momentum ``-k mod 2*pi``; a domain
     wrapper must preserve this relation to physical momentum reversal.
     """
 
     function: Callable[..., np.ndarray]
+    _: KW_ONLY
+    measure: float = 1.0
     ndim: int = field(init=False)
     ndof: int = field(init=False)
 
     def __post_init__(self):
+        measure = float(self.measure)
+        if not np.isfinite(measure) or measure <= 0:
+            raise ValueError("measure must be finite and positive")
+        object.__setattr__(self, "measure", measure)
         if not callable(self.function):
             raise TypeError("function must be callable")
         try:
@@ -71,6 +80,25 @@ class BlochHamiltonian:
         if coordinates.shape != (self.ndim,):
             raise ValueError("Momentum coordinates must match ndim")
         return _square_matrix(self.function(*coordinates), ndof=self.ndof)
+
+    def transform(self, coordinates: Callable, *, measure: float) -> BlochHamiltonian:
+        """Pull back a Hamiltonian through an equal-measure coordinate map.
+
+        ``coordinates(*k)`` returns the arguments of this Hamiltonian. ``measure``
+        is the total measure relative to the normalized computational domain,
+        including physical unit conversions. Composition multiplies measures.
+        Only a constant measure is supported; variable Jacobians are not.
+        Densities, filling, energies and absolute errors carry the resulting
+        measure. Hamiltonian values, temperature and chemical potential do not.
+        """
+        if not callable(coordinates):
+            raise TypeError("coordinates must be callable")
+
+        @wraps(coordinates)
+        def transformed(*k):
+            return self(*coordinates(*k))
+
+        return BlochHamiltonian(transformed, measure=self.measure * measure)
 
 
 Hamiltonian = _tb_type | BlochHamiltonian
@@ -105,7 +133,7 @@ def add_correction(h: Hamiltonian, correction: _tb_type) -> Hamiltonian:
             onsite if onsite is not None else evaluate_correction(np.asarray(k))
         )
 
-    return BlochHamiltonian(corrected)
+    return BlochHamiltonian(corrected, measure=h.measure)
 
 
 def electron_to_bdg(h: Hamiltonian) -> Hamiltonian:
@@ -118,4 +146,4 @@ def electron_to_bdg(h: Hamiltonian) -> Hamiltonian:
         opposite = np.mod(-np.asarray(k), 2 * np.pi)
         return block_diag(h(*k), -h(*opposite).T)
 
-    return BlochHamiltonian(bdg)
+    return BlochHamiltonian(bdg, measure=h.measure)

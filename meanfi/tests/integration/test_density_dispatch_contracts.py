@@ -263,6 +263,7 @@ def test_adaptive_simplex_empty_density_selection_reports_no_density_call(monkey
     )
     mesh = SimpleNamespace(
         cached_vertices=5,
+        root_level=2,
         active_simplices=2,
         active_vertices=3,
     )

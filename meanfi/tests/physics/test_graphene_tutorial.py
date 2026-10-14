@@ -59,7 +59,6 @@ def test_inline_interaction_matches_exact_two_particle_energies(tutorial_definit
         u=40,
         v=-8,
         hund=5,
-        measure=1,
     )
     model = mf.Model({LOCAL: np.zeros((4, 4))}, interaction, filling=2)
     for occupations, expected in [([1, 0, 1, 0], 27), ([1, 0, 0, 1], 37)]:
@@ -75,14 +74,16 @@ def test_isolated_dimers_and_public_disk_integration():
     exact = occupied @ occupied.conj().T
     result = mf.density_matrix(
         p.bloch_hamiltonian(),
-        filling=20,
+        filling=20 * p.measure,
         keys=[LOCAL],
         integration=mf.FermiSimplex(nk=25),
         tol=1e-9,
     )
-    error = np.max(np.abs(result.to_tb()[LOCAL] - exact))
+    error = np.max(np.abs(result.to_tb()[LOCAL] - p.measure * exact))
     assert error < 2e-12, f"Constant-spectrum disk density error: {error}"
-    assert result.band_energy == pytest.approx(energies[:20].sum() / 40, abs=2e-14)
+    assert result.band_energy == pytest.approx(
+        p.measure * energies[:20].sum() / 40, abs=2e-14
+    )
     dimers = replace(p, delta=0)
     expected = [-0.38] * 16 + [0.0] * 8 + [0.38] * 16
     np.testing.assert_allclose(
@@ -114,7 +115,7 @@ def test_time_reversal_chiral_limit_and_offset_convention():
 
 
 def test_paper_hund_normalization_and_spin_rotation():
-    interaction = graphene_interaction(sites=1, u=40, v=-8, hund=5, measure=1)
+    interaction = graphene_interaction(sites=1, u=40, v=-8, hund=5)
     model = mf.Model({LOCAL: np.zeros((4, 4))}, interaction, filling=2)
     parallel = {LOCAL: np.diag([1.0, 0.0, 1.0, 0.0])}
     antiparallel = {LOCAL: np.diag([1.0, 0.0, 0.0, 1.0])}
@@ -140,7 +141,7 @@ def test_paper_hund_normalization_and_spin_rotation():
 def test_disk_map_measure_and_affine_hamiltonian():
     p = Graphene()
     assert p.measure == pytest.approx(0.0017642524653497347)
-    assert p.model().filling == 20
+    assert p.model().filling == 20 * p.measure
     np.testing.assert_allclose(
         disk_coordinates(np.pi, np.pi, p.cutoff), [0, 0], atol=1e-14
     )
@@ -213,24 +214,25 @@ def test_tutorial_parameter_points_converge_from_common_random_guess(tutorial_ca
     for delta, hund in [(-0.012, 10), (-0.015, 10), (-0.015, 5), (-0.019, 5)]:
         p = Graphene(delta=delta, hund=hund)
         model = mf.Model(
-            mf.BlochHamiltonian(tutorial_callback(p)),
-            graphene_interaction(sites=10, u=40, v=-8, hund=hund, measure=p.measure),
-            filling=20,
+            tutorial_callback(p),
+            graphene_interaction(sites=10, u=40, v=-8, hund=hund),
+            filling=20 * p.measure,
         )
         result = mf.solver(
             model,
             model.random_meanfield(rng=81, scale=0.025),
             integration=mf.FermiSimplex(),
             scf=mf.EnergyDIIS(),
-            tol=tol,
+            tol=mf.errors.scale_tolerances(tol, p.measure),
         )
         assert result.converged
         assert result.density.statistics.requested_nk is None
         assert result.density.statistics.error_estimate_available
         assert (
-            result.errors.density_matrix_integration <= tol.density_matrix_integration
+            result.errors.density_matrix_integration
+            <= p.measure * tol.density_matrix_integration
         )
-        assert result.errors.scf_residual <= tol.scf_residual
+        assert result.errors.scf_residual <= p.measure * tol.scf_residual
         assert np.isfinite(result.internal_energy)
 
 
@@ -267,7 +269,7 @@ def test_tutorial_numba_callback_matches_original_model(tutorial_callback):
     maximum = 0.0
     for p in [Graphene(), Graphene(layers=3, cutoff=0.2, delta=0.03)]:
         reference = p.bloch_hamiltonian()
-        actual = mf.BlochHamiltonian(tutorial_callback(p))
+        actual = tutorial_callback(p)
         for point in points:
             maximum = max(
                 maximum, float(np.max(abs(actual(*point) - reference(*point))))

@@ -122,7 +122,7 @@ def test_disk_map_against_analytic_dirac_density():
         filling=filling,
         keys=[(0, 0)],
         tol=5e-4,
-        integration=mf.FermiSimplex(initial_nk=81, max_points=100_000),
+        integration=mf.FermiSimplex(initial_grid_level=3, max_points=100_000),
     )
     mu = np.sqrt(mass**2 + filling - 1)
     polarization = 2 * mass * (np.sqrt(mass**2 + 1) - mu)

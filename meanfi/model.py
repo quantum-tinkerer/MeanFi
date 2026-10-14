@@ -49,7 +49,8 @@ class Model:
 
     ``reference`` subtracts the normal and pairing reference densities from
     the mean-field correction. A normal reference has zero pairing in a BdG
-    model. Filling counts electrons per unit cell.
+    model. Filling counts electrons per unit cell, with the momentum measure
+    carried by a transformed Hamiltonian. Reference densities use the same measure.
     """
 
     h_0: Hamiltonian
@@ -80,7 +81,8 @@ class Model:
                 "Hamiltonian and interaction must have the same dimension and matrix size"
             )
         filling, kT = float(self.filling), float(self.kT)
-        if not np.isfinite(filling) or not 0 <= filling <= ndof:
+        measure = h_0.measure if callable_h else 1.0
+        if not np.isfinite(filling) or not 0 <= filling <= ndof * measure:
             raise ValueError(
                 "filling must be finite and between zero and the orbital count"
             )
@@ -157,6 +159,11 @@ class Model:
             )
         object.__setattr__(self, "_space", space)
         object.__setattr__(self, "_reference_state", reference_state)
+
+    @property
+    def momentum_measure(self) -> float:
+        """Total physical momentum measure; one for an ordinary Brillouin zone."""
+        return self._h_0.measure if isinstance(self._h_0, BlochHamiltonian) else 1.0
 
     @property
     def required_coordinates(self) -> DensityCoordinates:
@@ -260,12 +267,16 @@ class Model:
         )
 
     def random_meanfield(self, rng=None, scale: float = 1.0) -> _tb_type:
-        """Sample a solver-ready mean-field correction in this model's SCF space."""
+        """Sample a solver-ready field; scale is an occupation fraction per state."""
 
         generator = (
             rng if isinstance(rng, np.random.Generator) else np.random.default_rng(rng)
         )
-        params = float(scale) * generator.standard_normal(self._space.num_params)
+        params = (
+            float(scale)
+            * self.momentum_measure
+            * generator.standard_normal(self._space.num_params)
+        )
         meanfield_input = self._space.density_from_params(params)
         return interaction_correction(
             meanfield_input, self._h_int, electron_ndof=self._electron_ndof

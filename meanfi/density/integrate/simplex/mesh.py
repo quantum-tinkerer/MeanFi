@@ -27,13 +27,16 @@ def _spectral_mesh(
     h: Hamiltonian,
     *,
     nk: int | None = None,
+    initial_grid_level: int | None = None,
     max_points: int | None = None,
 ) -> SpectralMesh:
     # FermiSimplex's dyadic root mesh includes both faces of the unit cell.
     # Its native construction gives (2**level + 1)**dimension distinct nodes.
     dimension = hamiltonian_dimension(h)
     # Three vertices alias the first cosine harmonic with its midpoint preview.
-    level = 2 if nk is None else 0
+    level = (
+        (2 if initial_grid_level is None else initial_grid_level) if nk is None else 0
+    )
     while nk is not None and (2**level + 1) ** dimension < nk:
         level += 1
     nodes = (2**level + 1) ** dimension
@@ -235,9 +238,8 @@ class SimplexEvaluator:
         self.settings = problem.integration
         self.mesh = _spectral_mesh(
             problem.hamiltonian,
-            nk=self.settings.nk
-            if self.settings.nk is not None
-            else self.settings.initial_nk,
+            nk=self.settings.nk,
+            initial_grid_level=self.settings.initial_grid_level,
             max_points=self.settings.max_points,
         )
         self.work = _Work()
@@ -371,6 +373,7 @@ class SimplexEvaluator:
             error_estimate_available=self.settings.nk is None,
             num_threads=self.settings.num_threads,
             requested_nk=self.settings.nk,
+            initial_grid_level=mesh.root_level,
             n_kpoints=int(mesh.active_vertices),
             n_diagonalizations=int(work.diagonalizations),
             charge_evaluations=charge_evaluations,

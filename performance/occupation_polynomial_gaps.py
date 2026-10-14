@@ -82,7 +82,7 @@ def run_intervals():
             return np.array([[poly(x)]], complex)
 
         values, vectors = np.linalg.eigh(np.array([model(0), model(1)]))
-        old = certify_simplex(values, vectors, linearization_error_bound=0)
+        old = certify_simplex(values, vectors, remainder_bound=0)
         q2 = Polynomial.fit([0, 0.5, 1], poly([0, 0.5, 1]), 2).convert()
         defect_min, defect_max = extrema(poly - q2)
         exact_defect = max(abs(defect_min), abs(defect_max))
