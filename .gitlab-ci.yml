@@ -50,11 +50,15 @@ check installed wheel:
     - |
       build/wheel-env/bin/python -I - <<'PY'
       from pathlib import Path
+      from importlib.metadata import distribution
       import sys
       import numpy as np
       import meanfi
 
       assert Path(meanfi.__file__).is_relative_to(Path(sys.prefix))
+      package = distribution("meanfi")
+      assert package.version == meanfi.__version__
+      assert not any(" @ " in requirement for requirement in package.requires)
       density = meanfi.density_matrix_at_mu(
           {(): np.diag([-1., 1.])}, mu=0., keys=[()]
       )

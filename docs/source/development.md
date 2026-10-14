@@ -6,8 +6,10 @@ builds a native extension; Pixi supplies the compiler and build tools. The
 [design document](design.md) describes the implementation contracts and verification
 assumptions.
 
-For `pip install .`, provide Git and a C++20 compiler. FermiSimplex's build
-isolation installs its declared Python build tools. Native builds use bundled
+For `pip install .`, install the matching FermiSimplex beta from PyPI first, or
+provide its wheel with `--find-links` when testing unpublished distributions.
+Building FermiSimplex from source requires Git and a C++20 compiler; its build
+isolation installs the declared Python build tools. Native builds use bundled
 OpenBLAS on Linux/Windows and Accelerate on macOS, and vendor the AdaptiveSimplex
 mesh engine. No separate mesh-engine checkout is needed. The optional `sparse` and `kwant`
 extras also need their native libraries
@@ -56,18 +58,36 @@ belong in ignored `build/` or CI artifacts, not in version control.
 
 ## FermiSimplex release prerequisite
 
-MeanFi pins an immutable FermiSimplex commit in `pyproject.toml` and `pixi.lock`.
-It provides the shared occupation enclosure, certificate reuse, adaptive
-polynomial density cubature and retained spectral snapshots used by the adapter.
-Checkout and direct-wheel installations use this same source dependency.
+MeanFi 2.0.0b1 requires exactly FermiSimplex 0.2.0b1. Its distribution metadata
+uses that version requirement, without a Git URL, so pip installs the matching
+published package and can use its platform wheel.
 
-[PyPI rejects direct URL dependencies][direct-urls]. Before publishing MeanFi
-there, replace the Git requirement with a compatible FermiSimplex release,
-refresh the lock and rerun the installation and numerical checks.
+While FermiSimplex 0.2.0b1 is unpublished, the Pixi-only development requirements
+pin its beta source commit. The lock file uses that commit for reproducible CI;
+it does not change the dependency in MeanFi's wheel. After FermiSimplex is on
+PyPI, remove the `fermisimplex` entry from `[tool.pixi.pypi-dependencies]` and run
+`pixi lock` to use the published distributions in the development environment.
+Do not restore a Git URL in `[project.dependencies]`:
+[PyPI rejects direct URL dependencies][direct-urls].
 
 [direct-urls]: https://setuptools.pypa.io/en/latest/userguide/dependency_management.html#direct-url-dependencies
 
-The published FermiSimplex 0.1.0 is not compatible: its `SpectralMesh` lacks
+FermiSimplex 0.1.0 is not compatible: its `SpectralMesh` lacks
 `integrate_density_components` and `occupied_weights`, both required by this
-adapter. Keep the working Git pin until a release includes these APIs; changing
-only the dependency version would break zero-temperature calculations.
+adapter. Publish and verify FermiSimplex 0.2.0b1 before publishing MeanFi 2.0.0b1.
+The compatible source APIs and the complete presentation notebook must pass
+against the built wheels before release tags are created.
+
+For a local, unpublished package check:
+
+```bash
+python -m build
+python -m twine check dist/*
+python -m venv build/beta-env
+build/beta-env/bin/python -m pip install --find-links /path/to/fermisimplex/wheelhouse "meanfi==2.0.0b1" --find-links dist
+build/beta-env/bin/python -m pip check
+```
+
+These commands build and install local artifacts; they do not upload packages.
+The existing tag-triggered CI publishing jobs are reserved for an approved
+release. Preparing a beta branch does not require a release tag or a PyPI upload.
