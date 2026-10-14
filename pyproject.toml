@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "FermiSimplex @ git+https://gitlab.kwant-project.org/qt/lineartetrahedron.git@10c2ba8d6dbdfeea1b9d4df7185af6a6389fea88",
+    "FermiSimplex==0.2.0b1",
     "numpy>=2.0",
     "scipy>=1.13",
     "threadpoolctl>=3.0",
@@ -30,9 +30,6 @@ dependencies = [
 
 [tool.hatch.version]
 path = "meanfi/_version.py"
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["meanfi"]
@@ -154,6 +151,8 @@ twine = ">=6"
 
 [tool.pixi.pypi-dependencies]
 meanfi = { path = ".", editable = true }
+# Development/CI bootstrap until the matching beta is available on PyPI.
+fermisimplex = { git = "https://gitlab.kwant-project.org/qt/lineartetrahedron.git", rev = "a73c1c4aae8d28d4f9c22f9edf6be9a27affc1fd" }
 
 
 [tool.pixi.environments]
