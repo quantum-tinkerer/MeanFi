@@ -90,7 +90,10 @@ def density_benchmarks(size, repeat, sparse, initial_nk):
         filling = float(expected[:size].real.sum())
         calculations = [
             ("fixed-mu", lambda: mf.density_matrix_at_mu(hamiltonian, mu, **kwargs)),
-            ("fixed-filling", lambda: mf.density_matrix(hamiltonian, filling, **kwargs)),
+            (
+                "fixed-filling",
+                lambda: mf.density_matrix(hamiltonian, filling, **kwargs),
+            ),
         ]
         for constraint, calculate in calculations:
             record = measure(

@@ -3,7 +3,12 @@
 import numpy as np
 import pytest
 
-from meanfi import BlochHamiltonian, FermiSimplex, default_solver_tolerances, density_matrix
+from meanfi import (
+    BlochHamiltonian,
+    FermiSimplex,
+    default_solver_tolerances,
+    density_matrix,
+)
 from meanfi.density.density import evaluate_density
 from meanfi.density.filling import solve_mu
 from meanfi.density.integrate.simplex.mesh import SimplexEvaluator
@@ -30,7 +35,9 @@ def step_root(**overrides):
 
 @pytest.mark.parametrize("use_derivative", [False, True])
 @pytest.mark.parametrize("filling", [0.1, 0.5, 0.9])
-def test_provisional_root_is_closest_to_target_and_next_to_jump(filling, use_derivative):
+def test_provisional_root_is_closest_to_target_and_next_to_jump(
+    filling, use_derivative
+):
     result = step_root(
         allow_inexact=True, filling=filling, use_derivative=use_derivative
     )
