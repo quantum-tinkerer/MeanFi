@@ -59,6 +59,8 @@ using the same total-point units; it cannot be combined with `nk`. The solver's 
 convergence. Zero-temperature `UniformGrid` supports fixed-mu evaluation only,
 with explicit `nk` for periodic systems. Its fixed-filling searches (including SCF)
 raise `NotImplementedError`; use `FermiSimplex` for normal zero-temperature models.
+FermiSimplex starts at an exact dyadic `initial_grid_level` (default 2); level L
+has `2**L+1` vertices per axis and is reported in the result statistics.
 For individual targets, pass an `ErrorTolerances` record as `tol`; method objects
 contain mesh, backend and resource settings only.
 

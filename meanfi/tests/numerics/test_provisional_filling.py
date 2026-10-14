@@ -84,7 +84,9 @@ def pocket_problem(*, tol=1e-3, shift=0.0, prescribed=False):
         BlochHamiltonian(hamiltonian),
         kT=0.0,
         keys=[(0, 0)],
-        integration=FermiSimplex(nk=4) if prescribed else FermiSimplex(initial_nk=4),
+        integration=FermiSimplex(nk=4)
+        if prescribed
+        else FermiSimplex(initial_grid_level=0),
         tolerances=default_solver_tolerances(tol),
     )
 

@@ -28,6 +28,7 @@ class IntegrationInfo:
     n_kpoints: int
     n_kernel_evals: int
     requested_nk: int | None = None
+    initial_grid_level: int | None = None
     n_diagonalizations: int = 0
     refinements: int = 0
     p_refinements: int = 0

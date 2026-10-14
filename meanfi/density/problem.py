@@ -113,13 +113,18 @@ def resolve_integration(hamiltonian, *, kT, integration=None, superconducting=Fa
     )
     finite = hamiltonian_dimension(hamiltonian) == 0
     if finite and integration is not None:
-        if integration.nk is not None or integration.initial_nk is not None:
+        initial_name = (
+            "initial_grid_level"
+            if isinstance(integration, FermiSimplex)
+            else "initial_nk"
+        )
+        if integration.nk is not None or getattr(integration, initial_name) is not None:
             warnings.warn(
-                "Finite systems do not use nk or initial_nk; these settings are ignored.",
+                f"Finite systems do not use nk or {initial_name}; these settings are ignored.",
                 UserWarning,
                 stacklevel=3,
             )
-            integration = replace(integration, nk=None, initial_nk=None)
+            integration = replace(integration, nk=None, **{initial_name: None})
     if integration is None:
         if sparse:
             raise ValueError(

@@ -184,10 +184,11 @@ def test_nonfinite_mu_rejected_for_a_finite_simplex_system():
 
 @pytest.mark.parametrize("method", [FermiSimplex, UniformGrid])
 def test_starting_mesh_and_fixed_mesh_are_distinct(method):
+    name = "initial_grid_level" if method is FermiSimplex else "initial_nk"
     with pytest.raises(ValueError, match="mutually exclusive"):
-        method(nk=16, initial_nk=8)
-    with pytest.raises(ValueError, match="initial_nk"):
-        method(initial_nk=0)
+        method(nk=16, **{name: 3})
+    with pytest.raises(ValueError, match=name):
+        method(**{name: -1 if method is FermiSimplex else 0})
     with pytest.raises(TypeError):
         method(16)
 
@@ -198,7 +199,7 @@ def test_simplex_initial_mesh_matches_analytic_constant_density():
         h,
         0,
         keys=[(0,)],
-        integration=FermiSimplex(initial_nk=17),
+        integration=FermiSimplex(initial_grid_level=4),
     )
     np.testing.assert_allclose(result.to_tb()[(0,)], np.diag([1.0, 0.0]), atol=1e-14)
     assert result.statistics.n_kpoints >= 17
@@ -241,3 +242,14 @@ def test_empty_fixed_mu_request_does_no_matrix_work(monkeypatch, finite, backend
     assert result.errors.matrix_function_error is None
     assert result.statistics.n_kpoints == result.statistics.n_diagonalizations == 0
     assert result.statistics.n_kernel_evals == 0
+
+
+@pytest.mark.parametrize("level", [0, 1, 3])
+def test_initial_grid_level_has_an_exact_reported_meaning(level):
+    h = {(0, 0): np.diag([-1.0, 1.0])}
+    result = density_matrix_at_mu(
+        h, 0, keys=[(0, 0)], integration=FermiSimplex(initial_grid_level=level)
+    )
+    assert result.statistics.initial_grid_level == level
+    assert result.statistics.n_kpoints == (2**level + 1) ** 2
+    np.testing.assert_allclose(result.values, np.diag([1.0, 0.0]).ravel(), atol=1e-14)

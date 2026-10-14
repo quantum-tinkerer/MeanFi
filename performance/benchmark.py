@@ -41,7 +41,7 @@ def measure(name, calculation, reference, repeat):
     return record
 
 
-def density_benchmarks(size, repeat, sparse, initial_nk):
+def density_benchmarks(size, repeat, sparse, initial_grid_level):
     # H(k) = A - 2 cos(k) I: its eigenvectors are k independent, so an
     # independent reference needs only one diagonalization of A.
     onsite = np.diag(np.linspace(-0.8, 0.8, size))
@@ -71,7 +71,13 @@ def density_benchmarks(size, repeat, sparse, initial_nk):
     # This checks the reference itself, not a claimed bound for the estimator.
     assert reference_difference < 1e-12
     cases = [
-        ("simplex", h, 0.0, mf.FermiSimplex(initial_nk=initial_nk), zero_temperature),
+        (
+            "simplex",
+            h,
+            0.0,
+            mf.FermiSimplex(initial_grid_level=initial_grid_level),
+            zero_temperature,
+        ),
         ("dense-grid", h, 0.2, mf.UniformGrid(nk=64), thermal),
     ]
     if sparse:
@@ -139,7 +145,9 @@ def main():
     parser.add_argument("--sizes", type=int, nargs="+", default=[32, 128])
     parser.add_argument("--repeat", type=int, default=3)
     parser.add_argument(
-        "--initial-nk", type=int, help="starting simplex mesh, in total points"
+        "--initial-grid-level",
+        type=int,
+        help="initial dyadic simplex grid level (2**level intervals per axis)",
     )
     parser.add_argument(
         "--sparse",
@@ -156,7 +164,9 @@ def main():
         records = []
         for size in args.sizes:
             records.extend(
-                density_benchmarks(size, args.repeat, args.sparse, args.initial_nk)
+                density_benchmarks(
+                    size, args.repeat, args.sparse, args.initial_grid_level
+                )
             )
         records.extend(scf_benchmarks(args.repeat))
         report = {
@@ -174,7 +184,7 @@ def main():
                 "sparse": args.sparse,
                 "tol": 1e-3,
                 "threads": 1,
-                "initial_nk": args.initial_nk,
+                "initial_grid_level": args.initial_grid_level,
             },
             "benchmarks": records,
         }

@@ -159,7 +159,7 @@ def test_adaptive_simplex_charge_mesh_storage_limit_is_checked():
             _chain(),
             mu=0.2,
             keys=[(0,), (1,)],
-            integration=FermiSimplex(initial_nk=3, max_points=3),
+            integration=FermiSimplex(initial_grid_level=1, max_points=3),
             tol=replace(
                 default_solver_tolerances(1e-3),
                 density_matrix_integration=1e-3,
@@ -334,7 +334,7 @@ def test_adaptive_density_hp_bisects_without_changing_charge_filling():
         mu=mu,
         keys=[(0,), (1,)],
         integration=FermiSimplex(
-            initial_nk=3, density_max_degree=3, max_refinements=400
+            initial_grid_level=1, density_max_degree=3, max_refinements=400
         ),
         tol=replace(
             default_solver_tolerances(1e-4),

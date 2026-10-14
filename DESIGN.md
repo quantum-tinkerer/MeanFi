@@ -169,6 +169,8 @@ charge mesh without new diagonalizations.
   integration temporarily applies its thread limit through that controller and
   restores the previous limit on exit. Repeated calls do not scan loaded
   libraries; unrelated runtimes loaded later are outside this controller.
+- Adaptive `FermiSimplex` starts at exact dyadic `initial_grid_level` (default 2),
+  with `2**L+1` vertices per axis at level L. Statistics report the resolved level.
 - `UniformGrid` uses dense diagonalization or sparse finite-temperature AAA.
   Adaptive integration compares coarse and fine grids, starting at four points
   per axis. `nk` prescribes the total point count; `initial_nk` sets the starting
