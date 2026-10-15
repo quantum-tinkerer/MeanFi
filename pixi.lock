@@ -16655,7 +16655,7 @@ packages:
 - pypi: .
   name: meanfi
   requires_dist:
-  - fermisimplex==0.2.0b1
+  - fermisimplex>=0.2.0b1,<=0.2.0b2
   - numpy>=2.0
   - scipy>=1.13
   - threadpoolctl>=3.0

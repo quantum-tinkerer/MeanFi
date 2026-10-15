@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "FermiSimplex==0.2.0b1",
+    "FermiSimplex>=0.2.0b1,<=0.2.0b2",
     "numpy>=2.0",
     "scipy>=1.13",
     "threadpoolctl>=3.0",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.0b2] - 2026-10-15
+
+- Accept FermiSimplex 0.2.0b1 and 0.2.0b2, including the optional Pyodide build
+  in b2. Keep native installations compatible with the first beta.
+- The pure-Python wheel also works with the matching FermiSimplex browser wheel;
+  no numerical algorithms or public interfaces change.
+
 ## [2.0.0b1] - 2026-10-15
 
 MeanFi 2.0 redesigns the calculation API. Updating from 1.x requires code changes.
