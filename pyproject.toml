@@ -70,6 +70,9 @@ channels = ["https://prefix.dev/conda-forge"]
 platforms = ["linux-64", "osx-64", "win-64", "osx-arm64"]
 
 [tool.pixi.dependencies]
+pip = ">=26.2.2"
+certifi = ">=2026.10.19"
+ca-certificates = ">=2026.10.19"
 cmake = ">=3.25"
 nanobind = ">=2.2"
 ninja = ">=1.11"

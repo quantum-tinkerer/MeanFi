@@ -1,4 +1,4 @@
-image: ghcr.io/prefix-dev/pixi:0.70.2
+image: ghcr.io/prefix-dev/pixi:0.72.1
 
 variables:
   PIXI_LOCKED: "true"
@@ -8,6 +8,7 @@ variables:
   MKL_NUM_THREADS: "1"
 
 before_script:
+  - !reference [.tls-trust, before_script]
   - pixi global install git
 
 run tests:
@@ -153,3 +154,8 @@ publish to pypi:
     key: "$CI_JOB_NAME"
     paths:
         - .pixi
+
+include:
+- project: qt/ci
+  ref: 6206078f05b154de82c569a20aa6b3dff137212e
+  file: /TLS.gitlab-ci.yml
